@@ -1,0 +1,11 @@
+(executable
+ (name main)
+ (public_name kanon)
+ (package kanon)
+ (libraries ppxlib fmt zarith))
+
+(menhir
+ (modules kanon_parser))
+
+(ocamllex
+ (modules kanon_lexer))

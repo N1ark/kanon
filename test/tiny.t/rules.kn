@@ -1,0 +1,32 @@
+prim equal : t -> t -> bool
+prim ty : t -> ty
+prim kind : t -> kind
+oracle tag_le : t -> t -> bool
+prim int : int -> t
+prim v_true : t
+prim v_false : t
+
+fn of_bool (b : bool) : t = if b then v_true else v_false
+
+rule plus (v1 v2 : t) : Plus (v1, v2) <| TInt =
+  match v1 + v2 with
+  | lits: #x + #y -> int (x + y)
+  | zero: x + 0 -> x
+  | default: _ -> Plus (v1, v2) <| TInt
+
+rule not_ (v : t) : Not v <| TBool =
+  match v with
+  | lit: true -> v_false
+  | not_not: not x -> x
+  | default: _ -> Not v <| TBool
+
+rule and_ (v1 v2 : t) : And (v1, v2) <| TBool =
+  match v1 && v2 with
+  | not_: x && not y when equal x y -> v_false
+  | default: _ -> And (v1, v2) <| TBool
+
+rule eq (v1 v2 : t) : Eq (v1, v2) <| TBool =
+  match v1 == v2 with
+  | same: x == x -> v_true
+  | lits: #x == #y -> of_bool (x = y)
+  | default: _ -> Eq (v1, v2) <| TBool

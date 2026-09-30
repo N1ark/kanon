@@ -1,0 +1,5 @@
+(library
+ (name ppx_include_file)
+ (public_name kanon.ppx_include_file)
+ (kind ppx_rewriter)
+ (libraries ppxlib))

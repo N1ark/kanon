@@ -1,0 +1,6 @@
+version=0.29.0
+ocaml-version = 5.5
+break-infix=wrap-or-vertical
+doc-comments=before
+infix-precedence=parens
+wrap-comments=true
