@@ -41,6 +41,12 @@ then the `.kn` files (the rules), each in order, and writes on standard output:
   (see [Proofs](#proofs)); `lean-all` writes each of them, `F.lean`, to
   `F.lean.gen` in the current directory.
 
+A `FILE` of the form `+name` is the file `name` of the modules built into
+`kanon` (see [Modules and examples](#modules-and-examples)): `kanon ocaml
+lang.knl +bool.knl int.knl +bool.kn int.kn` reads `modules/bool.knl` and
+`modules/bool.kn` from the binary, as `bool.knl` and `bool.kn` (in the
+locations of errors and the headers of the generated files).
+
 The ppx `kanon.ppx_include_file` includes the generated OCaml:
 `[%%include_file "rules.gen.ml"]` is the structure of `rules.gen.ml`, a file
 next to the current one, as `include struct ... end`, so that it is compiled
@@ -344,3 +350,33 @@ evaluation and their refinement, for any language.
 `kanon ocaml-tests` generates, for every rule function, its spec, a call to it
 and the name of the rule that fires, from random arguments, to be compared by
 evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
+
+## Modules and examples
+
+- `modules/bool.knl` and `modules/bool.kn` are an optional module of booleans:
+  boolean literals, `Not`, `And`, `Or`, equality (`Eq`), conditionals (`Ite`)
+  and `Distinct`, with their rules (the rule functions `b_not`, `b_and`,
+  `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct`). They are built
+  into `kanon`, as `+bool.knl` and `+bool.kn`. A language that includes the
+  module places its nodes in its types, and declares the type `TBool`; the
+  modules above it can add rules to its rule functions with `extend rule`, and
+  literals to its helper `sure_neq` with `extend fn`. It is the bool module of
+  soteria's `Bv_values` and `Tiny_values`.
+- `examples/bool/` is a complete example language, made of the bool module
+  alone, to start from: `lang.knl` declares its types and places the nodes of
+  the module in them, and `lean/` is the Lean proof of its rules (the package
+  `bool_example`, library `BoolExample`), which uses Kanon's library from this
+  repository. Its generated files are committed: `dune test` checks that they
+  are up to date (`dune promote` updates them). Its hand-written files are the
+  semantics of the language (`Semantics.lean`: values are booleans, poison is
+  `none`), its primitives (`Prims.lean`), the tactics of its proofs
+  (`Lib/Lift.lean`: `kanon_congr`; `Lib/Rule.lean`: `kanon_comm` and
+  `kanon_auto`, which proves an arm by case analysis on the values of the
+  subterms it does not inspect) and the proofs of the arms of `b_distinct`
+  (`Proofs.lean`). To check it:
+
+  ```
+  cd examples/bool/lean
+  lake build
+  lake env lean check_axioms.lean  # must not mention sorryAx
+  ```

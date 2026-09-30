@@ -1,2 +1,6 @@
 (cram
  (deps %{bin:kanon}))
+
+(cram
+ (applies_to builtin)
+ (deps %{project_root}/examples/bool/lang.knl))

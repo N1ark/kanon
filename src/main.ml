@@ -14,7 +14,10 @@
 
     The output is written on standard output, except for [lean-all], which
     writes every Lean file [F.lean] of the above to [F.lean.gen], in the current
-    directory. *)
+    directory.
+
+    A file [+name] is the built-in module file [name] (e.g. [+bool.knl] and
+    [+bool.kn], the files of [modules/]). *)
 
 (** The generated Lean files, with the backend of each. *)
 let lean_files ~lang ~sources prog =
@@ -46,10 +49,31 @@ let lean_files ~lang ~sources prog =
 
 let usage () =
   prerr_endline
-    "usage: kanon (ocaml | ocaml-check | ocaml-tests | lean-types | \
-     lean-syntax | lean-signatures | lean-typing | lean-model | \
-     lean-statements | lean-lifts | lean-soundness | lean-all) FILE...";
+    ("usage: kanon (ocaml | ocaml-check | ocaml-tests | lean-types | \
+      lean-syntax | lean-signatures | lean-typing | lean-model | \
+      lean-statements | lean-lifts | lean-soundness | lean-all) FILE...\n\
+      A FILE +name is a built-in module file: "
+    ^ String.concat ", " (List.map (fun (n, _) -> "+" ^ n) Builtin.files));
   exit 2
+
+(** The name of the built-in module file that [f] names ([+name]), if any. *)
+let builtin f =
+  if String.starts_with ~prefix:"+" f then
+    Some (String.sub f 1 (String.length f - 1))
+  else None
+
+let parse_file f =
+  match builtin f with
+  | None -> Check.parse_file f
+  | Some name -> (
+      match List.assoc_opt name Builtin.files with
+      | Some s -> Check.parse_string ~file:name s
+      | None ->
+          Format.eprintf "kanon: %s: no such built-in module file@." f;
+          usage ())
+
+(** The name of the file [f] in the headers of the generated files. *)
+let source_name f = Filename.basename (Option.value (builtin f) ~default:f)
 
 let () =
   match Array.to_list Sys.argv with
@@ -59,14 +83,14 @@ let () =
           List.partition (fun f -> Filename.check_suffix f ".knl") files
         in
         if langs = [] then usage ();
-        Check.language (List.concat_map Check.parse_file langs);
+        Check.language (List.concat_map parse_file langs);
         let prog =
           lazy
             (if files = [] then usage ();
-             Check.program (List.concat_map Check.parse_file files))
+             Check.program (List.concat_map parse_file files))
         in
-        let lang = List.map Filename.basename langs in
-        let sources = List.map Filename.basename files in
+        let lang = List.map source_name langs in
+        let sources = List.map source_name files in
         let lean = lean_files ~lang ~sources prog in
         match backend with
         | "ocaml" ->

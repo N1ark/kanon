@@ -2455,15 +2455,19 @@ let program (str : structure) : program =
   in
   { prims; fns; typing = typings env0 }
 
-let parse_file file : structure =
-  let ic = open_in_bin file in
-  let lexbuf = Lexing.from_channel ic in
+(** Parses the Kanon file [file], read from [lexbuf]. *)
+let parse ~file lexbuf : structure =
   Lexing.set_filename lexbuf file;
   let at p = { loc_start = p; loc_end = p; loc_ghost = false } in
+  try Kanon_parser.file Kanon_lexer.token lexbuf with
+  | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
+  | Kanon_parser.Error -> raise (Error (at lexbuf.lex_start_p, "syntax error"))
+
+let parse_file file : structure =
+  let ic = open_in_bin file in
   Fun.protect
     ~finally:(fun () -> close_in ic)
-    (fun () ->
-      try Kanon_parser.file Kanon_lexer.token lexbuf with
-      | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
-      | Kanon_parser.Error ->
-          raise (Error (at lexbuf.lex_start_p, "syntax error")))
+    (fun () -> parse ~file (Lexing.from_channel ic))
+
+(** Parses the contents [s] of the Kanon file [file]. *)
+let parse_string ~file s : structure = parse ~file (Lexing.from_string s)

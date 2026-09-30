@@ -742,7 +742,8 @@ let header ~sources ft imports =
   List.iter (fun i -> pf ft "import %s@ " i) imports;
   pf ft
     "@ set_option linter.unusedVariables false@ set_option maxHeartbeats \
-     1000000@ @ noncomputable section@ @ namespace %s@ @ open Classical Kanon@ @ "
+     1000000@ @ noncomputable section@ @ namespace %s@ @ open Classical Kanon@ \
+     @ "
     (root ())
 
 (** The parameter a recursive helper recurses on: the first variable its body
@@ -1008,7 +1009,8 @@ let lifts ~sources ft (p : program) =
         f.name
         (String.concat " " (List.map prime f.params));
       if List.exists term f.params then
-        pf ft "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s)@]@ @ "
+        pf ft
+          "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s)@]@ @ "
           (String.concat ", " ("kanon_spec" :: helpers))
           f.name
           (String.concat " " (List.map prime f.params))
@@ -1055,8 +1057,8 @@ let cases_proofs ft (f : fn) =
       (* the alternatives come out of [repeat' rcases] in order *)
       pf ft
         "@[<v 2>theorem %s.r_%s.proof : %s.r_%s.Stmt := by@ intro%s O hO %a \
-         res h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h \
-         with h | h@ %a@]@ @ "
+         res h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h with h \
+         | h@ %a@]@ @ "
         f.name (id r) f.name (id r) (sem_args ()) args f f.name (id r)
         (Format.pp_print_list
            ~pp_sep:(fun ft () -> pf ft "@ ")
@@ -1087,8 +1089,8 @@ let soundness ~sources ~proofs ft (p : program) =
           let _, _, g = r in
           let n = id (rule_name f g) in
           pf ft
-            "refine Refinement.firstSome_cons (fun res h => %s.r_%s.proof%s O hO \
-             %a res h) ?_@ "
+            "refine Refinement.firstSome_cons (fun res h => %s.r_%s.proof%s O \
+             hO %a res h) ?_@ "
             f.name n (sem_args ()) args f)
         (rules f);
       pf ft "exact Refinement.firstSome_nil@]@ @ ")

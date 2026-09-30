@@ -1,0 +1,145 @@
+(* The bool module, at the bottom of every language: booleans, equality, [Ite]
+   and [Distinct]. The modules above it add their rules to its rule functions
+   with [extend rule], and their literals to [sure_neq] with [extend fn].
+
+   Primitives are implemented by hand by each language, in OCaml and in Lean.
+   Oracles have no Lean definition: the Lean model is parameterised by them,
+   and the properties that the proofs rely on are stated with the language.
+   Here, they are the hash-consing order. *)
+
+(* {1 Primitives} *)
+
+(* Terms *)
+prim equal : t -> t -> bool
+prim ty : t -> ty
+prim kind : t -> kind
+
+(* Whether [l] comes before [r] in the (arbitrary) hash-consing order. *)
+oracle tag_le : t -> t -> bool
+
+(* Sorts terms along the hash-consing order. *)
+oracle sort_by_tag : t list -> t list
+
+prim v_true : t
+prim v_false : t
+
+(* {1 Helpers} *)
+
+fn of_bool (b : bool) : t = if b then v_true else v_false
+
+(* [mk_commut_binop op l r] puts commutative binary operators in some normal
+   form where the element with the smallest tag is on the left. *)
+fn mk_commut_binop (op : binop) (l r : t) : kind =
+  if tag_le l r then Binop (op, l, r) else Binop (op, r, l)
+
+(* whether [a] and [b] surely have different values: the modules above add
+   their literals *)
+fn sure_neq (a b : t) : bool =
+  (not (ty a = ty b))
+  ||
+  match (a, b) with
+  | Bool a, Bool b -> not (a = b)
+  | _ -> false
+
+fn at_most_one (l : t list) : bool =
+  match l with [] | [ _ ] -> true | _ -> false
+
+(* {1 Rules} *)
+
+rule b_and (v1 v2 : t) : And (v1, v2) <| TBool =
+  match v1 && v2 with
+  | false_: false && _ -> v_false
+  | true_: true && x -> x
+  (* p && !p <=> false *)
+  | not: p && not p -> v_false
+  (* (a && b) && a <=> a && b *)
+  | and_: (a && _ as x) && a -> x
+  (* (a || b) && a <=> a *)
+  | or_: (a || _) && a -> a
+  (* [a == x && a == y] with [x] and [y] surely different *)
+  | eq_neq: a == x && a == y when sure_neq x y -> v_false
+  | default: _ -> mk_commut_binop And v1 v2 <| TBool
+
+rule b_or (v1 v2 : t) : Or (v1, v2) <| TBool =
+  match v1 || v2 with
+  | true_: true || _ -> v_true
+  | false_: false || x -> x
+  (* p || !p <=> true *)
+  | not: p || not p -> v_true
+  | or_: (a || _ as x) || a -> x
+  (* (a && b) || a <=> a *)
+  | and_: (a && _) || a -> a
+  | default: _ -> mk_commut_binop Or v1 v2 <| TBool
+
+rule b_not (sv : t) : Not sv <| TBool =
+  match sv with
+  | true_: true -> v_false
+  | false_: false -> v_true
+  | not: not sv -> sv
+  | or_: v1 || v2 -> not v1 && not v2
+  | and_: v1 && v2 -> not v1 || not v2
+  | ite: Ite (g, a, b) -> b_ite g (not a) (not b)
+  | distinct: Distinct [ l; r ] -> l == r
+  | default: _ -> Not sv <| TBool
+
+rule b_ite (guard if_ else_ : t) : Ite (guard, if_, else_) <| ty if_ =
+  match (guard, if_, else_) with
+  | true_: true, _, _ -> if_
+  | false_: false, _, _ -> else_
+  | bool: _, true, false -> guard
+  | not_bool: _, false, true -> not guard
+  | false_then: _, false, _ -> not guard && else_
+  | true_then: _, true, _ -> guard || else_
+  | false_else: _, _, false -> guard && if_
+  | true_else: _, _, true -> not guard || if_
+  | not_guard: not g, _, _ -> b_ite g else_ if_
+  | guard_then: g, g, _ -> guard || else_
+  | guard_else: g, _, g -> guard && if_
+  | ite_then: g, Ite (g, x, _), _ -> b_ite guard x else_
+  | ite_else: g, _, Ite (g, _, y) -> b_ite guard if_ y
+  | and_ite_then: g && _, Ite (g, x, _), _ -> b_ite guard x else_
+  | or_ite_else: g || _, _, Ite (g, _, y) -> b_ite guard if_ y
+  | same: _, x, x -> if_
+  | default: _ -> Ite (guard, if_, else_) <| ty if_
+
+rule sem_eq (v1 v2 : t) : Eq (v1, v2) <| TBool =
+  match v1 == v2 with
+  | same: v == v -> v_true
+  | bools: Bool b1 == Bool b2 -> of_bool (b1 = b2)
+  (* distributing over a shared guard lets the branches cancel pairwise *)
+  | ite_ite: Ite (b, l, r) == Ite (b, l', r') -> b_ite b (l == l') (r == r')
+  | false_: false == x -> not x
+  | true_: true == x -> x
+  | nots: not b == not c -> b == c
+  | default: _ -> mk_commut_binop Eq v1 v2 <| TBool
+
+rule sem_eq_untyped (v1 v2 : t) : Eq (v1, v2) <| TBool =
+  match (v1, v2) with
+  | ill_typed: _ when not (ty v1 = ty v2) -> v_false
+  | typed: _ -> v1 == v2
+
+(* [distinct_check_one a rest] and [distinct_check l] go through the pairs of
+   elements in order, and stop at the first pair that is equal ([Some false])
+   or not surely different ([None]). *)
+fn distinct_check_one (a : t) (rest : t list) : bool option =
+  match rest with
+  | [] -> Some true
+  | b :: rest ->
+      if equal a b then Some false
+      else if sure_neq a b then distinct_check_one a rest
+      else None
+
+fn distinct_check (l : t list) : bool option =
+  match l with
+  | [] -> Some true
+  | a :: rest -> (
+      match distinct_check_one a rest with
+      | Some true -> distinct_check rest
+      | r -> r)
+
+rule b_distinct (l : t list) : Distinct l <| TBool =
+  match l with
+  | small: _ when at_most_one l -> v_true
+  | distinct: _ when distinct_check l = Some true -> v_true
+  | not_distinct: _ when distinct_check l = Some false -> v_false
+  | default: _ -> Distinct (sort_by_tag l) <| TBool

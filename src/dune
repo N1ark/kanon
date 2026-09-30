@@ -9,3 +9,20 @@
 
 (ocamllex
  (modules kanon_lexer))
+
+; The modules of modules/, built into kanon: [+bool.knl] on the command line
+; is modules/bool.knl.
+
+(rule
+ (target builtin.ml)
+ (deps ../modules/bool.knl ../modules/bool.kn)
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "(** The built-in modules: the files of [modules/], by name. *)\n")
+    (echo "let files = [\n  (\"bool.knl\", {kanon|")
+    (cat ../modules/bool.knl)
+    (echo "|kanon});\n  (\"bool.kn\", {kanon|")
+    (cat ../modules/bool.kn)
+    (echo "|kanon});\n]\n")))))

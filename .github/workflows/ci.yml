@@ -38,7 +38,7 @@ jobs:
         run: opam exec -- dune build @fmt
 
   lean:
-    name: Check the Lean library
+    name: Check the Lean library and the example language
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -54,3 +54,16 @@ jobs:
 
       - name: Build
         run: lake build
+
+      - name: Build the proofs of the example language
+        working-directory: examples/bool/lean
+        run: lake build
+
+      - name: Check that no proof of the example language is missing
+        working-directory: examples/bool/lean
+        run: |
+          lake env lean check_axioms.lean | tee axioms.txt
+          if grep -q sorryAx axioms.txt; then
+            echo "::error::Some rules of examples/bool are not proved"
+            exit 1
+          fi
