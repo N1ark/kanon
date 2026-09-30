@@ -99,7 +99,7 @@ laws on its operators, and no parameters for its semantics.
   
   namespace Kanon
   
-  open Classical
+  open Classical Kanon
   
   /-- Every rule function refines its spec. -/
     structure Ops.Sound (O : Ops) : Prop where
@@ -307,28 +307,28 @@ laws on its operators, and no parameters for its semantics.
   
   namespace Kanon
   
-  open Classical
+  open Classical Kanon
   
   theorem plus.r_lits.main.ok : plus.r_lits.main.Stmt := kanon_proof% plus.r_lits.main
   
   theorem plus.r_lits.proof : plus.r_lits.Stmt := by
     intro O hO v1 v2 res h
     simp only [plus.r_lits] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (plus.r_lits.main.ok O hO)
   
   theorem plus.r_zero.main.ok : plus.r_zero.main.Stmt := kanon_proof% plus.r_zero.main
   
   theorem plus.r_zero.swap.ok : plus.r_zero.swap.Stmt := by
     intro O hO v2 kanon__2 t__3 hg
-    exact Refines.trans
+    exact Refinement.trans
       (by simp only [plus.spec, ty, Term.ty_mk]; kanon_comm)
       (plus.r_zero.main.ok O hO v2 kanon__2 t__3 hg)
   
   theorem plus.r_zero.proof : plus.r_zero.Stmt := by
     intro O hO v1 v2 res h
     simp only [plus.r_zero] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (plus.r_zero.main.ok O hO)
     · kanon_arm h (plus.r_zero.swap.ok O hO)
   
@@ -337,7 +337,7 @@ laws on its operators, and no parameters for its semantics.
   theorem plus.r_default.proof : plus.r_default.Stmt := by
     intro O hO v1 v2 res h
     simp only [plus.r_default] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (plus.r_default.main.ok O hO)
   
   theorem not_.r_lit.main.ok : not_.r_lit.main.Stmt := kanon_proof% not_.r_lit.main
@@ -345,7 +345,7 @@ laws on its operators, and no parameters for its semantics.
   theorem not_.r_lit.proof : not_.r_lit.Stmt := by
     intro O hO v res h
     simp only [not_.r_lit] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (not_.r_lit.main.ok O hO)
   
   theorem not_.r_not_not.main.ok : not_.r_not_not.main.Stmt := kanon_proof% not_.r_not_not.main
@@ -353,7 +353,7 @@ laws on its operators, and no parameters for its semantics.
   theorem not_.r_not_not.proof : not_.r_not_not.Stmt := by
     intro O hO v res h
     simp only [not_.r_not_not] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (not_.r_not_not.main.ok O hO)
   
   theorem not_.r_default.main.ok : not_.r_default.main.Stmt := kanon_proof% not_.r_default.main
@@ -361,21 +361,21 @@ laws on its operators, and no parameters for its semantics.
   theorem not_.r_default.proof : not_.r_default.Stmt := by
     intro O hO v res h
     simp only [not_.r_default] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (not_.r_default.main.ok O hO)
   
   theorem and_.r_true_.main.ok : and_.r_true_.main.Stmt := kanon_proof% and_.r_true_.main
   
   theorem and_.r_true_.swap.ok : and_.r_true_.swap.Stmt := by
     intro O hO v2 t__3
-    exact Refines.trans
+    exact Refinement.trans
       (by simp only [and_.spec, ty, Term.ty_mk]; kanon_comm)
       (and_.r_true_.main.ok O hO v2 t__3)
   
   theorem and_.r_true_.proof : and_.r_true_.Stmt := by
     intro O hO v1 v2 res h
     simp only [and_.r_true_] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (and_.r_true_.main.ok O hO)
     · kanon_arm h (and_.r_true_.swap.ok O hO)
   
@@ -383,14 +383,14 @@ laws on its operators, and no parameters for its semantics.
   
   theorem and_.r_false_.swap.ok : and_.r_false_.swap.Stmt := by
     intro O hO v2 t__3
-    exact Refines.trans
+    exact Refinement.trans
       (by simp only [and_.spec, ty, Term.ty_mk]; kanon_comm)
       (and_.r_false_.main.ok O hO v2 t__3)
   
   theorem and_.r_false_.proof : and_.r_false_.Stmt := by
     intro O hO v1 v2 res h
     simp only [and_.r_false_] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (and_.r_false_.main.ok O hO)
     · kanon_arm h (and_.r_false_.swap.ok O hO)
   
@@ -399,21 +399,21 @@ laws on its operators, and no parameters for its semantics.
   theorem and_.r_same.proof : and_.r_same.Stmt := by
     intro O hO v1 v2 res h
     simp only [and_.r_same] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (and_.r_same.main.ok O hO)
   
   theorem and_.r_not_.main.ok : and_.r_not_.main.Stmt := kanon_proof% and_.r_not_.main
   
   theorem and_.r_not_.swap.ok : and_.r_not_.swap.Stmt := by
     intro O hO v2 y t__4 hg
-    exact Refines.trans
+    exact Refinement.trans
       (by simp only [and_.spec, ty, Term.ty_mk]; kanon_comm)
       (and_.r_not_.main.ok O hO v2 y t__4 hg)
   
   theorem and_.r_not_.proof : and_.r_not_.Stmt := by
     intro O hO v1 v2 res h
     simp only [and_.r_not_] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (and_.r_not_.main.ok O hO)
     · kanon_arm h (and_.r_not_.swap.ok O hO)
   
@@ -422,7 +422,7 @@ laws on its operators, and no parameters for its semantics.
   theorem and_.r_default.proof : and_.r_default.Stmt := by
     intro O hO v1 v2 res h
     simp only [and_.r_default] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (and_.r_default.main.ok O hO)
   
   theorem eq.r_same.main.ok : eq.r_same.main.Stmt := kanon_proof% eq.r_same.main
@@ -430,7 +430,7 @@ laws on its operators, and no parameters for its semantics.
   theorem eq.r_same.proof : eq.r_same.Stmt := by
     intro O hO v1 v2 res h
     simp only [eq.r_same] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (eq.r_same.main.ok O hO)
   
   theorem eq.r_lits.main.ok : eq.r_lits.main.Stmt := kanon_proof% eq.r_lits.main
@@ -438,7 +438,7 @@ laws on its operators, and no parameters for its semantics.
   theorem eq.r_lits.proof : eq.r_lits.Stmt := by
     intro O hO v1 v2 res h
     simp only [eq.r_lits] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (eq.r_lits.main.ok O hO)
   
   theorem eq.r_default.main.ok : eq.r_default.main.Stmt := kanon_proof% eq.r_default.main
@@ -446,52 +446,52 @@ laws on its operators, and no parameters for its semantics.
   theorem eq.r_default.proof : eq.r_default.Stmt := by
     intro O hO v1 v2 res h
     simp only [eq.r_default] at h
-    repeat' rcases Lib.orElse_some h with h | h
+    repeat' rcases orElse_some h with h | h
     · kanon_arm h (eq.r_default.main.ok O hO)
   
   theorem plus.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (plus.spec v1 v2) (plus.step O v1 v2) := by
     unfold plus.step
-    refine Refines.firstSome_cons (fun res h => plus.r_lits.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => plus.r_zero.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => plus.r_default.proof O hO v1 v2 res h) ?_
-    exact Refines.firstSome_nil
+    refine Refinement.firstSome_cons (fun res h => plus.r_lits.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => plus.r_zero.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => plus.r_default.proof O hO v1 v2 res h) ?_
+    exact Refinement.firstSome_nil
   
   theorem not_.step_sound (O : Ops) (hO : O.Sound) (v : Term) :
     Refines (not_.spec v) (not_.step O v) := by
     unfold not_.step
-    refine Refines.firstSome_cons (fun res h => not_.r_lit.proof O hO v res h) ?_
-    refine Refines.firstSome_cons (fun res h => not_.r_not_not.proof O hO v res h) ?_
-    refine Refines.firstSome_cons (fun res h => not_.r_default.proof O hO v res h) ?_
-    exact Refines.firstSome_nil
+    refine Refinement.firstSome_cons (fun res h => not_.r_lit.proof O hO v res h) ?_
+    refine Refinement.firstSome_cons (fun res h => not_.r_not_not.proof O hO v res h) ?_
+    refine Refinement.firstSome_cons (fun res h => not_.r_default.proof O hO v res h) ?_
+    exact Refinement.firstSome_nil
   
   theorem and_.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (and_.spec v1 v2) (and_.step O v1 v2) := by
     unfold and_.step
-    refine Refines.firstSome_cons (fun res h => and_.r_true_.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => and_.r_false_.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => and_.r_same.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => and_.r_not_.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => and_.r_default.proof O hO v1 v2 res h) ?_
-    exact Refines.firstSome_nil
+    refine Refinement.firstSome_cons (fun res h => and_.r_true_.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_false_.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_same.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_not_.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_default.proof O hO v1 v2 res h) ?_
+    exact Refinement.firstSome_nil
   
   theorem eq.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (eq.spec v1 v2) (eq.step O v1 v2) := by
     unfold eq.step
-    refine Refines.firstSome_cons (fun res h => eq.r_same.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => eq.r_lits.proof O hO v1 v2 res h) ?_
-    refine Refines.firstSome_cons (fun res h => eq.r_default.proof O hO v1 v2 res h) ?_
-    exact Refines.firstSome_nil
+    refine Refinement.firstSome_cons (fun res h => eq.r_same.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => eq.r_lits.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => eq.r_default.proof O hO v1 v2 res h) ?_
+    exact Refinement.firstSome_nil
   
   /-- Every rule function refines its spec, for any amount of fuel. -/
     theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
     ∀ n, (opsN orc n).Sound
     | 0 =>
       { orc := h,
-        plus := fun v1 v2 => Refines.refl,
-        not_ := fun v => Refines.refl,
-        and_ := fun v1 v2 => Refines.refl,
-        eq := fun v1 v2 => Refines.refl }
+        plus := fun v1 v2 => Refinement.refl,
+        not_ := fun v => Refinement.refl,
+        and_ := fun v1 v2 => Refinement.refl,
+        eq := fun v1 v2 => Refinement.refl }
     | n + 1 =>
       have hO := opsN_sound orc h n
       { orc := hO.orc,

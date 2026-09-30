@@ -742,7 +742,7 @@ let header ~sources ft imports =
   List.iter (fun i -> pf ft "import %s@ " i) imports;
   pf ft
     "@ set_option linter.unusedVariables false@ set_option maxHeartbeats \
-     1000000@ @ noncomputable section@ @ namespace %s@ @ open Classical@ @ "
+     1000000@ @ noncomputable section@ @ namespace %s@ @ open Classical Kanon@ @ "
     (root ())
 
 (** The parameter a recursive helper recurses on: the first variable its body
@@ -1008,7 +1008,7 @@ let lifts ~sources ft (p : program) =
         f.name
         (String.concat " " (List.map prime f.params));
       if List.exists term f.params then
-        pf ft "Refines.trans (by simp only [%s]; kanon_congr) (hO.%s %s)@]@ @ "
+        pf ft "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s)@]@ @ "
           (String.concat ", " ("kanon_spec" :: helpers))
           f.name
           (String.concat " " (List.map prime f.params))
@@ -1044,7 +1044,7 @@ let cases_proofs ft (f : fn) =
               let hg = if a.a_case.guard = None then "" else " hg" in
               pf ft
                 "@[<v 2>theorem %s.ok : %s.Stmt := by@ intro%s O hO %a%s@ \
-                 exact Refines.trans@   (by simp only [%s.spec, ty, \
+                 exact Refinement.trans@   (by simp only [%s.spec, ty, \
                  Term.ty_mk]; kanon_comm)@   (%s.ok%s O hO %a%s)@]@ @ "
                 (arm_name f r arms i) (arm_name f r arms i) (sem_args ())
                 (list ~sep:" " (fun ft (x, _) -> pf ft "%s" x))
@@ -1055,7 +1055,7 @@ let cases_proofs ft (f : fn) =
       (* the alternatives come out of [repeat' rcases] in order *)
       pf ft
         "@[<v 2>theorem %s.r_%s.proof : %s.r_%s.Stmt := by@ intro%s O hO %a \
-         res h@ simp only [%s.r_%s] at h@ repeat' rcases Lib.orElse_some h \
+         res h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h \
          with h | h@ %a@]@ @ "
         f.name (id r) f.name (id r) (sem_args ()) args f f.name (id r)
         (Format.pp_print_list
@@ -1087,11 +1087,11 @@ let soundness ~sources ~proofs ft (p : program) =
           let _, _, g = r in
           let n = id (rule_name f g) in
           pf ft
-            "refine Refines.firstSome_cons (fun res h => %s.r_%s.proof%s O hO \
+            "refine Refinement.firstSome_cons (fun res h => %s.r_%s.proof%s O hO \
              %a res h) ?_@ "
             f.name n (sem_args ()) args f)
         (rules f);
-      pf ft "exact Refines.firstSome_nil@]@ @ ")
+      pf ft "exact Refinement.firstSome_nil@]@ @ ")
     (rule_fns ctx);
   pf ft
     "@[<v 2>/-- Every rule function refines its spec, for any amount of fuel. \
@@ -1100,7 +1100,7 @@ let soundness ~sources ~proofs ft (p : program) =
     \    { orc := h"
     (sem_binders ()) (sem_args ()) (sem_args ());
   List.iter
-    (fun f -> pf ft ",\n      %s := fun %a => Refines.refl" f.name args f)
+    (fun f -> pf ft ",\n      %s := fun %a => Refinement.refl" f.name args f)
     (rule_fns ctx);
   pf ft
     " }\n  | n + 1 =>\n    have hO := opsN_sound%s orc h n\n    { orc := hO.orc"

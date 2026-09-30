@@ -298,11 +298,32 @@ The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
 - `Soundness.lean` proves each rule from its alternatives, and every function
   from its rules, up to `R.opsN_sound`: the whole simplifier is sound.
 
-They import the modules `R.Abstract`, `R.Prims`, `R.Semantics`, `R.Lib.Lift`,
-`R.Lib.Rule` and `R.Proofs`, written by hand for the language, which define the
-primitives, the semantics of terms and the refinement `Refines`, and the
-attribute `kanon_spec` and the tactics `kanon_proof%`, `kanon_arm`,
-`kanon_comm` and `kanon_congr` that the generated proofs use.
+They build on Kanon's Lean library, `lean/` (the package `kanon`, library
+`KanonCore`, namespace `Kanon`, which they open), and on modules written by
+hand for the language: `R.Abstract` (the abstract types), `R.Prims` (the
+primitives), `R.Semantics` (the semantics of terms, the parameters of
+`[@@@lean_param]`, the refinement `Refines`, `Ops.Sound`'s `Oracle.Compat`),
+`R.Lib.Lift`, `R.Lib.Rule` and `R.Proofs` (the proofs).
+
+The library gives what does not depend on the language:
+
+- `whenSome` and `firstSome`, with which the model is written, and
+  `orElse_some`;
+- `Refinement R`, the class of refinement relations (reflexive and
+  transitive), of which the language gives an instance for `Refines`, and the
+  lemmas `Refinement.firstSome_nil` and `Refinement.firstSome_cons`, with which
+  the soundness of a rule function follows from that of its rules;
+- the attributes `kanon_spec` (the specs, which the rule tactics unfold),
+  `kanon_tactic "tac"` (on the spec of a rule function: the tactic that proves
+  its arms) and `kanon_arm` (on a theorem: the hand-written proof of an arm);
+- `kanon_proof% X`, the proof of the arm `X`: its hand-written proof, or the
+  tactic of its function, or `kanon_auto`; and the tactic `kanon_arm`, the proof
+  of a rule from those of its arms.
+
+The language gives the tactics `kanon_auto` (the default proof of an arm),
+`kanon_comm` (refinement up to the order of the operands of commutative
+operators) and `kanon_congr` (refinement by congruence), which the library
+declares, with `macro_rules`.
 
 An alternative (an arm) is one case of a rule, after expanding its or-patterns
 and the swaps of commutative operands; its statement is over the variables of
@@ -315,8 +336,8 @@ rule has several cases; an arm with no choice is `main`. An alternative that
 only swaps commutative operands is proved from the unswapped one, if its guard
 and body do not depend on the swap.
 
-`lean/` is the generic Lean core of Kanon (a trial): terms, their evaluation
-and their refinement, for any language (the module `KanonCore.Lang`).
+`KanonCore.Lang`, in the library, is a trial of a generic core: terms, their
+evaluation and their refinement, for any language.
 
 ## Tests
 

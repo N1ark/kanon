@@ -1,8 +1,8 @@
 name = "kanon"
 defaultTargets = ["KanonCore"]
 
-# The generic Lean core of Kanon (a trial): terms, their evaluation and
-# refinement, for any language, in the namespace Kanon.Core.
+# The Lean library of Kanon: what the generated proofs of every language need
+# (KanonCore), and the generic core of terms, a trial (KanonCore.Lang).
 [[lean_lib]]
 name = "KanonCore"
-roots = ["KanonCore.Lang"]
+roots = ["KanonCore", "KanonCore.Lang"]
