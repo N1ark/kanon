@@ -39,22 +39,16 @@ fn at_most_one (l : t list) : bool =
 rule b_and : And (v1, v2) =
   | false_: false && _ -> v_false
   | true_: true && x -> x
-  (* p && !p <=> false *)
   | not: p && not p -> v_false
-  (* (a && b) && a <=> a && b *)
   | and_: (a && _ as x) && a -> x
-  (* (a || b) && a <=> a *)
   | or_: (a || _) && a -> a
-  (* [a == x && a == y] with [x] and [y] surely different *)
   | eq_neq: a == x && a == y when sure_neq x y -> v_false
 
 rule b_or : Or (v1, v2) =
   | true_: true || _ -> v_true
   | false_: false || x -> x
-  (* p || !p <=> true *)
   | not: p || not p -> v_true
   | or_: (a || _ as x) || a -> x
-  (* (a && b) || a <=> a *)
   | and_: (a && _) || a -> a
 
 rule b_not : Not sv =
