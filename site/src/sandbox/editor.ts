@@ -26,9 +26,9 @@ import { classHighlighter } from "@lezer/highlight";
 import type { KanonSyntax } from "../highlight/kanon";
 import { kanonHighlighting } from "../highlight/kanon-cm";
 import { leanLanguage, ocamlLanguage, type CodeLanguage } from "../highlight/languages";
-import { renderMarkdown } from "../markdown";
+import { renderMarkdown } from "../lib/markdown";
 import type { LspClient, Position, Range } from "../runtime/lsp";
-import { debounce } from "../util";
+import { debounce } from "../lib/util";
 
 export function toOffset(doc: Text, p: Position): number {
   const line = doc.line(Math.max(1, Math.min(p.line + 1, doc.lines)));
@@ -45,33 +45,71 @@ export function toOffsets(doc: Text, r: Range): { from: number; to: number } {
   return { from, to: Math.max(from, toOffset(doc, r.end)) };
 }
 
+/** CodeMirror in purr's tokens, so that it follows the theme. */
 export const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--fg)", fontSize: "13.5px" },
+  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--color2)", fontSize: "var(--fs-sm)" },
   ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.55" },
-  ".cm-content": { caretColor: "var(--fg)" },
-  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg)" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--selection) !important" },
-  ".cm-gutters": { backgroundColor: "var(--surface)", color: "var(--muted)", borderRight: "1px solid var(--border)" },
-  ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--surface-2) 55%, transparent)" },
-  ".cm-activeLineGutter": { backgroundColor: "var(--surface-2)", color: "var(--fg)" },
-  ".cm-matchingBracket, &.cm-focused .cm-matchingBracket": { backgroundColor: "var(--highlight)", outline: "none" },
-  ".cm-selectionMatch": { backgroundColor: "var(--highlight)" },
-  ".cm-tooltip": { backgroundColor: "var(--surface)", color: "var(--fg)", border: "1px solid var(--border)", borderRadius: "6px", boxShadow: "0 4px 14px rgba(0,0,0,.15)" },
-  ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--accent)", color: "var(--accent-fg)" },
-  ".cm-completionDetail": { fontStyle: "normal", color: "var(--muted)", marginLeft: "1em" },
-  ".cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail": { color: "inherit" },
-  ".cm-panels": { backgroundColor: "var(--surface)", color: "var(--fg)" },
+  ".cm-content": { caretColor: "var(--color2)" },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--color2)" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+    backgroundColor: "var(--selection) !important",
+  },
+  ".cm-gutters": { backgroundColor: "var(--bg2)", color: "var(--faint)", borderRight: "1px solid var(--border)" },
+  ".cm-activeLine": { backgroundColor: "var(--theme-soft)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--theme-soft)", color: "var(--color2)" },
+  ".cm-matchingBracket, &.cm-focused .cm-matchingBracket": { backgroundColor: "var(--theme-mid)", outline: "none" },
+  ".cm-selectionMatch": { backgroundColor: "var(--mention)" },
+  ".cm-tooltip": {
+    backgroundColor: "var(--surface)",
+    color: "var(--color)",
+    border: "none",
+    borderRadius: "var(--radius)",
+    boxShadow: "var(--shadow-lg)",
+    fontFamily: "var(--font)",
+  },
+  ".cm-tooltip-autocomplete > ul": { fontFamily: "var(--mono)", fontSize: "var(--fs-sm)" },
+  ".cm-tooltip-autocomplete > ul > li": { padding: "1px var(--sp-3) !important" },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--theme-soft)", color: "var(--theme2)" },
+  ".cm-completionDetail": { fontStyle: "normal", color: "var(--muted)", marginLeft: "var(--sp-5)" },
+  ".cm-completionIcon": { color: "var(--muted)" },
+  ".cm-completionIcon-operator::after": { content: '"±"' },
+  ".cm-panels": { backgroundColor: "var(--bg2)", color: "var(--color)" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--border)" },
   ".cm-panels.cm-panels-bottom": { borderTop: "1px solid var(--border)" },
-  ".cm-searchMatch": { backgroundColor: "var(--highlight)", outline: "1px solid var(--border)" },
-  ".cm-diagnostic-error": { borderLeftColor: "var(--error)" },
+  ".cm-searchMatch": { backgroundColor: "var(--mention)", outline: "1px solid var(--theme-mid)" },
+  ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "var(--theme-mid)" },
+  ".cm-diagnostic": { padding: "var(--sp-2) var(--sp-4)", fontFamily: "var(--font)" },
+  ".cm-diagnostic-error": { borderLeft: "3px solid var(--danger)" },
+  ".cm-diagnostic-warning": { borderLeft: "3px solid var(--warn)" },
+  ".cm-diagnosticSource": { color: "var(--muted)" },
   ".cm-lintRange-error": {
     backgroundImage: "none",
-    textDecoration: "underline wavy var(--error)",
+    textDecoration: "underline wavy var(--danger)",
     textDecorationSkipInk: "none",
     textUnderlineOffset: "3px",
   },
-  ".cm-lsp-highlight": { backgroundColor: "var(--highlight)", borderRadius: "2px" },
-  ".cm-definition-link": { textDecoration: "underline", cursor: "pointer" },
+  ".cm-lintRange-warning": {
+    backgroundImage: "none",
+    textDecoration: "underline wavy var(--warn)",
+    textDecorationSkipInk: "none",
+    textUnderlineOffset: "3px",
+  },
+  ".cm-lsp-highlight": { backgroundColor: "var(--mention)", borderRadius: "var(--radius-sm)" },
+  ".cm-lsp-hover": {
+    maxWidth: "min(36rem, 80vw)",
+    maxHeight: "22rem",
+    overflow: "auto",
+    padding: "var(--sp-3) var(--sp-4)",
+    fontSize: "var(--fs-sm)",
+  },
+  ".cm-lsp-hover pre.code": {
+    margin: "var(--sp-1) 0",
+    padding: "var(--sp-2) var(--sp-3)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius)",
+    background: "var(--code-bg)",
+    whiteSpace: "pre-wrap",
+  },
 });
 
 const basics: Extension = [
@@ -172,7 +210,7 @@ function hover(host: LspHost) {
       above: true,
       create() {
         const dom = document.createElement("div");
-        dom.className = "cm-lsp-hover";
+        dom.className = "cm-lsp-hover md md--compact";
         dom.innerHTML = renderMarkdown(md, host.syntax);
         return { dom };
       },

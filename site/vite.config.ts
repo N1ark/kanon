@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { purr } from "purr/vite";
 import { defineConfig, type Plugin } from "vite";
 
 const site = dirname(fileURLToPath(import.meta.url));
@@ -48,18 +50,17 @@ function kanonRuntime(): Plugin {
   return {
     name: "kanon-runtime",
     configResolved(config) {
-      if (mock) return;
-      if (!existsSync(join(dist, "kanon.js"))) {
-        if (config.command === "build")
-          throw new Error(
-            `No Kanon runtime in ${dist}: build it (dune build @web at the root of the repository), ` +
-              "set KANON_WEB_DIST to its directory, or build with the mock runtime (KANON_MOCK=1).",
-          );
-        config.logger.warn(`kanon-runtime: no runtime in ${dist}, serving the mock runtime instead`);
-        mock = true;
-      }
+      if (mock || config.command !== "build" || existsSync(join(dist, "kanon.js"))) return;
+      throw new Error(
+        `No Kanon runtime in ${dist}: build it (dune build @web --profile web at the root of the ` +
+          "repository), set KANON_WEB_DIST to its directory, or build with the mock runtime (KANON_MOCK=1).",
+      );
     },
     configureServer(server) {
+      if (!mock && !existsSync(join(dist, "kanon.js"))) {
+        server.config.logger.warn(`kanon-runtime: no runtime in ${dist}, serving the mock runtime instead`);
+        mock = true;
+      }
       server.middlewares.use((req, res, next) => {
         const url = (req.url ?? "").split("?")[0];
         const m = /^\/kanon\/(.+)$/.exec(url);
@@ -81,16 +82,18 @@ function kanonRuntime(): Plugin {
 function grammarCheck(): Plugin {
   return {
     name: "kanon-grammar",
-    buildStart() {
-      if (!existsSync(join(site, "public/tree-sitter-kanon.wasm")))
-        this.error("public/tree-sitter-kanon.wasm is missing: build it with `npm run grammar` (see README.md)");
+    configResolved(config) {
+      if (existsSync(join(site, "public/tree-sitter-kanon.wasm"))) return;
+      const message = "public/tree-sitter-kanon.wasm is missing: build it with `npm run grammar` (see README.md)";
+      if (config.command === "build") throw new Error(message);
+      config.logger.warn(`kanon-grammar: ${message}; Kanon is shown without highlighting`);
     },
   };
 }
 
 export default defineConfig({
   base: "./",
-  plugins: [kanonRuntime(), grammarCheck()],
+  plugins: [purr({ weights: ["regular", "bold", "fill"] }), svelte(), kanonRuntime(), grammarCheck()],
   // the examples and the highlighting queries are imported from the repository
   server: { fs: { allow: [repo] } },
   worker: { format: "iife" },

@@ -5,7 +5,7 @@
 import { StreamLanguage, type StringStream } from "@codemirror/language";
 import { oCaml } from "@codemirror/legacy-modes/mode/mllike";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
-import { escapeHtml } from "../util";
+import { escapeHtml } from "../lib/util";
 
 export const ocamlLanguage = StreamLanguage.define(oCaml);
 

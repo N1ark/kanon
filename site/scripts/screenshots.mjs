@@ -51,16 +51,18 @@ for (const scheme of ["light", "dark"]) {
   const spans = await t.$$eval('pre[data-lang="kanon"] span[class^="ts-"]', (s) => s.length);
   check(spans > 50, `${scheme}: tutorial code highlighted by tree-sitter (${spans} capture spans)`);
   await shot(t, `tutorial-top-${scheme}`);
-  const ex = t.locator('.example[data-example="rules"]');
+  const ex = t.locator('figure[data-example="rules"]');
   await ex.scrollIntoViewIfNeeded();
   await t.waitForFunction(
-    () => [...document.querySelectorAll('.example[data-example="rules"] .output-code')].every((e) => !e.classList.contains("loading") && e.textContent.length > 100),
+    () => [...document.querySelectorAll('figure[data-example="rules"] section pre')].filter((e) => e.textContent.length > 100).length === 2,
     null,
     { timeout: 30000 },
   );
-  const ocaml = await ex.locator(".output-code").first().textContent();
+  const ocaml = await ex.locator("section[aria-label=OCaml] pre").textContent();
   check(ocaml.includes("let rec plus"), `${scheme}: tutorial example shows the generated OCaml`);
-  await shot(t, `tutorial-example-${scheme}`, ex);
+  // below the sticky header
+  await ex.evaluate((e) => window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 60));
+  await shot(t, `tutorial-example-${scheme}`);
   await t.close();
 
   // the tutorial on a phone
@@ -75,15 +77,15 @@ for (const scheme of ["light", "dark"]) {
   // the sandbox, with the tiny language
   const s = await page(scheme);
   await s.goto(`${base}sandbox.html#example=tiny`);
-  await s.waitForFunction(() => /kanon/.test(document.getElementById("status").textContent), null, { timeout: 30000 });
+  await s.waitForFunction(() => window.sandbox?.status === "ready", null, { timeout: 30000 });
   await s.waitForSelector(".editor .cm-content span.ts-keyword");
   const cmSpans = await s.$$eval('.editor .cm-content span[class^="ts-"]', (x) => x.length);
   check(cmSpans > 20, `${scheme}: editor highlighted by tree-sitter (${cmSpans} capture spans)`);
-  await s.waitForFunction(() => document.querySelector("#output .cm-content")?.textContent.includes("let"), null, { timeout: 30000 });
+  await s.waitForFunction(() => document.querySelector(".outputs .cm-content")?.textContent.includes("let"), null, { timeout: 30000 });
   check(true, `${scheme}: outputs panel shows the generated code`);
 
   // a diagnostic: an unknown node in rules.kn
-  await s.locator(".tab", { hasText: "rules.kn" }).click();
+  await s.getByRole("tab", { name: "rules.kn" }).click();
   await s.locator(".editor .cm-content").click();
   await s.evaluate(() => {
     const view = window.sandbox.view;
@@ -92,9 +94,9 @@ for (const scheme of ["light", "dark"]) {
     view.dispatch({ changes: { from: at, to: at + 4, insert: "Plu" } });
   });
   await s.waitForSelector(".editor .cm-lintRange-error", { timeout: 10000 });
-  const nProblems = await s.$$eval("#problems .item", (x) => x.length);
+  const nProblems = await s.locator(".panel button.row-item").count();
   check(nProblems > 0, `${scheme}: the problems panel lists the diagnostic`);
-  await s.waitForSelector("#output-errors:not([hidden])", { timeout: 10000 });
+  await s.waitForSelector(".outputs .errors", { timeout: 10000 });
   await shot(s, `sandbox-diagnostic-${scheme}`);
 
   // fix it, and hover a helper
@@ -113,10 +115,52 @@ for (const scheme of ["light", "dark"]) {
   await shot(s, `sandbox-hover-${scheme}`);
 
   // the Lean model
-  await s.selectOption("#backend", "lean-model");
-  await s.waitForFunction(() => document.querySelector("#output .cm-content")?.textContent.includes("def "), null, { timeout: 10000 });
+  await s.getByRole("button", { name: /Backend/ }).click();
+  await s.locator("[role^=menuitem]", { hasText: "lean-model" }).click();
+  await s.waitForFunction(() => document.querySelector(".outputs .cm-content")?.textContent.includes("def "), null, { timeout: 10000 });
   await s.mouse.move(5, 5);
   await shot(s, `sandbox-lean-${scheme}`);
+  await s.close();
+}
+
+// the rest of the sandbox, once: completion, a definition in a built-in module, sharing
+{
+  const s = await page("light");
+  await s.goto(`${base}sandbox.html#example=modules`);
+  await s.waitForFunction(() => window.sandbox?.status === "ready", null, { timeout: 30000 });
+  await s.getByRole("tab", { name: "int.kn" }).click();
+  // completion at the end of the file
+  await s.evaluate(() => {
+    const view = window.sandbox.view;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\nfn f (x : t) : t = of_b" }, selection: { anchor: view.state.doc.length + 23 } });
+    view.focus();
+  });
+  await s.keyboard.press("Control+Space");
+  await s.waitForSelector(".cm-tooltip-autocomplete li", { timeout: 10000 });
+  const options = await s.$$eval(".cm-tooltip-autocomplete li", (x) => x.map((l) => l.textContent));
+  check(options.some((o) => o.includes("of_bool")), `completion offers of_bool (${options.slice(0, 3).join(", ")}…)`);
+  await shot(s, "sandbox-completion-light");
+  await s.keyboard.press("Escape");
+  // F12 on of_bool, defined in the built-in bool module
+  await s.evaluate(() => {
+    const view = window.sandbox.view;
+    const at = view.state.doc.toString().indexOf("of_bool (x < y)");
+    view.dispatch({ selection: { anchor: at + 2 } });
+    view.focus();
+  });
+  await s.keyboard.press("F12");
+  await s.waitForFunction(() => window.sandbox.active?.builtinPath, null, { timeout: 10000 });
+  const opened = await s.evaluate(() => window.sandbox.active.name);
+  check(opened === "bool.kn", `F12 opens the built-in ${opened}, read-only`);
+  await shot(s, "sandbox-definition-light");
+  // a link that holds the files opens them
+  const url = await s.evaluate(() => window.sandbox.shareUrl());
+  const t = await page("light");
+  await t.goto(url);
+  await t.waitForFunction(() => window.sandbox?.files.length, null, { timeout: 30000 });
+  const names = await t.evaluate(() => window.sandbox.files.map((f) => f.name).join(" "));
+  check(names === "lang.knl int.knl int.kn", `a shared link opens its files (${names})`);
+  await t.close();
   await s.close();
 }
 

@@ -8,11 +8,12 @@
     "grammar": "node scripts/build-grammar.mjs",
     "dev": "vite",
     "dev:mock": "KANON_MOCK=1 vite",
-    "build": "tsc --noEmit && vite build",
-    "build:mock": "tsc --noEmit && KANON_MOCK=1 vite build",
+    "build": "svelte-check && vite build",
+    "build:mock": "svelte-check && KANON_MOCK=1 vite build",
     "preview": "vite preview",
     "mock-fixtures": "node scripts/mock-fixtures.mjs",
-    "shots": "node scripts/screenshots.mjs"
+    "shots": "node scripts/screenshots.mjs",
+    "check": "svelte-check"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.6",
@@ -24,11 +25,16 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.8",
     "@lezer/highlight": "^1.2.1",
+    "purr": "github:N1ark/purr#v0.3.0",
+    "svelte": "^5.57.1",
     "web-tree-sitter": "0.25.10"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^22.20.5",
     "playwright-core": "^1.55.0",
+    "svelte-check": "^4.7.6",
     "tree-sitter-cli": "0.25.10",
     "typescript": "^5.9.2",
     "vite": "^7.1.5"

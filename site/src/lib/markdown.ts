@@ -2,8 +2,8 @@
 // (Kanon highlighted by tree-sitter), paragraphs, `code`, *emphasis* and
 // **strong**. Everything else is text.
 
-import { highlightKanon, type KanonSyntax } from "./highlight/kanon";
-import { highlightStatic } from "./highlight/languages";
+import { highlightKanon, type KanonSyntax } from "../highlight/kanon";
+import { highlightStatic } from "../highlight/languages";
 import { escapeHtml } from "./util";
 
 function inline(s: string): string {

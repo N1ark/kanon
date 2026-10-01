@@ -7,7 +7,7 @@
 import { Language, Parser, Query, type Node, type Tree } from "web-tree-sitter";
 import treeSitterWasm from "web-tree-sitter/tree-sitter.wasm?url";
 import highlights from "../../../editors/zed/languages/kanon/highlights.scm?raw";
-import { escapeHtml } from "../util";
+import { escapeHtml } from "../lib/util";
 
 export interface KanonSyntax {
   parser: Parser;

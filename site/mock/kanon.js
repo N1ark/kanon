@@ -1,4 +1,4 @@
-// A mock of the web runtime of Kanon (dune build @web: _build/default/web/dist/
+// A mock of the web runtime of Kanon (dune build @web --profile web: _build/default/web/dist/
 // kanon.js), for developing the site without it: a classic script for a Web
 // Worker with the same API, globalThis.kanon. The site's build serves it at
 // kanon/kanon.js instead of the real runtime when KANON_MOCK=1 (see

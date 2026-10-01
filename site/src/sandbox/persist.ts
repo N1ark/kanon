@@ -1,7 +1,7 @@
 // The files of the sandbox, saved in localStorage, and shared in the hash of
 // its URL: #code= the deflated JSON of the files, in base64url.
 
-import { storage } from "../util";
+import { readString, writeString } from "purr";
 
 export type Files = [string, string][];
 
@@ -15,7 +15,7 @@ export interface Saved {
 const KEY = "kanon-sandbox-v1";
 
 export function load(): Saved | null {
-  const s = storage.get(KEY);
+  const s = readString(KEY);
   if (!s) return null;
   try {
     const v = JSON.parse(s) as Saved;
@@ -26,7 +26,7 @@ export function load(): Saved | null {
 }
 
 export function save(v: Saved) {
-  storage.set(KEY, JSON.stringify(v));
+  writeString(KEY, JSON.stringify(v));
 }
 
 function toBase64Url(bytes: Uint8Array): string {
