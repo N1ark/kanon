@@ -139,11 +139,11 @@ item:
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat loc (Ppat_var { txt = x; loc })) ps ret body ])) }
-  | RULE x = LID ps = params COLON spec = cons_expr body = option(preceded(EQ, seq_expr))
+  | RULE x = LID ps = params COLON spec = cons_expr rattrs = list(decl_attr) body = option(preceded(EQ, seq_expr))
     { let loc = mkloc $loc in
       (* a rule without a body only has the rules from laws and [default] *)
       let body = match body with Some b -> b | None -> exp loc Pexp_unreachable in
-      let attrs = [ attr loc "spec" [ eval_item loc spec ]; attr loc "cases" [] ] in
+      let attrs = [ attr loc "spec" [ eval_item loc spec ]; attr loc "cases" [] ] @ rattrs in
       let t = typ loc (Ptyp_constr (lid loc "t", [])) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat loc (Ppat_var { txt = x; loc })) ps (Some t) body ])) }
   | EXTEND fn = extended x = LID before = option(preceded(BEFORE, rule_name)) EQ BAR? cs = cases

@@ -98,7 +98,9 @@ rule sem_eq : Eq (v1, v2) =
   | true_: true == x -> x
   | nots: not b == not c -> b == c
 
-rule sem_eq_untyped : Eq (v1, v2) =
+(* The equality of terms that may have different sorts, false when they do:
+   [@untyped], so its operands are not asserted to have the same sort. *)
+rule sem_eq_untyped : Eq (v1, v2) [@untyped] =
   match (v1, v2) with
   | ill_typed: _ when not (type_of v1 = type_of v2) -> v_false
   | typed: _ -> v1 == v2

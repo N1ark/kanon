@@ -2286,6 +2286,9 @@ type raw_fn = {
   rbody : expression;
   rsorts : (string * expression) list;
       (** the sorts of the operands of the spec, [(v : s)] *)
+  runtyped : bool;
+      (** [[@untyped]]: the rule also simplifies ill-typed specs, so the sorts
+          of their operands are not asserted *)
   rloc : Location.t;
 }
 
@@ -2332,6 +2335,10 @@ let raw_fn (vb : value_binding) =
   in
   let rcases = has_attr "cases" vb.pvb_attributes in
   let rty_only = has_attr "ty_only" vb.pvb_attributes in
+  let runtyped = has_attr "untyped" vb.pvb_attributes in
+  if runtyped && rsorts <> [] then
+    error loc "%s: an [@untyped] rule does not annotate the sorts of its spec"
+      rname;
   (* the body of a rule that has none: a match on its terms, without cases *)
   let no_body rparams =
     let open Ast_builder.Default in
@@ -2368,6 +2375,7 @@ let raw_fn (vb : value_binding) =
         rty_only;
         rbody;
         rsorts;
+        runtyped;
         rloc = loc;
       }
   | Pexp_function _ -> error loc "%s: the return type must be annotated" rname
@@ -2388,6 +2396,7 @@ let raw_fn (vb : value_binding) =
             rty_only;
             rbody = body rparams vb.pvb_expr;
             rsorts;
+            runtyped;
             rloc = loc;
           }
       | _ -> error loc "%s: constants must be annotated with their type" rname)
@@ -3222,7 +3231,9 @@ let program (str : structure) : program =
           match r.rspec with
           | Some spec when r.rcases -> (
               let body = spec_match spec (with_default spec r.rbody) in
-              match spec_check globals r spec with
+              match
+                if r.runtyped then None else spec_check globals r spec
+              with
               | Some c ->
                   let loc = c.pexp_loc in
                   Ast_builder.Default.(

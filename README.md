@@ -273,7 +273,9 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   An operand may be annotated with its sort, `(v : TBitVector n)`, to also
   assert it and bind its variables in the rules:
   `rule bv_extract : BvExtract (from_, to_, (v : TBitVector sz))` uses `sz`
-  for the width of `v`.
+  for the width of `v`. A rule that also simplifies ill-typed specs is marked
+  `[@untyped]` after its spec (`rule sem_eq_untyped : Eq (v1, v2) [@untyped]`),
+  and asserts nothing.
 
 ## Laws
 
