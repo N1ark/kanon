@@ -401,6 +401,28 @@ The language gives the tactics `kanon_auto` (the default proof of an arm),
 operators) and `kanon_congr` (refinement by congruence), which the library
 declares, with `macro_rules`.
 
+`KanonCore.Proof`, imported on its own, gives the semantic layer and the rule
+tactics that the languages share (`soteria`'s `Tiny_values` uses them):
+
+- `Kanon.Sem` (`KanonCore.Sem`): the terms, types, values and environments of
+  a language, with `ty`, `WT` and `ev`; `Sem.eval`, `Sem.Refines` and
+  `Sem.OLe`, with their generic lemmas (`Sem.Refines.refl`, `trans`, `syn`,
+  `sem`, `ev`, `intro`, `of_WT`, `of_lift`, `Sem.eval_WT`, `Sem.eval_eq_ev`,
+  `Sem.ty_refines`). The language defines `@[reducible] def sem : Kanon.Sem`,
+  `abbrev eval := sem.eval`, `abbrev Refines := sem.Refines` and
+  `instance : Refinement Refines := Sem.refinement`;
+- the tactics `kanon_split`, `kanon_cases`, `kanon_lift`, `kanon_lift_body`,
+  `kanon_guards`, `kanon_lits`, `kanon_wt`, `kanon_sem_core`, `kanon_sem`,
+  `kanon_close`, `kanon_rule_lift` and `kanon_rule`, and `macro_rules` for
+  `kanon_comm` and `kanon_congr`. The language gives them its lemmas by
+  attributes (`KanonCore.ProofAttr`): the simp sets `kanon_guards`,
+  `kanon_body`, `kanon_lits`, `kanon_wt`, `kanon_ev` and `kanon_val`, the
+  possible values of the atoms (`kanon_atom_cases`), and the congruence lemmas
+  of its nodes (`kanon_congr_lemma`, `kanon_comm_lemma`), and may extend the
+  tactics `kanon_congr_side`, `kanon_comm_side` and `kanon_rule_close`.
+  `kanon_lift` lifts a call `O.f args` with the lemma `R.Lib.lift_f` of
+  `Lifts.lean`.
+
 An alternative (an arm) is one case of a rule, after expanding its or-patterns
 and the swaps of commutative operands; its statement is over the variables of
 its pattern, with its guard as a hypothesis (`f.r_name.arm.Stmt`). An arm is

@@ -2,7 +2,9 @@ name = "kanon"
 defaultTargets = ["KanonCore"]
 
 # The Lean library of Kanon: what the generated proofs of every language need
-# (KanonCore), and the generic core of terms, a trial (KanonCore.Lang).
+# (KanonCore), the semantics and rule tactics shared by the languages
+# (KanonCore.Proof, imported on its own), and the generic core of terms, a
+# trial (KanonCore.Lang).
 [[lean_lib]]
 name = "KanonCore"
-roots = ["KanonCore", "KanonCore.Lang"]
+roots = ["KanonCore", "KanonCore.Proof", "KanonCore.Lang"]
