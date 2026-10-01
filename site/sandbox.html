@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kanon sandbox</title>
+    <meta name="description" content="Write a Kanon language in your browser, with its language server, and see the OCaml and Lean that Kanon generates." />
+    <script>
+      try {
+        const t = localStorage.getItem("kanon-theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230969da'/%3E%3Ctext x='8' y='12.5' font-size='12' font-family='monospace' font-weight='700' text-anchor='middle' fill='white'%3EK%3C/text%3E%3C/svg%3E" />
+    <script type="module" src="/src/sandbox/main.ts"></script>
+  </head>
+  <body class="sandbox-page">
+    <header class="site-header">
+      <a class="brand" href="./">Kanon</a>
+      <nav aria-label="Site">
+        <a href="./">Tutorial</a>
+        <a href="sandbox.html" aria-current="page">Sandbox</a>
+        <a href="https://github.com/N1ark/kanon">GitHub</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Theme">◐</button>
+    </header>
+
+    <main class="sandbox">
+      <div class="workspace-bar">
+        <label class="visually-hidden" for="templates">Templates</label>
+        <select id="templates" aria-label="Templates">
+          <option value="" selected disabled>Templates…</option>
+        </select>
+        <button id="share" type="button" title="Copy a link to these files">Share</button>
+        <span id="status" class="status" role="status">Loading Kanon…</span>
+      </div>
+
+      <section class="pane editor-pane" aria-label="Editor">
+        <div class="tabs-row">
+          <div id="tabs" class="tabs" role="tablist" aria-label="Files"></div>
+          <button id="add-file" type="button" class="icon" title="New file" aria-label="New file">+</button>
+        </div>
+        <div class="editor-toolbar">
+          <select id="outline" aria-label="Outline of the file" disabled>
+            <option value="">Outline</option>
+          </select>
+          <span class="hints" id="hints"><kbd>F12</kbd> or <kbd>Ctrl</kbd>-click: definition</span>
+        </div>
+        <div id="editor" class="editor"></div>
+        <div class="bottom-panel">
+          <div class="bottom-tabs" role="tablist" aria-label="Panels">
+            <button type="button" role="tab" id="problems-tab" aria-selected="true" aria-controls="problems">Problems <span id="problems-count" class="count">0</span></button>
+            <button type="button" role="tab" id="references-tab" aria-selected="false" aria-controls="references" hidden>References <span id="references-count" class="count">0</span></button>
+          </div>
+          <ul id="problems" class="list" role="tabpanel" aria-labelledby="problems-tab"></ul>
+          <ul id="references" class="list" role="tabpanel" aria-labelledby="references-tab" hidden></ul>
+        </div>
+      </section>
+
+      <section class="pane output-pane" aria-label="Generated code">
+        <div class="output-toolbar">
+          <label>Backend <select id="backend"></select></label>
+          <label>Root <select id="root"></select></label>
+          <label class="check"><input id="auto" type="checkbox" checked /> Auto</label>
+          <button id="regenerate" type="button" class="primary">Generate</button>
+        </div>
+        <div id="output-errors" class="output-errors" hidden></div>
+        <div id="output" class="output-editor"></div>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

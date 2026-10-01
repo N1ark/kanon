@@ -1,0 +1,17 @@
+prim int : int -> t
+
+rule plus : Plus (v1, v2) =
+  | lits: #x + #y -> int (x + y)
+  | zero: x + 0 -> x
+
+rule int_lt : Lt (v1, v2) =
+  | lits: #x lt #y -> of_bool (x < y)
+  | same: x lt x -> v_false
+
+(* The rules of the bool module, extended to integers *)
+
+extend rule sem_eq before same =
+  | ints: #x == #y -> of_bool (x = y)
+
+extend fn sure_neq =
+  | Int x, Int y -> not (x = y)

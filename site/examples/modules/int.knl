@@ -1,0 +1,9 @@
+(* The int module: integers, their sum and their order. *)
+
+node Int of int [@literal int]
+node Plus : TInt -> TInt -> TInt [@comm]
+node Lt : TInt -> TInt -> TBool
+node TInt
+
+infix "+" = Plus, plus
+infix "lt" = Lt, int_lt

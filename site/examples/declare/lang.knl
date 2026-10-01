@@ -1,0 +1,21 @@
+(* A tiny value language: booleans and integers. *)
+
+type var [@ocaml "string"] [@lean "String"] [@noeq]
+
+type kind [@ocaml "t_kind"] [@noeq] =
+  | Var of var
+  | Unop of unop * t [@operators]
+  | Binop of binop * t * t [@operators]
+
+type unop
+type binop
+type ty
+
+node Bool of bool [@literal] [@to_term of_bool]
+node Int of int [@literal int]
+node Not : TBool -> TBool
+node And : TBool -> TBool -> TBool
+node Plus : TInt -> TInt -> TInt
+node Eq : a -> b -> TBool when a = b
+node TBool
+node TInt

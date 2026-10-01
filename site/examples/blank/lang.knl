@@ -1,0 +1,22 @@
+(* A new language, on top of Kanon's bool module: declare its nodes here, and
+   write its rules in rules.kn. *)
+
+use +bool
+use "rules"
+
+type var [@ocaml "string"] [@lean "Int"] [@noeq]
+
+type kind [@ocaml "t_kind"] [@noeq] =
+  | Var of var
+  | Unop of unop * t [@operators]
+  | Binop of binop * t * t [@operators]
+  | Triop of triop * t * t * t [@operators]
+  | Nop of nop * t list [@operators]
+
+type unop
+type binop
+type triop
+type nop = Distinct
+type ty
+
+node Xor : TBool -> TBool -> TBool [@comm] [@unit false]

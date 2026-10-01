@@ -1,0 +1,62 @@
+{
+  "$comment": "The example languages of the site: the templates of the sandbox, and the steps of the tutorial. Paths are relative to site/; the sources are imported at build time.",
+  "examples": [
+    {
+      "id": "bool",
+      "title": "The bool example",
+      "description": "examples/bool: Kanon's bool module alone (use +bool)",
+      "template": true,
+      "files": { "lang.knl": "../examples/bool/lang.knl" }
+    },
+    {
+      "id": "tiny",
+      "title": "Tiny: booleans and integers",
+      "description": "test/tiny.t: one module, with laws",
+      "template": true,
+      "files": {
+        "lang.knl": "../test/tiny.t/lang.knl",
+        "rules.kn": "../test/tiny.t/rules.kn"
+      }
+    },
+    {
+      "id": "blank",
+      "title": "Blank language",
+      "description": "lang.knl and rules.kn, on top of the bool module",
+      "template": true,
+      "files": {
+        "lang.knl": "examples/blank/lang.knl",
+        "rules.kn": "examples/blank/rules.kn"
+      }
+    },
+    {
+      "id": "declare",
+      "title": "Tutorial 1: declaring a language",
+      "files": { "lang.knl": "examples/declare/lang.knl" }
+    },
+    {
+      "id": "laws",
+      "title": "Tutorial 2: laws",
+      "files": {
+        "lang.knl": "examples/laws/lang.knl",
+        "rules.kn": "examples/laws/rules.kn"
+      }
+    },
+    {
+      "id": "rules",
+      "title": "Tutorial 3: rules",
+      "files": {
+        "lang.knl": "examples/rules/lang.knl",
+        "rules.kn": "examples/rules/rules.kn"
+      }
+    },
+    {
+      "id": "modules",
+      "title": "Tutorial 4: modules",
+      "files": {
+        "lang.knl": "examples/modules/lang.knl",
+        "int.knl": "examples/modules/int.knl",
+        "int.kn": "examples/modules/int.kn"
+      }
+    }
+  ]
+}
