@@ -81,9 +81,9 @@ type raw_typing = {
     constructor, from which Kanon derives the first rules of the operator's rule
     function (see [Check.law_cases]). *)
 type law =
-  | Fold of string  (** [[@fold "f"]]: constant folding with [f] *)
-  | Unit of string  (** [[@unit "c"]]: the literal [c] is a (right) unit *)
-  | Zero of string  (** [[@zero "c"]]: the literal [c] is (right) absorbing *)
+  | Fold of string  (** [[@fold f]]: constant folding with [f] *)
+  | Unit of string  (** [[@unit c]]: the literal [c] is a (right) unit *)
+  | Zero of string  (** [[@zero c]]: the literal [c] is (right) absorbing *)
   | Idem  (** [[@idem]]: [x op x = x] *)
   | Invol  (** [[@invol]]: [op (op x) = x] *)
   | Distrib_ite
@@ -107,14 +107,14 @@ type lang = {
       (** the kind constructor of integer literals, which integer patterns and
           [#x] match *)
   lit_int : bool;
-      (** [[@literal "int"]]: in rules, [#x] binds the argument of the literals
-          of [lit_node], an [int], rather than their value *)
+      (** [[@literal int]]: in rules, [#x] binds the argument of the literals of
+          [lit_node], an [int], rather than their value *)
   lit_value : string;
-      (** [[@literal "t"]]: the type of the values of the literals of
-          [lit_node], which [#x] binds in rules *)
+      (** [[@literal t]]: the type of the values of the literals of [lit_node],
+          which [#x] binds in rules *)
   sort_getters : (string * string) list;
       (** the functions that read the argument of the sort of a term, declared
-          by [[@get "f"]] on the constructors of sorts with one argument *)
+          by [[@get f]] on the constructors of sorts with one argument *)
   lit_fns : (string * string) list;
       (** the functions of those literals, declared by attributes on the
           constructors of literals: [to_term] (a value where a term is
@@ -124,7 +124,7 @@ type lang = {
           its value *)
   constants : (string * (string * Ppxlib.expression)) list;
       (** [constant "c" (v) = e]: the term of the literal [c] at the type of the
-          term [v], for the laws [[@unit "c"]] and [[@zero "c"]] *)
+          term [v], for the laws [[@unit c]] and [[@zero c]] *)
   ite : string option;
       (** [[@ite]]: the node of conditionals, for [[@distrib_ite]] *)
   ty_only : string list;

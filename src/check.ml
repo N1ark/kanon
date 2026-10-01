@@ -1571,8 +1571,8 @@ let check_attrs allowed (attrs : attributes) =
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
-(** [[@literal "t"]] on the constructor of integer literals: the type of their
-    values, or [None] for [[@literal "int"]], where they are integers. *)
+(** [[@literal t]] on the constructor of integer literals: the type of their
+    values, or [None] for [[@literal int]], where they are integers. *)
 let int_literal (attrs : attributes) =
   match find_attr "literal" attrs with
   | Some a -> (
@@ -2452,16 +2452,16 @@ let case_rule (c : Ppxlib.case) =
 (** Adds the rules derived from the laws of each operator (see [Syntax.law]) to
     its rule function, before its own rules, in the order of [law_order]. In the
     rule function [f (p1, ..., v1, v2)] of a binary operator [op]:
-    - [[@fold "g"]]: [lits: #l, #r -> g pk ... pn l r], where [g] takes the last
+    - [[@fold g]]: [lits: #l, #r -> g pk ... pn l r], where [g] takes the last
       parameters [pk ... pn] of the node, then its literals: the values of
       integer literals (of type [t], see [lit_value]) are bound to [l] and [r]
       ([t] for a unary operator), and the others to the first letter of their
       type ([f1], [f2] or [f] for floats); a boolean result is lifted with the
       [[@to_term]] of boolean literals, a result of another type with its
       literal, at the sort of the spec;
-    - [[@unit "c"]]: [c: x, c -> x] if [op] is commutative (it then also matches
+    - [[@unit c]]: [c: x, c -> x] if [op] is commutative (it then also matches
       [c, x]), and otherwise [c: _, c -> v1];
-    - [[@zero "c"]]: [c: _, c -> c], where [c] stands for the term that the
+    - [[@zero c]]: [c: _, c -> c], where [c] stands for the term that the
       language declares for it, at the type of [v1] ([constant "c" (v) = e]);
     - [[@idem]]: [same: v, v -> v].
 

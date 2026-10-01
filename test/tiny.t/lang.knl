@@ -16,11 +16,11 @@ type unop
 type binop
 type ty
 
-node Bool of bool [@literal] [@to_term "of_bool"]
-node Int of int [@literal "int"]
+node Bool of bool [@literal] [@to_term of_bool]
+node Int of int [@literal int]
 node Not : TBool -> TBool
-node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit "true"]
-    [@zero "false"]
+node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true]
+    [@zero false]
 node Plus : TInt -> TInt -> TInt [@comm]
 node Eq : a -> b -> TBool when a = b [@comm]
 node TBool

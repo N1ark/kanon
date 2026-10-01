@@ -193,7 +193,15 @@ item:
 (* Declarations of the language *)
 
 decl_attr:
-  | LBRACKETAT a = LID ss = list(STRING) RBRACKET { attr (mkloc $loc) a (strings (mkloc $loc) ss) }
+  | LBRACKETAT a = LID ss = list(attr_arg) RBRACKET { attr (mkloc $loc) a (strings (mkloc $loc) ss) }
+
+(* the arguments of attributes: strings, or names and literals, unquoted *)
+attr_arg:
+  | s = STRING { s }
+  | s = LID { s }
+  | i = INT { i }
+  | TRUE { "true" }
+  | FALSE { "false" }
 
 type_kind:
   | BAR? cs = separated_nonempty_list(BAR, constr_decl) { Ptype_variant cs }

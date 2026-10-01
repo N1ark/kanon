@@ -143,6 +143,9 @@ Kanon places the nodes of its modules.
 
 ### Attributes of nodes
 
+The arguments of attributes are names, integers, `true` and `false`, or strings
+for anything else (`[@fold f_add]`, `[@zero 0]`, `[@ocaml "Svalue_ast.Unop.t"]`).
+
 - `[@comm]` on a binary operator: its operands commute.
 - `C of a * b (x, y) : s1 -> s2 when e` on an operator: its typing, from which
   Kanon generates `T.WT` in `Typing.lean`. Its operands, then its result, have
@@ -152,23 +155,23 @@ Kanon places the nodes of its modules.
   type; a width (`nat` argument of a type) is positive, unless the condition
   constrains it.
 - `[@literal]` on a kind constructor of one `bool`: the boolean literals, which
-  `true` and `false` match. `[@to_term "f"]` gives the function that makes the
+  `true` and `false` match. `[@to_term f]` gives the function that makes the
   literal of a boolean, for `[@fold]` (e.g. `of_bool`).
-- `[@literal "int"]` on a kind constructor of one `int`: the integer literals,
+- `[@literal int]` on a kind constructor of one `int`: the integer literals,
   which `0`, `1`, ... and `#x` match; `#x` binds their integer.
-- `[@literal "t"]` on a kind constructor of one `int`: integer literals whose
+- `[@literal t]` on a kind constructor of one `int`: integer literals whose
   values have the (abstract) type `t`, e.g. bit-vectors, which `#x` binds in
   rules (and their integer in helpers). The constructor then gives:
-  - `[@to_term "f"]`: the function that makes the literal of a value, called
+  - `[@to_term f]`: the function that makes the literal of a value, called
     where a value is used as a term (e.g. `lit`);
-  - `[@of_term "p"]`: the primitive that reads the value of a literal (e.g.
+  - `[@of_term p]`: the primitive that reads the value of a literal (e.g.
     `bv_of_lit`);
-  - `[@raw "f" "p"]`, any number of times: the primitive `p` computes `f`,
+  - `[@raw f p]`, any number of times: the primitive `p` computes `f`,
     whose last argument is a value, directly on the literal, without reading its
-    value (e.g. `[@raw "width" "lit_width"]`).
+    value (e.g. `[@raw width lit_width]`).
 - `[@ite]`: the node of conditionals, for `[@distrib_ite]`.
-- `[@get "f"]` on a sort with one argument: the helper `f` reads that argument
-  from the sort of a term (`node TBitVector of nat [@get "size"]`). Kanon then
+- `[@get f]` on a sort with one argument: the helper `f` reads that argument
+  from the sort of a term (`node TBitVector of nat [@get size]`). Kanon then
   reads the argument with `f v`, rather than by matching the sort of `v`,
   where it infers the sort of a node or binds the variables of the sort of an
   operand (see [Rules](#rules)).
@@ -185,7 +188,7 @@ prefix "not" = Not, b_not
 in expressions, `a + b` calls the smart constructor `f` with the leading
 arguments `args` (`bv_add unchecked a b`); in patterns, it matches the node
 (`Add (_, a, b)`, whatever its parameters); on the values of literals (see
-`[@literal "t"]`), it is the primitive `g`. The operators are `+`, `-`, `*`,
+`[@literal t]`), it is the primitive `g`. The operators are `+`, `-`, `*`,
 `land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`, `++`, `&&`, `||` and `==`, and the
 prefix `-`, `~` and `not`. Otherwise, the arithmetic and bitwise operators are
 those of integers, and `&&`, `||` and `not` those of booleans.
@@ -198,8 +201,8 @@ constant "true" (v) = v_true
 ```
 
 `constant "c" (v) = e` is the term of the literal `c` (`0`, `1`, `true` or
-`false`) at the type of the term `v`, for the laws `[@unit "c"]` and
-`[@zero "c"]`.
+`false`) at the type of the term `v`, for the laws `[@unit c]` and
+`[@zero c]`.
 
 ### Lean
 
@@ -288,22 +291,22 @@ others, and a hand-written rule may not reuse their names.
 
 | law | derived rule, in `bv_add (checked) (v1 v2)`, `bv_sub`, `bv_neg`, ... |
 |---|---|
-| `[@fold "f"]` | `lits: #l + #r -> f l r`, `lit: #bv -> f bv` |
-| `[@unit "c"]` | `zero: x + 0 -> x` (commutative), `zero: _ lsl 0 -> v1` (otherwise) |
-| `[@zero "c"]` | `zero: _ * 0 -> bv_zero (size v1)`, `false_: _ && false -> v_false` |
+| `[@fold f]` | `lits: #l + #r -> f l r`, `lit: #bv -> f bv` |
+| `[@unit c]` | `zero: x + 0 -> x` (commutative), `zero: _ lsl 0 -> v1` (otherwise) |
+| `[@zero c]` | `zero: _ * 0 -> bv_zero (size v1)`, `false_: _ && false -> v_false` |
 | `[@idem]` | `same: v && v -> v` |
 | `[@invol]` | `neg: -x -> x`, named after the operator (unary operators) |
 | `[@distrib_ite]` | `ite: Ite (b, l, r) -> b_ite b (bv_neg checked l) (bv_neg checked r)` (unary operators) |
 
-- `[@fold "f"]`: `f` takes the last parameters of the node that it has room
+- `[@fold f]`: `f` takes the last parameters of the node that it has room
   for (`lit_extract from_ to_ bv`, `add_overflows signed l r`), then the
   literals, of the types of its arguments: the values of integer literals of
-  type `t` (`[@literal "t"]`) are bound to `l` and `r` (to `t` for one
+  type `t` (`[@literal t]`) are bound to `l` and `r` (to `t` for one
   operand), the others to the first letter of their type (`Float f1`,
   `Float f2`, `Float f`). A `bool` result is lifted with the `[@to_term]` of
   the boolean literals, and a result of another type `T` with its literal
   constructor, at the sort of the spec (`Float (f_add f1 f2)`).
-- `[@unit "c"]` and `[@zero "c"]` take the literal `0`, `1`, `true` or `false`,
+- `[@unit c]` and `[@zero c]` take the literal `0`, `1`, `true` or `false`,
   which names the rule (`zero`, `one`, `true_`, `false_`), and whose term the
   language declares with `constant`. On an operator that does not commute, `c`
   is on the right; on one that does, the rule matches it on either side.

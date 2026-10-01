@@ -577,7 +577,7 @@ OCaml asserts, and whose variables the rules may use.
 
 With a getter, the variables of the sort are read by it.
 
-  $ sed 's/^node TWord of nat$/node TWord of nat [@get "width"]/' word.knl > getter.knl
+  $ sed 's/^node TWord of nat$/node TWord of nat [@get width]/' word.knl > getter.knl
   $ kanon ocaml lang.knl getter.knl word.kn | sed -n '/let trunc/,$p'
   let trunc (v : t) : t =
       (assert (match v.Hc.node.ty with

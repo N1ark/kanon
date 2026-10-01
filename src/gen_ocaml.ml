@@ -82,7 +82,7 @@ let rec pat ft (p : pat) =
 (* Expressions *)
 
 (** The primitives that compute a function on the value of a literal directly on
-    the literal ([[@raw "f" "p"]]), by function. *)
+    the literal ([[@raw f p]]), by function. *)
 let raw_prims () =
   List.filter_map
     (fun (k, p) ->
