@@ -3110,6 +3110,80 @@ let sort_binds env (r : raw_fn) =
             (binders p))
     r.rsorts
 
+(* ---------------------------------------------------------------- *)
+(* Pruning redundant cases *)
+
+(** Whether the (linearized) pattern [p] matches everything that [q] matches: a
+    conservative check, which gives up on what it does not know. *)
+let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
+  let all l m = List.length l = List.length m && List.for_all2 subsumes l m in
+  match (p.p, q.p) with
+  | (PAny | PVar _), _ -> true
+  | PAs (p, _), _ -> subsumes p q
+  | _, PAs (q, _) -> subsumes p q
+  | PLit _, PLit _ -> true
+  | PBool a, PBool b -> a = b
+  | PInt a, PInt b -> Z.equal a b
+  | PUnit, PUnit | PNone, PNone | PNil, PNil -> true
+  | PSome p, PSome q -> subsumes p q
+  | PCons (a, b), PCons (c, d) -> subsumes a c && subsumes b d
+  | PTuple l, PTuple m -> all l m
+  | PConstr (c, l), PConstr (d, m) -> c.c_name = d.c_name && all l m
+  | PRecord l, PRecord m ->
+      List.for_all
+        (fun (f, p) ->
+          match List.assoc_opt f m with Some q -> subsumes p q | None -> false)
+        l
+  | _ -> false
+
+(** The cases of [cases] that an earlier case without a guard does not already
+    match: the others can never be taken. Guards are not looked into, so a case
+    with a guard (which includes the repeated variables and the integer literals
+    of its pattern, see [linearize]) covers nothing. *)
+let prune_cases (cases : Syntax.case list) =
+  List.rev
+    (List.fold_left
+       (fun kept (c : Syntax.case) ->
+         if
+           List.exists
+             (fun (k : Syntax.case) -> k.guard = None && subsumes k.pat c.pat)
+             kept
+         then kept
+         else c :: kept)
+       [] cases)
+
+(** [e] without the cases that its matches can never take. *)
+let rec prune (e : Syntax.expr) : Syntax.expr =
+  let go = prune in
+  let d =
+    match e.e with
+    | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> e.e
+    | EConstr (c, l) -> EConstr (c, List.map go l)
+    | ENode (a, b) -> ENode (go a, go b)
+    | ECall (f, l) -> ECall (f, List.map go l)
+    | ELocalCall (f, l) -> ELocalCall (f, List.map go l)
+    | EUnop (o, a) -> EUnop (o, go a)
+    | EBinop (o, a, b) -> EBinop (o, go a, go b)
+    | EIf (a, b, c) -> EIf (go a, go b, go c)
+    | ELet (p, a, b) -> ELet (p, go a, go b)
+    | ELetFun (f, ps, a, b) -> ELetFun (f, ps, go a, go b)
+    | EMatch (scruts, cases) ->
+        EMatch
+          ( List.map go scruts,
+            prune_cases
+              (List.map
+                 (fun (c : Syntax.case) ->
+                   { c with guard = Option.map go c.guard; body = go c.body })
+                 cases) )
+    | ETuple l -> ETuple (List.map go l)
+    | ESome a -> ESome (go a)
+    | ECons (a, b) -> ECons (go a, go b)
+    | ERecord l -> ERecord (List.map (fun (f, e) -> (f, go e)) l)
+    | EField (a, f) -> EField (go a, f)
+    | EAssert (a, b) -> EAssert (go a, go b)
+  in
+  { e with e = d }
+
 (** Parses the Kanon file [file], read from [lexbuf]. *)
 let parse ~file lexbuf : structure =
   Lexing.set_filename lexbuf file;
@@ -3252,7 +3326,7 @@ let program (str : structure) : program =
           ret = r.rret;
           spec;
           cases = r.rcases;
-          body;
+          body = prune body;
           floc = r.rloc;
         })
       raws

@@ -261,6 +261,11 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   of the literal.
 - The pattern variables of a rule may not shadow the parameters of its
   function.
+- A case that an earlier case without a guard already matches can never be
+  taken: Kanon leaves it out (it does not look into guards, so a case with a
+  guard, or with a repeated variable or an integer literal, which are checks
+  too, covers nothing). The generated OCaml enables the warning on unused match
+  cases, which would report any it missed.
 - When the spec of a rule is a commutative node over `v1, v2` (e.g.
   `And (v1, v2)`), the cases match them in either order,
   unless the pattern is symmetric (the same once swapped, up to renaming), so
