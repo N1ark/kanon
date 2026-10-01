@@ -93,10 +93,10 @@ export class LspClient {
           references: {},
           documentHighlight: {},
           documentSymbol: { hierarchicalDocumentSymbolSupport: true },
-          rename: {},
+          rename: { prepareSupport: true },
           publishDiagnostics: {},
         },
-        workspace: { symbol: {}, workspaceEdit: { documentChanges: false } },
+        workspace: { symbol: {}, workspaceFolders: true, workspaceEdit: { documentChanges: false } },
       },
     });
     this.capabilities = r?.capabilities ?? {};

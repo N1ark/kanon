@@ -222,7 +222,8 @@ const setHighlights = StateEffect.define<DecorationSet>();
 const highlightField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(v, tr) {
-    v = tr.docChanged ? Decoration.none : v.map(tr.changes);
+    // stale once the text or the cursor moves, until the server answers again
+    if (tr.docChanged || tr.selection) v = Decoration.none;
     for (const e of tr.effects) if (e.is(setHighlights)) v = e.value;
     return v;
   },
@@ -256,10 +257,7 @@ function documentHighlights(host: LspHost) {
           view.dispatch({ effects: setHighlights.of(Decoration.set(marks)) });
         }, 250);
         update(u: ViewUpdate) {
-          if (u.selectionSet || u.docChanged) {
-            if (u.view.state.field(highlightField).size) u.view.dispatch({ effects: setHighlights.of(Decoration.none) });
-            this.request(u.view);
-          }
+          if (u.selectionSet || u.docChanged) this.request(u.view);
         }
         destroy() {
           this.request.cancel();

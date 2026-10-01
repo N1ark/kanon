@@ -85,7 +85,7 @@ for (const scheme of ["light", "dark"]) {
   check(true, `${scheme}: outputs panel shows the generated code`);
 
   // a diagnostic: an unknown node in rules.kn
-  await s.getByRole("tab", { name: "rules.kn" }).click();
+  await s.getByRole("tab", { name: "rules.kn", exact: true }).click();
   await s.locator(".editor .cm-content").click();
   await s.evaluate(() => {
     const view = window.sandbox.view;
@@ -128,7 +128,27 @@ for (const scheme of ["light", "dark"]) {
   const s = await page("light");
   await s.goto(`${base}sandbox.html#example=modules`);
   await s.waitForFunction(() => window.sandbox?.status === "ready", null, { timeout: 30000 });
-  await s.getByRole("tab", { name: "int.kn" }).click();
+  await s.getByRole("tab", { name: "int.kn", exact: true }).click();
+  // hover on an operator
+  await s.locator(".editor .cm-line", { hasText: "lits: #x + #y" }).locator("span", { hasText: /^\+$/ }).first().hover();
+  await s.waitForSelector(".cm-lsp-hover", { timeout: 10000 });
+  const opHover = await s.locator(".cm-lsp-hover").textContent();
+  check(/Plus|plus/.test(opHover), `hover on + shows its operator (${opHover.replace(/\s+/g, " ").slice(0, 60)}…)`);
+  await shot(s, "sandbox-hover-operator-light");
+  await s.mouse.move(5, 5);
+  // references of of_bool, if the server finds them
+  const refs = await s.evaluate(() => window.sandbox.has("referencesProvider"));
+  if (refs) {
+    await s.evaluate(() => {
+      const view = window.sandbox.view;
+      view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf("of_bool") + 2 } });
+      view.focus();
+    });
+    await s.keyboard.press("Shift+F12");
+    await s.waitForFunction(() => window.sandbox.references?.length > 0, null, { timeout: 10000 });
+    check(true, "Shift+F12 lists the references");
+    await shot(s, "sandbox-references-light");
+  }
   // completion at the end of the file
   await s.evaluate(() => {
     const view = window.sandbox.view;

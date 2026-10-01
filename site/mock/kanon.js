@@ -102,6 +102,11 @@
     let e = character;
     while (s > 0 && /[\w']/.test(l[s - 1])) s--;
     while (e < l.length && /[\w']/.test(l[e])) e++;
+    if (s === e) {
+      // an operator
+      while (s > 0 && /[-+*&|=~@^]/.test(l[s - 1])) s--;
+      while (e < l.length && /[-+*&|=~@^]/.test(l[e])) e++;
+    }
     if (s === e) return null;
     return { word: l.slice(s, e), line, start: s, end: e };
   }

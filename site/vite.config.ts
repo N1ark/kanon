@@ -99,6 +99,8 @@ export default defineConfig({
   worker: { format: "iife" },
   build: {
     target: "es2022",
+    // CodeMirror, tree-sitter and purr, shared by both pages
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       input: { index: join(site, "index.html"), sandbox: join(site, "sandbox.html") },
     },

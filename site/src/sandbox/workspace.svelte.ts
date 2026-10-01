@@ -254,21 +254,35 @@ export class Workspace {
   }
 
   async rename(f: FileEntry, view: EditorView, pos: number) {
-    if (!this.lsp || !this.has("renameProvider") || f.builtinPath) return;
+    const lsp = this.lsp;
+    if (!lsp || !this.has("renameProvider") || f.builtinPath) return;
+    // the server renames in the files it has checked
+    await this.sync();
+    const position = toPosition(view.state.doc, pos);
     const word = view.state.wordAt(pos);
-    const old = word ? view.state.sliceDoc(word.from, word.to) : "";
+    let old = word ? view.state.sliceDoc(word.from, word.to) : "";
+    const provider = this.capabilities.renameProvider as { prepareProvider?: boolean } | boolean;
+    if (typeof provider === "object" && provider.prepareProvider) {
+      try {
+        const r = await lsp.request("textDocument/prepareRename", { textDocument: { uri: this.uriOf(f) }, position });
+        if (!r) return void toast("Nothing to rename here");
+        if (r.placeholder) old = r.placeholder;
+        else if (r.range) old = view.state.sliceDoc(toOffsets(view.state.doc, r.range).from, toOffsets(view.state.doc, r.range).to);
+      } catch (e) {
+        return void toast((e as Error).message.replace(/^textDocument\/prepareRename: /, ""), { kind: "error" });
+      }
+    }
     const name = await promptText(`Rename ${old}`, { label: "New name", value: old }, { confirm: "Rename" });
     if (!name || name === old) return;
-    await this.flush();
     let edit: any;
     try {
-      edit = await this.lsp.request("textDocument/rename", {
+      edit = await lsp.request("textDocument/rename", {
         textDocument: { uri: this.uriOf(f) },
-        position: toPosition(view.state.doc, pos),
+        position,
         newName: name,
       });
     } catch (e) {
-      toast((e as Error).message, { kind: "error" });
+      toast((e as Error).message.replace(/^textDocument\/rename: /, ""), { kind: "error" });
       return;
     }
     if (!edit) return void toast("Nothing to rename here");
