@@ -449,3 +449,12 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   lake build
   lake env lean check_axioms.lean  # must not mention sorryAx
   ```
+
+## Editors
+
+- `tree-sitter-kanon/` is the [tree-sitter](https://tree-sitter.github.io)
+  grammar of `.kn` and `.knl` files, for editors (see its README).
+- `editors/zed/` is the [Zed](https://zed.dev) extension: highlighting, the
+  outline of a file down to the rules of its rule functions, brackets,
+  indentation, comments, text objects and snippets. Install it with
+  `zed: install dev extension`, from that directory (see its README).
