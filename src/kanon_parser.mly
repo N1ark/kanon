@@ -58,6 +58,9 @@ let binding loc ?(attrs = []) p params ret body =
 
 let item loc d = { pstr_desc = d; pstr_loc = loc }
 
+let use_item loc m =
+  item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string loc m) ]), []))
+
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type *)
 let node_decl loc c =
@@ -104,7 +107,7 @@ let neg loc (e : expression) =
 %token <string> LID UID INT STRING
 %token AS ASR ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LAND LET LOR LSL LSR LXOR MATCH NODE NOT OF
 %token ORACLE PREFIX PRIM
-%token RULE THEN TRUE TYPE WHEN WITH
+%token RULE THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW LE GE NE ANDAND BARBAR
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ LT GT PLUS MINUS STAR DOT
 %token EQEQ PLUSPLUS HASH TILDE UNDERSCORE EOF
@@ -127,6 +130,10 @@ file:
   | items = list(item) EOF { items }
 
 item:
+  (* [use +m] or [use "path"]: the module [m] built into kanon, or the module
+     whose files are [path.knl] and [path.kn] (see [Main]) *)
+  | USE PLUS m = LID { use_item (mkloc $loc) ("+" ^ m) }
+  | USE m = STRING { use_item (mkloc $loc) m }
   | PRIM x = LID COLON t = typ { prim (mkloc $loc) x t "" }
   | ORACLE x = LID COLON t = typ { prim (mkloc $loc) x t "oracle" }
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr

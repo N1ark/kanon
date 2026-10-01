@@ -1,6 +1,6 @@
 (** [kanon BACKEND FILE...]: generates, from the Kanon rules in the [.kn] files,
     written in the language declared by the [.knl] files (a language and the
-    modules it is made of), in order:
+    modules it is made of), with the modules that they use, in order:
     - [ocaml]: their OCaml implementation;
     - [ocaml-check]: the OCaml check that the OCaml types of the language agree
       with its declaration (which does not need the rules);
@@ -16,8 +16,12 @@
     writes every Lean file [F.lean] of the above to [F.lean.gen], in the current
     directory.
 
-    A file [+name] is the built-in module file [name] (e.g. [+bool.knl] and
-    [+bool.kn], the files of [modules/]). *)
+    [use "path"], in a file, uses the module whose declarations are [path.knl]
+    and whose rules are [path.kn] (either may be missing), relative to the
+    directory of the file, and [use +name] the module built into kanon (the
+    files of [modules/]). A module is used once, the first time; the
+    declarations of a file come before those of the modules it uses, and its
+    rules after theirs. *)
 
 (** The generated Lean files, with the backend of each. *)
 let lean_files ~lang ~sources prog =
@@ -52,8 +56,13 @@ let usage () =
     ("usage: kanon (ocaml | ocaml-check | ocaml-tests | lean-types | \
       lean-syntax | lean-signatures | lean-typing | lean-model | \
       lean-statements | lean-lifts | lean-soundness | lean-all) FILE...\n\
-      A FILE +name is a built-in module file: "
-    ^ String.concat ", " (List.map (fun (n, _) -> "+" ^ n) Builtin.files));
+      Files use modules with use \"path\", or use +name for those built into \
+      kanon: "
+    ^ String.concat ", "
+        (List.sort_uniq compare
+           (List.map
+              (fun (n, _) -> "+" ^ Filename.remove_extension n)
+              Builtin.files)));
   exit 2
 
 (** The name of the built-in module file that [f] names ([+name]), if any. *)
@@ -75,22 +84,78 @@ let parse_file f =
 (** The name of the file [f] in the headers of the generated files. *)
 let source_name f = Filename.basename (Option.value (builtin f) ~default:f)
 
+let exists f =
+  match builtin f with
+  | Some name -> List.mem_assoc name Builtin.files
+  | None -> Sys.file_exists f
+
+(** The modules that [items] use, and [items] without their [use]s. *)
+let uses (items : Ppxlib.structure) =
+  List.partition_map
+    (fun (si : Ppxlib.structure_item) ->
+      match si.pstr_desc with
+      | Pstr_extension
+          ( ( { txt = "kanon.use"; _ },
+              PStr
+                [
+                  {
+                    pstr_desc =
+                      Pstr_eval
+                        ( {
+                            pexp_desc = Pexp_constant (Pconst_string (m, _, _));
+                            _;
+                          },
+                          _ );
+                    _;
+                  };
+                ] ),
+            _ ) ->
+          Left m
+      | _ -> Right si)
+    items
+
+(** The declarations and the rules of [files] and of the modules they use, as
+    [(file, items)] lists, in order. *)
+let load files =
+  let loaded = Hashtbl.create 8 in
+  let decls = ref [] and rules = ref [] in
+  let rec file f =
+    if not (Hashtbl.mem loaded f) then (
+      Hashtbl.add loaded f ();
+      let ms, items = uses (parse_file f) in
+      let is_decl = Filename.check_suffix f ".knl" in
+      if is_decl then decls := !decls @ [ (f, items) ];
+      List.iter (use (Filename.dirname f)) ms;
+      if not is_decl then rules := !rules @ [ (f, items) ])
+  and use dir m =
+    let base =
+      if String.starts_with ~prefix:"+" m || not (Filename.is_relative m) then m
+      else Filename.concat dir m
+    in
+    match List.filter exists [ base ^ ".knl"; base ^ ".kn" ] with
+    | [] ->
+        Format.eprintf "kanon: use %S: no %s.knl or %s.kn@." m base base;
+        exit 1
+    | fs -> List.iter file fs
+  in
+  List.iter file files;
+  (!decls, !rules)
+
 let () =
   match Array.to_list Sys.argv with
   | _ :: backend :: files -> (
       try
-        let langs, files =
-          List.partition (fun f -> Filename.check_suffix f ".knl") files
-        in
+        if files = [] then usage ();
+        let langs, files = load files in
         if langs = [] then usage ();
-        Check.language (List.concat_map parse_file langs);
+        Check.language (List.concat_map snd langs);
         let prog =
           lazy
             (if files = [] then usage ();
-             Check.program (List.concat_map parse_file files))
+             Check.program (List.concat_map snd files))
         in
-        let lang = List.map source_name langs in
-        let sources = List.map source_name files in
+        let lang = List.map (fun (f, _) -> source_name f) langs in
+        let sources = List.map (fun (f, _) -> source_name f) files in
         let lean = lean_files ~lang ~sources prog in
         match backend with
         | "ocaml" ->

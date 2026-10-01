@@ -34,6 +34,7 @@ let keywords =
     ("then", THEN);
     ("true", TRUE);
     ("type", TYPE);
+    ("use", USE);
     ("when", WHEN);
     ("with", WITH);
   ]

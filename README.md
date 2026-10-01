@@ -28,8 +28,8 @@ that of OCaml, apart from the declarations and rule names below.
 kanon BACKEND FILE...
 ```
 
-reads the `.knl` files (the declaration of the language and of its modules),
-then the `.kn` files (the rules), each in order, and writes on standard output:
+reads the language declared by the files, usually its one `.knl` file, with
+the modules it uses, and writes on standard output:
 
 - `ocaml`: the OCaml implementation of the rule functions and helpers, in terms
   of a module `P` of primitives, which must be in scope where it is included;
@@ -41,11 +41,23 @@ then the `.kn` files (the rules), each in order, and writes on standard output:
   (see [Proofs](#proofs)); `lean-all` writes each of them, `F.lean`, to
   `F.lean.gen` in the current directory.
 
-A `FILE` of the form `+name` is the file `name` of the modules built into
-`kanon` (see [Modules and examples](#modules-and-examples)): `kanon ocaml
-lang.knl +bool.knl int.knl +bool.kn int.kn` reads `modules/bool.knl` and
-`modules/bool.kn` from the binary, as `bool.knl` and `bool.kn` (in the
-locations of errors and the headers of the generated files).
+A file uses a module with `use "path"`: the module's declarations are in
+`path.knl` and its rules in `path.kn` (either may be missing), relative to the
+directory of the file. `use +name` uses the module `name` built into `kanon`
+(see [Modules and examples](#modules-and-examples)): `use +bool` reads
+`modules/bool.knl` and `modules/bool.kn` from the binary, as `bool.knl` and
+`bool.kn` (in the locations of errors and the headers of the generated
+files). A module is read once, where it is first used; the declarations of a
+file come before those of the modules it uses, and its rules after theirs. A
+language `lang.knl` that starts with
+
+```
+use +bool
+use "int"
+```
+
+is made of the bool module and of the module `int` (`int.knl` and `int.kn`),
+and `kanon ocaml lang.knl` generates its rules.
 
 The ppx `kanon.ppx_include_file` includes the generated OCaml:
 `[%%include_file "rules.gen.ml"]` is the structure of `rules.gen.ml`, a file
@@ -54,8 +66,8 @@ along with its primitives.
 
 ## The language
 
-A language is declared in `.knl` files, by `type`, `node`, `infix`, `prefix`
-and `constant` items and floating attributes.
+A language is declared in `.knl` files, by `use`, `type`, `node`, `infix`,
+`prefix` and `constant` items and floating attributes.
 
 ### Types
 
@@ -99,9 +111,10 @@ OCaml), `bool`, `unit`, tuples, `option` and `list` are built in.
 
 ### Modules and nodes
 
-A language is made of modules, each with its declarations (`bool.knl`) and its
-rules, primitives and helpers (`bool.kn`). The language itself declares its
-types, as its OCaml AST has them, and places the nodes of its modules in them.
+A language is made of the modules it uses (see [Usage](#usage)), each with its
+declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
+The language itself declares its types, as its OCaml AST has them, and places
+the nodes of its modules in them.
 
 - `node C ...`, in a module, declares the constructor `C` as a type would
   (`node And : TBool -> TBool -> TBool [@comm] [@idem]`), and the language
@@ -186,8 +199,8 @@ constant "true" (v) = v_true
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
   statements quantify over (e.g. a semantics of floats).
 
-`type`, `of`, `node`, `infix`, `prefix`, `constant`, `extend` and `before` are
-keywords.
+`use`, `type`, `of`, `node`, `infix`, `prefix`, `constant`, `extend` and
+`before` are keywords.
 
 ## Functions
 
@@ -386,8 +399,7 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   boolean literals, `Not`, `And`, `Or`, equality (`Eq`), conditionals (`Ite`)
   and `Distinct`, with their rules (the rule functions `b_not`, `b_and`,
   `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct`). They are built
-  into `kanon`, as `+bool.knl` and `+bool.kn`. A language that includes the
-  module places its nodes in its types, and declares the type `TBool`; the
+  into `kanon`, as the module `+bool`. A language that uses the module places its nodes in its types, and declares the type `TBool`; the
   modules above it can add rules to its rule functions with `extend rule`, and
   literals to its helper `sure_neq` with `extend fn`. It is the bool module of
   soteria's `Bv_values` and `Tiny_values`.

@@ -1,6 +1,9 @@
 (* A small value language: booleans and mathematical integers, in one module.
    The terms are those of an OCaml module with the types [t_kind], [ty],
-   [unop] and [binop], and the constructors below. *)
+   [unop] and [binop], and the constructors below. Its rules are in
+   rules.kn. *)
+
+use "rules"
 
 type var [@ocaml "string"] [@lean "String"] [@noeq]
 

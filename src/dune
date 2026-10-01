@@ -10,8 +10,8 @@
 (ocamllex
  (modules kanon_lexer))
 
-; The modules of modules/, built into kanon: [+bool.knl] on the command line
-; is modules/bool.knl.
+; The modules of modules/, built into kanon: [use +bool] uses modules/bool.knl
+; and modules/bool.kn.
 
 (rule
  (target builtin.ml)
