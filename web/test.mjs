@@ -1,5 +1,5 @@
 // The test of the web runtime of kanon, _build/default/web/dist/kanon.js, in
-// node: dune build && node web/test.mjs
+// node: dune build --profile web && node web/test.mjs
 //
 // It loads kanon.js as a Web Worker does, and checks that kanon.run is the
 // command line, by comparing it with the native kanon on the same files, and
@@ -43,7 +43,7 @@ function same(actual, expected, what) {
 
 for (const f of [script, native])
   if (!fs.existsSync(f)) {
-    console.error(`${f} is missing: run dune build`);
+    console.error(`${f} is missing: run dune build --profile web`);
     process.exit(2);
   }
 

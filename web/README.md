@@ -8,18 +8,19 @@ classic script, `kanon.js`, which defines the API `globalThis.kanon` below.
 
 ```
 opam install js_of_ocaml-compiler js_of_ocaml zarith_stubs_js
-dune build @web
+dune build @web --profile web
 ```
 
 builds `_build/default/web/dist/`, the directory to serve, which only has
-`kanon.js` (it loads nothing else, so it can be served from any path).
-Without these packages, `dune build` skips `web/`, and `dune build @web`
-fails.
+`kanon.js` (it loads nothing else, so it can be served from any path). `web/`
+is only built in the `web` profile: in the others (`dune build`, `dune test`,
+`opam install`), it is left out, so kanon does not need js_of_ocaml, and
+`dune build @web` says how to build it.
 
 ## Testing
 
 ```
-dune build && node web/test.mjs
+dune build --profile web && node web/test.mjs
 ```
 
 loads `kanon.js` in node as a worker does, checks `kanon.run` against the

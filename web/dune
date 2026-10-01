@@ -1,16 +1,12 @@
-; Kanon in a web page (see README.md): dune build @web builds dist/, the
-; directory to serve, with kanon.js. Without js_of_ocaml (and zarith_stubs_js),
-; dune build skips this directory, and dune build @web fails.
+; Kanon in a web page (see README.md): dune build @web --profile web builds
+; dist/, the directory to serve, with kanon.js. It is only built in the web
+; profile, which needs js_of_ocaml and zarith_stubs_js; in the other profiles,
+; dune build leaves this directory out, and dune build @web says how to build it.
 
-; kanon_web is a test only for its build_if, which, unlike the enabled_if of an
-; executable, can depend on the libraries; it is not run by dune test, but by
-; node web/test.mjs.
-
-(test
+(executable
  (name kanon_web)
- (build_if
-  (and %{lib-available:js_of_ocaml} %{lib-available:zarith_stubs_js}))
- (enabled_if false)
+ (enabled_if
+  (= %{profile} web))
  (modes js)
  (libraries kanon_lib js_of_ocaml zarith_stubs_js)
  (js_of_ocaml
@@ -24,25 +20,24 @@
  dist
  (rule
   (enabled_if
-   (and %{lib-available:js_of_ocaml} %{lib-available:zarith_stubs_js}))
+   (= %{profile} web))
   (action
    (copy ../kanon_web.bc.js kanon.js))))
 
 (rule
  (alias web)
  (enabled_if
-  (and %{lib-available:js_of_ocaml} %{lib-available:zarith_stubs_js}))
+  (= %{profile} web))
  (deps dist/kanon.js)
  (action (progn)))
 
 (rule
  (alias web)
  (enabled_if
-  (not
-   (and %{lib-available:js_of_ocaml} %{lib-available:zarith_stubs_js})))
+  (<> %{profile} web))
  (action
   (system
-   "echo 'kanon web needs js_of_ocaml and zarith_stubs_js: opam install js_of_ocaml-compiler js_of_ocaml zarith_stubs_js' >&2; exit 1")))
+   "echo 'kanon web is built in the web profile: dune build @web --profile web (with js_of_ocaml and zarith_stubs_js installed)' >&2; exit 1")))
 
 ; The version of kanon: git describe in the source tree (the parent of
 ; _build), or dev.
@@ -50,7 +45,7 @@
 (rule
  (target version.ml)
  (enabled_if
-  (and %{lib-available:js_of_ocaml} %{lib-available:zarith_stubs_js}))
+  (= %{profile} web))
  (deps (universe))
  (action
   (with-stdout-to
