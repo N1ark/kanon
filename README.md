@@ -242,9 +242,9 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   this type); `oracle f : a -> b` declares one that the Lean model takes as a
   parameter, so that the proofs may not rely on its behaviour (e.g. a
   hash-consing order).
-- `type_of v` is the sort of the term `v`. It and the primitives `equal`
-  (physical equality of hash-consed terms) and `kind` are compiled to direct
-  accesses of the terms in OCaml. `P` must also define `node`, `zcompare`,
+- `type_of v` is the sort of the term `v`. It and the primitive `equal`
+  (physical equality of hash-consed terms) are compiled to direct accesses of
+  the terms in OCaml. `P` must also define `node`, `zcompare`,
   `zequal` and `equal_ty`.
 - A language with commutative operators gets the oracle `tag_le` (the
   hash-consing order, compiled to a comparison of the tags in OCaml) and the

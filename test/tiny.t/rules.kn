@@ -1,5 +1,4 @@
 prim equal : t -> t -> bool
-prim kind : t -> kind
 prim int : int -> t
 prim v_true : t
 prim v_false : t
