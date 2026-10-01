@@ -3231,9 +3231,7 @@ let program (str : structure) : program =
           match r.rspec with
           | Some spec when r.rcases -> (
               let body = spec_match spec (with_default spec r.rbody) in
-              match
-                if r.runtyped then None else spec_check globals r spec
-              with
+              match if r.runtyped then None else spec_check globals r spec with
               | Some c ->
                   let loc = c.pexp_loc in
                   Ast_builder.Default.(
