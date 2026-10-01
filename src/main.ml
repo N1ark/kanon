@@ -23,97 +23,11 @@
     declarations of a file come before those of the modules it uses, and its
     rules after theirs.
 
-    [kanon lsp] is the language server of Kanon files (see {!Lsp_server}). *)
+    [kanon lsp] is the language server of Kanon files (see {!Lsp_server}).
 
-(** The generated Lean files, with the backend of each. *)
-let lean_files ~lang ~sources prog =
-  [
-    ("Types", "lean-types", fun ft -> Gen_lean.types ~sources:lang ft);
-    ("Syntax", "lean-syntax", fun ft -> Gen_lean.syntax ~sources:lang ft);
-    ( "Signatures",
-      "lean-signatures",
-      fun ft -> Gen_lean.signatures ~sources ft (Lazy.force prog) );
-    ( "Typing",
-      "lean-typing",
-      fun ft -> Gen_lean.typing_file ~sources ft (Lazy.force prog) );
-    ( "Model",
-      "lean-model",
-      fun ft -> Gen_lean.model ~sources ft (Lazy.force prog) );
-    ( "Statements",
-      "lean-statements",
-      fun ft -> Gen_lean.statements ~sources ft (Lazy.force prog) );
-    ( "Lifts",
-      "lean-lifts",
-      fun ft -> Gen_lean.lifts ~sources ft (Lazy.force prog) );
-    ( "Soundness",
-      "lean-soundness",
-      fun ft ->
-        Gen_lean.soundness ~sources
-          ~proofs:[ Gen_lean.md "Proofs" ]
-          ft (Lazy.force prog) );
-  ]
-
-let usage () =
-  prerr_endline
-    ("usage: kanon (ocaml | ocaml-check | ocaml-tests | lean-types | \
-      lean-syntax | lean-signatures | lean-typing | lean-model | \
-      lean-statements | lean-lifts | lean-soundness | lean-all) FILE...\n\
-     \       kanon lsp\n\
-      Files use modules with use \"path\", or use +name for those built into \
-      kanon: "
-    ^ String.concat ", "
-        (List.sort_uniq compare
-           (List.map
-              (fun (n, _) -> "+" ^ Filename.remove_extension n)
-              Builtin.files)));
-  exit 2
+    The command line is {!Cli.run}. *)
 
 let () =
-  match Array.to_list Sys.argv with
-  | [ _; "lsp" ] -> Lsp_server.run ()
-  | _ :: backend :: files -> (
-      try
-        if files = [] then usage ();
-        let langs, files =
-          try Loader.load files with
-          | Loader.No_builtin f ->
-              Format.eprintf "kanon: %s: no such built-in module file@." f;
-              usage ()
-          | Loader.Missing (_, msg) ->
-              Format.eprintf "kanon: %s@." msg;
-              exit 1
-        in
-        if langs = [] then usage ();
-        Check.language (List.concat_map snd langs);
-        let prog =
-          lazy
-            (if files = [] then usage ();
-             Check.program (List.concat_map snd files))
-        in
-        let lang = List.map (fun (f, _) -> Loader.source_name f) langs in
-        let sources = List.map (fun (f, _) -> Loader.source_name f) files in
-        let lean = lean_files ~lang ~sources prog in
-        match backend with
-        | "ocaml" ->
-            Gen_ocaml.program ~sources Format.std_formatter (Lazy.force prog)
-        | "ocaml-check" ->
-            Gen_ocaml.lang_check ~sources:lang Format.std_formatter
-        | "ocaml-tests" ->
-            Gen_tests.program ~sources Format.std_formatter (Lazy.force prog)
-        | "lean-all" ->
-            List.iter
-              (fun (name, _, gen) ->
-                let oc = open_out_bin (name ^ ".lean.gen") in
-                let ft = Format.formatter_of_out_channel oc in
-                gen ft;
-                Format.pp_print_flush ft ();
-                close_out oc)
-              lean
-        | _ -> (
-            match List.find_opt (fun (_, b, _) -> b = backend) lean with
-            | Some (_, _, gen) -> gen Format.std_formatter
-            | None -> usage ())
-      with Check.Error (loc, msg) ->
-        Format.eprintf "%a: %s@." Check.pp_loc loc msg;
-        exit 1)
-  | _ -> usage ()
+  match List.tl (Array.to_list Sys.argv) with
+  | [ "lsp" ] -> Lsp_server.run ()
+  | args -> exit (Cli.run args Format.std_formatter Format.err_formatter)

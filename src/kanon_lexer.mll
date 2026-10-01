@@ -47,7 +47,7 @@ let uid = ['A'-'Z'] ident_char*
 rule token = parse
   | [' ' '\t' '\r']+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
-  | "(*" { comment 0 lexbuf; token lexbuf }
+  | "(*" { comment lexbuf.lex_start_p 0 lexbuf; token lexbuf }
   | ['0'-'9']+ as i { INT i }
   | '"' ([^ '"' '\\' '\n']* as s) '"' { STRING s }
   | "_" { UNDERSCORE }
@@ -89,9 +89,11 @@ rule token = parse
   | eof { EOF }
   | _ as c { raise (Error (lexbuf.lex_start_p, Printf.sprintf "unexpected character %C" c)) }
 
-and comment depth = parse
-  | "*)" { if depth > 0 then comment (depth - 1) lexbuf }
-  | "(*" { comment (depth + 1) lexbuf }
-  | '\n' { Lexing.new_line lexbuf; comment depth lexbuf }
-  | eof { raise (Error (lexbuf.lex_start_p, "unterminated comment")) }
-  | _ { comment depth lexbuf }
+(* [start] is the start of the outermost comment, where an unterminated
+   comment is reported *)
+and comment start depth = parse
+  | "*)" { if depth > 0 then comment start (depth - 1) lexbuf }
+  | "(*" { comment start (depth + 1) lexbuf }
+  | '\n' { Lexing.new_line lexbuf; comment start depth lexbuf }
+  | eof { raise (Error (start, "unterminated comment")) }
+  | _ { comment start depth lexbuf }

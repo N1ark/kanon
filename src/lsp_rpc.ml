@@ -85,9 +85,13 @@ let ready () =
       true
   | exception Unix.Unix_error (EINTR, _, _) -> false
 
-let send (json : Yojson.Safe.t) =
-  let body = Yojson.Safe.to_string json in
-  Printf.printf "Content-Length: %d\r\n\r\n%s%!" (String.length body) body
+(** Where the messages are sent, as JSON text: by default, on standard output,
+    framed with their length. *)
+let output =
+  ref (fun body ->
+      Printf.printf "Content-Length: %d\r\n\r\n%s%!" (String.length body) body)
+
+let send (json : Yojson.Safe.t) = !output (Yojson.Safe.to_string json)
 
 let respond id result =
   send (`Assoc [ ("jsonrpc", `String "2.0"); ("id", id); ("result", result) ])
