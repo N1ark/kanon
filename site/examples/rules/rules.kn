@@ -1,0 +1,35 @@
+(* Primitives: implemented by hand, in OCaml (in the module P) and in Lean. *)
+prim equal : t -> t -> bool
+prim int : int -> t
+prim v_true : t
+prim v_false : t
+
+(* Helpers *)
+fn of_bool (b : bool) : t = if b then v_true else v_false
+
+(* Rule functions: the laws of their spec come first, then these rules. *)
+
+rule not_ : Not v =
+  | true_: true -> v_false
+  | false_: false -> v_true
+
+rule and_ : And (v1, v2) =
+  | not_: x && not x -> v_false
+
+rule plus : Plus (v1, v2) =
+  | lits: #x + #y -> int (x + y)
+  | zero: x + 0 -> x
+  | assoc: (x + #a) + #b -> x + int (a + b)
+
+rule eq : Eq (v1, v2) =
+  | same: x == x -> v_true
+  | lits: #x == #y -> of_bool (x = y)
+  | true_: true == x -> x
+  | neg: #x == y when x < 0 && is_nat y -> v_false
+
+(* Whether a term is surely a natural number. *)
+fn is_nat (v : t) : bool =
+  match v with
+  | Int n -> n >= 0
+  | l + r -> is_nat l && is_nat r
+  | _ -> false

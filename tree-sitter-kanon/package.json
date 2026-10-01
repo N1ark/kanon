@@ -1,0 +1,24 @@
+{
+  "name": "tree-sitter-kanon",
+  "version": "0.1.0",
+  "description": "The tree-sitter grammar of Kanon, the rule language of .kn and .knl files",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/N1ark/kanon.git",
+    "directory": "tree-sitter-kanon"
+  },
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.kanon",
+      "file-types": ["kn", "knl"]
+    }
+  ]
+}

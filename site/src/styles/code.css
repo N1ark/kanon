@@ -1,0 +1,97 @@
+/* The site's highlighters on purr's syntax tokens (`--code-*`), so that code follows its light and
+   dark themes: Kanon by the captures of the tree-sitter query (`ts-*`, see highlight/kanon.ts),
+   OCaml and Lean by CodeMirror's `classHighlighter` (`tok-*`). */
+
+.ts-keyword,
+.ts-punctuation-special,
+.tok-keyword {
+  color: var(--code-kw);
+}
+
+.ts-operator,
+.ts-keyword-operator,
+.ts-punctuation,
+.tok-operator,
+.tok-punctuation {
+  color: var(--code-op);
+}
+
+.ts-keyword-operator {
+  color: var(--code-kw);
+}
+
+.ts-string,
+.tok-string,
+.tok-string2 {
+  color: var(--code-str);
+}
+
+.ts-string-special,
+.ts-attribute,
+.tok-meta {
+  color: var(--code-meta);
+}
+
+.ts-number,
+.ts-boolean,
+.ts-constant,
+.tok-number,
+.tok-bool,
+.tok-atom {
+  color: var(--code-num);
+}
+
+.ts-comment,
+.tok-comment {
+  color: var(--code-com);
+  font-style: italic;
+}
+
+.ts-function,
+.tok-function,
+.tok-variableName.tok-definition {
+  color: var(--code-fn);
+}
+
+.ts-function-builtin {
+  color: var(--code-fn);
+  font-style: italic;
+}
+
+.ts-type,
+.tok-typeName,
+.tok-className {
+  color: var(--code-type);
+}
+
+.ts-type-builtin {
+  color: var(--code-type);
+  font-style: italic;
+}
+
+.ts-constructor {
+  color: var(--code-tag);
+}
+
+.ts-label,
+.ts-property,
+.ts-variable-parameter,
+.tok-propertyName {
+  color: var(--code-var);
+}
+
+.ts-variable-special {
+  color: var(--muted);
+}
+
+/* A code block of the site: Kanon, OCaml or Lean. */
+.code {
+  margin: 0;
+  padding: var(--sp-4) var(--sp-5);
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--color2);
+  tab-size: 2;
+}

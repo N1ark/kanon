@@ -1,0 +1,316 @@
+================================================================================
+Uses
+================================================================================
+
+use +bool
+use "../modules/exists"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (use_declaration
+    (builtin_module
+      (identifier)))
+  (use_declaration
+    (string
+      (string_content))))
+
+================================================================================
+Floating attributes
+================================================================================
+
+[@@@lean_root "Kanon"]
+[@@@lean_param "FS" "FloatSem"]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (floating_attribute
+    (attribute_name
+      (identifier))
+    (string
+      (string_content)))
+  (floating_attribute
+    (attribute_name
+      (identifier))
+    (string
+      (string_content))
+    (string
+      (string_content))))
+
+================================================================================
+Types
+================================================================================
+
+type var [@ocaml "Symex.Var.t"] [@lean "Int"] [@noeq]
+type checked = { signed : bool; unsigned : bool }
+type kind [@ocaml "t_kind"] =
+  | Var of var
+  | Seq of t list
+  | Binop of binop * t * t [@operators]
+type binop
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_definition
+    (type_identifier)
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content)))
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content)))
+    (attribute
+      (attribute_name
+        (identifier))))
+  (type_definition
+    (type_identifier)
+    (record_declaration
+      (field_declaration
+        (field_identifier)
+        (type_identifier))
+      (field_declaration
+        (field_identifier)
+        (type_identifier))))
+  (type_definition
+    (type_identifier)
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content)))
+    (variant_declaration
+      (constructor_declaration
+        (constructor)
+        (type_identifier))
+      (constructor_declaration
+        (constructor)
+        (type_application
+          (type_identifier)
+          (type_identifier)))
+      (constructor_declaration
+        (constructor)
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)
+        (attribute
+          (attribute_name
+            (identifier))))))
+  (type_definition
+    (type_identifier)))
+
+================================================================================
+Nodes
+================================================================================
+
+node Bool of bool : TBool [@literal] [@to_term of_bool]
+node Eq : a -> b -> TBool when a = b [@comm]
+node BvExtract of nat * nat (i, j) : TBitVector n -> TBitVector (j - i + 1)
+    when 0 <= i && i <= j && j < n [@fold lit_extract]
+node BvExtend of bool * nat (_, k) : TBitVector n -> TBitVector (n + k)
+node TBitVector of nat [@get size]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (sorts
+        (constructor))
+      (attribute
+        (attribute_name
+          (identifier)))
+      (attribute
+        (attribute_name
+          (identifier))
+        (attribute_argument
+          (identifier)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (sorts
+        (identifier)
+        (identifier)
+        (constructor))
+      (binary_expression
+        (identifier)
+        (identifier))
+      (attribute
+        (attribute_name
+          (identifier)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (type_identifier)
+      (constructor_parameters
+        (identifier)
+        (identifier))
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier))
+        (constructor_expression
+          (constructor)
+          (parenthesized_expression
+            (binary_expression
+              (binary_expression
+                (identifier)
+                (identifier))
+              (number)))))
+      (binary_expression
+        (binary_expression
+          (number)
+          (identifier))
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (binary_expression
+            (identifier)
+            (identifier))))
+      (attribute
+        (attribute_name
+          (identifier))
+        (attribute_argument
+          (identifier)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (type_identifier)
+      (constructor_parameters
+        (wildcard)
+        (identifier))
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier))
+        (constructor_expression
+          (constructor)
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (identifier)))))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (attribute
+        (attribute_name
+          (identifier))
+        (attribute_argument
+          (identifier))))))
+
+================================================================================
+Operators and constants
+================================================================================
+
+infix "&&" = And, b_and
+infix "urem" = Rem false, bv_rem false, lit_urem
+prefix "not" = Not, b_not
+constant "0" (v) = bv_zero (size v)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (operator_declaration
+    (string
+      (string_content))
+    (tuple_expression
+      (constructor)
+      (identifier)))
+  (operator_declaration
+    (string
+      (string_content))
+    (tuple_expression
+      (constructor_expression
+        (constructor)
+        (boolean))
+      (application_expression
+        (identifier)
+        (boolean))
+      (identifier)))
+  (operator_declaration
+    (string
+      (string_content))
+    (tuple_expression
+      (constructor)
+      (identifier)))
+  (constant_declaration
+    (string
+      (string_content))
+    (identifier)
+    (application_expression
+      (identifier)
+      (parenthesized_expression
+        (application_expression
+          (identifier)
+          (identifier))))))
+
+================================================================================
+Primitives and oracles
+================================================================================
+
+prim equal : t -> t -> bool
+oracle sort_by_tag : t list -> t list
+prim used_binders : (var * ty) list -> t -> (var * ty) list
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (primitive_declaration
+    (identifier)
+    (function_type
+      (type_identifier)
+      (function_type
+        (type_identifier)
+        (type_identifier))))
+  (primitive_declaration
+    (identifier)
+    (function_type
+      (type_application
+        (type_identifier)
+        (type_identifier))
+      (type_application
+        (type_identifier)
+        (type_identifier))))
+  (primitive_declaration
+    (identifier)
+    (function_type
+      (type_application
+        (parenthesized_type
+          (tuple_type
+            (type_identifier)
+            (type_identifier)))
+        (type_identifier))
+      (function_type
+        (type_identifier)
+        (type_application
+          (parenthesized_type
+            (tuple_type
+              (type_identifier)
+              (type_identifier)))
+          (type_identifier))))))
+
+================================================================================
+Nested comments
+================================================================================
+
+(* a comment (* nested *) [x] *)
+prim v_true : t
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (comment)
+  (primitive_declaration
+    (identifier)
+    (type_identifier)))

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "kanon",
+      "camelcase": "Kanon",
+      "title": "Kanon",
+      "scope": "source.kanon",
+      "file-types": ["kn", "knl"],
+      "injection-regex": "^kanon$",
+      "highlights": "../editors/zed/languages/kanon/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "description": "The Kanon rule language, of .kn and .knl files",
+    "links": {
+      "repository": "https://github.com/N1ark/kanon"
+    }
+  }
+}

@@ -8,6 +8,52 @@ exception Error of Location.t * string
 
 let error loc fmt = Fmt.kstr (fun s -> raise (Error (loc, s))) fmt
 
+(* ---------------------------------------------------------------- *)
+(* Several errors at once
+
+   The command line stops at the first error. The language server instead
+   collects the errors of the parts of a language that are checked
+   independently (its items, its functions), as long as what the other parts
+   depend on could be built: the checks are done in phases, and a phase only
+   starts if the previous ones had no error, so that an error does not cause
+   others. *)
+
+(** The errors collected so far, when they are ([None] on the command line). *)
+let collected : (Location.t * string) list option ref = ref None
+
+(** A phase had errors. *)
+exception Stop
+
+(** [attempt f] is [Some (f ())], or [None] if [f] fails while errors are
+    collected, which records its error. *)
+let attempt f =
+  match !collected with
+  | None -> Some (f ())
+  | Some l -> (
+      try Some (f ())
+      with Error (loc, msg) ->
+        collected := Some ((loc, msg) :: l);
+        None)
+
+(** The end of a phase: stops if it had errors. *)
+let checkpoint () =
+  match !collected with Some (_ :: _) -> raise Stop | _ -> ()
+
+(** The errors of [f x], in the order they were found, without duplicates. *)
+let collect_errors f x =
+  collected := Some [];
+  let errors =
+    Fun.protect
+      ~finally:(fun () -> collected := None)
+      (fun () ->
+        match f x with
+        | () | (exception Stop) -> Option.get !collected
+        | exception Error (loc, msg) -> (loc, msg) :: Option.get !collected)
+  in
+  List.fold_left
+    (fun acc e -> if List.mem e acc then acc else acc @ [ e ])
+    [] (List.rev errors)
+
 let pp_loc ft (loc : Location.t) =
   let p = loc.loc_start in
   Fmt.pf ft "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
@@ -323,9 +369,9 @@ and pat' (expected : Syntax.ty) (p : pattern) : Syntax.pat =
          && Some name = !lang.lit_node
          && not !lang.lit_int ->
       mk (PLit x.txt)
-  | Ppat_construct ({ txt = Lident name; _ }, arg) -> (
+  | Ppat_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error loc "unknown constructor %s" name
+      | None -> error cloc "unknown constructor %s" name
       | Some c ->
           (* kind constructors can be matched against terms *)
           let ok =
@@ -356,7 +402,7 @@ and pat' (expected : Syntax.ty) (p : pattern) : Syntax.pat =
         error loc "unexpected record pattern at type %a" pp_ty expected;
       let fields =
         List.map
-          (fun (({ txt; _ } : longident loc), p) ->
+          (fun (({ txt; loc } : longident loc), p) ->
             let f = Longident.name txt in
             match List.assoc_opt f known with
             | Some t -> (f, pat t p)
@@ -413,13 +459,28 @@ let no_shadow env loc x =
   if List.mem_assoc x !sort_vars then
     error loc "%s shadows a variable of the sort of an operand" x
 
+(** The location of the first binding of [x] in [p], if any. *)
+let rec binder_loc x (p : Syntax.pat) =
+  match p.p with
+  | PVar y | PLit y -> if x = y then Some p.ploc else None
+  | PAs (q, y) -> if x = y then Some p.ploc else binder_loc x q
+  | PAny | PInt _ | PBool _ | PUnit | PNone | PNil -> None
+  | PSome q -> binder_loc x q
+  | POr (a, _) | PComm (a, _) -> binder_loc x a
+  | PTuple l | PConstr (_, l) -> List.find_map (binder_loc x) l
+  | PCons (a, b) -> List.find_map (binder_loc x) [ a; b ]
+  | PRecord l -> List.find_map (fun (_, q) -> binder_loc x q) l
+
 let add_binders env p =
   let bs =
     List.fold_left
       (fun acc (x, b) -> if List.mem_assoc x acc then acc else acc @ [ (x, b) ])
       [] (binders p)
   in
-  List.iter (fun (x, _) -> no_shadow env p.ploc x) bs;
+  List.iter
+    (fun (x, _) ->
+      no_shadow env (Option.value (binder_loc x p) ~default:p.ploc) x)
+    bs;
   { env with vars = List.map (fun (x, (t, _)) -> (x, t)) bs @ env.vars }
 
 (** Types on which [=] and [<>] are allowed: structural equality coincides in
@@ -1019,9 +1080,9 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       in
       if expected = Some TKind then mk TKind (build params operands)
       else mk TTerm (node_term loc ~name ~build params operands).e
-  | Pexp_construct ({ txt = Lident name; _ }, arg) -> (
+  | Pexp_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error loc "unknown constructor %s" name
+      | None -> error cloc "unknown constructor %s" name
       | Some c -> (
           let args = constr_args loc c arg split_pexp in
           let args =
@@ -1036,7 +1097,9 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
               let build params operands = EConstr (c, params @ operands) in
               mk TTerm (node_term loc ~name ~build params operands).e
           | _ -> mk c.c_res (EConstr (c, args))))
-  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident op; _ }; _ }, args) -> (
+  | Pexp_apply
+      ({ pexp_desc = Pexp_ident { txt = Lident op; loc = fn_loc }; _ }, args)
+    -> (
       let args =
         List.map
           (function
@@ -1140,7 +1203,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           match List.assoc_opt f env.locals with
           | Some s -> mk s.ret (ELocalCall (f, check_args s))
           | None ->
-              let s = find_global env loc f in
+              let s = find_global env fn_loc f in
               mk s.ret (ECall (f, check_args s))))
   | Pexp_ifthenelse (c, a, Some b) ->
       let c = expr env ~expected:TBool c in
@@ -1155,8 +1218,11 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             | Ppat_var { txt; _ } -> txt
             | _ -> error vb.pvb_loc "expected a function name"
           in
-          let params = List.map (param_of loc) params in
-          List.iter (no_shadow env loc) (name :: List.map fst params);
+          no_shadow env vb.pvb_pat.ppat_loc name;
+          List.iter
+            (fun p -> no_shadow env (param_loc p) (fst (param_of p)))
+            params;
+          let params = List.map param_of params in
           let ret = Option.map ret_of ret in
           let fenv = { env with vars = params @ env.vars } in
           let fbody = expr fenv ?expected:ret fbody in
@@ -1227,11 +1293,11 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           names fields
       in
       mk (TData d.d_name) (ERecord fields)
-  | Pexp_field (e, { txt = Lident f; _ }) -> (
+  | Pexp_field (e, { txt = Lident f; loc = floc }) -> (
       match
         List.find_opt (fun d -> List.mem_assoc f d.d_fields) !lang.decls
       with
-      | None -> error loc "unknown field %s" f
+      | None -> error floc "unknown field %s" f
       | Some d ->
           let e = expr env ~expected:(TData d.d_name) e in
           mk (List.assoc f d.d_fields) (EField (e, f)))
@@ -1308,7 +1374,7 @@ and case env ?expected scruts (c : Ppxlib.case) : Syntax.case list =
       })
     (alternatives pat)
 
-and param_of loc (p : function_param) =
+and param_of (p : function_param) =
   match p.pparam_desc with
   | Pparam_val
       ( Nolabel,
@@ -1319,7 +1385,18 @@ and param_of loc (p : function_param) =
           _;
         } ) ->
       (txt, ty_of_core ct)
-  | _ -> error loc "parameters must be of the form (x : ty)"
+  | _ -> error p.pparam_loc "parameters must be of the form (x : ty)"
+
+(** The location of the name of a parameter. *)
+and param_loc (p : function_param) =
+  match p.pparam_desc with
+  | Pparam_val
+      ( _,
+        _,
+        { ppat_desc = Ppat_constraint ({ ppat_desc = Ppat_var v; _ }, _); _ } )
+    ->
+      v.loc
+  | _ -> p.pparam_loc
 
 and ret_of = function
   | Pconstraint ct -> ty_of_core ct
@@ -1330,8 +1407,8 @@ and ret_of = function
 
 (** Whether [x] occurs in [e], other than as the argument of a function that
     only reads its type (see [ty_only]). *)
-let mentions x (e : expression) =
-  let found = ref false in
+let mention x (e : expression) =
+  let found = ref None in
   object
     inherit Ast_traverse.iter as super
 
@@ -1342,12 +1419,15 @@ let mentions x (e : expression) =
             [ (_, { pexp_desc = Pexp_ident _; _ }) ] )
         when List.mem f !lang.ty_only ->
           ()
-      | Pexp_ident { txt = Lident y; _ } when y = x -> found := true
+      | Pexp_ident { txt = Lident y; loc } when y = x ->
+          if !found = None then found := Some loc
       | _ -> super#expression e
   end
     #expression
     e;
   !found
+
+let mentions x e = Option.is_some (mention x e)
 
 (** Whether two patterns are equal up to a renaming of their variables. *)
 let alpha_equal (p : pattern) (q : pattern) =
@@ -1463,13 +1543,16 @@ let rec spec_match (spec : expression) (e : expression) =
         (fun (a, b) ->
           List.iter
             (fun x ->
-              if
-                mentions x c.pc_rhs
-                || Option.fold ~none:false ~some:(mentions x) c.pc_guard
-              then
-                error lhs.ppat_loc
-                  "the operands match in either order: name them rather than %s"
-                  x)
+              match
+                List.find_map (mention x)
+                  (Option.to_list c.pc_guard @ [ c.pc_rhs ])
+              with
+              | Some loc ->
+                  error loc
+                    "the operands match in either order: name them rather than \
+                     %s"
+                    x
+              | None -> ())
             [ a; b ])
         operands;
     let comm =
@@ -1570,25 +1653,33 @@ let rec with_default (spec : expression) (e : expression) =
 (* ---------------------------------------------------------------- *)
 (* The declaration of the language *)
 
-let string_attr (a : attribute) =
+(** The string of an attribute [[@a "s"]], and its location. *)
+let string_attr_loc (a : attribute) =
   match a.attr_payload with
   | PStr
       [
         {
           pstr_desc =
             Pstr_eval
-              ({ pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }, _);
+              ( {
+                  pexp_desc = Pexp_constant (Pconst_string (s, _, _));
+                  pexp_loc;
+                  _;
+                },
+                _ );
           _;
         };
       ] ->
-      s
+      (s, pexp_loc)
   | _ -> error a.attr_loc "expected [@%s \"...\"]" a.attr_name.txt
 
-(** The strings of an attribute [[@a "s1" ... "sn"]]. *)
-let strings_attr (a : attribute) =
+let string_attr a = fst (string_attr_loc a)
+
+(** The strings of an attribute [[@a "s1" ... "sn"]], with their locations. *)
+let attr_args (a : attribute) =
   let str (e : expression) =
     match e.pexp_desc with
-    | Pexp_constant (Pconst_string (s, _, _)) -> s
+    | Pexp_constant (Pconst_string (s, _, _)) -> (s, e.pexp_loc)
     | _ -> error a.attr_loc "expected [@%s \"...\" ...]" a.attr_name.txt
   in
   match a.attr_payload with
@@ -1599,11 +1690,13 @@ let strings_attr (a : attribute) =
   | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> [ str e ]
   | _ -> error a.attr_loc "expected [@%s \"...\" ...]" a.attr_name.txt
 
+let strings_attr a = List.map fst (attr_args a)
+
 let check_attrs allowed (attrs : attributes) =
   List.iter
     (fun (a : attribute) ->
       if not (List.mem a.attr_name.txt allowed) then
-        error a.attr_loc "unknown attribute [@%s]" a.attr_name.txt)
+        error a.attr_name.loc "unknown attribute [@%s]" a.attr_name.txt)
     attrs
 
 let find_attr name (attrs : attributes) =
@@ -1614,12 +1707,12 @@ let find_attr name (attrs : attributes) =
 let int_literal (attrs : attributes) =
   match find_attr "literal" attrs with
   | Some a -> (
-      match strings_attr a with
-      | [ "int" ] -> None
-      | [ t ] -> (
+      match attr_args a with
+      | [ ("int", _) ] -> None
+      | [ (t, loc) ] -> (
           match find_decl t with
           | Some _ -> Some t
-          | None -> error a.attr_loc "[@literal]: unknown type %s" t)
+          | None -> error loc "[@literal]: unknown type %s" t)
       | _ -> error a.attr_loc "expected [@literal \"t\"] or [@literal \"int\"]")
   | None -> None
 
@@ -1656,7 +1749,7 @@ let law_literal loc c =
         error loc "the constant %s is not declared" c
   | _ -> error loc "expected the literal 0, 1, true or false"
 
-let check_law (name, law, loc) =
+let check_law (name, law, loc, arg_loc) =
   let operands =
     match Option.bind (find_constr name) node_of_op with
     | Some (_, operands) -> List.length operands
@@ -1671,33 +1764,307 @@ let check_law (name, law, loc) =
   | Fold _ -> ()
   | Unit c | Zero c ->
       expect 2;
-      law_literal loc c
+      law_literal arg_loc c
   | Idem -> expect 2
   | Invol | Distrib_ite -> expect 1
+
+(** The location from the start of the first of [l] to the end of the last, or
+    [default] if [l] is empty. *)
+let span_of (l : Location.t list) default =
+  match l with
+  | [] -> default
+  | first :: _ ->
+      let last = List.nth l (List.length l - 1) in
+      { first with loc_end = last.loc_end }
+
+(** Reads the declaration of the constructor [cd] of a type whose constructors
+    have the type [res], into the language. [comm_locs] collects the locations
+    of the [[@comm]] attributes. *)
+let constructor ~comm_locs res (cd : constructor_declaration) =
+  let name = cd.pcd_name.txt and loc = cd.pcd_loc in
+  let attrs = cd.pcd_attributes in
+  check_attrs
+    ([
+       "comm";
+       "literal";
+       "to_term";
+       "of_term";
+       "raw";
+       "ite";
+       "operators";
+       "params";
+       "sorts";
+       "when";
+       "get";
+     ]
+    @ law_attrs)
+    attrs;
+  let payload n =
+    Option.map
+      (fun (a : attribute) ->
+        match a.attr_payload with
+        | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> e
+        | _ -> error a.attr_loc "unexpected [@%s]" n)
+      (find_attr n attrs)
+  in
+  let items (e : expression option) =
+    match e with
+    | Some { pexp_desc = Pexp_tuple l; _ } -> l
+    | Some e -> [ e ]
+    | None -> []
+  in
+  let attr_loc n =
+    Option.fold ~none:loc
+      ~some:(fun (a : attribute) -> a.attr_loc)
+      (find_attr n attrs)
+  in
+  (match payload "sorts" with
+  | Some _ ->
+      lang :=
+        {
+          !lang with
+          raw_typing =
+            !lang.raw_typing
+            @ [
+                ( name,
+                  {
+                    rt_params = items (payload "params");
+                    rt_sorts = items (payload "sorts");
+                    rt_when = payload "when";
+                    rt_loc = attr_loc "sorts";
+                  } );
+              ];
+        }
+  | None -> (
+      match (find_attr "params" attrs, find_attr "when" attrs) with
+      | Some a, _ | None, Some a ->
+          error a.attr_loc "%s: argument names and conditions need sorts" name
+      | None, None -> ()));
+  if Option.is_some (find_constr name) then
+    error cd.pcd_name.loc "constructor %s is declared twice" name;
+  let args =
+    match cd.pcd_args with
+    | Pcstr_tuple l ->
+        List.map
+          (fun (ct : core_type) ->
+            match ct.ptyp_desc with
+            | Ptyp_constr ({ txt = Lident "nat"; _ }, []) -> Small
+            | _ -> Arg (ty_of_core ct))
+          l
+    | Pcstr_record _ -> error loc "unsupported constructor"
+  in
+  let c = { c_name = name; c_res = res; c_args = args } in
+  let l = !lang in
+  let l = { l with constrs = l.constrs @ [ c ] } in
+  let l =
+    match find_attr "comm" attrs with
+    | Some a ->
+        comm_locs := (name, a.attr_loc) :: !comm_locs;
+        { l with commutative = l.commutative @ [ name ] }
+    | None -> l
+  in
+  let l =
+    {
+      l with
+      laws =
+        l.laws
+        @ List.filter_map
+            (fun (a : attribute) ->
+              Option.map
+                (fun law ->
+                  let arg_loc =
+                    match attr_args a with [ (_, l) ] -> l | _ -> a.attr_loc
+                  in
+                  (name, law, a.attr_loc, arg_loc))
+                (law_of_attr a))
+            attrs;
+    }
+  in
+  let l =
+    match find_attr "get" attrs with
+    | Some a -> (
+        match (res, args, strings_attr a) with
+        | TSty, [ _ ], [ f ] ->
+            { l with sort_getters = l.sort_getters @ [ (name, f) ] }
+        | _ ->
+            error a.attr_loc "[@get \"f\"] applies to sorts with one argument")
+    | None -> l
+  in
+  let l =
+    match find_attr "operators" attrs with
+    | Some a -> (
+        if res <> TKind then
+          error a.attr_loc "[@operators] applies to kind constructors";
+        match args with
+        | Arg (TData _) :: _ -> { l with node_kinds = l.node_kinds @ [ name ] }
+        | _ -> error a.attr_loc "[@operators]: expected an operator argument")
+    | None -> l
+  in
+  (* the functions of the literals, with the locations of their attributes *)
+  let fns =
+    List.filter_map
+      (fun (a : attribute) ->
+        match a.attr_name.txt with
+        | ("to_term" | "of_term" | "raw") as n -> (
+            match (n, strings_attr a) with
+            | ("to_term" | "of_term"), [ f ] -> Some ((n, f), a.attr_loc)
+            | "raw", [ f; p ] -> Some (("raw:" ^ f, p), a.attr_loc)
+            | _ -> error a.attr_loc "unexpected [@%s]" n)
+        | _ -> None)
+      attrs
+  in
+  let l =
+    match (find_attr "literal" attrs, fns) with
+    | Some a, _ -> (
+        match (res, args) with
+        | TKind, [ Arg TBool ] when l.lit_bool = None ->
+            {
+              l with
+              lit_bool = Some name;
+              lit_fns =
+                l.lit_fns
+                @ List.map
+                    (function
+                      | ("to_term", f), _ -> ("bool_to_term", f)
+                      | _, loc ->
+                          error loc "boolean literals only have [@to_term]")
+                    fns;
+            }
+        | TKind, [ Arg TInt ] when l.lit_node = None -> (
+            match int_literal attrs with
+            | None -> (
+                match fns with
+                | (_, loc) :: _ ->
+                    error loc "integer literals have no functions"
+                | [] -> { l with lit_node = Some name; lit_int = true })
+            | Some v ->
+                {
+                  l with
+                  lit_node = Some name;
+                  lit_value = v;
+                  lit_fns = l.lit_fns @ List.map fst fns;
+                })
+        | _ ->
+            error a.attr_loc
+              "[@literal]: expected the only kind constructor of bool or of \
+               int literals")
+    | None, (_, loc) :: _ ->
+        error loc "only literals have [@to_term], [@of_term], [@raw]"
+    | None, [] -> l
+  in
+  let l =
+    match find_attr "ite" attrs with
+    | Some a ->
+        if l.ite <> None then error a.attr_loc "[@ite] is declared twice"
+        else { l with ite = Some name }
+    | None -> l
+  in
+  lang := l
+
+(** Reads the declaration [e] of an operator on terms, whose attribute [a] is
+    [[@infix "op"]] or [[@prefix "op"]], into the language. *)
+let operator ((e : expression), (a : attribute)) =
+  let loc = e.pexp_loc in
+  let sym, sym_loc = string_attr_loc a in
+  let sym, arity =
+    if a.attr_name.txt = "infix" then (
+      if not (is_infix sym) then
+        error sym_loc "%s is not an infix operator, nor a word" sym;
+      (sym, 2))
+    else
+      match List.assoc_opt sym prefix_ops with
+      | Some s -> (s, 1)
+      | None -> error sym_loc "%s is not a prefix operator" sym
+  in
+  if Option.is_some (find_operator ~arity sym) then
+    error sym_loc "operator %s is declared twice" (op_name sym);
+  let ident (e : expression) =
+    match e.pexp_desc with
+    | Pexp_ident { txt = Lident f; _ } -> f
+    | _ -> error e.pexp_loc "expected a function name"
+  in
+  let node, smart, on_value =
+    match e.pexp_desc with
+    | Pexp_tuple [ n; s ] -> (n, s, None)
+    | Pexp_tuple [ n; s; b ] -> (n, s, Some b)
+    | _ ->
+        error loc
+          "expected: node, smart constructor[, primitive on literal values]"
+  in
+  (* the node, with its parameters or none *)
+  let node, params =
+    match node.pexp_desc with
+    | Pexp_construct ({ txt = Lident n; _ }, arg) -> (
+        match find_constr n with
+        | Some c -> (
+            (match node_of_op c with
+            | Some (_, operands) when List.length operands = arity -> ()
+            | _ -> error node.pexp_loc "%s is not a node of arity %d" n arity);
+            let params =
+              match arg with
+              | None -> []
+              | Some { pexp_desc = Pexp_tuple l; _ } -> l
+              | Some e -> [ e ]
+            in
+            match params with
+            | _ :: _ when List.length params <> List.length c.c_args ->
+                error node.pexp_loc "%s has %d parameters" n
+                  (List.length c.c_args)
+            | _ -> (n, params))
+        | None -> error node.pexp_loc "%s is not a node of arity %d" n arity)
+    | _ -> error node.pexp_loc "expected a node constructor"
+  in
+  Option.iter
+    (fun (b : expression) ->
+      if not (is_value_op sym) then
+        error b.pexp_loc "%s is not defined on literal values" (op_name sym))
+    on_value;
+  let on_value = Option.map ident on_value in
+  let smart, pre =
+    match smart.pexp_desc with
+    | Pexp_apply (f, args) -> (ident f, List.map snd args)
+    | _ -> (ident smart, [])
+  in
+  lang :=
+    {
+      !lang with
+      operators =
+        !lang.operators @ [ { sym; arity; node; params; smart; pre; on_value } ];
+    }
 
 (** Reads the declaration of a language, which the rules are then checked
     against. *)
 let language (str : structure) =
   let tds, ops =
-    List.partition_map
-      (fun (si : structure_item) ->
-        match si.pstr_desc with
-        | Pstr_type (_, [ td ]) -> Left td
-        | Pstr_eval (e, [ a ])
-          when List.mem a.attr_name.txt [ "infix"; "prefix"; "constant" ] ->
-            Right (e, a)
-        | Pstr_attribute a -> (
-            match (a.attr_name.txt, strings_attr a) with
-            | "lean_root", [ r ] ->
-                lang := { !lang with lean_root = r };
-                Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
-            | "lean_param", [ x; t ] ->
-                lang :=
-                  { !lang with lean_params = !lang.lean_params @ [ (x, t) ] };
-                Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
-            | _ -> error a.attr_loc "unknown attribute [@@@%s]" a.attr_name.txt)
-        | _ -> error si.pstr_loc "unsupported item in a language declaration")
-      str
+    List.partition_map Fun.id
+      (List.filter_map
+         (fun (si : structure_item) ->
+           attempt (fun () ->
+               match si.pstr_desc with
+               | Pstr_type (_, [ td ]) -> Either.Left td
+               | Pstr_eval (e, [ a ])
+                 when List.mem a.attr_name.txt [ "infix"; "prefix"; "constant" ]
+                 ->
+                   Right (e, a)
+               | Pstr_attribute a -> (
+                   match (a.attr_name.txt, strings_attr a) with
+                   | "lean_root", [ r ] ->
+                       lang := { !lang with lean_root = r };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                   | "lean_param", [ x; t ] ->
+                       lang :=
+                         {
+                           !lang with
+                           lean_params = !lang.lean_params @ [ (x, t) ];
+                         };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                   | _ ->
+                       error a.attr_name.loc "unknown attribute [@@@@@@%s]"
+                         a.attr_name.txt)
+               | _ ->
+                   error si.pstr_loc
+                     "unsupported item in a language declaration"))
+         str)
   in
   let ops, constants =
     List.partition
@@ -1714,12 +2081,15 @@ let language (str : structure) =
   let nodes =
     List.fold_left
       (fun nodes (td : type_declaration) ->
-        match td.ptype_kind with
-        | Ptype_variant [ cd ] ->
-            if List.mem_assoc cd.pcd_name.txt nodes then
-              error cd.pcd_loc "node %s is declared twice" cd.pcd_name.txt;
-            nodes @ [ (cd.pcd_name.txt, cd) ]
-        | _ -> error td.ptype_loc "expected a node")
+        Option.value ~default:nodes
+          (attempt (fun () ->
+               match td.ptype_kind with
+               | Ptype_variant [ cd ] ->
+                   if List.mem_assoc cd.pcd_name.txt nodes then
+                     error cd.pcd_name.loc "node %s is declared twice"
+                       cd.pcd_name.txt;
+                   nodes @ [ (cd.pcd_name.txt, cd) ]
+               | _ -> error td.ptype_loc "expected a node")))
       [] nodes
   in
   let placed = ref [] in
@@ -1744,17 +2114,18 @@ let language (str : structure) =
     | _ -> n
   in
   let place ty (cd : constructor_declaration) =
-    match List.assoc_opt cd.pcd_name.txt nodes with
-    | None -> cd
-    | Some n ->
-        let name = cd.pcd_name.txt in
-        if cd.pcd_args <> Pcstr_tuple [] || cd.pcd_attributes <> [] then
-          error cd.pcd_loc "%s is declared by a node, and placed by its name"
-            name;
-        if List.mem name !placed then
-          error cd.pcd_loc "node %s is placed twice" name;
-        placed := name :: !placed;
-        if ty = "kind" then in_kind n else n
+    attempt (fun () ->
+        match List.assoc_opt cd.pcd_name.txt nodes with
+        | None -> cd
+        | Some n ->
+            let name = cd.pcd_name.txt in
+            if cd.pcd_args <> Pcstr_tuple [] || cd.pcd_attributes <> [] then
+              error cd.pcd_loc
+                "%s is declared by a node, and placed by its name" name;
+            if List.mem name !placed then
+              error cd.pcd_name.loc "node %s is placed twice" name;
+            placed := name :: !placed;
+            if ty = "kind" then in_kind n else n)
   in
   let tds =
     List.map
@@ -1764,7 +2135,7 @@ let language (str : structure) =
             {
               td with
               ptype_kind =
-                Ptype_variant (List.map (place td.ptype_name.txt) cds);
+                Ptype_variant (List.filter_map (place td.ptype_name.txt) cds);
             }
         | _ -> td)
       tds
@@ -1851,14 +2222,20 @@ let language (str : structure) =
         with
         | [] -> td
         | added ->
-            let added = if ty = "kind" then List.map in_kind added else added in
-            let cds =
-              match td.ptype_kind with
-              | Ptype_variant cds -> cds
-              | Ptype_abstract -> []
-              | _ -> error td.ptype_loc "%s: expected a variant type" ty
-            in
-            { td with ptype_kind = Ptype_variant (cds @ added) })
+            Option.value ~default:td
+              (attempt (fun () ->
+                   let added =
+                     if ty = "kind" then List.map in_kind added else added
+                   in
+                   let cds =
+                     match td.ptype_kind with
+                     | Ptype_variant cds -> cds
+                     | Ptype_abstract -> []
+                     | _ ->
+                         error td.ptype_name.loc "%s: expected a variant type"
+                           ty
+                   in
+                   { td with ptype_kind = Ptype_variant (cds @ added) })))
       tds
   in
   List.iter
@@ -1869,244 +2246,98 @@ let language (str : structure) =
              (fun (td : type_declaration) -> td.ptype_name.txt = t)
              tds)
       then
-        error cd.pcd_loc "node %s: the language has no type %s" cd.pcd_name.txt
-          t)
+        ignore
+          (attempt (fun () ->
+               error cd.pcd_name.loc "node %s: the language has no type %s"
+                 cd.pcd_name.txt t)))
     auto;
+  checkpoint ();
   (* the types first, so that they can refer to each other *)
   let decls =
-    List.map
+    List.filter_map
       (fun (td : type_declaration) ->
-        let name = td.ptype_name.txt and loc = td.ptype_loc in
-        check_attrs [ "ocaml"; "lean"; "noeq"; "equal" ] td.ptype_attributes;
-        (match ty_of_name name with
-        | Some (TInt | TBool | TUnit | TTerm) ->
-            error loc "%s is a built-in type" name
-        | _ -> ());
-        if Option.is_some (find_decl name) then
-          error loc "type %s is declared twice" name;
-        let d =
-          {
-            d_name = name;
-            d_ocaml =
-              Option.fold ~none:name ~some:string_attr
-                (find_attr "ocaml" td.ptype_attributes);
-            d_lean =
-              Option.map string_attr (find_attr "lean" td.ptype_attributes);
-            d_eq = not (has_attr "noeq" td.ptype_attributes);
-            d_equal =
-              Option.map string_attr (find_attr "equal" td.ptype_attributes);
-            d_fields = [];
-          }
-        in
-        lang := { !lang with decls = !lang.decls @ [ d ] };
-        d)
+        attempt (fun () ->
+            let name = td.ptype_name.txt and loc = td.ptype_name.loc in
+            check_attrs [ "ocaml"; "lean"; "noeq"; "equal" ] td.ptype_attributes;
+            (match ty_of_name name with
+            | Some (TInt | TBool | TUnit | TTerm) ->
+                error loc "%s is a built-in type" name
+            | _ -> ());
+            if Option.is_some (find_decl name) then
+              error loc "type %s is declared twice" name;
+            let d =
+              {
+                d_name = name;
+                d_ocaml =
+                  Option.fold ~none:name ~some:string_attr
+                    (find_attr "ocaml" td.ptype_attributes);
+                d_lean =
+                  Option.map string_attr (find_attr "lean" td.ptype_attributes);
+                d_eq = not (has_attr "noeq" td.ptype_attributes);
+                d_equal =
+                  Option.map string_attr (find_attr "equal" td.ptype_attributes);
+                d_fields = [];
+              }
+            in
+            lang := { !lang with decls = !lang.decls @ [ d ] };
+            (d, td)))
       tds
   in
+  checkpoint ();
   let decls =
-    List.map2
-      (fun d (td : type_declaration) ->
+    List.map
+      (fun (d, (td : type_declaration)) ->
         match td.ptype_kind with
         | Ptype_record fields ->
-            {
-              d with
-              d_fields =
-                List.map
-                  (fun (l : label_declaration) ->
-                    (l.pld_name.txt, ty_of_core l.pld_type))
-                  fields;
-            }
-        | _ -> d)
-      decls tds
+            ( {
+                d with
+                d_fields =
+                  List.filter_map
+                    (fun (l : label_declaration) ->
+                      attempt (fun () ->
+                          (l.pld_name.txt, ty_of_core l.pld_type)))
+                    fields;
+              },
+              td )
+        | _ -> (d, td))
+      decls
   in
-  lang := { !lang with decls };
+  lang := { !lang with decls = List.map fst decls };
   (* a field determines its record type *)
   ignore
     (List.fold_left
-       (fun seen (td : type_declaration) ->
+       (fun seen ((_ : decl), (td : type_declaration)) ->
          match td.ptype_kind with
          | Ptype_record ls ->
              List.fold_left
                (fun seen (l : label_declaration) ->
                  if List.mem l.pld_name.txt seen then
-                   error l.pld_loc "field %s is declared twice" l.pld_name.txt;
+                   ignore
+                     (attempt (fun () ->
+                          error l.pld_name.loc "field %s is declared twice"
+                            l.pld_name.txt));
                  l.pld_name.txt :: seen)
                seen ls
          | _ -> seen)
-       [] tds);
-  List.iter2
-    (fun d (td : type_declaration) ->
+       [] decls);
+  checkpoint ();
+  (* the [[@comm]] attributes, for the check that their operators are binary *)
+  let comm_locs = ref [] in
+  (* the constructors whose declarations have errors *)
+  let failed = ref [] in
+  List.iter
+    (fun (d, (td : type_declaration)) ->
       (match td.ptype_kind with
       | Ptype_variant cds ->
           let res = Option.get (ty_of_name d.d_name) in
           List.iter
             (fun (cd : constructor_declaration) ->
-              let name = cd.pcd_name.txt and loc = cd.pcd_loc in
-              let attrs = cd.pcd_attributes in
-              check_attrs
-                ([
-                   "comm";
-                   "literal";
-                   "to_term";
-                   "of_term";
-                   "raw";
-                   "ite";
-                   "operators";
-                   "params";
-                   "sorts";
-                   "when";
-                   "get";
-                 ]
-                @ law_attrs)
-                attrs;
-              let payload n =
-                Option.map
-                  (fun (a : attribute) ->
-                    match a.attr_payload with
-                    | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> e
-                    | _ -> error a.attr_loc "unexpected [@%s]" n)
-                  (find_attr n attrs)
-              in
-              let items (e : expression option) =
-                match e with
-                | Some { pexp_desc = Pexp_tuple l; _ } -> l
-                | Some e -> [ e ]
-                | None -> []
-              in
-              if Option.is_some (payload "sorts") then
-                lang :=
-                  {
-                    !lang with
-                    raw_typing =
-                      !lang.raw_typing
-                      @ [
-                          ( name,
-                            {
-                              rt_params = items (payload "params");
-                              rt_sorts = items (payload "sorts");
-                              rt_when = payload "when";
-                              rt_loc = loc;
-                            } );
-                        ];
-                  }
-              else if
-                Option.is_some (payload "params")
-                || Option.is_some (payload "when")
-              then error loc "%s: argument names and conditions need sorts" name;
-              if Option.is_some (find_constr name) then
-                error loc "constructor %s is declared twice" name;
-              let args =
-                match cd.pcd_args with
-                | Pcstr_tuple l ->
-                    List.map
-                      (fun (ct : core_type) ->
-                        match ct.ptyp_desc with
-                        | Ptyp_constr ({ txt = Lident "nat"; _ }, []) -> Small
-                        | _ -> Arg (ty_of_core ct))
-                      l
-                | Pcstr_record _ -> error loc "unsupported constructor"
-              in
-              let c = { c_name = name; c_res = res; c_args = args } in
-              let l = !lang in
-              let l = { l with constrs = l.constrs @ [ c ] } in
-              let l =
-                if has_attr "comm" attrs then
-                  { l with commutative = l.commutative @ [ name ] }
-                else l
-              in
-              let l =
-                {
-                  l with
-                  laws =
-                    l.laws
-                    @ List.filter_map
-                        (fun (a : attribute) ->
-                          Option.map
-                            (fun law -> (name, law, a.attr_loc))
-                            (law_of_attr a))
-                        attrs;
-                }
-              in
-              let l =
-                match find_attr "get" attrs with
-                | Some a -> (
-                    match (res, args, strings_attr a) with
-                    | TSty, [ _ ], [ f ] ->
-                        { l with sort_getters = l.sort_getters @ [ (name, f) ] }
-                    | _ ->
-                        error a.attr_loc
-                          "[@get \"f\"] applies to sorts with one argument")
-                | None -> l
-              in
-              let l =
-                if has_attr "operators" attrs then (
-                  if res <> TKind then
-                    error loc "[@operators] applies to kind constructors";
-                  match args with
-                  | Arg (TData _) :: _ ->
-                      { l with node_kinds = l.node_kinds @ [ name ] }
-                  | _ -> error loc "[@operators]: expected an operator argument")
-                else l
-              in
-              let fns =
-                List.filter_map
-                  (fun (a : attribute) ->
-                    match a.attr_name.txt with
-                    | ("to_term" | "of_term" | "raw") as n -> (
-                        match (n, strings_attr a) with
-                        | ("to_term" | "of_term"), [ f ] -> Some (n, f)
-                        | "raw", [ f; p ] -> Some ("raw:" ^ f, p)
-                        | _ -> error a.attr_loc "unexpected [@%s]" n)
-                    | _ -> None)
-                  attrs
-              in
-              let l =
-                if has_attr "literal" attrs then
-                  match (res, args) with
-                  | TKind, [ Arg TBool ] when l.lit_bool = None ->
-                      {
-                        l with
-                        lit_bool = Some name;
-                        lit_fns =
-                          l.lit_fns
-                          @ List.map
-                              (function
-                                | "to_term", f -> ("bool_to_term", f)
-                                | _, _ ->
-                                    error loc
-                                      "boolean literals only have [@to_term]")
-                              fns;
-                      }
-                  | TKind, [ Arg TInt ] when l.lit_node = None -> (
-                      match int_literal attrs with
-                      | None ->
-                          if fns <> [] then
-                            error loc "integer literals have no functions";
-                          { l with lit_node = Some name; lit_int = true }
-                      | Some v ->
-                          {
-                            l with
-                            lit_node = Some name;
-                            lit_value = v;
-                            lit_fns = l.lit_fns @ fns;
-                          })
-                  | _ ->
-                      error loc
-                        "[@literal]: expected the only kind constructor of \
-                         bool or of int literals"
-                else if fns <> [] then
-                  error loc "only literals have [@to_term], [@of_term], [@raw]"
-                else l
-              in
-              let l =
-                if has_attr "ite" attrs then
-                  if l.ite <> None then error loc "[@ite] is declared twice"
-                  else { l with ite = Some name }
-                else l
-              in
-              lang := l)
+              if attempt (fun () -> constructor ~comm_locs res cd) = None then
+                failed := cd.pcd_name.txt :: !failed)
             cds
       | Ptype_abstract | Ptype_record _ -> ()
-      | Ptype_open -> error td.ptype_loc "unsupported type");
+      | Ptype_open ->
+          ignore (attempt (fun () -> error td.ptype_loc "unsupported type")));
       (* the typings of the constructors of a type of operators are all given,
          or none *)
       match td.ptype_kind with
@@ -2117,122 +2348,69 @@ let language (str : structure) =
           if List.exists typed cds then
             List.iter
               (fun (cd : constructor_declaration) ->
-                if not (typed cd) then
-                  error cd.pcd_loc
-                    "%s has no typing, unlike the other constructors of %s"
-                    cd.pcd_name.txt d.d_name)
+                if not (typed cd || List.mem cd.pcd_name.txt !failed) then
+                  ignore
+                    (attempt (fun () ->
+                         error cd.pcd_name.loc
+                           "%s has no typing, unlike the other constructors of \
+                            %s"
+                           cd.pcd_name.txt d.d_name)))
               cds
       | _ -> ())
-    decls tds;
+    decls;
+  checkpoint ();
   (* then the operators on terms *)
-  List.iter
-    (fun ((e : expression), (a : attribute)) ->
-      let loc = e.pexp_loc in
-      let sym = string_attr a in
-      let sym, arity =
-        if a.attr_name.txt = "infix" then (
-          if not (is_infix sym) then
-            error a.attr_loc "%s is not an infix operator, nor a word" sym;
-          (sym, 2))
-        else
-          match List.assoc_opt sym prefix_ops with
-          | Some s -> (s, 1)
-          | None -> error a.attr_loc "%s is not a prefix operator" sym
-      in
-      if Option.is_some (find_operator ~arity sym) then
-        error loc "operator %s is declared twice" (op_name sym);
-      let ident (e : expression) =
-        match e.pexp_desc with
-        | Pexp_ident { txt = Lident f; _ } -> f
-        | _ -> error e.pexp_loc "expected a function name"
-      in
-      let node, smart, on_value =
-        match e.pexp_desc with
-        | Pexp_tuple [ n; s ] -> (n, s, None)
-        | Pexp_tuple [ n; s; b ] -> (n, s, Some (ident b))
-        | _ ->
-            error loc
-              "expected: node, smart constructor[, primitive on literal values]"
-      in
-      (* the node, with its parameters or none *)
-      let node, params =
-        match node.pexp_desc with
-        | Pexp_construct ({ txt = Lident n; _ }, arg) -> (
-            match find_constr n with
-            | Some c -> (
-                (match node_of_op c with
-                | Some (_, operands) when List.length operands = arity -> ()
-                | _ ->
-                    error node.pexp_loc "%s is not a node of arity %d" n arity);
-                let params =
-                  match arg with
-                  | None -> []
-                  | Some { pexp_desc = Pexp_tuple l; _ } -> l
-                  | Some e -> [ e ]
-                in
-                match params with
-                | _ :: _ when List.length params <> List.length c.c_args ->
-                    error node.pexp_loc "%s has %d parameters" n
-                      (List.length c.c_args)
-                | _ -> (n, params))
-            | None -> error node.pexp_loc "%s is not a node of arity %d" n arity
-            )
-        | _ -> error node.pexp_loc "expected a node constructor"
-      in
-      if Option.is_some on_value && not (is_value_op sym) then
-        error loc "%s is not defined on literal values" (op_name sym);
-      let smart, pre =
-        match smart.pexp_desc with
-        | Pexp_apply (f, args) -> (ident f, List.map snd args)
-        | _ -> (ident smart, [])
-      in
-      lang :=
-        {
-          !lang with
-          operators =
-            !lang.operators
-            @ [ { sym; arity; node; params; smart; pre; on_value } ];
-        })
-    ops;
+  List.iter (fun op -> ignore (attempt (fun () -> operator op))) ops;
   (* the constants of the laws *)
   List.iter
     (fun ((e : expression), (a : attribute)) ->
-      match a.attr_name.txt with
-      | "constant" -> (
-          let c = string_attr a in
-          if List.mem_assoc c !lang.constants then
-            error e.pexp_loc "constant %s is declared twice" c;
-          match e.pexp_desc with
-          | Pexp_function
-              ( [
-                  {
-                    pparam_desc =
-                      Pparam_val
-                        ( Nolabel,
-                          None,
-                          { ppat_desc = Ppat_var { txt = v; _ }; _ } );
-                    _;
-                  };
-                ],
-                None,
-                Pfunction_body body ) ->
-              lang :=
-                { !lang with constants = !lang.constants @ [ (c, (v, body)) ] }
-          | _ -> error e.pexp_loc "expected constant \"c\" (v) = e")
-      | _ -> ())
+      ignore
+        (attempt (fun () ->
+             match a.attr_name.txt with
+             | "constant" -> (
+                 let c, cloc = string_attr_loc a in
+                 if List.mem_assoc c !lang.constants then
+                   error cloc "constant %s is declared twice" c;
+                 match e.pexp_desc with
+                 | Pexp_function
+                     ( [
+                         {
+                           pparam_desc =
+                             Pparam_val
+                               ( Nolabel,
+                                 None,
+                                 { ppat_desc = Ppat_var { txt = v; _ }; _ } );
+                           _;
+                         };
+                       ],
+                       None,
+                       Pfunction_body body ) ->
+                     lang :=
+                       {
+                         !lang with
+                         constants = !lang.constants @ [ (c, (v, body)) ];
+                       }
+                 | _ -> error e.pexp_loc "expected constant \"c\" (v) = e")
+             | _ -> ())))
     constants;
+  checkpoint ();
   let loc = match str with si :: _ -> si.pstr_loc | [] -> Location.none in
   List.iter
     (fun t ->
-      if Option.is_none (find_decl t) then error loc "type %s is not declared" t)
+      if Option.is_none (find_decl t) then
+        ignore (attempt (fun () -> error loc "type %s is not declared" t)))
     [ "kind"; "ty" ];
   List.iter
     (fun c ->
       match Option.bind (find_constr c) node_of_op with
       | Some (_, [ _; _ ]) -> ()
-      | _ -> error loc "[@comm]: %s is not a binary operator" c)
+      | _ ->
+          let loc = Option.value (List.assoc_opt c !comm_locs) ~default:loc in
+          ignore
+            (attempt (fun () ->
+                 error loc "[@comm]: %s is not a binary operator" c)))
     !lang.commutative;
-  List.iter check_law !lang.laws
+  List.iter (fun l -> ignore (attempt (fun () -> check_law l))) !lang.laws
 
 (** The pattern of the parameter [e] of the node of an operator. *)
 let rec pat_of_param (e : expression) =
@@ -2276,7 +2454,7 @@ let desugar_ops =
                 p with
                 ppat_desc = Ppat_construct ({ txt = Lident c; loc }, arg);
               }
-          | None -> error p.ppat_loc "the language has no integer literals")
+          | None -> error loc "the language has no integer literals")
       | Ppat_construct ({ txt = Lident sym; loc }, Some (vars, arg))
         when is_infix sym || List.mem sym (List.map snd prefix_ops) -> (
           let arity, operands =
@@ -2285,8 +2463,7 @@ let desugar_ops =
             | _ -> (1, [ arg ])
           in
           match find_operator ~arity sym with
-          | None ->
-              error p.ppat_loc "%s is not an operator on terms" (op_name sym)
+          | None -> error loc "%s is not an operator on terms" (op_name sym)
           | Some o ->
               let c = Option.get (find_constr o.node) in
               let params =
@@ -2319,19 +2496,20 @@ let spec_of_attrs (attrs : attributes) =
 
 (** The parameters of a rule whose spec is a node over variables,
     [C (x1, ..., xn)]: the variables, at the types of the arguments of [C]. *)
-let spec_params loc rname (spec : expression) =
-  let fail () =
+let spec_params rname (spec : expression) =
+  let fail (loc : Location.t) =
     error loc
       "%s: a rule declares its parameters unless its spec is a node over \
        variables"
       rname
   in
+  let loc = spec.pexp_loc in
   match spec.pexp_desc with
-  | Pexp_construct ({ txt = Lident n; _ }, arg) ->
+  | Pexp_construct ({ txt = Lident n; loc = cloc }, arg) ->
       let c =
         match find_constr n with
         | Some c -> c
-        | None -> error loc "unknown constructor %s" n
+        | None -> error cloc "unknown constructor %s" n
       in
       let tys =
         List.map arg_ty c.c_args
@@ -2349,9 +2527,9 @@ let spec_params loc rname (spec : expression) =
         (fun (a : expression) t ->
           match a.pexp_desc with
           | Pexp_ident { txt = Lident x; _ } -> (x, t)
-          | _ -> fail ())
+          | _ -> fail a.pexp_loc)
         args tys
-  | _ -> fail ()
+  | _ -> fail loc
 
 type raw_fn = {
   rname : string;
@@ -2367,7 +2545,16 @@ type raw_fn = {
       (** [[@untyped]]: the rule also simplifies ill-typed specs, so the sorts
           of their operands are not asserted *)
   rloc : Location.t;
+  rname_loc : Location.t;  (** of the name of the function *)
+  rparam_locs : Location.t list;  (** of the names of its parameters *)
+  rattrs : attributes;
 }
+
+(** The location of the attribute [name] of [r], or else of its name. *)
+let rattr_loc (r : raw_fn) name =
+  match find_attr name r.rattrs with
+  | Some a -> a.attr_loc
+  | None -> r.rname_loc
 
 (** The spec without the sorts of its operands, and those sorts. *)
 let spec_sorts (spec : expression) =
@@ -2398,11 +2585,13 @@ let spec_sorts (spec : expression) =
 
 let raw_fn (vb : value_binding) =
   let loc = vb.pvb_loc in
+  let rname_loc = vb.pvb_pat.ppat_loc in
   let rname =
     match vb.pvb_pat.ppat_desc with
     | Ppat_var { txt; _ } -> txt
-    | _ -> error loc "expected a function name"
+    | _ -> error rname_loc "expected a function name"
   in
+  let rattrs = vb.pvb_attributes in
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -2414,8 +2603,8 @@ let raw_fn (vb : value_binding) =
   let rty_only = has_attr "ty_only" vb.pvb_attributes in
   let runtyped = has_attr "untyped" vb.pvb_attributes in
   if runtyped && rsorts <> [] then
-    error loc "%s: an [@untyped] rule does not annotate the sorts of its spec"
-      rname;
+    error (Option.get (find_attr "untyped" vb.pvb_attributes)).attr_loc
+      "%s: an [@untyped] rule does not annotate the sorts of its spec" rname;
   (* the cases of a rule match the terms (and lists of terms) among its
      parameters *)
   let body rparams (e : expression) =
@@ -2442,13 +2631,15 @@ let raw_fn (vb : value_binding) =
   in
   match vb.pvb_expr.pexp_desc with
   | Pexp_function (params, Some ret, Pfunction_body rbody) ->
-      let rparams = List.map (param_of loc) params in
+      let rparams = List.map param_of params in
+      let rparam_locs = List.map param_loc params in
       (match rspec with
       | Some spec when rcases -> (
-          match spec_params loc rname spec with
+          match spec_params rname spec with
           | ps when ps = rparams ->
-              error loc "%s: its parameters are those of its spec, implicitly"
-                rname
+              error
+                (span_of rparam_locs rname_loc)
+                "%s: its parameters are those of its spec, implicitly" rname
           | _ | (exception Error _) -> ())
       | _ -> ());
       let rbody = body rparams rbody in
@@ -2463,14 +2654,31 @@ let raw_fn (vb : value_binding) =
         rsorts;
         runtyped;
         rloc = loc;
+        rname_loc;
+        rparam_locs;
+        rattrs;
       }
-  | Pexp_function _ -> error loc "%s: the return type must be annotated" rname
+  | Pexp_function _ ->
+      error rname_loc "%s: the return type must be annotated" rname
   | _ -> (
       match vb.pvb_constraint with
       | Some (Pvc_constraint { typ; locally_abstract_univars = [] }) ->
           let rparams =
             match rspec with
-            | Some spec when rcases -> spec_params loc rname spec
+            | Some spec when rcases -> spec_params rname spec
+            | _ -> []
+          in
+          (* the operands of the spec *)
+          let rparam_locs =
+            match rspec with
+            | Some { pexp_desc = Pexp_construct (_, Some args); _ }
+              when rparams <> [] ->
+                let args =
+                  match args with
+                  | { pexp_desc = Pexp_tuple l; _ } -> l
+                  | a -> [ a ]
+                in
+                List.map (fun (a : expression) -> a.pexp_loc) args
             | _ -> []
           in
           {
@@ -2484,8 +2692,13 @@ let raw_fn (vb : value_binding) =
             rsorts;
             runtyped;
             rloc = loc;
+            rname_loc;
+            rparam_locs;
+            rattrs;
           }
-      | _ -> error loc "%s: constants must be annotated with their type" rname)
+      | _ ->
+          error rname_loc "%s: constants must be annotated with their type"
+            rname)
 
 (* ---------------------------------------------------------------- *)
 (* The laws of operators *)
@@ -2535,6 +2748,19 @@ let case_rule (c : Ppxlib.case) =
       rule_name_of_attrs (List.hd (List.rev l)).ppat_attributes
   | None, _ -> None
 
+(** The location of the name of the rule of a case (its pattern, if it has
+    none). *)
+let case_rule_loc (c : Ppxlib.case) =
+  let attrs =
+    match c.pc_lhs.ppat_desc with
+    | Ppat_tuple l ->
+        c.pc_lhs.ppat_attributes @ (List.hd (List.rev l)).ppat_attributes
+    | _ -> c.pc_lhs.ppat_attributes
+  in
+  match find_attr "r" attrs with
+  | Some a -> a.attr_loc
+  | None -> c.pc_lhs.ppat_loc
+
 (** Adds the rules derived from the laws of each operator (see [Syntax.law]) to
     its rule function, before its own rules, in the order of [law_order]. In the
     rule function [f (p1, ..., v1, v2)] of a binary operator [op]:
@@ -2563,19 +2789,20 @@ let law_cases globals raws =
   let derive raws n =
     let laws =
       List.filter_map
-        (fun (m, law, loc) -> if m = n then Some (law, loc) else None)
+        (fun (m, law, loc, arg_loc) ->
+          if m = n then Some (law, loc, arg_loc) else None)
         !lang.laws
-      |> List.stable_sort (fun (a, _) (b, _) ->
+      |> List.stable_sort (fun (a, _, _) (b, _, _) ->
           compare (law_order a) (law_order b))
     in
-    let r = rule_of_node (snd (List.hd laws)) raws n in
+    let r = rule_of_node ((fun (_, l, _) -> l) (List.hd laws)) raws n in
     let op = Option.get (find_constr n) in
     let nparams = List.length op.c_args in
     let params = List.map fst r.rparams in
     let node_params = List.filteri (fun i _ -> i < nparams) params in
     let operands = List.filteri (fun i _ -> i >= nparams) params in
     let lit_name = function "0" -> "zero" | "1" -> "one" | c -> c ^ "_" in
-    let case (law, loc) =
+    let case (law, loc, arg_loc) =
       let var x = evar ~loc x in
       let app f args = eapply ~loc (var f) args in
       (* [n (_, ..., _, ps)] *)
@@ -2624,7 +2851,7 @@ let law_cases globals raws =
             let s =
               match List.assoc_opt g globals with
               | Some s -> s
-              | None -> error loc "[@fold]: unknown function %s" g
+              | None -> error arg_loc "[@fold]: unknown function %s" g
             in
             let arity = List.length operands in
             let k = List.length s.args - arity in
@@ -2740,21 +2967,24 @@ let law_cases globals raws =
             (fun c ->
               match case_rule c with
               | Some x when List.mem_assoc x derived ->
-                  error c.pc_lhs.ppat_loc
+                  error (case_rule_loc c)
                     "rule %s is derived from the laws of %s" x n
               | _ -> ())
             cases;
           let derived = List.map (fun (_, c) -> c scrut) derived in
           { e with pexp_desc = Pexp_match (scrut, derived @ cases) }
-      | _ -> error r.rloc "%s: the laws of %s need a match" r.rname n
+      | _ -> error r.rname_loc "%s: the laws of %s need a match" r.rname n
     in
     List.map
       (fun r' ->
         if r'.rname = r.rname then { r with rbody = body r.rbody } else r')
       raws
   in
-  List.fold_left derive raws
-    (List.sort_uniq compare (List.map (fun (n, _, _) -> n) !lang.laws))
+  List.fold_left
+    (fun raws n ->
+      Option.value (attempt (fun () -> derive raws n)) ~default:raws)
+    raws
+    (List.sort_uniq compare (List.map (fun (n, _, _, _) -> n) !lang.laws))
 
 (* ---------------------------------------------------------------- *)
 (* The typing of operators *)
@@ -2780,7 +3010,9 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
   in
   let params = if params = [] then List.map (fun _ -> "_") args else params in
   if List.length params <> nparams then
-    error loc "%s has %d arguments" c.c_name nparams;
+    error
+      (span_of (List.map (fun (e : expression) -> e.pexp_loc) rt.rt_params) loc)
+      "%s has %d arguments" c.c_name nparams;
   let penv =
     List.concat
       (List.map2
@@ -2788,10 +3020,12 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
          params args)
   in
   List.iter
-    (fun (x, _) ->
-      if List.mem x typing_names then
-        error loc "%s: reserved name %s" c.c_name x)
-    penv;
+    (fun (e : expression) ->
+      match e.pexp_desc with
+      | Pexp_ident { txt = Lident x; _ } when List.mem x typing_names ->
+          error e.pexp_loc "%s: reserved name %s" c.c_name x
+      | _ -> ())
+    rt.rt_params;
   let vars = ref [] in
   let is_free x =
     (not (List.mem_assoc x penv)) && not (List.mem_assoc x env0.globals)
@@ -2839,8 +3073,9 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
 (** The typings of the nodes: of the operands that are terms and of the result,
     or of the result alone. *)
 let typings env0 =
-  List.map
+  List.filter_map
     (fun (n, (rt : raw_typing)) ->
+      attempt @@ fun () ->
       let c = Option.get (find_constr n) in
       let sorts = List.length rt.rt_sorts in
       let nparams =
@@ -2881,14 +3116,14 @@ let extend_rules (str : structure) =
          (fun names c ->
            match case_rule c with
            | Some r when List.mem r names ->
-               error c.pc_lhs.ppat_loc "extend %s: %s already has a rule %s" f f
+               error (case_rule_loc c) "extend %s: %s already has a rule %s" f f
                  r
            | Some r -> r :: names
            | None -> names)
          (List.filter_map case_rule cs)
          ext);
     match before with
-    | Some r -> (
+    | Some (r, rloc) -> (
         let rec go = function
           | c :: cs when case_rule c = Some r -> Some (ext @ (c :: cs))
           | c :: cs -> Option.map (List.cons c) (go cs)
@@ -2896,7 +3131,7 @@ let extend_rules (str : structure) =
         in
         match go cs with
         | Some cs -> cs
-        | None -> error loc "extend %s: %s has no rule %s" f f r)
+        | None -> error rloc "extend %s: %s has no rule %s" f f r)
     | None -> (
         match List.rev cs with
         | ({ pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } as last)
@@ -2930,9 +3165,9 @@ let extend_rules (str : structure) =
           },
           attrs )
       when has_attr "extend" attrs ->
-        let loc = si.pstr_loc in
-        let f = string_attr (Option.get (find_attr "extend" attrs)) in
-        let before = Option.map string_attr (find_attr "before" attrs) in
+        (* at the name of the extended function *)
+        let f, loc = string_attr_loc (Option.get (find_attr "extend" attrs)) in
+        let before = Option.map string_attr_loc (find_attr "before" attrs) in
         let fn = has_attr "fn" attrs in
         let rec go = function
           | ({ pstr_desc = Pstr_value (r, [ vb ]); _ } as item) :: items
@@ -2971,7 +3206,12 @@ let extend_rules (str : structure) =
         go items
     | _ -> si :: items
   in
-  List.rev (List.fold_left extend [] str)
+  (* an item that cannot be added is left out, when errors are collected *)
+  List.rev
+    (List.fold_left
+       (fun items si ->
+         Option.value (attempt (fun () -> extend items si)) ~default:items)
+       [] str)
 
 (** The check that the spec of the rule [r] is well-typed: that the sorts of its
     operands have the shapes that the typing of its node and their annotations
@@ -3320,41 +3560,143 @@ let comm_fns () =
            \             if tag_le l r then %s (op, l, r) else %s (op, r, l)\n"
            ty kc.c_name kc.c_name)
 
+(** Checks the raw function [r], in the global environment [env0]. *)
+let check_fn env0 globals r =
+  atom_counter := 0;
+  List.iter2
+    (fun (x, _) loc -> no_shadow env0 loc x)
+    r.rparams
+    (if List.length r.rparam_locs = List.length r.rparams then r.rparam_locs
+     else List.map (fun _ -> r.rname_loc) r.rparams);
+  let env = { env0 with vars = r.rparams } in
+  if r.rcases && Option.is_none r.rspec then
+    error r.rname_loc "%s: [@cases] needs a spec" r.rname;
+  cases_mode := r.rcases;
+  let rbody =
+    match r.rspec with
+    | Some spec when r.rcases -> (
+        let body = spec_match spec (with_default spec r.rbody) in
+        match if r.runtyped then None else spec_check globals r spec with
+        | Some c ->
+            let loc = c.pexp_loc in
+            Ast_builder.Default.(pexp_sequence ~loc (pexp_assert ~loc c) body)
+        | None -> body)
+    | _ ->
+        (match r.rsorts with
+        | (_, s) :: _ ->
+            error s.pexp_loc "%s: only the operands of a rule's spec have sorts"
+              r.rname
+        | [] -> ());
+        r.rbody
+  in
+  let spec =
+    Option.map
+      (fun (s : expression) ->
+        if r.rret <> TTerm then
+          error s.pexp_loc "%s: only term-returning functions have a spec"
+            r.rname;
+        in_spec := true;
+        let s = expr env ~expected:TTerm s in
+        in_spec := false;
+        s)
+      r.rspec
+  in
+  ordered := Option.is_some spec;
+  sort_vars := sort_binds env r;
+  let body = expr env ~expected:r.rret rbody in
+  cases_mode := false;
+  ordered := false;
+  sort_vars := [];
+  {
+    name = r.rname;
+    params = r.rparams;
+    ret = r.rret;
+    spec;
+    cases = r.rcases;
+    body = prune body;
+    floc = r.rloc;
+  }
+
+(** The number of errors collected so far. *)
+let errors_so_far () = List.length (Option.value !collected ~default:[])
+
+(** The end of a phase that started with [n] errors: stops if it had errors. *)
+let checkpoint_since n = if errors_so_far () > n then raise Stop
+
 let program (str : structure) : program =
-  let str = desugar_ops#structure (extend_rules (comm_fns () @ str)) in
+  let str = extend_rules (comm_fns () @ str) in
+  (* the functions whose operators could not be replaced, which are not checked
+     further *)
+  let skip = ref [] in
+  let str =
+    List.map
+      (fun (si : structure_item) ->
+        match attempt (fun () -> desugar_ops#structure_item si) with
+        | Some si -> si
+        | None ->
+            (match si.pstr_desc with
+            | Pstr_value
+                (_, [ { pvb_pat = { ppat_desc = Ppat_var { txt; _ }; _ }; _ } ])
+              ->
+                skip := txt :: !skip
+            | _ -> ());
+            si)
+      str
+  in
+  let start = errors_so_far () in
   let prims, raws =
     List.fold_left
       (fun (prims, raws) (si : structure_item) ->
-        match si.pstr_desc with
-        | Pstr_primitive vd ->
-            let pargs, pret = arrow_of_core vd.pval_type in
-            ( {
-                pname = vd.pval_name.txt;
-                pargs;
-                pret;
-                oracle = vd.pval_prim = [ "oracle" ];
-              }
-              :: prims,
-              raws )
-        | Pstr_value (_, [ vb ]) -> (prims, raw_fn vb :: raws)
-        | Pstr_value _ -> error si.pstr_loc "one function per let"
-        | _ -> error si.pstr_loc "unsupported top-level item")
+        Option.value ~default:(prims, raws)
+          (attempt (fun () ->
+               match si.pstr_desc with
+               | Pstr_primitive vd ->
+                   let pargs, pret = arrow_of_core vd.pval_type in
+                   ( ( {
+                         pname = vd.pval_name.txt;
+                         pargs;
+                         pret;
+                         oracle = vd.pval_prim = [ "oracle" ];
+                       },
+                       vd.pval_name.loc )
+                     :: prims,
+                     raws )
+               | Pstr_value (_, [ vb ]) -> (prims, raw_fn vb :: raws)
+               | Pstr_value _ -> error si.pstr_loc "one function per let"
+               | _ -> error si.pstr_loc "unsupported top-level item")))
       ([], []) str
   in
   let prims = List.rev prims and raws = List.rev raws in
   let globals =
     (("type_of", { args = [ TTerm ]; ret = TSty })
-    :: List.map (fun p -> (p.pname, { args = p.pargs; ret = p.pret })) prims)
+    :: List.map
+         (fun (p, _) -> (p.pname, { args = p.pargs; ret = p.pret }))
+         prims)
     @ List.map
         (fun r -> (r.rname, { args = List.map snd r.rparams; ret = r.rret }))
         raws
   in
-  let names = List.map fst globals in
+  (* the definitions after the first of a name, at their names *)
+  let defs =
+    (("type_of", Location.none) :: List.map (fun (p, l) -> (p.pname, l)) prims)
+    @ List.map (fun r -> (r.rname, r.rname_loc)) raws
+  in
   List.iter
     (fun n ->
-      if List.length (List.filter (( = ) n) names) > 1 then
-        error Location.none "%s is defined twice" n)
-    names;
+      match List.filter (fun (m, _) -> m = n) defs with
+      | _ :: (_ :: _ as again) ->
+          List.iter
+            (fun (_, loc) ->
+              ignore (attempt (fun () -> error loc "%s is defined twice" n)))
+            again
+      | _ -> ())
+    (List.sort_uniq compare (List.map fst defs)
+    |> List.sort (fun a b ->
+        compare
+          (List.find_index (fun (m, _) -> m = a) defs)
+          (List.find_index (fun (m, _) -> m = b) defs)));
+  let prims = List.map fst prims in
+  checkpoint_since start;
   lang :=
     {
       !lang with
@@ -3370,66 +3712,62 @@ let program (str : structure) : program =
         match r.rparams with
         | [ (x, TTerm) ] when not (mentions x r.rbody) -> ()
         | _ ->
-            error r.rloc
-              "%s: [@ty_only] functions take one term, and only read its type"
-              r.rname)
+            ignore
+              (attempt (fun () ->
+                   error (rattr_loc r "ty_only")
+                     "%s: [@ty_only] functions take one term, and only read \
+                      its type"
+                     r.rname)))
     raws;
   let env0 = { vars = []; locals = []; globals } in
   let raws = law_cases globals raws in
+  let start = errors_so_far () in
   let typings = typings env0 in
+  checkpoint_since start;
   node_typings := typings;
   let fns =
-    List.map
+    List.filter_map
       (fun r ->
-        atom_counter := 0;
-        List.iter (fun (x, _) -> no_shadow env0 r.rloc x) r.rparams;
-        let env = { env0 with vars = r.rparams } in
-        if r.rcases && Option.is_none r.rspec then
-          error r.rloc "%s: [@cases] needs a spec" r.rname;
-        cases_mode := r.rcases;
-        let rbody =
-          match r.rspec with
-          | Some spec when r.rcases -> (
-              let body = spec_match spec (with_default spec r.rbody) in
-              match if r.runtyped then None else spec_check globals r spec with
-              | Some c ->
-                  let loc = c.pexp_loc in
-                  Ast_builder.Default.(
-                    pexp_sequence ~loc (pexp_assert ~loc c) body)
-              | None -> body)
-          | _ ->
-              if r.rsorts <> [] then
-                error r.rloc "%s: only the operands of a rule's spec have sorts"
-                  r.rname;
-              r.rbody
-        in
-        let spec =
-          Option.map
-            (fun s ->
-              if r.rret <> TTerm then
-                error r.rloc "%s: only term-returning functions have a spec"
-                  r.rname;
-              in_spec := true;
-              let s = expr env ~expected:TTerm s in
-              in_spec := false;
-              s)
-            r.rspec
-        in
-        ordered := Option.is_some spec;
-        sort_vars := sort_binds env r;
-        let body = expr env ~expected:r.rret rbody in
-        cases_mode := false;
-        ordered := false;
-        sort_vars := [];
-        {
-          name = r.rname;
-          params = r.rparams;
-          ret = r.rret;
-          spec;
-          cases = r.rcases;
-          body = prune body;
-          floc = r.rloc;
-        })
+        if List.mem r.rname !skip then None
+        else
+          let reset () =
+            cases_mode := false;
+            ordered := false;
+            sort_vars := [];
+            in_spec := false
+          in
+          match attempt (fun () -> check_fn env0 globals r) with
+          | Some f -> Some f
+          | None ->
+              reset ();
+              None)
       raws
   in
   { prims; fns; typing = List.filter operator_typing (List.map snd typings) }
+
+(** The language before any declaration. *)
+let initial_lang = !lang
+
+(** The errors of the declaration of a language, as far as they can be found
+    independently: [language] stops at the first. *)
+let language_errors str = collect_errors language str
+
+(** The errors of the rules of a language, as far as they can be found
+    independently (those of each function, once the signatures of all are
+    known): [program] stops at the first. *)
+let program_errors str = collect_errors (fun s -> ignore (program s)) str
+
+(** Restores the state of the checker, and the infix words of the lexer, to
+    those before any file is read, to check another language (in the language
+    server). *)
+let reset () =
+  lang := initial_lang;
+  Hashtbl.reset infix_words;
+  cases_mode := false;
+  pid_counter := 0;
+  Hashtbl.reset case_vars;
+  sort_vars := [];
+  node_typings := [];
+  atom_counter := 0;
+  in_spec := false;
+  ordered := false

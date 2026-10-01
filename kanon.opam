@@ -12,6 +12,7 @@ depends: [
   "ppxlib" {>= "0.38.0"}
   "fmt"
   "zarith" {>= "1.13"}
+  "yojson" {>= "2.0"}
   "ocamlformat" {with-dev-setup & = "0.29.0"}
   "odoc" {with-doc}
 ]

@@ -67,3 +67,64 @@ jobs:
             echo "::error::Some rules of examples/bool are not proved"
             exit 1
           fi
+
+  editors:
+    name: Check the tree-sitter grammar and the Zed extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tree-sitter-kanon
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install the tree-sitter CLI
+        run: npm install --no-save
+
+      - name: Check that the generated parser is up to date
+        run: |
+          npx tree-sitter generate
+          if ! git diff --exit-code -- src; then
+            echo "::error::src/ is out of date: run tree-sitter generate in tree-sitter-kanon"
+            exit 1
+          fi
+
+      - name: Test the grammar and the highlighting
+        run: npx tree-sitter test
+
+      - name: Parse the Kanon files of the repository without errors
+        run: git ls-files -z -- ':/*.kn' ':/*.knl' | xargs -0 npx tree-sitter parse --quiet --stat
+
+      - name: Check the queries of the Zed extension
+        run: |
+          for q in ../editors/zed/languages/kanon/*.scm; do
+            npx tree-sitter query "$q" ../modules/bool.kn > /dev/null
+          done
+
+      - name: Check that the Zed extension uses the grammar of this commit
+        run: |
+          rev=$(sed -n 's/^rev = "\(.*\)"/\1/p' ../editors/zed/extension.toml)
+          git fetch --quiet --depth=1 origin "$rev"
+          if ! git diff --exit-code "$rev" HEAD -- grammar.js src; then
+            echo "::error::The grammar changed: update rev in editors/zed/extension.toml to a commit with this grammar"
+            exit 1
+          fi
+
+  zed:
+    name: Build the Rust part of the Zed extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/zed
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install the WebAssembly target that Zed compiles extensions to
+        run: rustup target add wasm32-wasip2
+
+      - name: Build
+        run: cargo build --locked --target wasm32-wasip2
+
+      - name: Lint
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --target wasm32-wasip2 -- -D warnings

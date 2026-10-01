@@ -532,14 +532,14 @@ Operators must be declared before they are used in patterns.
   >   | lsl_: x lsl y -> v
   > KN
   $ kanon ocaml lang.knl bad.kn
-  bad.kn:2:10: lsl is not an operator on terms
+  bad.kn:2:12: lsl is not an operator on terms
   [1]
 
 The constants of the laws must be declared.
 
   $ sed 's/^constant "false".*//' lang.knl > nofalse.knl
   $ kanon ocaml nofalse.knl
-  nofalse.knl:23:4: the constant false is not declared
+  nofalse.knl:23:11: the constant false is not declared
   [1]
 
 The operands of a spec may be annotated with their sort, which the generated

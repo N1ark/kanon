@@ -1,0 +1,20 @@
+(* A language of booleans, with implication. *)
+
+use +bool
+use "imp"
+use "more"
+
+type var [@ocaml "string"] [@noeq]
+
+type kind [@ocaml "t_kind"] [@noeq] =
+  | Var of var
+  | Unop of unop * t [@operators]
+  | Binop of binop * t * t [@operators]
+  | Triop of triop * t * t * t [@operators]
+  | Nop of nop * t list [@operators]
+
+type unop
+type binop
+type triop
+type nop = Distinct
+type ty

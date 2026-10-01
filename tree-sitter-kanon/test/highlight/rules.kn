@@ -1,0 +1,91 @@
+use +bool
+(* <- keyword *)
+(*  ^ operator *)
+(*   ^ string.special.symbol *)
+
+infix "urem" = Rem false, bv_rem false, lit_urem
+(* <- keyword *)
+(*    ^ string.special.symbol *)
+(*             ^ constructor *)
+(*                 ^ boolean *)
+(*                        ^ function *)
+(*                                      ^ function *)
+
+node Add of checked : TBitVector n -> TBitVector n [@comm] [@fold lit_add]
+(* <- keyword *)
+(*   ^ constructor *)
+(*       ^ keyword *)
+(*          ^ type *)
+(*                    ^ constructor *)
+(*                                 ^ operator *)
+(*                                                 ^ attribute *)
+(*                                                   ^ attribute *)
+(*                                                           ^ attribute *)
+(*                                                                ^ function *)
+
+type bv [@literal bv] [@ocaml "Bv.t"]
+(* <- keyword *)
+(*   ^ type *)
+(*        ^ attribute *)
+(*                ^ function *)
+(*                            ^ string *)
+
+node BitVec of int [@raw to_z lit_to_z] [@raw width lit_width]
+(*                   ^ attribute *)
+(*                       ^ function *)
+(*                            ^ function *)
+(*                                            ^ function *)
+(*                                                  ^ function *)
+
+prim lit : bv -> t
+(* <- keyword *)
+(*   ^ function *)
+(*         ^ type *)
+(*               ^ type.builtin *)
+
+rule b_and : And (v1, v2) =
+(* <- keyword *)
+(*   ^ function *)
+(*           ^ constructor *)
+  | not: p && not p -> v_false
+(*^ punctuation.delimiter *)
+(*  ^ label *)
+(*         ^ operator *)
+(*            ^ keyword.operator *)
+(*                  ^ operator *)
+  | urem: l urem #n, _ when equal l n -> v_false
+(*  ^ label *)
+(*          ^ keyword.operator *)
+(*               ^ punctuation.special *)
+(*                   ^ variable.special *)
+(*                     ^ keyword *)
+(*                          ^ function.builtin *)
+  | or_: x lor 0 -> x
+(*  ^ label *)
+(*         ^ keyword.operator *)
+(*             ^ number *)
+
+extend rule b_and before not =
+(* <- keyword *)
+(*     ^ keyword *)
+(*          ^ function *)
+(*                ^ keyword *)
+(*                       ^ label *)
+  | lit: #x, _ -> lit_of (x + 1)
+(*  ^ label *)
+(*                ^ function *)
+(*                          ^ operator *)
+
+fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
+(* <- keyword *)
+(* ^ function *)
+(*       ^ variable.parameter *)
+(*                ^ type.builtin *)
+(*                      ^ attribute *)
+(*                                 ^ function *)
+(*                                             ^ function.builtin *)
+
+(** A doc comment *)
+(* <- comment.doc *)
+(* A comment (* nested *) *)
+(* <- comment *)

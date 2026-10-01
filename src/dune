@@ -1,8 +1,19 @@
+; Kanon as a library: the command line (Cli), the language server
+; (Lsp_server) and what they are made of, for kanon and for the web runtime of
+; web/.
+
+(library
+ (name kanon_lib)
+ (wrapped false)
+ (modules :standard \ main)
+ (libraries ppxlib fmt zarith yojson unix))
+
 (executable
  (name main)
  (public_name kanon)
  (package kanon)
- (libraries ppxlib fmt zarith))
+ (modules main)
+ (libraries kanon_lib))
 
 (menhir
  (modules kanon_parser))

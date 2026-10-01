@@ -1,0 +1,54 @@
+; Kanon in a web page (see README.md): dune build @web --profile web builds
+; dist/, the directory to serve, with kanon.js. It is only built in the web
+; profile, which needs js_of_ocaml and zarith_stubs_js; in the other profiles,
+; dune build leaves this directory out, and dune build @web says how to build it.
+
+(executable
+ (name kanon_web)
+ (enabled_if
+  (= %{profile} web))
+ (modes js)
+ (libraries kanon_lib js_of_ocaml zarith_stubs_js)
+ (js_of_ocaml
+  (compilation_mode whole_program)
+  (sourcemap no)
+  (flags
+   (--opt 3))
+  (javascript_files stubs.js)))
+
+(subdir
+ dist
+ (rule
+  (enabled_if
+   (= %{profile} web))
+  (action
+   (copy ../kanon_web.bc.js kanon.js))))
+
+(rule
+ (alias web)
+ (enabled_if
+  (= %{profile} web))
+ (deps dist/kanon.js)
+ (action (progn)))
+
+(rule
+ (alias web)
+ (enabled_if
+  (<> %{profile} web))
+ (action
+  (system
+   "echo 'kanon web is built in the web profile: dune build @web --profile web (with js_of_ocaml and zarith_stubs_js installed)' >&2; exit 1")))
+
+; The version of kanon: git describe in the source tree (the parent of
+; _build), or dev.
+
+(rule
+ (target version.ml)
+ (enabled_if
+  (= %{profile} web))
+ (deps (universe))
+ (action
+  (with-stdout-to
+   %{target}
+   (system
+    "v=$(git -C \"${PWD%%/_build/*}\" describe --always --dirty 2>/dev/null || echo dev); printf 'let v = \"%s\"\\n' \"$v\""))))

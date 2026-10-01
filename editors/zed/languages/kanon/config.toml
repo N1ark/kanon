@@ -1,0 +1,15 @@
+name = "Kanon"
+grammar = "kanon"
+path_suffixes = ["kn", "knl"]
+# continuation lines of comments line up with their text, after "(* "
+block_comment = { start = "(* ", prefix = "", end = " *)", tab_size = 3 }
+tab_size = 2
+# names may have primes: [l'], [r']
+word_characters = ["'"]
+autoclose_before = ";:,=)]}"
+brackets = [
+  { start = "(", end = ")", close = true, newline = true },
+  { start = "[", end = "]", close = true, newline = true },
+  { start = "{", end = "}", close = true, newline = true },
+  { start = "\"", end = "\"", close = true, newline = false, not_in = ["string", "comment"] },
+]

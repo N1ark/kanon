@@ -1,0 +1,97 @@
+{
+  "Rule function": {
+    "prefix": "rule",
+    "body": ["rule ${1:name} : ${2:Node} (${3:v1}, ${4:v2}) =", "  | ${5:label}: ${6:_} -> ${0:v1}"],
+    "description": "A rule function, whose cases are its rules"
+  },
+  "Rule": {
+    "prefix": "case",
+    "body": ["| ${1:label}: ${2:_} -> ${0}"],
+    "description": "A rule of a rule function"
+  },
+  "Rule with a guard": {
+    "prefix": "casew",
+    "body": ["| ${1:label}: ${2:_} when ${3:true} -> ${0}"],
+    "description": "A rule of a rule function, with a guard"
+  },
+  "Helper": {
+    "prefix": "fn",
+    "body": ["fn ${1:name} (${2:v} : ${3:t}) : ${4:t} =", "  ${0}"],
+    "description": "A helper function"
+  },
+  "Extend a rule function": {
+    "prefix": "extendrule",
+    "body": ["extend rule ${1:name} =", "  | ${2:label}: ${3:_} -> ${0}"],
+    "description": "Add rules to the rule function of a module below"
+  },
+  "Extend a helper": {
+    "prefix": "extendfn",
+    "body": ["extend fn ${1:name} =", "  | ${2:_} -> ${0}"],
+    "description": "Add cases to the helper of a module below"
+  },
+  "Primitive": {
+    "prefix": "prim",
+    "body": ["prim ${1:name} : ${2:t} -> ${0:t}"],
+    "description": "A primitive, implemented by hand in OCaml and in Lean"
+  },
+  "Oracle": {
+    "prefix": "oracle",
+    "body": ["oracle ${1:name} : ${2:t} -> ${0:t}"],
+    "description": "A primitive that the Lean model takes as a parameter"
+  },
+  "Node": {
+    "prefix": "node",
+    "body": ["node ${1:Name} : ${2:TBool} -> ${3:TBool} -> ${0:TBool}"],
+    "description": "A node, with its typing"
+  },
+  "Variant type": {
+    "prefix": "type",
+    "body": ["type ${1:name} =", "  | ${2:A}", "  | ${0:B}"],
+    "description": "A variant type"
+  },
+  "Record type": {
+    "prefix": "typer",
+    "body": ["type ${1:name} = { ${2:field} : ${3:bool} }"],
+    "description": "A record type"
+  },
+  "Infix operator": {
+    "prefix": "infix",
+    "body": ["infix \"${1:op}\" = ${2:Node}, ${0:smart_constructor}"],
+    "description": "An infix operator on terms: the node it matches, and the smart constructor it calls"
+  },
+  "Prefix operator": {
+    "prefix": "prefix",
+    "body": ["prefix \"${1:op}\" = ${2:Node}, ${0:smart_constructor}"],
+    "description": "A prefix operator on terms"
+  },
+  "Constant": {
+    "prefix": "constant",
+    "body": ["constant \"${1:0}\" (v) = ${0}"],
+    "description": "The term of a literal at the type of a term, for [@unit] and [@zero]"
+  },
+  "Use a module": {
+    "prefix": "use",
+    "body": ["use \"${0:path}\""],
+    "description": "Use the module whose files are path.knl and path.kn"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": ["match ${1:e} with", "| ${2:_} -> ${0}"],
+    "description": "A match expression"
+  },
+  "Let": {
+    "prefix": "let",
+    "body": ["let ${1:x} = ${2:e} in", "${0}"],
+    "description": "A let expression"
+  },
+  "If": {
+    "prefix": "if",
+    "body": ["if ${1:c} then ${2:a} else ${0:b}"],
+    "description": "A conditional"
+  },
+  "Section": {
+    "prefix": "section",
+    "body": ["(* {1 ${0:Title}} *)"],
+    "description": "A section heading"
+  }
+}

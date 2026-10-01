@@ -1,0 +1,4 @@
+(* Implication. *)
+node Imp : TBool -> TBool -> TBool
+
+infix "implies" = Imp, b_imp
