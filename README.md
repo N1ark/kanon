@@ -454,18 +454,48 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
 
 `kanon lsp` is a language server (LSP, over standard input and output) for
 editors. As files are edited, it checks the whole language they belong to, as
-`kanon` does, and reports its errors on the files where they are; it also gives
-the definitions of functions, primitives, nodes, constructors, types, operators
-and rules (`before r` goes to the rule `r` of the extended function), hovers
-with the header of a definition and the comment above it, completion of the
-names of the language, and the symbols of a file and of the workspace.
+`kanon` does, and reports its errors on the files where they are: all the
+errors of the functions of a module once their signatures are known, and of
+the independent items of a declaration, rather than only the first.
+
+It knows the names of the language, as Kanon scopes them:
+
+- the global names: functions, primitives, nodes, constructors, types, rules
+  (`before r` goes to the rule `r` of the extended function, or to the law that
+  derives it, `[@unit 0]`) and operators (`+`, `land`, `not`, `urem`, ...,
+  which go to their `infix` or `prefix` declaration, and whose hover says what
+  they build, match and compute);
+- the local names: parameters, operands of specs (`v1` in `And (v1, v2)`),
+  variables of sorts (`sz` in `(v : TBitVector sz)`, `n` in a typing),
+  pattern variables (`x`, `#x`, `p as x`; a variable bound twice, or in each
+  alternative of an or-pattern, is bound where it first appears), `let`s and
+  the arguments of nodes in their typings.
+
+It gives their definitions; hovers with the header of a definition and the
+comment above it, or with what a local is (its type, when the source gives
+it) and where it is bound; their references and highlights (of a global, in
+the files of the language); their renaming, which refuses operators, keywords,
+the names of the built-in modules and invalid new names (a function, a type
+or a rule starts with a lowercase letter, a constructor with an uppercase
+one); completion of the names of the language; and the symbols of a file and
+of the workspace.
 
 A `.kn` file is only meaningful in its language: the server checks a file with
 each *root* of the workspace that uses it, the `.knl` files that no other file
 uses (e.g. `lang.knl`), as `kanon ocaml lang.knl`; a file that no root uses is
 checked with the only root of its directory, or else alone. In Kanon's own
 repository, `modules/` stands for the built-in modules, so that they are
-checked with the languages that use them.
+checked with the languages that use them. The files of the workspace are found
+when it is opened (or a folder added), then from the files the editor opens,
+saves and, if it can watch files (`workspace/didChangeWatchedFiles`), creates
+and deletes.
+
+Limitations: the names come from the last parse of a file, so a file with a
+syntax error only has its global names and operators, found by their text;
+rename is then refused. The fields of records are not names. `extend` cases
+see the parameters of the function they extend, but not its other locals. A
+rule derived from a law has no source, so `before` it goes to the law (and the
+checker rejects it, as the derived rules are added after the `extend`s).
 
 ## Editors
 

@@ -143,8 +143,10 @@ type lang = {
       (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
-  laws : (string * law * Location.t) list;
-      (** the laws of the operators, in the order of their declaration *)
+  laws : (string * law * Location.t * Location.t) list;
+      (** the laws of the operators, in the order of their declaration, with the
+          locations of their attributes and of their arguments (of their
+          attributes, if they have none) *)
 }
 
 let lang =
