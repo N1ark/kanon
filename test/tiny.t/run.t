@@ -621,3 +621,37 @@ and is left out (the generated OCaml has the warning on unused match cases).
       ))
   
   
+
+An infix operator may be a word, which is an operator from its declaration on,
+and its node may have fixed parameters, which its patterns then match.
+
+  $ cat > minus.knl <<'KN'
+  > node Minus of bool : TInt -> TInt -> TInt
+  > infix "minus" = Minus true, sub true
+  > KN
+  $ cat > minus.kn <<'KN'
+  > rule sub : Minus (b, v1, v2) =
+  >   | zero: x minus 0 -> x
+  >   | lits: #x minus #y -> int (x - y)
+  >   | sub_sub: (x minus y) minus z -> x minus (y + z)
+  > KN
+  $ kanon ocaml lang.knl minus.knl minus.kn | sed -n '/let rec sub/,$p'
+  let rec sub (b : bool) (v1 : t) (v2 : t) : t =
+      (assert (match v1.Hc.node.ty, v2.Hc.node.ty with
+              | ((TInt), (TInt)) -> true
+              | _ -> false
+              );
+      (match v1, v2 with
+      | (x, { Hc.node = { kind = Int (kanon__2); _ }; _ })
+        when ((((P.zequal kanon__2 Z.zero)) && ((Bool.equal b true)))) ->
+        x
+      | ({ Hc.node = { kind = Int (x); _ }; _ }, { Hc.node = { kind = Int (y); _ }; _ })
+        when (((Bool.equal b true))) ->
+        (P.int (Z.sub x y))
+      | ({ Hc.node = { kind = Binop ((Minus (true)), x, y); _ }; _ }, z)
+        when (((Bool.equal b true))) ->
+        (sub true x (plus y z))
+      | _ -> (P.node (Binop ((Minus (b)), v1, v2)) TInt)
+      ))
+  
+  

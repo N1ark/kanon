@@ -51,7 +51,10 @@ rule token = parse
   | ['0'-'9']+ as i { INT i }
   | '"' ([^ '"' '\\' '\n']* as s) '"' { STRING s }
   | "_" { UNDERSCORE }
-  | lid as s { match List.assoc_opt s keywords with Some k -> k | None -> LID s }
+  | lid as s {
+      match List.assoc_opt s keywords with
+      | Some k -> k
+      | None -> if Hashtbl.mem Syntax.infix_words s then INFIXWORD s else LID s }
   | uid as s { UID s }
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }

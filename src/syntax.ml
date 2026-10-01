@@ -55,18 +55,24 @@ type decl = {
 
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
     constructor [smart], with the leading arguments [pre]; in patterns it
-    matches its [node], with any parameters; on the values of literals (see
-    [lit_value]) it is the primitive [on_value]. *)
+    matches its [node], with the parameters [params] (any parameters if there
+    are none); on the values of literals (see [lit_value]) it is the primitive
+    [on_value]. *)
 type operator = {
   sym : string;
       (** as parsed: ["+"], ["&&"], ...; ["~-"], ["lognot"] and ["not"] for the
           prefix [-], [~] and [not] *)
   arity : int;
   node : string;
+  params : Ppxlib.expression list;
   smart : string;
   pre : Ppxlib.expression list;
   on_value : string option;
 }
+
+(** The words declared as infix operators ([infix "urem" = ...]), which the
+    lexer reads as operators from their declaration on. *)
+let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),
     before it is checked with the rules (see {!typing}). *)

@@ -17,6 +17,13 @@ let pat loc d = { ppat_desc = d; ppat_loc = loc; ppat_loc_stack = []; ppat_attri
 let typ loc d = { ptyp_desc = d; ptyp_loc = loc; ptyp_loc_stack = []; ptyp_attributes = [] }
 let ident loc s = exp loc (Pexp_ident (lid loc s))
 let apply loc f args = exp loc (Pexp_apply (f, List.map (fun a -> (Nolabel, a)) args))
+
+(** Whether [s] is a word, which an infix operator may be. *)
+let is_word s =
+  s <> ""
+  && (match s.[0] with 'a' .. 'z' -> true | _ -> false)
+  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true | _ -> false) s
+
 let binop loc op a b = apply loc (ident loc op) [ a; b ]
 let econstr loc c arg = exp loc (Pexp_construct (lid loc c, arg))
 let pconstr loc c arg = pat loc (Ppat_construct (lid loc c, Option.map (fun p -> ([], p)) arg))
@@ -104,7 +111,7 @@ let neg loc (e : expression) =
   | _ -> apply loc (ident loc "~-") [ e ]
 %}
 
-%token <string> LID UID INT STRING
+%token <string> LID UID INT STRING INFIXWORD
 %token AS ASR ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LAND LET LOR LSL LSR LXOR MATCH NODE NOT OF
 %token ORACLE PREFIX PRIM
 %token RULE THEN TRUE TYPE USE WHEN WITH
@@ -184,6 +191,8 @@ item:
              ] )) }
   | INFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
+      (* an infix word is an operator in the rest of the files *)
+      if is_word op then Hashtbl.replace Syntax.infix_words op ();
       item loc (Pstr_eval (e, [ attr loc "infix" [ eval_item loc (string loc op) ] ])) }
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
@@ -326,6 +335,7 @@ extended:
 
 rule_name:
   | r = LID { r }
+  | r = INFIXWORD { r }
   | NOT { "not" }
   | EXTEND { "extend" }
 
@@ -385,6 +395,7 @@ mul_expr:
 
 mul_op:
   | STAR { "*" }
+  | op = INFIXWORD { op }
   | LAND { "land" }
   | LOR { "lor" }
   | LXOR { "lxor" }
@@ -476,6 +487,7 @@ mul_pat:
   | a = mul_pat LAND b = pow_pat { pnode (mkloc $loc) "land" [ a; b ] }
   | a = mul_pat LOR b = pow_pat { pnode (mkloc $loc) "lor" [ a; b ] }
   | a = mul_pat LXOR b = pow_pat { pnode (mkloc $loc) "lxor" [ a; b ] }
+  | a = mul_pat op = INFIXWORD b = pow_pat { pnode (mkloc $loc) op [ a; b ] }
 
 pow_pat:
   | p = unary_pat { p }

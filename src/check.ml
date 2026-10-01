@@ -621,6 +621,12 @@ let infix_ops =
     "==";
   ]
 
+(** Whether [sym] is a word declared as an infix operator, other than those of
+    the grammar. *)
+let is_infix_word sym =
+  Hashtbl.mem infix_words sym && not (List.mem sym infix_ops)
+
+let is_infix sym = List.mem sym infix_ops || is_infix_word sym
 let prefix_ops = [ ("-", "~-"); ("~", "lognot"); ("not", "not") ]
 
 (** How an operator is written. *)
@@ -629,9 +635,12 @@ let op_name op =
   | Some (p, _) -> "prefix " ^ p
   | None -> op
 
-(** The operators that may have a meaning on the values of literals. *)
+(** The operators that may have a meaning on the values of literals: those of
+    the grammar below, and the infix words. *)
 let value_ops =
   [ "+"; "-"; "*"; "land"; "lor"; "lxor"; "lsl"; "lsr"; "asr"; "~-"; "lognot" ]
+
+let is_value_op sym = List.mem sym value_ops || is_infix_word sym
 
 (** The operator [op] on the values of literals: its primitive. *)
 let value_op env loc op ~arity =
@@ -1070,6 +1079,16 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             expect b.eloc ~expected:TBool b.ety;
             mk TBool (EBinop (Arith (if op = "&&" then And else Or), a, b)))
       | ("==" | "++"), [ a; b ] -> term_op op [ expr env a; expr env b ]
+      | op, [ a; b ] when is_infix_word op -> (
+          let a = expr env a in
+          let b = expr env b in
+          match a.ety with
+          | _ when is_term a || is_term b -> term_op op [ a; b ]
+          | t when is_lit_value t ->
+              expect b.eloc ~expected:t b.ety;
+              let f = value_op env loc op ~arity:2 in
+              mk t (ECall (f, [ a; b ]))
+          | t -> error loc "%s is not defined on %a" op pp_ty t)
       | ("land" | "lor" | "lxor" | "lsl" | "lsr" | "asr"), [ a; b ] -> (
           let a = expr env a in
           let b = expr env b in
@@ -1390,13 +1409,30 @@ let spec_node (spec : expression) =
       Some (n, operands)
   | _ -> None
 
+let binop loc op (a : expression) b =
+  let open Ast_builder.Default in
+  pexp_apply ~loc (evar ~loc op) [ (Nolabel, a); (Nolabel, b) ]
+
+(** The expression of the constant pattern [p]. *)
+let rec expr_of_pat (p : pattern) =
+  let open Ast_builder.Default in
+  let loc = p.ppat_loc in
+  match p.ppat_desc with
+  | Ppat_constant c -> pexp_constant ~loc c
+  | Ppat_construct (c, arg) ->
+      pexp_construct ~loc c (Option.map (fun (_, a) -> expr_of_pat a) arg)
+  | Ppat_tuple l -> pexp_tuple ~loc (List.map expr_of_pat l)
+  | _ ->
+      error loc "the parameters of a node in the case of a rule are constants"
+
 (** In a rule whose spec is a commutative node [op (v1, v2)], the cases of
     [match v1, v2 with] match the operands in either order, unless their pattern
     is symmetric (the same up to renaming, once swapped). The cases must then
     name the operands rather than use [v1] and [v2] (other than as the argument
     of [type_of] and [[@ty_only]] functions).
 
-    A case [p op q], where [op] is the node of the spec, stands for [p, q]. *)
+    A case [p op q], where [op] is the node of the spec, stands for [p, q], when
+    the parameters of the spec are those that [op] fixes, if any. *)
 let rec spec_match (spec : expression) (e : expression) =
   let node, operands =
     match spec_node spec with Some (n, o) -> (n, o) | None -> ("", None)
@@ -1473,8 +1509,34 @@ let rec spec_match (spec : expression) (e : expression) =
         | Ppat_construct
             ({ txt = Lident n; _ }, Some (_, { ppat_desc = Ppat_tuple l; _ }))
           when n = node -> (
-            match l with
-            | [ p; q ] | [ { ppat_desc = Ppat_any; _ }; p; q ] -> pair c p q
+            match List.rev l with
+            | q :: p :: params -> (
+                let c = pair c p q in
+                (* the parameters of the node that the case fixes, which the
+                   parameters of the spec must equal *)
+                let spec_params =
+                  match spec.pexp_desc with
+                  | Pexp_construct (_, Some { pexp_desc = Pexp_tuple a; _ }) ->
+                      List.filteri (fun i _ -> i < List.length a - 2) a
+                  | _ -> []
+                in
+                if List.length spec_params <> List.length params then
+                  error lhs.ppat_loc "the check of the spec is not matched";
+                let fixed =
+                  List.filter_map
+                    (fun ((a : expression), (p : pattern)) ->
+                      match p.ppat_desc with
+                      | Ppat_any -> None
+                      | _ -> Some (binop p.ppat_loc "=" a (expr_of_pat p)))
+                    (List.combine spec_params (List.rev params))
+                in
+                match fixed @ Option.to_list c.pc_guard with
+                | [] -> c
+                | g :: gs ->
+                    let guard =
+                      List.fold_left (fun a b -> binop b.pexp_loc "&&" a b) g gs
+                    in
+                    { c with pc_guard = Some guard })
             | _ -> error lhs.ppat_loc "the check of the spec is not matched")
         | _ -> c
       in
@@ -2069,8 +2131,8 @@ let language (str : structure) =
       let sym = string_attr a in
       let sym, arity =
         if a.attr_name.txt = "infix" then (
-          if not (List.mem sym infix_ops) then
-            error a.attr_loc "%s is not an infix operator" sym;
+          if not (is_infix sym) then
+            error a.attr_loc "%s is not an infix operator, nor a word" sym;
           (sym, 2))
         else
           match List.assoc_opt sym prefix_ops with
@@ -2092,15 +2154,32 @@ let language (str : structure) =
             error loc
               "expected: node, smart constructor[, primitive on literal values]"
       in
-      let node =
+      (* the node, with its parameters or none *)
+      let node, params =
         match node.pexp_desc with
-        | Pexp_construct ({ txt = Lident n; _ }, None) -> (
-            match Option.bind (find_constr n) node_of_op with
-            | Some (_, operands) when List.length operands = arity -> n
-            | _ -> error node.pexp_loc "%s is not a node of arity %d" n arity)
+        | Pexp_construct ({ txt = Lident n; _ }, arg) -> (
+            match find_constr n with
+            | Some c -> (
+                (match node_of_op c with
+                | Some (_, operands) when List.length operands = arity -> ()
+                | _ ->
+                    error node.pexp_loc "%s is not a node of arity %d" n arity);
+                let params =
+                  match arg with
+                  | None -> []
+                  | Some { pexp_desc = Pexp_tuple l; _ } -> l
+                  | Some e -> [ e ]
+                in
+                match params with
+                | _ :: _ when List.length params <> List.length c.c_args ->
+                    error node.pexp_loc "%s has %d parameters" n
+                      (List.length c.c_args)
+                | _ -> (n, params))
+            | None -> error node.pexp_loc "%s is not a node of arity %d" n arity
+            )
         | _ -> error node.pexp_loc "expected a node constructor"
       in
-      if Option.is_some on_value && not (List.mem sym value_ops) then
+      if Option.is_some on_value && not (is_value_op sym) then
         error loc "%s is not defined on literal values" (op_name sym);
       let smart, pre =
         match smart.pexp_desc with
@@ -2111,7 +2190,8 @@ let language (str : structure) =
         {
           !lang with
           operators =
-            !lang.operators @ [ { sym; arity; node; smart; pre; on_value } ];
+            !lang.operators
+            @ [ { sym; arity; node; params; smart; pre; on_value } ];
         })
     ops;
   (* the constants of the laws *)
@@ -2154,9 +2234,26 @@ let language (str : structure) =
     !lang.commutative;
   List.iter check_law !lang.laws
 
+(** The pattern of the parameter [e] of the node of an operator. *)
+let rec pat_of_param (e : expression) =
+  let mk d =
+    {
+      ppat_desc = d;
+      ppat_loc = e.pexp_loc;
+      ppat_loc_stack = [];
+      ppat_attributes = [];
+    }
+  in
+  match e.pexp_desc with
+  | Pexp_constant c -> mk (Ppat_constant c)
+  | Pexp_construct (c, arg) ->
+      mk (Ppat_construct (c, Option.map (fun a -> ([], pat_of_param a)) arg))
+  | Pexp_tuple l -> mk (Ppat_tuple (List.map pat_of_param l))
+  | _ -> error e.pexp_loc "the parameter of a node of an operator is a constant"
+
 (** Replaces the operators in patterns ([a + b], [#x]) with the nodes that the
     language declares for them. The parameters of a node (e.g. the overflow
-    check of [Add]) are left unconstrained. *)
+    check of [Add]) are those of the operator, if any, or else unconstrained. *)
 let desugar_ops =
   object
     inherit Ast_traverse.map as super
@@ -2181,11 +2278,10 @@ let desugar_ops =
               }
           | None -> error p.ppat_loc "the language has no integer literals")
       | Ppat_construct ({ txt = Lident sym; loc }, Some (vars, arg))
-        when List.mem sym infix_ops || List.mem sym (List.map snd prefix_ops)
-        -> (
+        when is_infix sym || List.mem sym (List.map snd prefix_ops) -> (
           let arity, operands =
             match arg.ppat_desc with
-            | Ppat_tuple l when List.mem sym infix_ops -> (2, l)
+            | Ppat_tuple l when is_infix sym -> (2, l)
             | _ -> (1, [ arg ])
           in
           match find_operator ~arity sym with
@@ -2193,7 +2289,12 @@ let desugar_ops =
               error p.ppat_loc "%s is not an operator on terms" (op_name sym)
           | Some o ->
               let c = Option.get (find_constr o.node) in
-              let args = List.map (fun _ -> mk Ppat_any) c.c_args @ operands in
+              let params =
+                match o.params with
+                | [] -> List.map (fun _ -> mk Ppat_any) c.c_args
+                | ps -> List.map pat_of_param ps
+              in
+              let args = params @ operands in
               let arg = match args with [ a ] -> a | l -> mk (Ppat_tuple l) in
               {
                 p with

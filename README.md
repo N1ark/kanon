@@ -181,6 +181,7 @@ for anything else (`[@fold f_add]`, `[@zero 0]`, `[@ocaml "Svalue_ast.Unop.t"]`)
 
 ```ocaml
 infix "+" = Add, bv_add unchecked, lit_add
+infix "urem" = Rem false, bv_rem false, lit_urem
 prefix "not" = Not, b_not
 ```
 
@@ -189,9 +190,17 @@ in expressions, `a + b` calls the smart constructor `f` with the leading
 arguments `args` (`bv_add unchecked a b`); in patterns, it matches the node
 (`Add (_, a, b)`, whatever its parameters); on the values of literals (see
 `[@literal t]`), it is the primitive `g`. The operators are `+`, `-`, `*`,
-`land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`, `++`, `&&`, `||` and `==`, and the
-prefix `-`, `~` and `not`. Otherwise, the arithmetic and bitwise operators are
-those of integers, and `&&`, `||` and `not` those of booleans.
+`land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`, `++`, `&&`, `||` and `==`, the
+prefix `-`, `~` and `not`, and any word (`urem`), which is then an infix
+operator, at the precedence of `*`, in the rest of the files (the declarations
+of a module come before its rules, and before the modules it uses after them),
+and no longer a name. Otherwise, the arithmetic and bitwise operators are those
+of integers, and `&&`, `||` and `not` those of booleans.
+
+The node of an operator may fix its parameters, as in `Rem false`: its patterns
+then match only these (`a urem b` is `Rem (false, a, b)`), and in a rule on the
+node, a case `p urem q` is the case `p, q` when the parameter of the spec is
+`false`.
 
 ### Constants
 
