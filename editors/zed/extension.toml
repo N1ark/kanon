@@ -17,5 +17,5 @@ languages = ["Kanon"]
 # that the grammar at `rev` is the one of the checkout).
 [grammars.kanon]
 repository = "https://github.com/N1ark/kanon"
-rev = "16d99caef1703e872ba79e9d092c66db7b3da6c5"
+rev = "361bbf61d51aaf6b7bbc240ac8f3a65daf4974b8"
 path = "tree-sitter-kanon"
