@@ -37,7 +37,6 @@ fn at_most_one (l : t list) : bool =
 (* {1 Rules} *)
 
 rule b_and : And (v1, v2) =
-  match v1 && v2 with
   | false_: false && _ -> v_false
   | true_: true && x -> x
   (* p && !p <=> false *)
@@ -50,7 +49,6 @@ rule b_and : And (v1, v2) =
   | eq_neq: a == x && a == y when sure_neq x y -> v_false
 
 rule b_or : Or (v1, v2) =
-  match v1 || v2 with
   | true_: true || _ -> v_true
   | false_: false || x -> x
   (* p || !p <=> true *)
@@ -60,7 +58,6 @@ rule b_or : Or (v1, v2) =
   | and_: (a && _) || a -> a
 
 rule b_not : Not sv =
-  match sv with
   | true_: true -> v_false
   | false_: false -> v_true
   | not: not sv -> sv
@@ -70,7 +67,6 @@ rule b_not : Not sv =
   | distinct: Distinct [ l; r ] -> l == r
 
 rule b_ite : Ite (guard, if_, else_) =
-  match (guard, if_, else_) with
   | true_: true, _, _ -> if_
   | false_: false, _, _ -> else_
   | bool: _, true, false -> guard
@@ -89,7 +85,6 @@ rule b_ite : Ite (guard, if_, else_) =
   | same: _, x, x -> if_
 
 rule sem_eq : Eq (v1, v2) =
-  match v1 == v2 with
   | same: v == v -> v_true
   | bools: Bool b1 == Bool b2 -> of_bool (b1 = b2)
   (* distributing over a shared guard lets the branches cancel pairwise *)
@@ -101,7 +96,6 @@ rule sem_eq : Eq (v1, v2) =
 (* The equality of terms that may have different sorts, false when they do:
    [@untyped], so its operands are not asserted to have the same sort. *)
 rule sem_eq_untyped : Eq (v1, v2) [@untyped] =
-  match (v1, v2) with
   | ill_typed: _ when not (type_of v1 = type_of v2) -> v_false
   | typed: _ -> v1 == v2
 
@@ -125,7 +119,6 @@ fn distinct_check (l : t list) : bool option =
       | r -> r)
 
 rule b_distinct : Distinct l =
-  match l with
   | small: _ when at_most_one l -> v_true
   | distinct: _ when distinct_check l = Some true -> v_true
   | not_distinct: _ when distinct_check l = Some false -> v_false

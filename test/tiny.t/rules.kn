@@ -6,20 +6,16 @@ prim v_false : t
 fn of_bool (b : bool) : t = if b then v_true else v_false
 
 rule plus : Plus (v1, v2) =
-  match v1 + v2 with
   | lits: #x + #y -> int (x + y)
   | zero: x + 0 -> x
 
 rule not_ : Not v =
-  match v with
   | lit: true -> v_false
   | not_not: not x -> x
 
 rule and_ : And (v1, v2) =
-  match v1 && v2 with
   | not_: x && not y when equal x y -> v_false
 
 rule eq : Eq (v1, v2) =
-  match v1 == v2 with
   | same: x == x -> v_true
   | lits: #x == #y -> of_bool (x = y)

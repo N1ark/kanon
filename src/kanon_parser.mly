@@ -139,10 +139,18 @@ item:
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat loc (Ppat_var { txt = x; loc })) ps ret body ])) }
-  | RULE x = LID ps = params COLON spec = cons_expr rattrs = list(decl_attr) body = option(preceded(EQ, seq_expr))
+  | RULE x = LID ps = params COLON spec = cons_expr rattrs = list(decl_attr) body = option(rule_body)
     { let loc = mkloc $loc in
-      (* a rule without a body only has the rules from laws and [default] *)
-      let body = match body with Some b -> b | None -> exp loc Pexp_unreachable in
+      (* the cases of a rule match the operands of its spec ([kanon.operands],
+         see [Check.raw_fn]); a rule without a body only has the rules from laws
+         and [default] *)
+      let operands = exp loc (Pexp_extension ({ txt = "kanon.operands"; loc }, PStr [])) in
+      let body =
+        match body with
+        | Some (`Cases cs) -> exp loc (Pexp_match (operands, cs))
+        | Some (`Expr e) -> e
+        | None -> exp loc (Pexp_match (operands, []))
+      in
       let attrs = [ attr loc "spec" [ eval_item loc spec ]; attr loc "cases" [] ] @ rattrs in
       let t = typ loc (Ptyp_constr (lid loc "t", [])) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat loc (Ppat_var { txt = x; loc })) ps (Some t) body ])) }
@@ -296,6 +304,10 @@ let_pat:
     { let loc = mkloc $loc in (pat loc (Ppat_var { txt = f; loc }), List.concat ps, ret) }
   | p = pattern { (p, [], None) }
   | p = pattern COLON t = typ { (p, [], Some t) }
+
+rule_body:
+  | EQ BAR cs = cases { `Cases cs }
+  | EQ e = seq_expr { `Expr e }
 
 cases:
   | c = case %prec below_BAR { [ c ] }

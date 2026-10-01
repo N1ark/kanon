@@ -1394,10 +1394,9 @@ let spec_node (spec : expression) =
     [match v1, v2 with] match the operands in either order, unless their pattern
     is symmetric (the same up to renaming, once swapped). The cases must then
     name the operands rather than use [v1] and [v2] (other than as the argument
-    of [ty] and [[@ty_only]] functions).
+    of [type_of] and [[@ty_only]] functions).
 
-    [match v1 op v2 with | p op q -> e | ...], where [op] is the node of the
-    spec, stands for [match v1, v2 with | p, q -> e | ...]. *)
+    A case [p op q], where [op] is the node of the spec, stands for [p, q]. *)
 let rec spec_match (spec : expression) (e : expression) =
   let node, operands =
     match spec_node spec with Some (n, o) -> (n, o) | None -> ("", None)
@@ -1462,44 +1461,21 @@ let rec spec_match (spec : expression) (e : expression) =
   match e.pexp_desc with
   | Pexp_sequence (a, b) ->
       { e with pexp_desc = Pexp_sequence (a, spec_match spec b) }
-  | Pexp_match
-      ( ({
-           pexp_desc =
-             Pexp_apply
-               ( { pexp_desc = Pexp_ident { txt = Lident op; _ }; _ },
-                 [ (_, a); (_, b) ] );
-           _;
-         } as scrut),
-        cases )
-    when Option.is_some (find_operator ~arity:2 op) ->
-      let op_node = (Option.get (find_operator ~arity:2 op)).node in
-      if op_node <> node then
-        error scrut.pexp_loc "the spec of this rule is not a %s node" op_node;
+  | Pexp_match (({ pexp_desc = Pexp_tuple [ a; b ]; _ } as scrut), cases)
+    when match operands with
+         | Some (x, y) -> is_var x a && is_var y b
+         | None -> false ->
       let case (c : Ppxlib.case) =
         let lhs = c.pc_lhs in
         match lhs.ppat_desc with
-        | Ppat_any -> c
+        | Ppat_tuple [ p; q ] -> pair c p q
+        (* [p op q], the node of the spec over the patterns of its operands *)
         | Ppat_construct
             ({ txt = Lident n; _ }, Some (_, { ppat_desc = Ppat_tuple l; _ }))
           when n = node -> (
             match l with
             | [ p; q ] | [ { ppat_desc = Ppat_any; _ }; p; q ] -> pair c p q
             | _ -> error lhs.ppat_loc "the check of the spec is not matched")
-        | _ -> error lhs.ppat_loc "expected a %s pattern" node
-      in
-      {
-        e with
-        pexp_desc =
-          Pexp_match
-            ({ scrut with pexp_desc = Pexp_tuple [ a; b ] }, List.map case cases);
-      }
-  | Pexp_match (({ pexp_desc = Pexp_tuple [ a; b ]; _ } as scrut), cases)
-    when match operands with
-         | Some (x, y) -> is_var x a && is_var y b
-         | None -> false ->
-      let case (c : Ppxlib.case) =
-        match c.pc_lhs.ppat_desc with
-        | Ppat_tuple [ p; q ] -> pair c p q
         | _ -> c
       in
       { e with pexp_desc = Pexp_match (scrut, List.map case cases) }
@@ -2339,20 +2315,29 @@ let raw_fn (vb : value_binding) =
   if runtyped && rsorts <> [] then
     error loc "%s: an [@untyped] rule does not annotate the sorts of its spec"
       rname;
-  (* the body of a rule that has none: a match on its terms, without cases *)
-  let no_body rparams =
-    let open Ast_builder.Default in
-    let loc = vb.pvb_loc in
-    let terms =
-      List.filter_map
-        (fun (x, t) -> if t = TTerm then Some (evar ~loc x) else None)
-        rparams
-    in
-    let scrut = match terms with [ t ] -> t | l -> pexp_tuple ~loc l in
-    pexp_match ~loc scrut []
-  in
+  (* the cases of a rule match the terms (and lists of terms) among its
+     parameters *)
   let body rparams (e : expression) =
-    match e.pexp_desc with Pexp_unreachable -> no_body rparams | _ -> e
+    match e.pexp_desc with
+    | Pexp_match
+        ( {
+            pexp_desc = Pexp_extension ({ txt = "kanon.operands"; _ }, _);
+            pexp_loc = loc;
+            _;
+          },
+          cases ) ->
+        let open Ast_builder.Default in
+        let terms =
+          List.filter_map
+            (fun (x, t) ->
+              match t with
+              | TTerm | TList TTerm -> Some (evar ~loc x)
+              | _ -> None)
+            rparams
+        in
+        let scrut = match terms with [ t ] -> t | l -> pexp_tuple ~loc l in
+        { e with pexp_desc = Pexp_match (scrut, cases) }
+    | _ -> e
   in
   match vb.pvb_expr.pexp_desc with
   | Pexp_function (params, Some ret, Pfunction_body rbody) ->

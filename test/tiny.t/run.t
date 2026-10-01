@@ -529,11 +529,10 @@ Operators must be declared before they are used in patterns.
 
   $ cat > bad.kn <<'KN'
   > rule neg : Not v =
-  >   match v with
   >   | lsl_: x lsl y -> v
   > KN
   $ kanon ocaml lang.knl bad.kn
-  bad.kn:3:10: lsl is not an operator on terms
+  bad.kn:2:10: lsl is not an operator on terms
   [1]
 
 The constants of the laws must be declared.
@@ -554,7 +553,6 @@ OCaml asserts, and whose variables the rules may use.
   > prim width_of : ty -> int
   > fn width (v : t) : int [@ty_only] = width_of (type_of v)
   > rule trunc : Trunc (v : TWord n) =
-  >   match v with
   >   | narrow: _ when n <= 8 -> v
   > KN
   $ kanon ocaml lang.knl word.knl word.kn | sed -n '/let trunc/,$p'

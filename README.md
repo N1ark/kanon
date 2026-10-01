@@ -218,7 +218,6 @@ constant "true" (v) = v_true
 
 ```ocaml
 rule bv_not : BvNot v =
-  match v with
   | lit: BitVec bv -> lit (lognot bv)
   | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
 
@@ -227,14 +226,17 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 
 - Parameters and results are annotated; `(v1 v2 : t)` stands for
   `(v1 : t) (v2 : t)`.
-- `rule f : e = body` declares a *rule function*, which returns a term that
-  must refine the raw term `e` (its spec). Every case of its top-level `match`
-  is a rule, named by the label before its pattern (`lit:`). When the spec is
+- `rule f : e = | r: p -> body | ...` declares a *rule function*, which
+  returns a term that must refine the raw term `e` (its spec). Its cases match
+  the operands of the spec (its parameters of type `t` and `t list`, as a tuple
+  when there are several), and each is a rule, named by the label before its
+  pattern (`lit:`). A rule function may instead have an expression as its body,
+  `rule f : e = expr`, with no rules. When the spec is
   a node over variables, `C (x1, ..., xn)`, they are the parameters of the
   function, at the types of the arguments of `C` (`v : t` above); otherwise the
   function declares its parameters, `rule f params : e = body`.
-- Unless its last case matches anything, the match of a rule function ends with
-  the rule `default`, which builds its spec (`| default: _ -> BvNot v` above).
+- Unless its last case matches anything, a rule function ends with the rule
+  `default`, which builds its spec (`| default: _ -> BvNot v` above).
   A rule function without a body, `rule f : e`, only has the rules derived
   from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
@@ -257,19 +259,17 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 
 - `#l` (or `C l`, for `C` the node of integer literals) binds `l` to the value
   of the literal.
-- A rule may only match on the parameters of its function, with no `let` before
-  the match, and its pattern variables may not shadow the parameters it does
-  not match on.
+- The pattern variables of a rule may not shadow the parameters of its
+  function.
 - When the spec of a rule is a commutative node over `v1, v2` (e.g.
-  `And (v1, v2)`), the cases of `match v1, v2 with` match them in either order,
+  `And (v1, v2)`), the cases match them in either order,
   unless the pattern is symmetric (the same once swapped, up to renaming), so
   `| true_: true, x -> x` covers both `true && x` and `x && true`. The cases
   must then name the operands rather than use `v1` and `v2` (other than as the
   argument of `type_of` and `[@ty_only]` helpers).
-- A rule may match on the operands of its spec, when the spec is an operator on
-  terms: in `rule bv_sub : Sub (checked, v1, v2)`,
-  `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
-  `match v1, v2 with | sub_sub: l, (l - r) -> r`.
+- The cases of a rule whose spec is a binary operator may also be written with
+  the operator: in `rule bv_sub : Sub (checked, v1, v2)`,
+  `| sub_sub: l - (l - r) -> r` stands for `| sub_sub: l, (l - r) -> r`.
 - The operands of a spec have the sorts that the typing of its node gives
   them, which the generated OCaml asserts on entry to the rule function (so
   that the assertion is compiled out with `-noassert`), and the proofs assume.
