@@ -58,7 +58,6 @@ rule token = parse
   | "==" { EQEQ }
   | "++" { PLUSPLUS }
   | "->" { ARROW }
-  | "<|" { LTBAR }
   | "<=" { LE }
   | ">=" { GE }
   | "<>" { NE }

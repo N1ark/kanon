@@ -18,6 +18,11 @@ laws on its operators, and no parameters for its semantics.
     val v_false : t
   end = P
   
+  let[@inline] mk_commut_binop (op : binop) (l : t) (r : t) : t_kind =
+      (if (Int.compare l.Hc.tag r.Hc.tag <= 0)
+      then (Binop (op, l, r))
+      else (Binop (op, r, l)))
+  
   let[@inline] of_bool (b : bool) : t = (if b then P.v_true else P.v_false)
   
   let plus (v1 : t) (v2 : t) : t =
@@ -30,7 +35,7 @@ laws on its operators, and no parameters for its semantics.
       | ({ Hc.node = { kind = Int (kanon__2); _ }; _ }, x)
         when (((P.zequal kanon__2 Z.zero))) ->
         x
-      | _ -> (P.node (Binop (Plus, v1, v2)) TInt)
+      | _ -> (P.node (mk_commut_binop Plus v1 v2) TInt)
       )
   
   let[@inline] not_ (v : t) : t =
@@ -53,7 +58,7 @@ laws on its operators, and no parameters for its semantics.
       | ({ Hc.node = { kind = Unop ((Not), y); _ }; _ }, x)
         when ((Int.equal x.Hc.tag y.Hc.tag)) ->
         P.v_false
-      | _ -> (P.node (Binop (And, v1, v2)) TBool)
+      | _ -> (P.node (mk_commut_binop And v1 v2) TBool)
       )
   
   let eq (v1 : t) (v2 : t) : t =
@@ -61,7 +66,7 @@ laws on its operators, and no parameters for its semantics.
       | (x, kanon__2) when ((Int.equal x.Hc.tag kanon__2.Hc.tag)) -> P.v_true
       | ({ Hc.node = { kind = Int (x); _ }; _ }, { Hc.node = { kind = Int (y); _ }; _ }) ->
         (of_bool ((P.zequal x y)))
-      | _ -> (P.node (Binop (Eq, v1, v2)) TBool)
+      | _ -> (P.node (mk_commut_binop Eq v1 v2) TBool)
       )
   
   
@@ -148,7 +153,7 @@ laws on its operators, and no parameters for its semantics.
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (plus.spec v1 v2)
-    ((Term.mk (Kind.Binop Binop.Plus v1 v2) Ty.TInt))
+    ((Term.mk (mk_commut_binop O Binop.Plus v1 v2) Ty.TInt))
   
   def not_.r_lit.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
@@ -257,7 +262,7 @@ laws on its operators, and no parameters for its semantics.
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (and_.spec v1 v2)
-    ((Term.mk (Kind.Binop Binop.And v1 v2) Ty.TBool))
+    ((Term.mk (mk_commut_binop O Binop.And v1 v2) Ty.TBool))
   
   def eq.r_same.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
@@ -291,7 +296,7 @@ laws on its operators, and no parameters for its semantics.
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (eq.spec v1 v2)
-    ((Term.mk (Kind.Binop Binop.Eq v1 v2) Ty.TBool))
+    ((Term.mk (mk_commut_binop O Binop.Eq v1 v2) Ty.TBool))
   
   end Kanon
   $ kanon lean-soundness lang.knl rules.kn
@@ -505,10 +510,10 @@ laws on its operators, and no parameters for its semantics.
 Operators must be declared before they are used in patterns.
 
   $ cat > bad.kn <<'KN'
-  > rule neg (v : t) : Not v <| TBool =
+  > rule neg (v : t) : Not v =
   >   match v with
   >   | lsl_: x lsl y -> v
-  >   | default: _ -> Not v <| TBool
+  >   | default: _ -> Not v
   > KN
   $ kanon ocaml lang.knl rules.kn bad.kn
   bad.kn:3:10: lsl is not an operator on terms

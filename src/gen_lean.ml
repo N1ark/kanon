@@ -216,6 +216,7 @@ let rec expr ctx ft (e : expr) =
   | EConstr (c, args) ->
       pf ft "(%s %a)" (lean_constr c) (list ~sep:" " expr) args
   | ENode (k, t) -> pf ft "(Term.mk %a %a)" expr k expr t
+  | ECall ("type_of", [ a ]) -> pf ft "(ty %a)" expr a
   | ECall (f, args) ->
       let f =
         if is_oracle ctx f then "O.orc." ^ f
@@ -276,6 +277,7 @@ let rec expr ctx ft (e : expr) =
         ()
         (fun ft () -> binding [ f ] (fun () -> expr ft body))
         ()
+  | EMatch (scruts, cases) when e.ety = TSty -> sort_match ctx ft (scruts, cases)
   | EMatch (scruts, cases) -> match_ ctx ft (scruts, cases)
   | ETuple l -> pf ft "(%a)" (list expr) l
   | ESome e -> pf ft "(some %a)" expr e
@@ -352,6 +354,19 @@ and discriminants ctx (scruts, (cases : case list)) =
     if multi then list (fun ft _ -> pf ft "_") ft scruts else pf ft "_"
   in
   (d, p, wild)
+
+(** A match on sorts, which Kanon builds to infer the sort of a node and whose
+    cases have no guard: a plain Lean match. *)
+and sort_match ctx ft (scruts, cases) =
+  let d, p, _ = discriminants ctx (scruts, cases) in
+  let case ft (c : case) =
+    pf ft "@ @[<hv 2>| %a =>@ %a@]" p c.pat
+      (fun ft () ->
+        binding (pat_names c.pat) (fun () ->
+            with_lits c.pat (fun ft () -> expr ctx ft c.body) ft ()))
+      ()
+  in
+  pf ft "@[<hv 2>(match %a with%a)@]" d () (fun ft -> List.iter (case ft)) cases
 
 (** A match with guards: each case is a Lean match of its own, returning [none]
     when its pattern or guard fails, and the first case that applies gives the

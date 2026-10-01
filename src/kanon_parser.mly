@@ -105,7 +105,7 @@ let neg loc (e : expression) =
 %token AS ASR ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LAND LET LOR LSL LSR LXOR MATCH NODE NOT OF
 %token ORACLE PREFIX PRIM
 %token RULE THEN TRUE TYPE WHEN WITH
-%token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW LTBAR LE GE NE ANDAND BARBAR
+%token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW LE GE NE ANDAND BARBAR
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ LT GT PLUS MINUS STAR DOT
 %token EQEQ PLUSPLUS HASH TILDE UNDERSCORE EOF
 
@@ -132,7 +132,7 @@ item:
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat loc (Ppat_var { txt = x; loc })) ps ret body ])) }
-  | RULE x = LID ps = params COLON spec = spec_expr EQ body = seq_expr
+  | RULE x = LID ps = params COLON spec = cons_expr EQ body = seq_expr
     { let loc = mkloc $loc in
       let attrs = [ attr loc "spec" [ eval_item loc spec ]; attr loc "cases" [] ] in
       let t = typ loc (Ptyp_constr (lid loc "t", [])) in
@@ -337,13 +337,7 @@ cmp_op:
   | LE { "<=" }
   | GT { ">" }
   | GE { ">=" }
-  | LTBAR { "<|" }
   | EQEQ { "==" }
-
-(* the spec of a rule, which is followed by [=] *)
-spec_expr:
-  | e = cons_expr { e }
-  | a = spec_expr LTBAR b = cons_expr { binop (mkloc $loc) "<|" a b }
 
 cons_expr:
   | e = add_expr { e }

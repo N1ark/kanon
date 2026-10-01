@@ -47,10 +47,10 @@ bool.knl and bool.kn.
     val v_false : t
   end = P
   
-  let[@inline] of_bool (b : bool) : t = (if b then P.v_true else P.v_false)
-  
   let[@inline] mk_commut_binop (op : binop) (l : t) (r : t) : t_kind =
       (if (Int.compare l.Hc.tag r.Hc.tag <= 0)
+      then (Binop (op, l, r))
+      else (Binop (op, r, l)))
 
 An unknown built-in module:
 

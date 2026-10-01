@@ -151,7 +151,7 @@ let rec expr ctx ft (e : expr) =
   | ENode (k, t) -> pf ft "(P.node %a %a)" expr k expr t
   | ECall ("equal", [ a; b ]) ->
       pf ft "(Int.equal %a.Hc.tag %a.Hc.tag)" expr a expr b
-  | ECall ("ty", [ a ]) -> pf ft "%a.Hc.node.%sty" expr a (term_path ())
+  | ECall ("type_of", [ a ]) -> pf ft "%a.Hc.node.%sty" expr a (term_path ())
   | ECall ("kind", [ a ]) -> pf ft "%a.Hc.node.%skind" expr a (term_path ())
   | ECall ("tag_le", [ a; b ]) ->
       pf ft "(Int.compare %a.Hc.tag %a.Hc.tag <= 0)" expr a expr b
@@ -375,7 +375,7 @@ let fn ctx ft (f : fn) =
 
 (** The primitives that [expr] compiles inline, rather than calling them on [P].
 *)
-let inline_prims = [ "equal"; "ty"; "kind"; "tag_le" ]
+let inline_prims = [ "equal"; "type_of"; "kind"; "tag_le" ]
 
 (** The functions of [P] that [expr] calls, other than the primitives, with
     their types; those on the values of literals only if the language has them.

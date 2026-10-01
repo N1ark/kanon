@@ -187,13 +187,13 @@ keywords.
 ## Functions
 
 ```ocaml
-rule bv_not (v : t) : BvNot v <| ty v =
+rule bv_not (v : t) : BvNot v =
   match v with
   | lit: BitVec bv -> lit (lognot bv)
   | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
-  | default: _ -> BvNot v <| ty v
+  | default: _ -> BvNot v
 
-fn size (v : t) : int [@ty_only] = size_of_ty (ty v)
+fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 ```
 
 - Parameters and results are annotated; `(v1 v2 : t)` stands for
@@ -209,10 +209,13 @@ fn size (v : t) : int [@ty_only] = size_of_ty (ty v)
   this type); `oracle f : a -> b` declares one that the Lean model takes as a
   parameter, so that the proofs may not rely on its behaviour (e.g. a
   hash-consing order).
-- The primitives `equal` (physical equality of hash-consed terms), `ty`, `kind`
-  and `tag_le` (the hash-consing order) are compiled to direct accesses of the
-  terms in OCaml. `P` must also define `node`, `zcompare`, `zequal` and
-  `equal_ty`.
+- `type_of v` is the sort of the term `v`. It and the primitives `equal`
+  (physical equality of hash-consed terms) and `kind` are compiled to direct
+  accesses of the terms in OCaml. `P` must also define `node`, `zcompare`,
+  `zequal` and `equal_ty`.
+- A language with commutative operators gets the oracle `tag_le` (the
+  hash-consing order, compiled to a comparison of the tags in OCaml) and the
+  helper `mk_commut_binop` (see [Terms](#terms)).
 
 ## Rules
 
@@ -226,10 +229,10 @@ fn size (v : t) : int [@ty_only] = size_of_ty (ty v)
   unless the pattern is symmetric (the same once swapped, up to renaming), so
   `| true_: true, x -> x` covers both `true && x` and `x && true`. The cases
   must then name the operands rather than use `v1` and `v2` (other than as the
-  argument of `ty` and `[@ty_only]` helpers).
+  argument of `type_of` and `[@ty_only]` helpers).
 - A rule may match on the operands of its spec, when the spec is an operator on
   terms: in `rule bv_sub (checked : checked) (v1 v2 : t) : Sub (checked, v1,
-  v2) <| ty v1`, `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
+  v2)`, `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
   `match v1, v2 with | sub_sub: l, (l - r) -> r`.
 
 ## Laws
@@ -257,8 +260,7 @@ others, and a hand-written rule may not reuse their names.
   operand), the others to the first letter of their type (`Float f1`,
   `Float f2`, `Float f`). A `bool` result is lifted with the `[@to_term]` of
   the boolean literals, and a result of another type `T` with its literal
-  constructor, `C (f ...) <| s`, where `s` is the sort of the spec
-  (`Float (f_add f1 f2) <| ty v1`).
+  constructor, at the sort of the spec (`Float (f_add f1 f2)`).
 - `[@unit "c"]` and `[@zero "c"]` take the literal `0`, `1`, `true` or `false`,
   which names the rule (`zero`, `one`, `true_`, `false_`), and whose term the
   language declares with `constant`. On an operator that does not commute, `c`
@@ -268,7 +270,16 @@ others, and a hand-written rule may not reuse their names.
 
 ## Terms
 
-- `k <| ty` builds a raw node, without simplification.
+- Nodes build raw terms, without simplification: `BvNot v`, `Add (c, l, r)`.
+  Their sort is inferred from their typing: the sort of their result when it
+  only depends on their parameters (`TBool`), else the sort of an operand that
+  has the same sort (`type_of v` for `BvNot v`), else the result over the
+  sorts of the operands (`TBitVector (n + m)` for `BvConcat (l, r)`, from the
+  sorts `TBitVector n` and `TBitVector m` of `l` and `r`).
+- In rule functions, the operands of commutative operators are put in the
+  hash-consing order: `And (v1, v2)` is the node of
+  `mk_commut_binop And v1 v2`, which puts the operand with the smallest tag on
+  the left.
 - Operators are node constructors (see `[@operators]`). The long forms remain
   available.
 - Patterns match the kind of a term directly: `Int z`, `Add (c, l, r)`.

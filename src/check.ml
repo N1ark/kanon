@@ -647,6 +647,224 @@ let lift (e : Syntax.expr) =
       { e with e = ECall (f, [ e ]); ety = TTerm }
   | _ -> e
 
+(* ---------------------------------------------------------------- *)
+(* The sorts of the nodes built in rules *)
+
+(** The typings of the nodes, from which the sorts of the terms that rules build
+    are inferred. *)
+let node_typings : (string * typing) list ref = ref []
+
+(** Counter of the variables that name the arguments of nodes in their sorts,
+    reset for each function. *)
+let atom_counter = ref 0
+
+let rec expr_vars (e : Syntax.expr) =
+  match e.e with
+  | EVar x -> [ x ]
+  | EConstr (_, l) | ECall (_, l) | ETuple l -> List.concat_map expr_vars l
+  | EBinop (_, a, b) -> expr_vars a @ expr_vars b
+  | EUnop (_, a) -> expr_vars a
+  | EInt _ | EBool _ | EUnit -> []
+  | _ -> error e.eloc "unsupported expression in a sort"
+
+let rec subst_vars f (e : Syntax.expr) : Syntax.expr =
+  let go = subst_vars f in
+  match e.e with
+  | EVar x -> Option.value ~default:e (f x)
+  | EConstr (c, l) -> { e with e = EConstr (c, List.map go l) }
+  | ECall (g, l) -> { e with e = ECall (g, List.map go l) }
+  | ETuple l -> { e with e = ETuple (List.map go l) }
+  | EBinop (o, a, b) -> { e with e = EBinop (o, go a, go b) }
+  | EUnop (o, a) -> { e with e = EUnop (o, go a) }
+  | EInt _ | EBool _ | EUnit -> e
+  | _ -> error e.eloc "unsupported expression in a sort"
+
+let rec same_expr (a : Syntax.expr) (b : Syntax.expr) =
+  let all l m = List.length l = List.length m && List.for_all2 same_expr l m in
+  match (a.e, b.e) with
+  | EVar x, EVar y -> x = y
+  | EInt x, EInt y -> Z.equal x y
+  | EBool x, EBool y -> x = y
+  | EUnit, EUnit -> true
+  | EConstr (c, l), EConstr (d, m) -> c.c_name = d.c_name && all l m
+  | ECall (f, l), ECall (g, m) -> f = g && all l m
+  | ETuple l, ETuple m -> all l m
+  | EBinop (o, a, b), EBinop (p, c, d) ->
+      o = p && same_expr a c && same_expr b d
+  | EUnop (o, a), EUnop (p, b) -> o = p && same_expr a b
+  | _ -> false
+
+(** Whether a spec is being checked: specs compute the arguments of their nodes
+    as many times as their sorts need them. *)
+let in_spec = ref false
+
+(** Whether [e] is cheap to compute twice: it calls no function. *)
+let rec is_atom (e : Syntax.expr) =
+  !in_spec
+  ||
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil -> true
+  | EConstr (_, l) | ETuple l -> List.for_all is_atom l
+  | ECall _ -> false
+  | EBinop (_, a, b) -> is_atom a && is_atom b
+  | EUnop (_, a) | EField (a, _) -> is_atom a
+  | _ -> false
+
+let type_of (e : Syntax.expr) =
+  { e = ECall ("type_of", [ e ]); ety = TSty; eloc = e.eloc }
+
+(** The term of the node [name] over [params] and [operands], which [build]
+    makes a kind of, at the sort that its typing gives it: the sort of its
+    result when it only depends on the parameters, else the sort of an operand
+    that has the same sort, else the sort of the result over the variables of
+    the sorts of the operands, which it then matches. The arguments that the
+    sort needs are bound first, outside specs, when they call functions, so that
+    they are computed once. *)
+let node_term loc ~name ~build (params : Syntax.expr list)
+    (operands : Syntax.expr list) : Syntax.expr =
+  let t =
+    match List.assoc_opt name !node_typings with
+    | Some t -> t
+    | None -> error loc "%s has no typing, which would give its sort" name
+  in
+  let n_ops = List.length t.t_sorts - 1 in
+  let result = List.nth t.t_sorts n_ops in
+  let op_sorts = List.filteri (fun i _ -> i < n_ops) t.t_sorts in
+  let is_var x = List.mem_assoc x t.t_vars in
+  let bindings = ref [] in
+  let atom (e : Syntax.expr) =
+    if is_atom e then e
+    else (
+      incr atom_counter;
+      let x = Printf.sprintf "kanon__a%d" !atom_counter in
+      bindings := (x, e) :: !bindings;
+      { e with e = EVar x })
+  in
+  let params = Array.of_list params and operands = Array.of_list operands in
+  let used = expr_vars result in
+  let param x =
+    match List.find_index (( = ) x) t.t_params with
+    | Some i when x <> "_" ->
+        params.(i) <- atom params.(i);
+        Some params.(i)
+    | _ -> None
+  in
+  let operand i =
+    operands.(i) <- atom operands.(i);
+    operands.(i)
+  in
+  let fv = List.sort_uniq compare (List.filter is_var used) in
+  let sort =
+    if fv = [] then subst_vars param result
+    else
+      (* the operands of the same sort as the result, atoms first *)
+      let same =
+        List.filteri (fun i _ -> i < Array.length operands) op_sorts
+        |> List.mapi (fun i s -> (i, s))
+        |> List.filter_map (fun (i, s) ->
+            if same_expr result s then Some i else None)
+      in
+      let same =
+        match List.find_opt (fun i -> is_atom operands.(i)) same with
+        | None -> List.nth_opt same 0
+        | i -> i
+      in
+      match same with
+      | Some i -> type_of (operand i)
+      | None ->
+          (* the variables of the result, bound by the sorts of the operands *)
+          let svar x = "kanon__" ^ x in
+          let bound = Hashtbl.create 4 in
+          let rec spat (s : Syntax.expr) : Syntax.pat =
+            let mk d = { p = d; pty = s.ety; ploc = s.eloc; pid = 0 } in
+            match s.e with
+            | EVar x when is_var x && not (Hashtbl.mem bound x) ->
+                Hashtbl.add bound x ();
+                mk (PVar (svar x))
+            | EConstr (c, args) when c.c_res = TSty ->
+                mk (PConstr (c, List.map spat args))
+            | _ -> mk PAny
+          in
+          let scruts = ref [] in
+          List.iteri
+            (fun i s ->
+              if
+                i < Array.length operands
+                && List.exists
+                     (fun x -> is_var x && not (Hashtbl.mem bound x))
+                     (List.filter (fun x -> List.mem x fv) (expr_vars s))
+              then scruts := !scruts @ [ (operand i, spat s) ])
+            op_sorts;
+          List.iter
+            (fun x ->
+              if not (Hashtbl.mem bound x) then
+                error loc "%s: the sort of its result is not determined" name)
+            fv;
+          let body =
+            subst_vars
+              (fun x ->
+                if is_var x then
+                  Some
+                    {
+                      e = EVar (svar x);
+                      ety = List.assoc x t.t_vars;
+                      eloc = loc;
+                    }
+                else param x)
+              result
+          in
+          let scrut_exprs = List.map (fun (o, _) -> type_of o) !scruts in
+          let pats = List.map snd !scruts in
+          let pat =
+            match pats with
+            | [ p ] -> p
+            | _ ->
+                {
+                  p = PTuple pats;
+                  pty = TTuple (List.map (fun _ -> TSty) pats);
+                  ploc = loc;
+                  pid = 0;
+                }
+          in
+          let case pat body =
+            { pat; guard = None; body; rule = None; cloc = loc; alt = [] }
+          in
+          let any = { pat with p = PAny } in
+          {
+            e =
+              EMatch
+                (scrut_exprs, [ case pat body; case any (List.hd scrut_exprs) ]);
+            ety = TSty;
+            eloc = loc;
+          }
+  in
+  let node =
+    {
+      e =
+        ENode
+          ( {
+              e = build (Array.to_list params) (Array.to_list operands);
+              ety = TKind;
+              eloc = loc;
+            },
+            sort );
+      ety = TTerm;
+      eloc = loc;
+    }
+  in
+  List.fold_left
+    (fun body (x, rhs) ->
+      {
+        e = ELet ({ p = PVar x; pty = rhs.ety; ploc = loc; pid = 0 }, rhs, body);
+        ety = TTerm;
+        eloc = loc;
+      })
+    node !bindings
+
+(** Whether the function being checked is a rule, which builds the nodes of
+    commutative operators with their operands in order (see [comm_fns]). *)
+let ordered = ref false
+
 let rec expr env ?expected (e : expression) : Syntax.expr =
   let loc = e.pexp_loc in
   let mk ety d =
@@ -745,20 +963,32 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let operands =
         List.map2 (fun t e -> expr env ~expected:t e) operand_tys operands
       in
-      mk TKind
-        (EConstr
-           ( kc,
-             { e = EConstr (op, params); ety = op.c_res; eloc = loc }
-             :: operands ))
+      let build params operands =
+        let op = { e = EConstr (op, params); ety = op.c_res; eloc = loc } in
+        match operands with
+        | [ l; r ] when !ordered && is_commutative name ->
+            ECall ("mk_commut_binop", [ op; l; r ])
+        | _ -> EConstr (kc, op :: operands)
+      in
+      if expected = Some TKind then mk TKind (build params operands)
+      else mk TTerm (node_term loc ~name ~build params operands).e
   | Pexp_construct ({ txt = Lident name; _ }, arg) -> (
       match find_constr name with
       | None -> error loc "unknown constructor %s" name
-      | Some c ->
+      | Some c -> (
           let args = constr_args loc c arg split_pexp in
           let args =
             List.map2 (fun a e -> expr env ~expected:(arg_ty a) e) c.c_args args
           in
-          mk c.c_res (EConstr (c, args)))
+          match List.assoc_opt name !node_typings with
+          | Some t when c.c_res = TKind && expected <> Some TKind ->
+              (* a node of kind: the term, at its sort *)
+              let n = List.length args - (List.length t.t_sorts - 1) in
+              let params = List.filteri (fun i _ -> i < n) args in
+              let operands = List.filteri (fun i _ -> i >= n) args in
+              let build params operands = EConstr (c, params @ operands) in
+              mk TTerm (node_term loc ~name ~build params operands).e
+          | _ -> mk c.c_res (EConstr (c, args))))
   | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident op; _ }; _ }, args) -> (
       let args =
         List.map
@@ -769,10 +999,6 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           args
       in
       match (op, args) with
-      | "<|", [ k; t ] ->
-          let k = expr env ~expected:TKind k in
-          let t = expr env ~expected:TSty t in
-          mk TTerm (ENode (k, t))
       | ("+" | "-" | "*"), [ a; b ] -> (
           let a = expr env a in
           let b = expr env b in
@@ -960,6 +1186,19 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let t = ty_of_core ct in
       Option.iter (fun expected -> expect loc ~expected t) expected;
       expr env ~expected:t e
+  | Pexp_extension
+      ( { txt = "kanon.at"; _ },
+        PStr
+          [
+            { pstr_desc = Pstr_eval (k, _); _ };
+            { pstr_desc = Pstr_eval (spec, _); _ };
+          ] ) -> (
+      (* the literal [k], at the sort of the node [spec] (see [law_cases]) *)
+      let k = expr env ~expected:TKind k in
+      match (expr env ~expected:TTerm spec).e with
+      | ENode (_, sort) -> mk TTerm (ENode (k, sort))
+      | _ -> error loc "the spec of this rule is not a node over its parameters"
+      )
   | _ -> error loc "unsupported expression"
 
 and case env ?expected scruts (c : Ppxlib.case) : Syntax.case list =
@@ -1088,11 +1327,7 @@ let alpha_equal (p : pattern) (q : pattern) =
     operands. *)
 let spec_node (spec : expression) =
   match spec.pexp_desc with
-  | Pexp_apply
-      ( { pexp_desc = Pexp_ident { txt = Lident "<|"; _ }; _ },
-        [
-          (_, { pexp_desc = Pexp_construct ({ txt = Lident n; _ }, arg); _ }); _;
-        ] ) ->
+  | Pexp_construct ({ txt = Lident n; _ }, arg) ->
       let args =
         match arg with
         | Some { pexp_desc = Pexp_tuple l; _ } -> l
@@ -1387,7 +1622,7 @@ let language (str : structure) =
   in
   let placed = ref [] in
   (* in [kind], rather than in a type of operators, a node has its operands as
-     arguments, and no typing *)
+     arguments, after its own *)
   let in_kind (n : constructor_declaration) =
     match (find_attr "sorts" n.pcd_attributes, n.pcd_args) with
     | ( Some { attr_payload = PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]; _ },
@@ -1403,11 +1638,6 @@ let language (str : structure) =
         {
           n with
           pcd_args = Pcstr_tuple (args @ List.init operands (fun _ -> t));
-          pcd_attributes =
-            List.filter
-              (fun (a : attribute) ->
-                not (List.mem a.attr_name.txt [ "params"; "sorts"; "when" ]))
-              n.pcd_attributes;
         }
     | _ -> n
   in
@@ -1665,9 +1895,10 @@ let language (str : structure) =
             cds
       | Ptype_abstract | Ptype_record _ -> ()
       | Ptype_open -> error td.ptype_loc "unsupported type");
-      (* the typings of a type's constructors are all given, or none *)
+      (* the typings of the constructors of a type of operators are all given,
+         or none *)
       match td.ptype_kind with
-      | Ptype_variant cds ->
+      | Ptype_variant cds when d.d_name <> "kind" ->
           let typed (cd : constructor_declaration) =
             List.mem_assoc cd.pcd_name.txt !lang.raw_typing
           in
@@ -1887,23 +2118,11 @@ let raw_fn (vb : value_binding) =
 (* ---------------------------------------------------------------- *)
 (* The laws of operators *)
 
-(** The node of the spec [C (x1, ..., xn) <| s] of a rule function, when its
-    arguments are the parameters of the function, in order: [C] and [s]. *)
+(** The node of the spec [C (x1, ..., xn)] of a rule function, when its
+    arguments are the parameters of the function, in order. *)
 let spec_head (r : raw_fn) =
   match r.rspec with
-  | Some
-      {
-        pexp_desc =
-          Pexp_apply
-            ( { pexp_desc = Pexp_ident { txt = Lident "<|"; _ }; _ },
-              [
-                ( _,
-                  { pexp_desc = Pexp_construct ({ txt = Lident n; _ }, arg); _ }
-                );
-                (_, sort);
-              ] );
-        _;
-      } ->
+  | Some { pexp_desc = Pexp_construct ({ txt = Lident n; _ }, arg); _ } ->
       let args =
         match arg with
         | Some { pexp_desc = Pexp_tuple l; _ } -> l
@@ -1916,20 +2135,14 @@ let spec_head (r : raw_fn) =
         | _ -> None
       in
       if List.map var args = List.map (fun (x, _) -> Some x) r.rparams then
-        Some (n, sort)
+        Some n
       else None
   | _ -> None
 
 (** The rule function of the node [n]: the one whose spec is [n] over its
     parameters. *)
 let rule_of_node loc raws n =
-  match
-    List.filter
-      (fun r ->
-        r.rcases
-        && match spec_head r with Some (m, _) -> m = n | None -> false)
-      raws
-  with
+  match List.filter (fun r -> r.rcases && spec_head r = Some n) raws with
   | [ r ] -> r
   | [] -> error loc "no rule function has the spec %s over its parameters" n
   | _ -> error loc "several rule functions have the spec %s" n
@@ -1959,7 +2172,7 @@ let case_rule (c : Ppxlib.case) =
       ([t] for a unary operator), and the others to the first letter of their
       type ([f1], [f2] or [f] for floats); a boolean result is lifted with the
       [[@to_term]] of boolean literals, a result of another type with its
-      literal, [C (...) <| s], where [s] is the sort of the spec;
+      literal, at the sort of the spec;
     - [[@unit "c"]]: [c: x, c -> x] if [op] is commutative (it then also matches
       [c, x]), and otherwise [c: _, c -> v1];
     - [[@zero "c"]]: [c: _, c -> c], where [c] stands for the term that the
@@ -1984,7 +2197,6 @@ let law_cases globals raws =
           compare (law_order a) (law_order b))
     in
     let r = rule_of_node (snd (List.hd laws)) raws n in
-    let sort = snd (Option.get (spec_head r)) in
     let op = Option.get (find_constr n) in
     let nparams = List.length op.c_args in
     let params = List.map fst r.rparams in
@@ -2069,13 +2281,18 @@ let law_cases globals raws =
                       error loc
                         "[@fold]: the boolean literals have no [@to_term]")
               | TData _ as t ->
-                  app "<|"
-                    [
-                      pexp_construct ~loc
-                        (Located.lident ~loc (lit_constr t))
-                        (Some e);
-                      sort;
-                    ]
+                  (* the literal, at the sort of the spec *)
+                  pexp_extension ~loc
+                    ( { txt = "kanon.at"; loc },
+                      PStr
+                        [
+                          pstr_eval ~loc
+                            (pexp_construct ~loc
+                               (Located.lident ~loc (lit_constr t))
+                               (Some e))
+                            [];
+                          pstr_eval ~loc (Option.get r.rspec) [];
+                        ] )
               | _ -> e
             in
             ( (if arity = 1 then "lit" else "lits"),
@@ -2178,8 +2395,9 @@ let typing_names = [ "a"; "b"; "c"; "t" ]
     A variable is free when it is neither an argument of [c] nor global: where a
     sort is expected it stands for any sort, and as the argument of a
     constructor of [ty] for any value of the argument's type. *)
-let typing env0 (c : constr) (rt : raw_typing) : typing =
+let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
   let loc = rt.rt_loc in
+  let args = List.filteri (fun i _ -> i < nparams) c.c_args in
   let params =
     List.map
       (fun (e : expression) ->
@@ -2188,16 +2406,14 @@ let typing env0 (c : constr) (rt : raw_typing) : typing =
         | _ -> error e.pexp_loc "expected a name")
       rt.rt_params
   in
-  let params =
-    if params = [] then List.map (fun _ -> "_") c.c_args else params
-  in
-  if List.length params <> List.length c.c_args then
-    error loc "%s has %d arguments" c.c_name (List.length c.c_args);
+  let params = if params = [] then List.map (fun _ -> "_") args else params in
+  if List.length params <> nparams then
+    error loc "%s has %d arguments" c.c_name nparams;
   let penv =
     List.concat
       (List.map2
          (fun x a -> if x = "_" then [] else [ (x, arg_ty a) ])
-         params c.c_args)
+         params args)
   in
   List.iter
     (fun (x, _) ->
@@ -2248,22 +2464,37 @@ let typing env0 (c : constr) (rt : raw_typing) : typing =
     t_when = cond;
   }
 
-(** The typings of the operators, which are only for the operators of nodes
-    whose operands are terms. *)
+(** The typings of the nodes: of the operands that are terms and of the result,
+    or of the result alone. *)
 let typings env0 =
-  let typed = !lang.raw_typing in
-  List.iter
+  List.map
     (fun (n, (rt : raw_typing)) ->
       let c = Option.get (find_constr n) in
-      match node_of_op c with
-      | Some (_, operands) when List.for_all (( = ) TTerm) operands ->
-          if List.length rt.rt_sorts <> List.length operands + 1 then
-            error rt.rt_loc
-              "%s: expected the sorts of %d operands and the result" n
-              (List.length operands)
-      | _ -> error rt.rt_loc "%s: only operators on terms have a typing" n)
-    typed;
-  List.map (fun (n, rt) -> typing env0 (Option.get (find_constr n)) rt) typed
+      let sorts = List.length rt.rt_sorts in
+      let nparams =
+        match node_of_op c with
+        | Some (_, operands) ->
+            if
+              sorts <> 1
+              && (sorts <> List.length operands + 1
+                 || not (List.for_all (( = ) TTerm) operands))
+            then
+              error rt.rt_loc
+                "%s: expected the sorts of %d operands and the result, or of \
+                 the result"
+                n (List.length operands);
+            List.length c.c_args
+        | None when c.c_res = TKind -> List.length c.c_args - (sorts - 1)
+        | None -> error rt.rt_loc "%s: only nodes have a typing" n
+      in
+      (n, typing env0 ~nparams c rt))
+    !lang.raw_typing
+
+(** Whether a typing is that of an operator on terms, over its operands. *)
+let operator_typing (t : typing) =
+  match node_of_op t.t_constr with
+  | Some (_, operands) -> List.length t.t_sorts = List.length operands + 1
+  | None -> false
 
 (** Adds the cases of each [extend rule f] item to the rule function [f], which
     an earlier item defines: before its rule [r] for [extend rule f before r],
@@ -2363,8 +2594,43 @@ let extend_rules (str : structure) =
   in
   List.rev (List.fold_left extend [] str)
 
+(** Parses the Kanon file [file], read from [lexbuf]. *)
+let parse ~file lexbuf : structure =
+  Lexing.set_filename lexbuf file;
+  let at p = { loc_start = p; loc_end = p; loc_ghost = false } in
+  try Kanon_parser.file Kanon_lexer.token lexbuf with
+  | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
+  | Kanon_parser.Error -> raise (Error (at lexbuf.lex_start_p, "syntax error"))
+
+let parse_file file : structure =
+  let ic = open_in_bin file in
+  Fun.protect
+    ~finally:(fun () -> close_in ic)
+    (fun () -> parse ~file (Lexing.from_channel ic))
+
+(** Parses the contents [s] of the Kanon file [file]. *)
+let parse_string ~file s : structure = parse ~file (Lexing.from_string s)
+
+(** The functions that the language gets from Kanon: if it has commutative
+    operators, [mk_commut_binop op l r] is the node of [op] over [l] and [r] in
+    the order of their hash-consing tags, given by the oracle [tag_le], which
+    rules use to build the nodes of commutative operators. *)
+let comm_fns () =
+  match !lang.commutative with
+  | [] -> []
+  | c :: _ ->
+      let op = Option.get (find_constr c) in
+      let kc, _ = Option.get (node_of_op op) in
+      let ty = match op.c_res with TData t -> t | _ -> assert false in
+      parse_string ~file:"<kanon>"
+        (Printf.sprintf
+           "oracle tag_le : t -> t -> bool\n\
+           \            fn mk_commut_binop (op : %s) (l r : t) : kind =\n\
+           \             if tag_le l r then %s (op, l, r) else %s (op, r, l)\n"
+           ty kc.c_name kc.c_name)
+
 let program (str : structure) : program =
-  let str = desugar_ops#structure (extend_rules str) in
+  let str = desugar_ops#structure (extend_rules (comm_fns () @ str)) in
   let prims, raws =
     List.fold_left
       (fun (prims, raws) (si : structure_item) ->
@@ -2386,7 +2652,8 @@ let program (str : structure) : program =
   in
   let prims = List.rev prims and raws = List.rev raws in
   let globals =
-    List.map (fun p -> (p.pname, { args = p.pargs; ret = p.pret })) prims
+    (("type_of", { args = [ TTerm ]; ret = TSty })
+    :: List.map (fun p -> (p.pname, { args = p.pargs; ret = p.pret })) prims)
     @ List.map
         (fun r -> (r.rname, { args = List.map snd r.rparams; ret = r.rret }))
         raws
@@ -2401,7 +2668,7 @@ let program (str : structure) : program =
     {
       !lang with
       ty_only =
-        "ty"
+        "type_of"
         :: List.filter_map
              (fun r -> if r.rty_only then Some r.rname else None)
              raws;
@@ -2418,9 +2685,12 @@ let program (str : structure) : program =
     raws;
   let env0 = { vars = []; locals = []; globals } in
   let raws = law_cases globals raws in
+  let typings = typings env0 in
+  node_typings := typings;
   let fns =
     List.map
       (fun r ->
+        atom_counter := 0;
         List.iter (fun (x, _) -> no_shadow env0 r.rloc x) r.rparams;
         let env = { env0 with vars = r.rparams } in
         if r.rcases && Option.is_none r.rspec then
@@ -2431,17 +2701,22 @@ let program (str : structure) : program =
           | Some spec when r.rcases -> spec_match spec r.rbody
           | _ -> r.rbody
         in
-        let body = expr env ~expected:r.rret rbody in
-        cases_mode := false;
         let spec =
           Option.map
             (fun s ->
               if r.rret <> TTerm then
                 error r.rloc "%s: only term-returning functions have a spec"
                   r.rname;
-              expr env ~expected:TTerm s)
+              in_spec := true;
+              let s = expr env ~expected:TTerm s in
+              in_spec := false;
+              s)
             r.rspec
         in
+        ordered := Option.is_some spec;
+        let body = expr env ~expected:r.rret rbody in
+        cases_mode := false;
+        ordered := false;
         {
           name = r.rname;
           params = r.rparams;
@@ -2453,21 +2728,4 @@ let program (str : structure) : program =
         })
       raws
   in
-  { prims; fns; typing = typings env0 }
-
-(** Parses the Kanon file [file], read from [lexbuf]. *)
-let parse ~file lexbuf : structure =
-  Lexing.set_filename lexbuf file;
-  let at p = { loc_start = p; loc_end = p; loc_ghost = false } in
-  try Kanon_parser.file Kanon_lexer.token lexbuf with
-  | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
-  | Kanon_parser.Error -> raise (Error (at lexbuf.lex_start_p, "syntax error"))
-
-let parse_file file : structure =
-  let ic = open_in_bin file in
-  Fun.protect
-    ~finally:(fun () -> close_in ic)
-    (fun () -> parse ~file (Lexing.from_channel ic))
-
-(** Parses the contents [s] of the Kanon file [file]. *)
-let parse_string ~file s : structure = parse ~file (Lexing.from_string s)
+  { prims; fns; typing = List.filter operator_typing (List.map snd typings) }

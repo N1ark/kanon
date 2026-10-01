@@ -125,8 +125,8 @@ type lang = {
   ite : string option;
       (** [[@ite]]: the node of conditionals, for [[@distrib_ite]] *)
   ty_only : string list;
-      (** the functions of a term that only read its type: [ty], and the helpers
-          marked [[@ty_only]] *)
+      (** the functions of a term that only read its type: [type_of], and the
+          helpers marked [[@ty_only]] *)
   lean_root : string;
       (** [[@@@lean_root "R"]]: the namespace of the Lean model, and the root of
           its modules *)
@@ -152,7 +152,7 @@ let lang =
       lit_fns = [];
       constants = [];
       ite = None;
-      ty_only = [ "ty" ];
+      ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
       operators = [];
@@ -236,7 +236,9 @@ and expr_desc =
   | EBool of bool
   | EUnit
   | EConstr of constr * expr list
-  | ENode of expr * expr  (** [kind <| ty] *)
+  | ENode of expr * expr
+      (** a raw node: its kind and its sort, which Kanon infers from the typing
+          of the node *)
   | ECall of string * expr list  (** global function or primitive *)
   | ELocalCall of string * expr list
   | EUnop of unop * expr
@@ -281,10 +283,10 @@ type fn = {
 
 type prim = { pname : string; pargs : ty list; pret : ty; oracle : bool }
 
-(** The typing of an operator: its operands, then its result, have the sorts
+(** The typing of a node: its operands, then its result, have the sorts
     [t_sorts] (terms of type [ty] over [t_vars], which are existentially
-    quantified, and the arguments [t_params] of the operator), under the
-    condition [t_when]. *)
+    quantified, and the arguments [t_params] of the node), under the condition
+    [t_when]. A typing may give only the sort of the result. *)
 type typing = {
   t_constr : constr;
   t_params : string list;  (** one per argument, [_] if it is unnamed *)
