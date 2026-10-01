@@ -212,6 +212,7 @@ let rec expr ctx ft (e : expr) =
   | EInt z -> pf ft "(%s : Int)" (Z.to_string z)
   | EBool b -> pf ft "%b" b
   | EUnit -> pf ft "()"
+  | EUnreachable -> pf ft "default"
   | EConstr (c, []) -> pf ft "%s" (lean_constr c)
   | EConstr (c, args) ->
       pf ft "(%s %a)" (lean_constr c) (list ~sep:" " expr) args
@@ -277,7 +278,9 @@ let rec expr ctx ft (e : expr) =
         ()
         (fun ft () -> binding [ f ] (fun () -> expr ft body))
         ()
-  | EMatch (scruts, cases) when e.ety = TSty -> sort_match ctx ft (scruts, cases)
+  | EMatch (scruts, cases)
+    when e.ety = TSty || (List.rev cases |> List.hd).body.e = EUnreachable ->
+      sort_match ctx ft (scruts, cases)
   | EMatch (scruts, cases) -> match_ ctx ft (scruts, cases)
   | ETuple l -> pf ft "(%a)" (list expr) l
   | ESome e -> pf ft "(some %a)" expr e
@@ -641,7 +644,7 @@ let rec occurs ~ty_ok x (e : expr) =
   | EVar y -> x = y
   | ECall (f, [ { e = EVar y; _ } ]) when y = x && List.mem f !lang.ty_only ->
       not ty_ok
-  | EInt _ | EBool _ | EUnit | ENone | ENil -> false
+  | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
   | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
       List.exists go l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
@@ -975,7 +978,7 @@ let statements ~sources ft (p : program) =
 (** The user functions that [e] calls. *)
 let rec calls (e : expr) =
   match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil -> []
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
   | ECall (f, l) -> f :: List.concat_map calls l
   | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.concat_map calls l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->

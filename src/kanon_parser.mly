@@ -389,6 +389,10 @@ simple_expr:
   | LPAREN RPAREN { econstr (mkloc $loc) "()" None }
   | LPAREN e = seq_expr RPAREN { e }
   | LPAREN e = seq_expr COLON t = typ RPAREN { exp (mkloc $loc) (Pexp_constraint (e, t)) }
+  (* [(v : TBitVector n)], the sort of an operand of a spec *)
+  | LPAREN e = seq_expr COLON c = UID arg = option(simple_expr) RPAREN
+    { let loc = mkloc $loc in
+      exp loc (Pexp_extension ({ txt = "kanon.sort"; loc }, PStr [ eval_item loc e; eval_item loc (econstr loc c arg) ])) }
   | LBRACKET es = separated_list(SEMI, expr) RBRACKET { elist (mkloc $loc) es }
   | LBRACE fs = separated_nonempty_list(SEMI, field_expr) RBRACE { exp (mkloc $loc) (Pexp_record (fs, None)) }
   | e = simple_expr DOT f = LID { exp (mkloc $loc) (Pexp_field (e, lid (mkloc $loc(f)) f)) }

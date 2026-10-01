@@ -145,6 +145,11 @@ types, as its OCaml AST has them, and places the nodes of its modules in them.
     whose last argument is a value, directly on the literal, without reading its
     value (e.g. `[@raw "width" "lit_width"]`).
 - `[@ite]`: the node of conditionals, for `[@distrib_ite]`.
+- `[@get "f"]` on a sort with one argument: the helper `f` reads that argument
+  from the sort of a term (`node TBitVector of nat [@get "size"]`). Kanon then
+  reads the argument with `f v`, rather than by matching the sort of `v`,
+  where it infers the sort of a node or binds the variables of the sort of an
+  operand (see [Rules](#rules)).
 - Laws, see [Laws](#laws).
 
 ### Operators on terms
@@ -237,8 +242,16 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   must then name the operands rather than use `v1` and `v2` (other than as the
   argument of `type_of` and `[@ty_only]` helpers).
 - A rule may match on the operands of its spec, when the spec is an operator on
-  terms: in `rule bv_sub : Sub (checked, v1, v2)`, `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
+  terms: in `rule bv_sub : Sub (checked, v1, v2)`,
+  `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
   `match v1, v2 with | sub_sub: l, (l - r) -> r`.
+- The operands of a spec have the sorts that the typing of its node gives
+  them, which the generated OCaml asserts on entry to the rule function (so
+  that the assertion is compiled out with `-noassert`), and the proofs assume.
+  An operand may be annotated with its sort, `(v : TBitVector n)`, to also
+  assert it and bind its variables in the rules:
+  `rule bv_extract : BvExtract (from_, to_, (v : TBitVector sz))` uses `sz`
+  for the width of `v`.
 
 ## Laws
 

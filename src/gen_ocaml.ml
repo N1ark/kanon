@@ -103,7 +103,7 @@ let rec mentions ?(decoded = false) x (e : expr) =
       match List.rev args with
       | { e = EVar y; _ } :: l when y = x -> List.exists go l
       | _ -> List.exists go args)
-  | EInt _ | EBool _ | EUnit | ENone | ENil -> false
+  | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
   | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
       List.exists go l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
@@ -139,6 +139,7 @@ let rec expr ctx ft (e : expr) =
   | EInt z -> int_lit ft z
   | EBool b -> pf ft "%b" b
   | EUnit -> pf ft "()"
+  | EUnreachable -> pf ft "(assert false)"
   | EConstr (c, []) -> pf ft "%s%s" (constr_path c) c.c_name
   | EConstr (c, args) ->
       let arg ft (a, e) =
@@ -270,7 +271,7 @@ and case ctx ft (c : case) =
 let rec calls acc (e : expr) =
   let go = calls in
   match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil -> acc
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
   | ECall (f, args) -> List.fold_left go (f :: acc) args
   | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
@@ -338,7 +339,9 @@ let sccs (fns : fn list) : fn list list =
 (** The number of nodes of [e]. *)
 let rec weight (e : expr) =
   match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EConstr (_, []) -> 1
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable
+  | EConstr (_, []) ->
+      1
   | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
       List.fold_left (fun n e -> n + weight e) 1 l
   | ENode (a, b)

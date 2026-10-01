@@ -112,6 +112,9 @@ type lang = {
   lit_value : string;
       (** [[@literal "t"]]: the type of the values of the literals of
           [lit_node], which [#x] binds in rules *)
+  sort_getters : (string * string) list;
+      (** the functions that read the argument of the sort of a term, declared
+          by [[@get "f"]] on the constructors of sorts with one argument *)
   lit_fns : (string * string) list;
       (** the functions of those literals, declared by attributes on the
           constructors of literals: [to_term] (a value where a term is
@@ -149,6 +152,7 @@ let lang =
       lit_node = None;
       lit_int = false;
       lit_value = "";
+      sort_getters = [];
       lit_fns = [];
       constants = [];
       ite = None;
@@ -255,6 +259,9 @@ and expr_desc =
   | ERecord of (string * expr) list
   | EField of expr * string
   | EAssert of expr * expr
+  | EUnreachable
+      (** a value that the typing of the spec rules out: [assert false] in
+          OCaml, [default] in Lean *)
 
 and case = {
   pat : pat;  (** of tuple type when there are several scrutinees *)

@@ -26,6 +26,10 @@ laws on its operators, and no parameters for its semantics.
   let[@inline] of_bool (b : bool) : t = (if b then P.v_true else P.v_false)
   
   let plus (v1 : t) (v2 : t) : t =
+      (assert (match v1.Hc.node.ty, v2.Hc.node.ty with
+              | ((TInt), (TInt)) -> true
+              | _ -> false
+              );
       (match v1, v2 with
       | ({ Hc.node = { kind = Int (x); _ }; _ }, { Hc.node = { kind = Int (y); _ }; _ }) ->
         (P.int (Z.add x y))
@@ -36,16 +40,24 @@ laws on its operators, and no parameters for its semantics.
         when (((P.zequal kanon__2 Z.zero))) ->
         x
       | _ -> (P.node (mk_commut_binop Plus v1 v2) TInt)
-      )
+      ))
   
-  let[@inline] not_ (v : t) : t =
+  let not_ (v : t) : t =
+      (assert (match v.Hc.node.ty with
+              | (TBool) -> true
+              | _ -> false
+              );
       (match v with
       | { Hc.node = { kind = Bool (true); _ }; _ } -> P.v_false
       | { Hc.node = { kind = Unop ((Not), x); _ }; _ } -> x
       | _ -> (P.node (Unop (Not, v)) TBool)
-      )
+      ))
   
   let and_ (v1 : t) (v2 : t) : t =
+      (assert (match v1.Hc.node.ty, v2.Hc.node.ty with
+              | ((TBool), (TBool)) -> true
+              | _ -> false
+              );
       (match v1, v2 with
       | (x, { Hc.node = { kind = Bool (true); _ }; _ }) -> x
       | ({ Hc.node = { kind = Bool (true); _ }; _ }, x) -> x
@@ -59,15 +71,21 @@ laws on its operators, and no parameters for its semantics.
         when ((Int.equal x.Hc.tag y.Hc.tag)) ->
         P.v_false
       | _ -> (P.node (mk_commut_binop And v1 v2) TBool)
-      )
+      ))
   
   let eq (v1 : t) (v2 : t) : t =
+      (assert (match v1.Hc.node.ty, v2.Hc.node.ty with
+              | (kanon__a, kanon__b)
+                when (((P.equal_ty kanon__a kanon__b))) ->
+                true
+              | _ -> false
+              );
       (match v1, v2 with
       | (x, kanon__2) when ((Int.equal x.Hc.tag kanon__2.Hc.tag)) -> P.v_true
       | ({ Hc.node = { kind = Int (x); _ }; _ }, { Hc.node = { kind = Int (y); _ }; _ }) ->
         (of_bool ((P.zequal x y)))
       | _ -> (P.node (mk_commut_binop Eq v1 v2) TBool)
-      )
+      ))
   
   
   $ kanon ocaml-check lang.knl
@@ -523,4 +541,62 @@ The constants of the laws must be declared.
   $ sed 's/^constant "false".*//' lang.knl > nofalse.knl
   $ kanon ocaml nofalse.knl rules.kn
   nofalse.knl:22:4: the constant false is not declared
+  [1]
+
+The operands of a spec may be annotated with their sort, which the generated
+OCaml asserts, and whose variables the rules may use.
+
+  $ sed 's/^type unop = Not$/type unop = Not | Trunc/; s/^type ty = TBool | TInt$/type ty = TBool | TInt | TWord/' lang.knl > wlang.knl
+  $ cat > word.knl <<'KN'
+  > node TWord of nat
+  > node Trunc : TWord n -> TWord n
+  > KN
+  $ cat > word.kn <<'KN'
+  > prim width_of : ty -> int
+  > fn width (v : t) : int [@ty_only] = width_of (type_of v)
+  > rule trunc : Trunc (v : TWord n) =
+  >   match v with
+  >   | narrow: _ when n <= 8 -> v
+  > KN
+  $ kanon ocaml wlang.knl word.knl rules.kn word.kn | sed -n '/let trunc/,$p'
+  let trunc (v : t) : t =
+      (assert (match v.Hc.node.ty with
+              | (TWord (kanon__n)) -> true
+              | _ -> false
+              );
+      (match v with
+      | _
+        when ((P.zcompare (match v.Hc.node.ty with
+                          | (TWord (n)) -> let n = Z.of_int n in n
+                          | _ -> (assert false)
+                          ) (Z.of_int (8)) <= 0)) ->
+        v
+      | _ -> (P.node (Unop (Trunc, v)) v.Hc.node.ty)
+      ))
+  
+  
+
+With a getter, the variables of the sort are read by it.
+
+  $ sed 's/^node TWord of nat$/node TWord of nat [@get "width"]/' word.knl > getter.knl
+  $ kanon ocaml wlang.knl getter.knl rules.kn word.kn | sed -n '/let trunc/,$p'
+  let trunc (v : t) : t =
+      (assert (match v.Hc.node.ty with
+              | (TWord (kanon__n)) -> true
+              | _ -> false
+              );
+      (match v with
+      | _ when ((P.zcompare (width v) (Z.of_int (8)) <= 0)) -> v
+      | _ -> (P.node (Unop (Trunc, v)) v.Hc.node.ty)
+      ))
+  
+  
+
+Only the operands of a spec have sorts.
+
+  $ cat > bad_sort.kn <<'KN'
+  > fn f (v : t) : t = (v : TBool)
+  > KN
+  $ kanon ocaml lang.knl rules.kn bad_sort.kn
+  bad_sort.kn:1:19: only the operands of a spec are annotated with their sort
   [1]

@@ -403,9 +403,15 @@ let rec lit_binders (p : Syntax.pat) : string list =
   | PCons (a, b) -> lit_binders a @ lit_binders b
   | PRecord l -> List.concat_map (fun (_, q) -> lit_binders q) l
 
+(** The variables bound by the sorts of the operands of the spec of the rule
+    being checked (see [sort_binds]), and the values they stand for. *)
+let sort_vars : (string * Syntax.expr) list ref = ref []
+
 let no_shadow env loc x =
   if List.mem_assoc x env.globals then
-    error loc "%s shadows a global function" x
+    error loc "%s shadows a global function" x;
+  if List.mem_assoc x !sort_vars then
+    error loc "%s shadows a variable of the sort of an operand" x
 
 let add_binders env p =
   let bs =
@@ -703,7 +709,7 @@ let rec is_atom (e : Syntax.expr) =
   !in_spec
   ||
   match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil -> true
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> true
   | EConstr (_, l) | ETuple l -> List.for_all is_atom l
   | ECall _ -> false
   | EBinop (_, a, b) -> is_atom a && is_atom b
@@ -772,71 +778,100 @@ let node_term loc ~name ~build (params : Syntax.expr list)
       match same with
       | Some i -> type_of (operand i)
       | None ->
-          (* the variables of the result, bound by the sorts of the operands *)
-          let svar x = "kanon__" ^ x in
-          let bound = Hashtbl.create 4 in
-          let rec spat (s : Syntax.expr) : Syntax.pat =
-            let mk d = { p = d; pty = s.ety; ploc = s.eloc; pid = 0 } in
-            match s.e with
-            | EVar x when is_var x && not (Hashtbl.mem bound x) ->
-                Hashtbl.add bound x ();
-                mk (PVar (svar x))
-            | EConstr (c, args) when c.c_res = TSty ->
-                mk (PConstr (c, List.map spat args))
-            | _ -> mk PAny
-          in
-          let scruts = ref [] in
+          (* the variables of the result read by the getters of the sorts of the
+             operands ([[@get]]) *)
+          let getters = Hashtbl.create 4 in
           List.iteri
-            (fun i s ->
-              if
-                i < Array.length operands
-                && List.exists
-                     (fun x -> is_var x && not (Hashtbl.mem bound x))
-                     (List.filter (fun x -> List.mem x fv) (expr_vars s))
-              then scruts := !scruts @ [ (operand i, spat s) ])
+            (fun i (s : Syntax.expr) ->
+              match s.e with
+              | EConstr (c, [ { e = EVar x; _ } ])
+                when i < Array.length operands
+                     && List.mem x fv
+                     && not (Hashtbl.mem getters x) -> (
+                  match List.assoc_opt c.c_name !lang.sort_getters with
+                  | Some g ->
+                      Hashtbl.add getters x
+                        {
+                          e = ECall (g, [ operand i ]);
+                          ety = List.assoc x t.t_vars;
+                          eloc = loc;
+                        }
+                  | None -> ())
+              | _ -> ())
             op_sorts;
-          List.iter
-            (fun x ->
-              if not (Hashtbl.mem bound x) then
-                error loc "%s: the sort of its result is not determined" name)
-            fv;
-          let body =
+          if List.for_all (Hashtbl.mem getters) fv then
             subst_vars
               (fun x ->
-                if is_var x then
-                  Some
-                    {
-                      e = EVar (svar x);
-                      ety = List.assoc x t.t_vars;
-                      eloc = loc;
-                    }
-                else param x)
+                if is_var x then Hashtbl.find_opt getters x else param x)
               result
-          in
-          let scrut_exprs = List.map (fun (o, _) -> type_of o) !scruts in
-          let pats = List.map snd !scruts in
-          let pat =
-            match pats with
-            | [ p ] -> p
-            | _ ->
-                {
-                  p = PTuple pats;
-                  pty = TTuple (List.map (fun _ -> TSty) pats);
-                  ploc = loc;
-                  pid = 0;
-                }
-          in
-          let case pat body =
-            { pat; guard = None; body; rule = None; cloc = loc; alt = [] }
-          in
-          let any = { pat with p = PAny } in
-          {
-            e =
-              EMatch
-                (scrut_exprs, [ case pat body; case any (List.hd scrut_exprs) ]);
-            ety = TSty;
-            eloc = loc;
-          }
+          else
+            (* the variables of the result, bound by the sorts of the
+               operands *)
+            let svar x = "kanon__" ^ x in
+            let bound = Hashtbl.create 4 in
+            let rec spat (s : Syntax.expr) : Syntax.pat =
+              let mk d = { p = d; pty = s.ety; ploc = s.eloc; pid = 0 } in
+              match s.e with
+              | EVar x when is_var x && not (Hashtbl.mem bound x) ->
+                  Hashtbl.add bound x ();
+                  mk (PVar (svar x))
+              | EConstr (c, args) when c.c_res = TSty ->
+                  mk (PConstr (c, List.map spat args))
+              | _ -> mk PAny
+            in
+            let scruts = ref [] in
+            List.iteri
+              (fun i s ->
+                if
+                  i < Array.length operands
+                  && List.exists
+                       (fun x -> is_var x && not (Hashtbl.mem bound x))
+                       (List.filter (fun x -> List.mem x fv) (expr_vars s))
+                then scruts := !scruts @ [ (operand i, spat s) ])
+              op_sorts;
+            List.iter
+              (fun x ->
+                if not (Hashtbl.mem bound x) then
+                  error loc "%s: the sort of its result is not determined" name)
+              fv;
+            let body =
+              subst_vars
+                (fun x ->
+                  if is_var x then
+                    Some
+                      {
+                        e = EVar (svar x);
+                        ety = List.assoc x t.t_vars;
+                        eloc = loc;
+                      }
+                  else param x)
+                result
+            in
+            let scrut_exprs = List.map (fun (o, _) -> type_of o) !scruts in
+            let pats = List.map snd !scruts in
+            let pat =
+              match pats with
+              | [ p ] -> p
+              | _ ->
+                  {
+                    p = PTuple pats;
+                    pty = TTuple (List.map (fun _ -> TSty) pats);
+                    ploc = loc;
+                    pid = 0;
+                  }
+            in
+            let case pat body =
+              { pat; guard = None; body; rule = None; cloc = loc; alt = [] }
+            in
+            let any = { pat with p = PAny } in
+            {
+              e =
+                EMatch
+                  ( scrut_exprs,
+                    [ case pat body; case any (List.hd scrut_exprs) ] );
+              ety = TSty;
+              eloc = loc;
+            }
   in
   let node =
     {
@@ -902,6 +937,9 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
   in
   let is_term (a : Syntax.expr) = a.ety = TTerm in
   match e.pexp_desc with
+  | Pexp_ident { txt = Lident x; _ } when List.mem_assoc x !sort_vars ->
+      let v = List.assoc x !sort_vars in
+      mk v.ety v.e
   | Pexp_ident { txt = Lident x; _ } -> (
       match List.assoc_opt x env.vars with
       | Some t -> mk t (EVar x)
@@ -1186,6 +1224,8 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let t = ty_of_core ct in
       Option.iter (fun expected -> expect loc ~expected t) expected;
       expr env ~expected:t e
+  | Pexp_extension ({ txt = "kanon.sort"; _ }, _) ->
+      error loc "only the operands of a spec are annotated with their sort"
   | Pexp_extension
       ( { txt = "kanon.at"; _ },
         PStr
@@ -1778,6 +1818,7 @@ let language (str : structure) =
                    "params";
                    "sorts";
                    "when";
+                   "get";
                  ]
                 @ law_attrs)
                 attrs;
@@ -1848,6 +1889,17 @@ let language (str : structure) =
                             (law_of_attr a))
                         attrs;
                 }
+              in
+              let l =
+                match find_attr "get" attrs with
+                | Some a -> (
+                    match (res, args, strings_attr a) with
+                    | TSty, [ _ ], [ f ] ->
+                        { l with sort_getters = l.sort_getters @ [ (name, f) ] }
+                    | _ ->
+                        error a.attr_loc
+                          "[@get \"f\"] applies to sorts with one argument")
+                | None -> l
               in
               let l =
                 if has_attr "operators" attrs then (
@@ -2134,8 +2186,37 @@ type raw_fn = {
   rcases : bool;
   rty_only : bool;  (** [[@ty_only]] *)
   rbody : expression;
+  rsorts : (string * expression) list;
+      (** the sorts of the operands of the spec, [(v : s)] *)
   rloc : Location.t;
 }
+
+(** The spec without the sorts of its operands, and those sorts. *)
+let spec_sorts (spec : expression) =
+  let sorts = ref [] in
+  let strip =
+    object
+      inherit Ast_traverse.map as super
+
+      method! expression e =
+        match e.pexp_desc with
+        | Pexp_extension
+            ( { txt = "kanon.sort"; _ },
+              PStr
+                [
+                  { pstr_desc = Pstr_eval (v, _); _ };
+                  { pstr_desc = Pstr_eval (s, _); _ };
+                ] ) -> (
+            match v.pexp_desc with
+            | Pexp_ident { txt = Lident x; _ } ->
+                sorts := !sorts @ [ (x, s) ];
+                v
+            | _ -> error e.pexp_loc "only variables are annotated with a sort")
+        | _ -> super#expression e
+    end
+  in
+  let spec = strip#expression spec in
+  (spec, !sorts)
 
 let raw_fn (vb : value_binding) =
   let loc = vb.pvb_loc in
@@ -2144,7 +2225,13 @@ let raw_fn (vb : value_binding) =
     | Ppat_var { txt; _ } -> txt
     | _ -> error loc "expected a function name"
   in
-  let rspec = spec_of_attrs vb.pvb_attributes in
+  let rspec, rsorts =
+    match spec_of_attrs vb.pvb_attributes with
+    | Some spec ->
+        let spec, sorts = spec_sorts spec in
+        (Some spec, sorts)
+    | None -> (None, [])
+  in
   let rcases = has_attr "cases" vb.pvb_attributes in
   let rty_only = has_attr "ty_only" vb.pvb_attributes in
   (* the body of a rule that has none: a match on its terms, without cases *)
@@ -2182,6 +2269,7 @@ let raw_fn (vb : value_binding) =
         rcases;
         rty_only;
         rbody;
+        rsorts;
         rloc = loc;
       }
   | Pexp_function _ -> error loc "%s: the return type must be annotated" rname
@@ -2201,6 +2289,7 @@ let raw_fn (vb : value_binding) =
             rcases;
             rty_only;
             rbody = body rparams vb.pvb_expr;
+            rsorts;
             rloc = loc;
           }
       | _ -> error loc "%s: constants must be annotated with their type" rname)
@@ -2691,6 +2780,244 @@ let extend_rules (str : structure) =
   in
   List.rev (List.fold_left extend [] str)
 
+(** The check that the spec of the rule [r] is well-typed: that the sorts of its
+    operands have the shapes that the typing of its node and their annotations
+    give them, and that the side condition of the typing holds. The generated
+    OCaml asserts it, and the proofs assume it. *)
+let spec_check globals (r : raw_fn) (spec : expression) : expression option =
+  let open Ast_builder.Default in
+  let loc = { r.rloc with loc_ghost = true } in
+  let counter = ref 0 in
+  let fresh () =
+    incr counter;
+    Printf.sprintf "kanon__s%d" !counter
+  in
+  let guards = ref [] in
+  let is_sort c =
+    match find_constr c with Some c -> c.c_res = TSty | None -> false
+  in
+  (* operators and global functions are not variables *)
+  let is_global x =
+    List.mem_assoc x globals
+    || not (match x.[0] with 'a' .. 'z' | '_' -> true | _ -> false)
+  in
+  (* the pattern of the sort [s], whose variables [is_var] are named [name]
+     where they first appear, and otherwise compared with [subst] *)
+  let rec conv ~is_var ~name ~subst bound (s : expression) : pattern =
+    let go = conv ~is_var ~name ~subst bound in
+    let other () =
+      let f = fresh () in
+      guards :=
+        !guards @ [ eapply ~loc (evar ~loc "=") [ evar ~loc f; subst s ] ];
+      pvar ~loc f
+    in
+    match s.pexp_desc with
+    | Pexp_ident { txt = Lident x; _ }
+      when is_var x && not (Hashtbl.mem bound x) ->
+        Hashtbl.add bound x ();
+        pvar ~loc (name x)
+    | Pexp_construct ({ txt = Lident c; _ }, arg) when is_sort c ->
+        ppat_construct ~loc (Located.lident ~loc c)
+          (Option.map
+             (fun (a : expression) ->
+               match a.pexp_desc with
+               | Pexp_tuple l -> ppat_tuple ~loc (List.map go l)
+               | _ -> go a)
+             arg)
+    | _ -> other ()
+  in
+  let subst f =
+    object
+      inherit Ast_traverse.map as super
+
+      method! expression e =
+        match e.pexp_desc with
+        | Pexp_ident { txt = Lident x; _ } -> (
+            match f x with Some e' -> e' | None -> e)
+        | _ -> super#expression e
+    end
+  in
+  let scruts = ref [] and pats = ref [] in
+  let checked = ref [] in
+  let check (v : expression) p =
+    (match v.pexp_desc with
+    | Pexp_ident { txt = Lident x; _ } -> checked := (x, p) :: !checked
+    | _ -> ());
+    scruts := !scruts @ [ eapply ~loc (evar ~loc "type_of") [ v ] ];
+    pats := !pats @ [ p ]
+  in
+  (* whether two patterns of sorts have the same shape, up to their variables *)
+  let rec same_shape (p : pattern) (q : pattern) =
+    match (p.ppat_desc, q.ppat_desc) with
+    | (Ppat_var _ | Ppat_any), (Ppat_var _ | Ppat_any) -> true
+    | Ppat_construct (c, a), Ppat_construct (d, b) -> (
+        c.txt = d.txt
+        &&
+        match (a, b) with
+        | None, None -> true
+        | Some (_, a), Some (_, b) -> same_shape a b
+        | _ -> false)
+    | Ppat_tuple l, Ppat_tuple m ->
+        List.length l = List.length m && List.for_all2 same_shape l m
+    | _ -> false
+  in
+  (* the typing of the node of the spec *)
+  (match spec.pexp_desc with
+  | Pexp_construct ({ txt = Lident n; _ }, arg) -> (
+      match List.assoc_opt n !lang.raw_typing with
+      | Some rt when List.length rt.rt_sorts > 1 ->
+          let args =
+            match arg with
+            | Some { pexp_desc = Pexp_tuple l; _ } -> l
+            | Some a -> [ a ]
+            | None -> []
+          in
+          let n_ops = List.length rt.rt_sorts - 1 in
+          let nparams = List.length args - n_ops in
+          let params = List.filteri (fun i _ -> i < nparams) args in
+          let operands = List.filteri (fun i _ -> i >= nparams) args in
+          let is_ident (e : expression) =
+            match e.pexp_desc with Pexp_ident _ -> true | _ -> false
+          in
+          (* the operands built by the spec are well-typed *)
+          if List.for_all is_ident operands then (
+            let param_names =
+              List.map
+                (fun (e : expression) ->
+                  match e.pexp_desc with
+                  | Pexp_ident { txt = Lident x; _ } -> x
+                  | _ -> "_")
+                rt.rt_params
+            in
+            let param x =
+              match List.find_index (( = ) x) param_names with
+              | Some i when x <> "_" -> List.nth_opt params i
+              | _ -> None
+            in
+            let is_var x = param x = None && (not (is_global x)) && x <> "_" in
+            let name x = "kanon__" ^ x in
+            let sub =
+              subst (fun x ->
+                  match param x with
+                  | Some e -> Some e
+                  | None when is_var x -> Some (evar ~loc (name x))
+                  | None -> None)
+            in
+            let bound = Hashtbl.create 4 in
+            List.iteri
+              (fun i o ->
+                check o
+                  (conv ~is_var ~name ~subst:sub#expression bound
+                     (List.nth rt.rt_sorts i)))
+              operands;
+            Option.iter
+              (fun w -> guards := !guards @ [ sub#expression w ])
+              rt.rt_when)
+      | _ -> ())
+  | _ -> ());
+  (* the annotations of the operands *)
+  let bound = Hashtbl.create 4 in
+  let is_var x = not (is_global x) in
+  let name x = "kanon__v_" ^ x in
+  let sub =
+    subst (fun x -> if is_var x then Some (evar ~loc (name x)) else None)
+  in
+  List.iter
+    (fun (v, s) ->
+      let n_guards = List.length !guards in
+      let p = conv ~is_var ~name ~subst:sub#expression bound s in
+      (* unless the typing of the node already checks it *)
+      match List.assoc_opt v !checked with
+      | Some q when List.length !guards = n_guards && same_shape p q -> ()
+      | _ -> check (evar ~loc v) p)
+    r.rsorts;
+  let trivial (p : pattern) =
+    match p.ppat_desc with Ppat_var _ | Ppat_any -> true | _ -> false
+  in
+  if !guards = [] && List.for_all trivial !pats then None
+  else
+    let tuple = function [ x ] -> x | l -> pexp_tuple ~loc l in
+    let ptuple = function [ x ] -> x | l -> ppat_tuple ~loc l in
+    let guard =
+      match !guards with
+      | [] -> None
+      | g :: gs ->
+          Some
+            (List.fold_left
+               (fun a b -> eapply ~loc (evar ~loc "&&") [ a; b ])
+               g gs)
+    in
+    Some
+      (pexp_match ~loc (tuple !scruts)
+         [
+           case ~lhs:(ptuple !pats) ~guard ~rhs:(ebool ~loc true);
+           case ~lhs:(ppat_any ~loc) ~guard:None ~rhs:(ebool ~loc false);
+         ])
+
+(** The variables that the annotations of the operands of a spec bind, which
+    stand for the matching parts of their sorts. *)
+let sort_binds env (r : raw_fn) =
+  List.concat_map
+    (fun (v, (s : expression)) ->
+      let open Ast_builder.Default in
+      let loc = s.pexp_loc in
+      let rec to_pat (s : expression) : pattern =
+        match s.pexp_desc with
+        | Pexp_ident { txt = Lident x; _ }
+          when not (List.mem_assoc x env.globals) ->
+            pvar ~loc x
+        | Pexp_construct (c, arg) ->
+            ppat_construct ~loc c
+              (Option.map
+                 (fun (a : expression) ->
+                   match a.pexp_desc with
+                   | Pexp_tuple l -> ppat_tuple ~loc (List.map to_pat l)
+                   | _ -> to_pat a)
+                 arg)
+        | _ -> ppat_any ~loc
+      in
+      match s.pexp_desc with
+      | Pexp_construct
+          ( { txt = Lident c; _ },
+            Some { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ } )
+        when List.mem_assoc c !lang.sort_getters ->
+          (* read by the getter of the sort *)
+          let g = List.assoc c !lang.sort_getters in
+          [ (x, expr env (eapply ~loc (evar ~loc g) [ evar ~loc v ])) ]
+      | _ ->
+          let p = pat TSty (to_pat s) in
+          let scrut =
+            expr env ~expected:TSty
+              (eapply ~loc (evar ~loc "type_of") [ evar ~loc v ])
+          in
+          let rec only x (q : Syntax.pat) : Syntax.pat =
+            match q.p with
+            | PVar y when y <> x -> { q with p = PAny }
+            | PConstr (c, l) -> { q with p = PConstr (c, List.map (only x) l) }
+            | PTuple l -> { q with p = PTuple (List.map (only x) l) }
+            | _ -> q
+          in
+          List.map
+            (fun (x, (t, _)) ->
+              let case pat body =
+                { pat; guard = None; body; rule = None; cloc = loc; alt = [] }
+              in
+              ( x,
+                {
+                  e =
+                    EMatch
+                      ( [ scrut ],
+                        [
+                          case (only x p) { e = EVar x; ety = t; eloc = loc };
+                          case { p with p = PAny }
+                            { e = EUnreachable; ety = t; eloc = loc };
+                        ] );
+                  ety = t;
+                  eloc = loc;
+                } ))
+            (binders p))
+    r.rsorts
+
 (** Parses the Kanon file [file], read from [lexbuf]. *)
 let parse ~file lexbuf : structure =
   Lexing.set_filename lexbuf file;
@@ -2795,9 +3122,19 @@ let program (str : structure) : program =
         cases_mode := r.rcases;
         let rbody =
           match r.rspec with
-          | Some spec when r.rcases ->
-              spec_match spec (with_default spec r.rbody)
-          | _ -> r.rbody
+          | Some spec when r.rcases -> (
+              let body = spec_match spec (with_default spec r.rbody) in
+              match spec_check globals r spec with
+              | Some c ->
+                  let loc = c.pexp_loc in
+                  Ast_builder.Default.(
+                    pexp_sequence ~loc (pexp_assert ~loc c) body)
+              | None -> body)
+          | _ ->
+              if r.rsorts <> [] then
+                error r.rloc "%s: only the operands of a rule's spec have sorts"
+                  r.rname;
+              r.rbody
         in
         let spec =
           Option.map
@@ -2812,9 +3149,11 @@ let program (str : structure) : program =
             r.rspec
         in
         ordered := Option.is_some spec;
+        sort_vars := sort_binds env r;
         let body = expr env ~expected:r.rret rbody in
         cases_mode := false;
         ordered := false;
+        sort_vars := [];
         {
           name = r.rname;
           params = r.rparams;
