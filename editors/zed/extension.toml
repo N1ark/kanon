@@ -7,6 +7,11 @@ authors = ["N1ark"]
 repository = "https://github.com/N1ark/kanon"
 snippets = "snippets/kanon.json"
 
+# `kanon lsp`, found by src/lib.rs: the binary is not bundled.
+[language_servers.kanon]
+name = "Kanon"
+languages = ["Kanon"]
+
 # The grammar lives in this repository, in tree-sitter-kanon/. `rev` is a commit
 # that has its current version: bump it whenever the grammar changes (CI checks
 # that the grammar at `rev` is the one of the checkout).
