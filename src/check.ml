@@ -1731,11 +1731,109 @@ let language (str : structure) =
         | _ -> td)
       tds
   in
+  (* the nodes that the types do not name, placed by what they are, in the order
+     of the modules: an operator on [k] operands in the type of the operators of
+     the [[@operators]] kind constructor with [k] terms, a sort that the typings
+     use in [ty], and the others in [kind] *)
+  let operator_types =
+    List.concat_map
+      (fun (td : type_declaration) ->
+        match (td.ptype_name.txt, td.ptype_kind) with
+        | "kind", Ptype_variant cds ->
+            List.filter_map
+              (fun (cd : constructor_declaration) ->
+                match cd.pcd_args with
+                | Pcstr_tuple
+                    ({ ptyp_desc = Ptyp_constr ({ txt = Lident op; _ }, []); _ }
+                    :: operands)
+                  when has_attr "operators" cd.pcd_attributes
+                       && List.for_all
+                            (fun (t : core_type) ->
+                              match t.ptyp_desc with
+                              | Ptyp_constr ({ txt = Lident "t"; _ }, []) ->
+                                  true
+                              | _ -> false)
+                            operands ->
+                    Some (List.length operands, op)
+                | _ -> None)
+              cds
+        | _ -> [])
+      tds
+  in
+  let sorts_used =
+    let used = ref [] in
+    let collect =
+      object
+        inherit Ast_traverse.iter as super
+
+        method! expression e =
+          (match e.pexp_desc with
+          | Pexp_construct ({ txt = Lident c; _ }, _) -> used := c :: !used
+          | _ -> ());
+          super#expression e
+      end
+    in
+    List.iter
+      (fun (_, (cd : constructor_declaration)) ->
+        List.iter
+          (fun (a : attribute) ->
+            if List.mem a.attr_name.txt [ "sorts"; "when" ] then
+              collect#payload a.attr_payload)
+          cd.pcd_attributes)
+      nodes;
+    !used
+  in
+  let target name (cd : constructor_declaration) =
+    let operands =
+      match find_attr "sorts" cd.pcd_attributes with
+      | Some { attr_payload = PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]; _ }
+        -> (
+          match e.pexp_desc with Pexp_tuple l -> List.length l - 1 | _ -> 0)
+      | _ -> 0
+    in
+    match List.assoc_opt operands operator_types with
+    | Some op when operands > 0 -> op
+    | _ -> if List.mem name sorts_used then "ty" else "kind"
+  in
+  let auto =
+    List.filter_map
+      (fun (name, cd) ->
+        if List.mem name !placed then None
+        else (
+          placed := name :: !placed;
+          Some (target name cd, cd)))
+      nodes
+  in
+  let tds =
+    List.map
+      (fun (td : type_declaration) ->
+        let ty = td.ptype_name.txt in
+        match
+          List.filter_map (fun (t, cd) -> if t = ty then Some cd else None) auto
+        with
+        | [] -> td
+        | added ->
+            let added = if ty = "kind" then List.map in_kind added else added in
+            let cds =
+              match td.ptype_kind with
+              | Ptype_variant cds -> cds
+              | Ptype_abstract -> []
+              | _ -> error td.ptype_loc "%s: expected a variant type" ty
+            in
+            { td with ptype_kind = Ptype_variant (cds @ added) })
+      tds
+  in
   List.iter
-    (fun (name, (cd : constructor_declaration)) ->
-      if not (List.mem name !placed) then
-        error cd.pcd_loc "node %s is not placed in any type" name)
-    nodes;
+    (fun (t, (cd : constructor_declaration)) ->
+      if
+        not
+          (List.exists
+             (fun (td : type_declaration) -> td.ptype_name.txt = t)
+             tds)
+      then
+        error cd.pcd_loc "node %s: the language has no type %s" cd.pcd_name.txt
+          t)
+    auto;
   (* the types first, so that they can refer to each other *)
   let decls =
     List.map

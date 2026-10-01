@@ -113,16 +113,25 @@ OCaml), `bool`, `unit`, tuples, `option` and `list` are built in.
 
 A language is made of the modules it uses (see [Usage](#usage)), each with its
 declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
-The language itself declares its types, as its OCaml AST has them, and places
-the nodes of its modules in them.
+The language itself declares its types, as its OCaml AST has them, in which
+Kanon places the nodes of its modules.
 
 - `node C ...`, in a module, declares the constructor `C` as a type would
-  (`node And : TBool -> TBool -> TBool [@comm] [@idem]`), and the language
-  places it in one of its types, where it names it alone (`| And` in `binop`).
-  The module declares what the node is (its arguments, typing, laws and
-  operators), and the language where its AST has it.
+  (`node And : TBool -> TBool -> TBool [@comm] [@idem]`). The module declares
+  what the node is (its arguments, typing, laws and operators), and Kanon
+  places it in the types of the language, in the order of the modules: an
+  operator on `k` operands in the type of the operators of the
+  `[@operators]` constructor of `kind` with `k` terms (`And` in `binop`, for
+  `Binop of binop * t * t`), a sort that the typings use in `ty`, and the other
+  nodes in `kind`. The language declares those types, as its OCaml AST has
+  them, with their other constructors (`Var of var`, `TSeq of ty`); a type
+  that only has nodes is declared without constructors (`type binop
+  [@ocaml "Binop.t"]`). The language may also place a node itself, by naming
+  it alone in a type (`type nop = Distinct`), which it must for a node with
+  operands that Kanon does not place by their number, such as `Distinct` in
+  `Nop of nop * t list`.
 - A node placed in `kind` itself, rather than in a type of operators, has its
-  operands as arguments (`Ite of t * t * t`) and no typing.
+  operands as arguments (`Ite of t * t * t`).
 - `extend rule f = | r: p -> e ...`, in the rules of a module, adds rules to the
   rule function `f` of a module below it, as if they were written in `f`: last,
   but before its final catch-all case `_`, or with `extend rule f before r`,

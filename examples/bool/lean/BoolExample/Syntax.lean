@@ -7,11 +7,11 @@ namespace BoolExample
 mutual
 inductive Kind where
   | Var : Int → Kind
-  | Bool : Bool → Kind
   | Unop : Unop → Term → Kind
   | Binop : Binop → Term → Term → Kind
   | Triop : Triop → Term → Term → Term → Kind
   | Nop : Nop → (List Term) → Kind
+  | Bool : Bool → Kind
 inductive Term where
   | mk (kind : Kind) (ty : Ty)
 end

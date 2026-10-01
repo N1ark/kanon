@@ -97,10 +97,10 @@ laws on its operators, and no parameters for its semantics.
     let _ : string -> unit = fun _ -> ()
     let _ : t_kind -> unit = function
       | Var (_ : string) -> ()
-      | Bool (_ : bool) -> ()
-      | Int (_ : Z.t) -> ()
       | Unop ((_ : unop), (_ : t)) -> ()
       | Binop ((_ : binop), (_ : t), (_ : t)) -> ()
+      | Bool (_ : bool) -> ()
+      | Int (_ : Z.t) -> ()
     let _ : unop -> unit = function
       | Not -> ()
     let _ : binop -> unit = function
@@ -540,13 +540,12 @@ The constants of the laws must be declared.
 
   $ sed 's/^constant "false".*//' lang.knl > nofalse.knl
   $ kanon ocaml nofalse.knl
-  nofalse.knl:25:4: the constant false is not declared
+  nofalse.knl:23:4: the constant false is not declared
   [1]
 
 The operands of a spec may be annotated with their sort, which the generated
 OCaml asserts, and whose variables the rules may use.
 
-  $ sed 's/^type unop = Not$/type unop = Not | Trunc/; s/^type ty = TBool | TInt$/type ty = TBool | TInt | TWord/' lang.knl > wlang.knl
   $ cat > word.knl <<'KN'
   > node TWord of nat
   > node Trunc : TWord n -> TWord n
@@ -558,7 +557,7 @@ OCaml asserts, and whose variables the rules may use.
   >   match v with
   >   | narrow: _ when n <= 8 -> v
   > KN
-  $ kanon ocaml wlang.knl word.knl word.kn | sed -n '/let trunc/,$p'
+  $ kanon ocaml lang.knl word.knl word.kn | sed -n '/let trunc/,$p'
   let trunc (v : t) : t =
       (assert (match v.Hc.node.ty with
               | (TWord (kanon__n)) -> true
@@ -579,7 +578,7 @@ OCaml asserts, and whose variables the rules may use.
 With a getter, the variables of the sort are read by it.
 
   $ sed 's/^node TWord of nat$/node TWord of nat [@get "width"]/' word.knl > getter.knl
-  $ kanon ocaml wlang.knl getter.knl word.kn | sed -n '/let trunc/,$p'
+  $ kanon ocaml lang.knl getter.knl word.kn | sed -n '/let trunc/,$p'
   let trunc (v : t) : t =
       (assert (match v.Hc.node.ty with
               | (TWord (kanon__n)) -> true

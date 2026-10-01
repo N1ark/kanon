@@ -11,11 +11,11 @@ kanon. The example language of examples/bool is made of the bool module alone
     let _ : string -> unit = fun _ -> ()
     let _ : t_kind -> unit = function
       | Var (_ : string) -> ()
-      | Bool (_ : bool) -> ()
       | Unop ((_ : unop), (_ : t)) -> ()
       | Binop ((_ : binop), (_ : t), (_ : t)) -> ()
       | Triop ((_ : triop), (_ : t), (_ : t), (_ : t)) -> ()
       | Nop ((_ : nop), (_ : (t list))) -> ()
+      | Bool (_ : bool) -> ()
     let _ : unop -> unit = function
       | Not -> ()
     let _ : binop -> unit = function

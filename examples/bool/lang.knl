@@ -1,7 +1,6 @@
 (* An example language made of Kanon's bool module alone (modules/bool.kn[l],
-   built into kanon as +bool.knl and +bool.kn): its terms are boolean
-   literals, variables and the nodes of the module, which this file places in
-   its types. Only its Lean model matters here, in lean/: the OCaml types
+   built into kanon as +bool): its terms are boolean literals, variables and
+   the nodes of the module, which Kanon places in the types below. Only its Lean model matters here, in lean/: the OCaml types
    below are those that a module of terms could define, but the example is not
    compiled as OCaml. *)
 
@@ -13,14 +12,13 @@ type var [@ocaml "string"] [@lean "Int"] [@noeq]
 
 type kind [@ocaml "t_kind"] [@noeq] =
   | Var of var
-  | Bool
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]
   | Triop of triop * t * t * t [@operators]
   | Nop of nop * t list [@operators]
 
-type unop = Not
-type binop = And | Or | Eq
-type triop = Ite
+type unop
+type binop
+type triop
 type nop = Distinct
-type ty = TBool
+type ty

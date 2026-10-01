@@ -9,14 +9,12 @@ type var [@ocaml "string"] [@lean "String"] [@noeq]
 
 type kind [@ocaml "t_kind"] [@noeq] =
   | Var of var
-  | Bool
-  | Int
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]
 
-type unop = Not
-type binop = And | Plus | Eq
-type ty = TBool | TInt
+type unop
+type binop
+type ty
 
 node Bool of bool [@literal] [@to_term "of_bool"]
 node Int of int [@literal "int"]
