@@ -28,6 +28,8 @@
   fmt
   (zarith
    (>= 1.13))
+  (yojson
+   (>= 2.0))
   (ocamlformat
    (and
     :with-dev-setup

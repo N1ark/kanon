@@ -2,7 +2,7 @@
  (name main)
  (public_name kanon)
  (package kanon)
- (libraries ppxlib fmt zarith))
+ (libraries ppxlib fmt zarith yojson unix))
 
 (menhir
  (modules kanon_parser))

@@ -450,11 +450,29 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   lake env lean check_axioms.lean  # must not mention sorryAx
   ```
 
+## Language server
+
+`kanon lsp` is a language server (LSP, over standard input and output) for
+editors. As files are edited, it checks the whole language they belong to, as
+`kanon` does, and reports its errors on the files where they are; it also gives
+the definitions of functions, primitives, nodes, constructors, types, operators
+and rules (`before r` goes to the rule `r` of the extended function), hovers
+with the header of a definition and the comment above it, completion of the
+names of the language, and the symbols of a file and of the workspace.
+
+A `.kn` file is only meaningful in its language: the server checks a file with
+each *root* of the workspace that uses it, the `.knl` files that no other file
+uses (e.g. `lang.knl`), as `kanon ocaml lang.knl`; a file that no root uses is
+checked with the only root of its directory, or else alone. In Kanon's own
+repository, `modules/` stands for the built-in modules, so that they are
+checked with the languages that use them.
+
 ## Editors
 
 - `tree-sitter-kanon/` is the [tree-sitter](https://tree-sitter.github.io)
   grammar of `.kn` and `.knl` files, for editors (see its README).
-- `editors/zed/` is the [Zed](https://zed.dev) extension: highlighting, the
-  outline of a file down to the rules of its rule functions, brackets,
-  indentation, comments, text objects and snippets. Install it with
-  `zed: install dev extension`, from that directory (see its README).
+- `editors/zed/` is the [Zed](https://zed.dev) extension: the language
+  server above, highlighting, the outline of a file down to the rules of its
+  rule functions, brackets, indentation, comments, text objects and snippets.
+  Install it with `zed: install dev extension`, from that directory (see its
+  README).

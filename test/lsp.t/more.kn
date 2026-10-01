@@ -1,0 +1,2 @@
+extend rule b_imp before true_ =
+  | same: x implies x -> v_true

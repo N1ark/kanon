@@ -3433,3 +3433,21 @@ let program (str : structure) : program =
       raws
   in
   { prims; fns; typing = List.filter operator_typing (List.map snd typings) }
+
+(** The language before any declaration. *)
+let initial_lang = !lang
+
+(** Restores the state of the checker, and the infix words of the lexer, to
+    those before any file is read, to check another language (in the language
+    server). *)
+let reset () =
+  lang := initial_lang;
+  Hashtbl.reset infix_words;
+  cases_mode := false;
+  pid_counter := 0;
+  Hashtbl.reset case_vars;
+  sort_vars := [];
+  node_typings := [];
+  atom_counter := 0;
+  in_spec := false;
+  ordered := false

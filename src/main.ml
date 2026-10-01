@@ -21,7 +21,9 @@
     directory of the file, and [use +name] the module built into kanon (the
     files of [modules/]). A module is used once, the first time; the
     declarations of a file come before those of the modules it uses, and its
-    rules after theirs. *)
+    rules after theirs.
+
+    [kanon lsp] is the language server of Kanon files (see {!Lsp_server}). *)
 
 (** The generated Lean files, with the backend of each. *)
 let lean_files ~lang ~sources prog =
@@ -56,6 +58,7 @@ let usage () =
     ("usage: kanon (ocaml | ocaml-check | ocaml-tests | lean-types | \
       lean-syntax | lean-signatures | lean-typing | lean-model | \
       lean-statements | lean-lifts | lean-soundness | lean-all) FILE...\n\
+     \       kanon lsp\n\
       Files use modules with use \"path\", or use +name for those built into \
       kanon: "
     ^ String.concat ", "
@@ -65,88 +68,21 @@ let usage () =
               Builtin.files)));
   exit 2
 
-(** The name of the built-in module file that [f] names ([+name]), if any. *)
-let builtin f =
-  if String.starts_with ~prefix:"+" f then
-    Some (String.sub f 1 (String.length f - 1))
-  else None
-
-let parse_file f =
-  match builtin f with
-  | None -> Check.parse_file f
-  | Some name -> (
-      match List.assoc_opt name Builtin.files with
-      | Some s -> Check.parse_string ~file:name s
-      | None ->
-          Format.eprintf "kanon: %s: no such built-in module file@." f;
-          usage ())
-
-(** The name of the file [f] in the headers of the generated files. *)
-let source_name f = Filename.basename (Option.value (builtin f) ~default:f)
-
-let exists f =
-  match builtin f with
-  | Some name -> List.mem_assoc name Builtin.files
-  | None -> Sys.file_exists f
-
-(** The modules that [items] use, and [items] without their [use]s. *)
-let uses (items : Ppxlib.structure) =
-  List.partition_map
-    (fun (si : Ppxlib.structure_item) ->
-      match si.pstr_desc with
-      | Pstr_extension
-          ( ( { txt = "kanon.use"; _ },
-              PStr
-                [
-                  {
-                    pstr_desc =
-                      Pstr_eval
-                        ( {
-                            pexp_desc = Pexp_constant (Pconst_string (m, _, _));
-                            _;
-                          },
-                          _ );
-                    _;
-                  };
-                ] ),
-            _ ) ->
-          Left m
-      | _ -> Right si)
-    items
-
-(** The declarations and the rules of [files] and of the modules they use, as
-    [(file, items)] lists, in order. *)
-let load files =
-  let loaded = Hashtbl.create 8 in
-  let decls = ref [] and rules = ref [] in
-  let rec file f =
-    if not (Hashtbl.mem loaded f) then (
-      Hashtbl.add loaded f ();
-      let ms, items = uses (parse_file f) in
-      let is_decl = Filename.check_suffix f ".knl" in
-      if is_decl then decls := !decls @ [ (f, items) ];
-      List.iter (use (Filename.dirname f)) ms;
-      if not is_decl then rules := !rules @ [ (f, items) ])
-  and use dir m =
-    let base =
-      if String.starts_with ~prefix:"+" m || not (Filename.is_relative m) then m
-      else Filename.concat dir m
-    in
-    match List.filter exists [ base ^ ".knl"; base ^ ".kn" ] with
-    | [] ->
-        Format.eprintf "kanon: use %S: no %s.knl or %s.kn@." m base base;
-        exit 1
-    | fs -> List.iter file fs
-  in
-  List.iter file files;
-  (!decls, !rules)
-
 let () =
   match Array.to_list Sys.argv with
+  | [ _; "lsp" ] -> Lsp_server.run ()
   | _ :: backend :: files -> (
       try
         if files = [] then usage ();
-        let langs, files = load files in
+        let langs, files =
+          try Loader.load files with
+          | Loader.No_builtin f ->
+              Format.eprintf "kanon: %s: no such built-in module file@." f;
+              usage ()
+          | Loader.Missing (_, msg) ->
+              Format.eprintf "kanon: %s@." msg;
+              exit 1
+        in
         if langs = [] then usage ();
         Check.language (List.concat_map snd langs);
         let prog =
@@ -154,8 +90,8 @@ let () =
             (if files = [] then usage ();
              Check.program (List.concat_map snd files))
         in
-        let lang = List.map (fun (f, _) -> source_name f) langs in
-        let sources = List.map (fun (f, _) -> source_name f) files in
+        let lang = List.map (fun (f, _) -> Loader.source_name f) langs in
+        let sources = List.map (fun (f, _) -> Loader.source_name f) files in
         let lean = lean_files ~lang ~sources prog in
         match backend with
         | "ocaml" ->

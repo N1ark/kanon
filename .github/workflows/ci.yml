@@ -108,3 +108,23 @@ jobs:
             echo "::error::The grammar changed: update rev in editors/zed/extension.toml to a commit with this grammar"
             exit 1
           fi
+
+  zed:
+    name: Build the Rust part of the Zed extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/zed
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install the WebAssembly target that Zed compiles extensions to
+        run: rustup target add wasm32-wasip2
+
+      - name: Build
+        run: cargo build --locked --target wasm32-wasip2
+
+      - name: Lint
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --target wasm32-wasip2 -- -D warnings
