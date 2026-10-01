@@ -1,0 +1,365 @@
+================================================================================
+Rule functions
+================================================================================
+
+rule b_and : And (v1, v2) =
+  | false_: false && _ -> v_false
+  | not: p && not p -> v_false
+  | and_: (a && _ as x) && a -> x
+  | eq_neq: a == x && a == y when sure_neq x y -> v_false
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (rule_definition
+    (identifier)
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier))))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (boolean)
+          (wildcard))
+        (identifier))
+      (case
+        (rule_name)
+        (binary_pattern
+          (identifier)
+          (unary_pattern
+            (identifier)))
+        (identifier))
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (parenthesized_pattern
+            (alias_pattern
+              (binary_pattern
+                (identifier)
+                (wildcard))
+              (identifier)))
+          (identifier))
+        (identifier))
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (binary_pattern
+            (identifier)
+            (identifier))
+          (binary_pattern
+            (identifier)
+            (identifier)))
+        (application_expression
+          (identifier)
+          (identifier)
+          (identifier))
+        (identifier)))))
+
+================================================================================
+Rule functions with attributes, sorts, or no body
+================================================================================
+
+rule sem_eq_untyped : Eq (v1, v2) [@untyped] =
+  | ill_typed: _ when not (type_of v1 = type_of v2) -> v_false
+  | typed: _ -> v1 == v2
+rule bv_extract : BvExtract (from_, to_, (v : TBitVector sz))
+rule bv_add (c : checked) : Add (c, v1, v2) = bv_add_impl c v1 v2
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (rule_definition
+    (identifier)
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier))))
+    (attribute
+      (attribute_name
+        (identifier)))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (wildcard)
+        (assert_expression
+          (parenthesized_expression
+            (binary_expression
+              (application_expression
+                (identifier)
+                (identifier))
+              (application_expression
+                (identifier)
+                (identifier)))))
+        (identifier))
+      (case
+        (rule_name
+          (identifier))
+        (wildcard)
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (rule_definition
+    (identifier)
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier)
+          (typed_expression
+            (identifier)
+            (constructor_expression
+              (constructor)
+              (identifier)))))))
+  (rule_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier)
+          (identifier))))
+    (application_expression
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))))
+
+================================================================================
+Extensions
+================================================================================
+
+extend rule b_and before eq_neq =
+  | urem: l urem #n, (1, ~v) [@comm] -> v
+extend fn sure_neq =
+  | #a, #b -> not (a = b)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (extend_definition
+    (identifier)
+    (rule_name
+      (identifier))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (tuple_pattern
+          (binary_pattern
+            (identifier)
+            (infix_word)
+            (literal_pattern
+              (identifier)))
+          (attributed_pattern
+            (parenthesized_pattern
+              (tuple_pattern
+                (number)
+                (unary_pattern
+                  (identifier))))
+            (attribute
+              (attribute_name
+                (identifier)))))
+        (identifier))))
+  (extend_definition
+    (identifier)
+    (cases
+      (case
+        (tuple_pattern
+          (literal_pattern
+            (identifier))
+          (literal_pattern
+            (identifier)))
+        (assert_expression
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (identifier))))))))
+
+================================================================================
+Helpers
+================================================================================
+
+fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
+fn bv_to_z (signed : bool) (bits z : int) : int =
+  if signed then signed_extract z 0 bits else z
+fn checked_meet (a b : checked) : checked =
+  { signed = a.signed && b.signed; unsigned = a.unsigned && b.unsigned }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (attribute
+      (attribute_name
+        (identifier)))
+    (application_expression
+      (identifier)
+      (parenthesized_expression
+        (application_expression
+          (identifier)
+          (identifier)))))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (parameter
+      (identifier)
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (if_expression
+      (identifier)
+      (application_expression
+        (identifier)
+        (identifier)
+        (number)
+        (identifier))
+      (identifier)))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (record_expression
+      (field_initializer
+        (field_identifier)
+        (binary_expression
+          (field_expression
+            (identifier)
+            (field_identifier))
+          (field_expression
+            (identifier)
+            (field_identifier))))
+      (field_initializer
+        (field_identifier)
+        (binary_expression
+          (field_expression
+            (identifier)
+            (field_identifier))
+          (field_expression
+            (identifier)
+            (field_identifier)))))))
+
+================================================================================
+Expressions
+================================================================================
+
+fn f (l : t list) : bool option =
+  let keep (signed : bool) = checked_has signed c && not x in
+  match l with
+  | [] | [ _ ] -> Some true
+  | a :: rest -> (
+      match distinct_check_one a rest with
+      | Some true -> distinct_check rest
+      | r -> r)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_application
+        (type_identifier)
+        (type_identifier)))
+    (type_application
+      (type_identifier)
+      (type_identifier))
+    (let_expression
+      (let_binding
+        (identifier)
+        (parameter
+          (identifier)
+          (type_identifier))
+        (binary_expression
+          (application_expression
+            (identifier)
+            (identifier)
+            (identifier))
+          (assert_expression
+            (identifier))))
+      (match_expression
+        (identifier)
+        (cases
+          (case
+            (or_pattern
+              (list_pattern)
+              (list_pattern
+                (wildcard)))
+            (constructor_expression
+              (constructor)
+              (boolean)))
+          (case
+            (binary_pattern
+              (identifier)
+              (identifier))
+            (parenthesized_expression
+              (match_expression
+                (application_expression
+                  (identifier)
+                  (identifier)
+                  (identifier))
+                (cases
+                  (case
+                    (constructor_pattern
+                      (constructor)
+                      (boolean))
+                    (application_expression
+                      (identifier)
+                      (identifier)))
+                  (case
+                    (identifier)
+                    (identifier)))))))))))
+
+================================================================================
+Infix words
+================================================================================
+
+fn g : t = (x) urem y + 1
+fn h : t = f x urem y
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (type_identifier)
+    (binary_expression
+      (binary_expression
+        (parenthesized_expression
+          (identifier))
+        (infix_word)
+        (identifier))
+      (number)))
+  (function_definition
+    (identifier)
+    (type_identifier)
+    (application_expression
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))))

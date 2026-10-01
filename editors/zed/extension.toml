@@ -1,0 +1,16 @@
+id = "kanon"
+name = "Kanon"
+description = "Support for Kanon, the rule language of verified smart constructors (.kn and .knl files)"
+version = "0.1.0"
+schema_version = 1
+authors = ["N1ark"]
+repository = "https://github.com/N1ark/kanon"
+snippets = "snippets/kanon.json"
+
+# The grammar lives in this repository, in tree-sitter-kanon/. `rev` is a commit
+# that has its current version: bump it whenever the grammar changes (CI checks
+# that the grammar at `rev` is the one of the checkout).
+[grammars.kanon]
+repository = "https://github.com/N1ark/kanon"
+rev = "GRAMMAR_REV"
+path = "tree-sitter-kanon"

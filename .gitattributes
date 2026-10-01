@@ -1,2 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The parser that tree-sitter generates from tree-sitter-kanon/grammar.js
+tree-sitter-kanon/src/parser.c linguist-generated
+tree-sitter-kanon/src/grammar.json linguist-generated
+tree-sitter-kanon/src/node-types.json linguist-generated
+tree-sitter-kanon/src/tree_sitter/** linguist-generated
