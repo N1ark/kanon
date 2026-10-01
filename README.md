@@ -187,7 +187,7 @@ keywords.
 ## Functions
 
 ```ocaml
-rule bv_not (v : t) : BvNot v =
+rule bv_not : BvNot v =
   match v with
   | lit: BitVec bv -> lit (lognot bv)
   | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
@@ -198,9 +198,12 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 
 - Parameters and results are annotated; `(v1 v2 : t)` stands for
   `(v1 : t) (v2 : t)`.
-- `rule f params : e = body` declares a *rule function*, which returns a term
-  that must refine the raw term `e` (its spec). Every case of its top-level
-  `match` is a rule, named by the label before its pattern (`lit:`).
+- `rule f : e = body` declares a *rule function*, which returns a term that
+  must refine the raw term `e` (its spec). Every case of its top-level `match`
+  is a rule, named by the label before its pattern (`lit:`). When the spec is
+  a node over variables, `C (x1, ..., xn)`, they are the parameters of the
+  function, at the types of the arguments of `C` (`v : t` above); otherwise the
+  function declares its parameters, `rule f params : e = body`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
   [Rules](#rules)).
@@ -231,8 +234,7 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   must then name the operands rather than use `v1` and `v2` (other than as the
   argument of `type_of` and `[@ty_only]` helpers).
 - A rule may match on the operands of its spec, when the spec is an operator on
-  terms: in `rule bv_sub (checked : checked) (v1 v2 : t) : Sub (checked, v1,
-  v2)`, `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
+  terms: in `rule bv_sub : Sub (checked, v1, v2)`, `match v1 - v2 with | sub_sub: l - (l - r) -> r` stands for
   `match v1, v2 with | sub_sub: l, (l - r) -> r`.
 
 ## Laws

@@ -37,7 +37,7 @@ fn at_most_one (l : t list) : bool =
 
 (* {1 Rules} *)
 
-rule b_and (v1 v2 : t) : And (v1, v2) =
+rule b_and : And (v1, v2) =
   match v1 && v2 with
   | false_: false && _ -> v_false
   | true_: true && x -> x
@@ -51,7 +51,7 @@ rule b_and (v1 v2 : t) : And (v1, v2) =
   | eq_neq: a == x && a == y when sure_neq x y -> v_false
   | default: _ -> And (v1, v2)
 
-rule b_or (v1 v2 : t) : Or (v1, v2) =
+rule b_or : Or (v1, v2) =
   match v1 || v2 with
   | true_: true || _ -> v_true
   | false_: false || x -> x
@@ -62,7 +62,7 @@ rule b_or (v1 v2 : t) : Or (v1, v2) =
   | and_: (a && _) || a -> a
   | default: _ -> Or (v1, v2)
 
-rule b_not (sv : t) : Not sv =
+rule b_not : Not sv =
   match sv with
   | true_: true -> v_false
   | false_: false -> v_true
@@ -73,7 +73,7 @@ rule b_not (sv : t) : Not sv =
   | distinct: Distinct [ l; r ] -> l == r
   | default: _ -> Not sv
 
-rule b_ite (guard if_ else_ : t) : Ite (guard, if_, else_) =
+rule b_ite : Ite (guard, if_, else_) =
   match (guard, if_, else_) with
   | true_: true, _, _ -> if_
   | false_: false, _, _ -> else_
@@ -93,7 +93,7 @@ rule b_ite (guard if_ else_ : t) : Ite (guard, if_, else_) =
   | same: _, x, x -> if_
   | default: _ -> Ite (guard, if_, else_)
 
-rule sem_eq (v1 v2 : t) : Eq (v1, v2) =
+rule sem_eq : Eq (v1, v2) =
   match v1 == v2 with
   | same: v == v -> v_true
   | bools: Bool b1 == Bool b2 -> of_bool (b1 = b2)
@@ -104,7 +104,7 @@ rule sem_eq (v1 v2 : t) : Eq (v1, v2) =
   | nots: not b == not c -> b == c
   | default: _ -> Eq (v1, v2)
 
-rule sem_eq_untyped (v1 v2 : t) : Eq (v1, v2) =
+rule sem_eq_untyped : Eq (v1, v2) =
   match (v1, v2) with
   | ill_typed: _ when not (type_of v1 = type_of v2) -> v_false
   | typed: _ -> v1 == v2
@@ -128,7 +128,7 @@ fn distinct_check (l : t list) : bool option =
       | Some true -> distinct_check rest
       | r -> r)
 
-rule b_distinct (l : t list) : Distinct l =
+rule b_distinct : Distinct l =
   match l with
   | small: _ when at_most_one l -> v_true
   | distinct: _ when distinct_check l = Some true -> v_true

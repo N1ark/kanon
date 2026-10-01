@@ -510,7 +510,7 @@ laws on its operators, and no parameters for its semantics.
 Operators must be declared before they are used in patterns.
 
   $ cat > bad.kn <<'KN'
-  > rule neg (v : t) : Not v =
+  > rule neg : Not v =
   >   match v with
   >   | lsl_: x lsl y -> v
   >   | default: _ -> Not v

@@ -2066,6 +2066,42 @@ let spec_of_attrs (attrs : attributes) =
       else None)
     attrs
 
+(** The parameters of a rule whose spec is a node over variables,
+    [C (x1, ..., xn)]: the variables, at the types of the arguments of [C]. *)
+let spec_params loc rname (spec : expression) =
+  let fail () =
+    error loc
+      "%s: a rule declares its parameters unless its spec is a node over \
+       variables"
+      rname
+  in
+  match spec.pexp_desc with
+  | Pexp_construct ({ txt = Lident n; _ }, arg) ->
+      let c =
+        match find_constr n with
+        | Some c -> c
+        | None -> error loc "unknown constructor %s" n
+      in
+      let tys =
+        List.map arg_ty c.c_args
+        @ match node_of_op c with Some (_, ops) -> ops | None -> []
+      in
+      let args =
+        match arg with
+        | Some { pexp_desc = Pexp_tuple l; _ } -> l
+        | Some a -> [ a ]
+        | None -> []
+      in
+      if List.length args <> List.length tys then
+        error loc "%s has %d arguments" n (List.length tys);
+      List.map2
+        (fun (a : expression) t ->
+          match a.pexp_desc with
+          | Pexp_ident { txt = Lident x; _ } -> (x, t)
+          | _ -> fail ())
+        args tys
+  | _ -> fail ()
+
 type raw_fn = {
   rname : string;
   rparams : (string * Syntax.ty) list;
@@ -2089,9 +2125,18 @@ let raw_fn (vb : value_binding) =
   let rty_only = has_attr "ty_only" vb.pvb_attributes in
   match vb.pvb_expr.pexp_desc with
   | Pexp_function (params, Some ret, Pfunction_body rbody) ->
+      let rparams = List.map (param_of loc) params in
+      (match rspec with
+      | Some spec when rcases -> (
+          match spec_params loc rname spec with
+          | ps when ps = rparams ->
+              error loc "%s: its parameters are those of its spec, implicitly"
+                rname
+          | _ | (exception Error _) -> ())
+      | _ -> ());
       {
         rname;
-        rparams = List.map (param_of loc) params;
+        rparams;
         rret = ret_of ret;
         rspec;
         rcases;
@@ -2105,7 +2150,10 @@ let raw_fn (vb : value_binding) =
       | Some (Pvc_constraint { typ; locally_abstract_univars = [] }) ->
           {
             rname;
-            rparams = [];
+            rparams =
+              (match rspec with
+              | Some spec when rcases -> spec_params loc rname spec
+              | _ -> []);
             rret = ty_of_core typ;
             rspec;
             rcases;
@@ -2582,7 +2630,14 @@ let extend_rules (str : structure) =
                     pstr_desc = Pstr_value (r, [ { vb with pvb_expr } ]);
                   }
                   :: items
-              | _ -> error loc "extend %s: %s has no parameters" f f)
+              | _ ->
+                  (* a rule whose parameters are those of its spec *)
+                  let pvb_expr = insert loc f before ext vb.pvb_expr in
+                  {
+                    item with
+                    pstr_desc = Pstr_value (r, [ { vb with pvb_expr } ]);
+                  }
+                  :: items)
           | item :: items -> item :: go items
           | [] ->
               error loc "extend %s: no %s %s is defined before" f
