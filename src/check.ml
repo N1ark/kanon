@@ -1465,6 +1465,30 @@ let rec spec_match (spec : expression) (e : expression) =
       { e with pexp_desc = Pexp_match (scrut, List.map case cases) }
   | _ -> e
 
+(** A rule whose cases may not all apply ends with the rule [default], which
+    builds its spec: [| default: _ -> spec]. *)
+let rec with_default (spec : expression) (e : expression) =
+  match e.pexp_desc with
+  | Pexp_sequence (a, b) ->
+      { e with pexp_desc = Pexp_sequence (a, with_default spec b) }
+  | Pexp_match (s, cases) -> (
+      match List.rev cases with
+      | { pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } :: _ -> e
+      | _ ->
+          let open Ast_builder.Default in
+          let loc = { spec.pexp_loc with loc_ghost = true } in
+          let r =
+            attribute ~loc ~name:{ txt = "r"; loc }
+              ~payload:(PStr [ pstr_eval ~loc (evar ~loc "default") [] ])
+          in
+          let default =
+            case
+              ~lhs:{ (ppat_any ~loc) with ppat_attributes = [ r ] }
+              ~guard:None ~rhs:spec
+          in
+          { e with pexp_desc = Pexp_match (s, cases @ [ default ]) })
+  | _ -> e
+
 (* ---------------------------------------------------------------- *)
 (* The declaration of the language *)
 
@@ -2123,6 +2147,21 @@ let raw_fn (vb : value_binding) =
   let rspec = spec_of_attrs vb.pvb_attributes in
   let rcases = has_attr "cases" vb.pvb_attributes in
   let rty_only = has_attr "ty_only" vb.pvb_attributes in
+  (* the body of a rule that has none: a match on its terms, without cases *)
+  let no_body rparams =
+    let open Ast_builder.Default in
+    let loc = vb.pvb_loc in
+    let terms =
+      List.filter_map
+        (fun (x, t) -> if t = TTerm then Some (evar ~loc x) else None)
+        rparams
+    in
+    let scrut = match terms with [ t ] -> t | l -> pexp_tuple ~loc l in
+    pexp_match ~loc scrut []
+  in
+  let body rparams (e : expression) =
+    match e.pexp_desc with Pexp_unreachable -> no_body rparams | _ -> e
+  in
   match vb.pvb_expr.pexp_desc with
   | Pexp_function (params, Some ret, Pfunction_body rbody) ->
       let rparams = List.map (param_of loc) params in
@@ -2134,6 +2173,7 @@ let raw_fn (vb : value_binding) =
                 rname
           | _ | (exception Error _) -> ())
       | _ -> ());
+      let rbody = body rparams rbody in
       {
         rname;
         rparams;
@@ -2148,17 +2188,19 @@ let raw_fn (vb : value_binding) =
   | _ -> (
       match vb.pvb_constraint with
       | Some (Pvc_constraint { typ; locally_abstract_univars = [] }) ->
+          let rparams =
+            match rspec with
+            | Some spec when rcases -> spec_params loc rname spec
+            | _ -> []
+          in
           {
             rname;
-            rparams =
-              (match rspec with
-              | Some spec when rcases -> spec_params loc rname spec
-              | _ -> []);
+            rparams;
             rret = ty_of_core typ;
             rspec;
             rcases;
             rty_only;
-            rbody = vb.pvb_expr;
+            rbody = body rparams vb.pvb_expr;
             rloc = loc;
           }
       | _ -> error loc "%s: constants must be annotated with their type" rname)
@@ -2753,7 +2795,8 @@ let program (str : structure) : program =
         cases_mode := r.rcases;
         let rbody =
           match r.rspec with
-          | Some spec when r.rcases -> spec_match spec r.rbody
+          | Some spec when r.rcases ->
+              spec_match spec (with_default spec r.rbody)
           | _ -> r.rbody
         in
         let spec =

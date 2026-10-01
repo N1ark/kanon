@@ -191,7 +191,6 @@ rule bv_not : BvNot v =
   match v with
   | lit: BitVec bv -> lit (lognot bv)
   | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
-  | default: _ -> BvNot v
 
 fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 ```
@@ -204,6 +203,10 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   a node over variables, `C (x1, ..., xn)`, they are the parameters of the
   function, at the types of the arguments of `C` (`v : t` above); otherwise the
   function declares its parameters, `rule f params : e = body`.
+- Unless its last case matches anything, the match of a rule function ends with
+  the rule `default`, which builds its spec (`| default: _ -> BvNot v` above).
+  A rule function without a body, `rule f : e`, only has the rules derived
+  from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
   [Rules](#rules)).

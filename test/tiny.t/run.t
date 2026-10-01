@@ -513,7 +513,6 @@ Operators must be declared before they are used in patterns.
   > rule neg : Not v =
   >   match v with
   >   | lsl_: x lsl y -> v
-  >   | default: _ -> Not v
   > KN
   $ kanon ocaml lang.knl rules.kn bad.kn
   bad.kn:3:10: lsl is not an operator on terms

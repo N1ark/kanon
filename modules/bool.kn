@@ -49,7 +49,6 @@ rule b_and : And (v1, v2) =
   | or_: (a || _) && a -> a
   (* [a == x && a == y] with [x] and [y] surely different *)
   | eq_neq: a == x && a == y when sure_neq x y -> v_false
-  | default: _ -> And (v1, v2)
 
 rule b_or : Or (v1, v2) =
   match v1 || v2 with
@@ -60,7 +59,6 @@ rule b_or : Or (v1, v2) =
   | or_: (a || _ as x) || a -> x
   (* (a && b) || a <=> a *)
   | and_: (a && _) || a -> a
-  | default: _ -> Or (v1, v2)
 
 rule b_not : Not sv =
   match sv with
@@ -71,7 +69,6 @@ rule b_not : Not sv =
   | and_: v1 && v2 -> not v1 || not v2
   | ite: Ite (g, a, b) -> b_ite g (not a) (not b)
   | distinct: Distinct [ l; r ] -> l == r
-  | default: _ -> Not sv
 
 rule b_ite : Ite (guard, if_, else_) =
   match (guard, if_, else_) with
@@ -91,7 +88,6 @@ rule b_ite : Ite (guard, if_, else_) =
   | and_ite_then: g && _, Ite (g, x, _), _ -> b_ite guard x else_
   | or_ite_else: g || _, _, Ite (g, _, y) -> b_ite guard if_ y
   | same: _, x, x -> if_
-  | default: _ -> Ite (guard, if_, else_)
 
 rule sem_eq : Eq (v1, v2) =
   match v1 == v2 with
@@ -102,7 +98,6 @@ rule sem_eq : Eq (v1, v2) =
   | false_: false == x -> not x
   | true_: true == x -> x
   | nots: not b == not c -> b == c
-  | default: _ -> Eq (v1, v2)
 
 rule sem_eq_untyped : Eq (v1, v2) =
   match (v1, v2) with
