@@ -118,7 +118,11 @@ and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
   `[@hash "M.hash"]` the function `M.hash : a -> int` that hashes its values
   for hash-consing (`Hashtbl.hash` by default).
 - A `nat` argument of a node or a sort is an OCaml `int` (a width, an index),
-  and an `int` in Kanon.
+  and an `int` in Kanon. `nat` is also accepted in the signatures of functions,
+  rules, primitives and in record fields, as a synonym of `int` (`Z.t` in OCaml,
+  `Int` in Lean): it is not checked to be non-negative, and a node that
+  receives one converts it to an `int`. A type declared `nat` is used instead.
+- Identifiers may have primes after their first character (`l'`, `x''`).
 
 ### Modules, nodes and sorts
 
@@ -589,7 +593,11 @@ evaluation and their refinement, for any language.
 
 `kanon ocaml-tests` generates, for every rule function, its spec, a call to it
 and the name of the rule that fires, from random arguments, to be compared by
-evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
+evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`). Every
+rule function is listed with its rules, including one whose spec annotates the
+sort of an operand (`(v : TBv sz)`): the generated test checks the sorts first,
+and fails an assertion on operands of the wrong sort, so that the harness draws
+others (the generator itself knows nothing of sorts).
 
 ## Modules and examples
 

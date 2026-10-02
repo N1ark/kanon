@@ -5,7 +5,14 @@
 ### Added
 
 - [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
+- [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+- `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
+
+### Fixed
+
+- `kanon ocaml-tests` listed the single rule `main` for a rule function whose spec annotates the sort of an operand (`(v : TBv sz)`), and its `fired` did not bind the variables of the sorts: it lists the rules and binds them.
+- The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
 
 ### Changed
 
