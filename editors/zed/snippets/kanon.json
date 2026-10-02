@@ -49,6 +49,11 @@
     "body": ["sort ${0:TName}"],
     "description": "A sort, a constructor of the types of terms"
   },
+  "Notation": {
+    "prefix": "notation",
+    "body": ["notation ${0:Node}"],
+    "description": "Literal patterns (true, 0, #x) for a leaf node of one bool or int"
+  },
   "Variant type": {
     "prefix": "type",
     "body": ["type ${1:name} =", "  | ${2:A}", "  | ${0:B}"],

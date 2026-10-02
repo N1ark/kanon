@@ -115,7 +115,7 @@ Nodes
 ================================================================================
 
 node Var of var
-node Bool of bool : TBool [@literal bool]
+node Bool of bool : TBool
 node Eq : a -> a -> TBool [@comm]
 node Distinct : a list -> TBool
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold z_add Int]
@@ -137,12 +137,7 @@ sort TBool
       (constructor)
       (type_identifier)
       (sorts
-        (constructor))
-      (attribute
-        (attribute_name
-          (identifier))
-        (attribute_argument
-          (identifier)))))
+        (constructor))))
   (node_declaration
     (constructor_declaration
       (constructor)
@@ -384,3 +379,18 @@ prim v_true : t
   (primitive_declaration
     (identifier)
     (type_identifier)))
+
+================================================================================
+Notations
+================================================================================
+
+notation Bool
+notation BitVec
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (notation_declaration
+    (constructor))
+  (notation_declaration
+    (constructor)))

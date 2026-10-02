@@ -46,12 +46,20 @@ sort TBitVector of nat [@get size]
 (*                      ^ attribute *)
 (*                           ^ function *)
 
-node BitVec of int [@raw to_z lit_to_z] [@raw width lit_width]
-(*                   ^ attribute *)
-(*                       ^ function *)
-(*                            ^ function *)
-(*                                            ^ function *)
-(*                                                  ^ function *)
+node Mul : TBitVector n -> TBitVector n -> TBitVector n [@fold z_mul Lit]
+(*                                                       ^ attribute *)
+(*                                                             ^ function *)
+(*                                                                   ^ constructor *)
+
+notation BitVec
+(* <- keyword *)
+(*       ^ constructor *)
+
+fn msb_of (v : TBitVector n) : int = (BitVec 0 : TBitVector n)
+(*         ^ variable.parameter *)
+(*             ^ constructor *)
+(*                                    ^ constructor *)
+(*                                               ^ constructor *)
 
 prim lit : bv -> t
 (* <- keyword *)

@@ -364,13 +364,13 @@ fn h : t = f x urem y
     (identifier)
     (type_identifier)
     (binary_expression
-      (parenthesized_expression
-        (identifier))
-      (infix_word)
       (binary_expression
-        (identifier)
-        (operator)
-        (number))))
+        (parenthesized_expression
+          (identifier))
+        (infix_word)
+        (identifier))
+      (operator)
+      (number)))
   (function_definition
     (identifier)
     (type_identifier)
@@ -501,4 +501,45 @@ rule le : Le (v1, v2) =
             (identifier))
           (operator)
           (identifier))
+        (identifier)))))
+
+================================================================================
+Sorts of helper parameters and of nodes
+================================================================================
+
+fn msb_of (v : TBitVector n) (w : TBool) : int = n
+fn lit (n z : int) : t = (BitVec (wrap n z) : TBitVector n)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (constructor_expression
+        (constructor)
+        (identifier)))
+    (parameter
+      (identifier)
+      (constructor))
+    (type_identifier)
+    (identifier))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (typed_expression
+      (constructor_expression
+        (constructor)
+        (parenthesized_expression
+          (application_expression
+            (identifier)
+            (identifier)
+            (identifier))))
+      (constructor_expression
+        (constructor)
         (identifier)))))

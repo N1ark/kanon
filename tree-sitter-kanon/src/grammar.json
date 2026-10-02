@@ -43,6 +43,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "notation_declaration"
+        },
+        {
+          "type": "SYMBOL",
           "name": "type_definition"
         },
         {
@@ -433,6 +437,23 @@
         {
           "type": "SYMBOL",
           "name": "constructor_declaration"
+        }
+      ]
+    },
+    "notation_declaration": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "notation"
+        },
+        {
+          "type": "FIELD",
+          "name": "node",
+          "content": {
+            "type": "SYMBOL",
+            "name": "constructor"
+          }
         }
       ]
     },
@@ -1118,12 +1139,25 @@
           "value": ":"
         },
         {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_type"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_type"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "sort",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_sort_annotation"
+              }
+            }
+          ]
         },
         {
           "type": "STRING",
@@ -2217,7 +2251,7 @@
         },
         {
           "type": "PREC_LEFT",
-          "value": 6,
+          "value": 10,
           "content": {
             "type": "SEQ",
             "members": [
@@ -3327,7 +3361,7 @@
         },
         {
           "type": "PREC_LEFT",
-          "value": 7,
+          "value": 11,
           "content": {
             "type": "SEQ",
             "members": [

@@ -99,6 +99,7 @@ module.exports = grammar({
       $.extend_definition,
       $.node_declaration,
       $.sort_declaration,
+      $.notation_declaration,
       $.type_definition,
       $.operator_declaration,
       $.constant_declaration,
@@ -168,6 +169,9 @@ module.exports = grammar({
 
     // [sort TBitVector of nat [@get size]]
     sort_declaration: $ => seq('sort', $.constructor_declaration),
+
+    // [notation BitVec]: the literal patterns of a leaf node
+    notation_declaration: $ => seq('notation', field('node', $.constructor)),
 
     type_definition: $ => seq(
       'type',
@@ -265,12 +269,12 @@ module.exports = grammar({
     // ------------------------------------------------------------------
     // Functions and rules
 
-    // [(v1 v2 : t)]
+    // [(v1 v2 : t)], or [(v : TBitVector n)], a term of that sort
     parameter: $ => seq(
       '(',
       repeat1(field('name', $.identifier)),
       ':',
-      field('type', $._type),
+      choice(field('type', $._type), field('sort', $._sort_annotation)),
       ')',
     ),
 
@@ -401,7 +405,7 @@ module.exports = grammar({
       ))),
       // [a urem b], an operator declared by [infix "urem"], after an
       // operand that cannot be applied to it (see the header)
-      prec.left(PREC.cmp, seq(
+      prec.left(PREC.mul, seq(
         field('left', $._tuple_element),
         field('operator', alias($.identifier, $.infix_word)),
         field('right', $._tuple_element),
@@ -545,7 +549,7 @@ module.exports = grammar({
         field('operator', choice(...ops.filter(o => o !== '=').map(o => alias(o, $.operator)))),
         field('right', $._tuple_pattern_element),
       ))),
-      prec.left(PAT.cmp, seq(
+      prec.left(PAT.mul, seq(
         field('left', $._tuple_pattern_element),
         field('operator', alias($.identifier, $.infix_word)),
         field('right', $._tuple_pattern_element),
