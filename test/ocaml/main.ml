@@ -23,7 +23,16 @@ let () =
   check "non-linear" (and_ p (not_ p) == Tiny_prims.v_false);
   check "same" (eq x x == Tiny_prims.v_true);
   check "commutative" (plus x (int 1) == plus (int 1) x);
-  check "tests" (List.length Tiny_tests.rule_fns > 0)
+  check "tests" (List.length Tiny_tests.rule_fns > 0);
+  check "sorts of parameters"
+    (is_zero (int 0) && (not (is_zero (int 1))) && zero == int 0);
+  check "re-exported types"
+    (equal_checked
+       { signed = true; unsigned = false }
+       { Tiny_base.signed = true; unsigned = false }
+    && equal_rounding Nearest Tiny_base.Nearest);
+  check "asserted sorts"
+    (match is_zero p with _ -> false | exception Assert_failure _ -> true)
 
 let () =
   let open Bool_lang in

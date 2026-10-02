@@ -143,7 +143,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   > node Var of var
   > KN
   $ cat > loc/xor.knl <<'KN'
-  > node Int of int [@literal int]
+  > node Int of int
   > node Xor : TBool -> TBool -> TBool [@unit false]
   > 
   > infix "xor" = Xor, b_xor
@@ -154,7 +154,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   >   let f (x : t) : t = not x in
   >   let y : t = f a in
   >   match b with
-  >   | #k when k = 0 -> y
+  >   | #k when k -> y
   >   | z -> z + y
   > 
   > rule b_xor : Xor (v1, v2) =
@@ -207,7 +207,7 @@ extend rule f, and the hover of an operand of the spec.
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"xor\" = Xor, b_xor\n```\n\nIn this pattern, `a xor b` matches the node `Xor`.\n\n*xor.knl*"},"range":{"start":{"line":8,"character":12},"end":{"line":8,"character":15}}}}
   {"jsonrpc":"2.0","id":9,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":4,"character":7},"end":{"line":4,"character":8}}}]}
   {"jsonrpc":"2.0","id":10,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":10}}}]}
-  {"jsonrpc":"2.0","id":11,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":15,"character":8},"end":{"line":15,"character":11}}}]}
+  {"jsonrpc":"2.0","id":11,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":16,"character":8},"end":{"line":16,"character":11}}}]}
   {"jsonrpc":"2.0","id":12,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":8}}}]}
   {"jsonrpc":"2.0","id":13,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}}}]}
   {"jsonrpc":"2.0","id":14,"result":{"contents":{"kind":"markdown","value":"```kanon\nv1 : t\n```\n\nParameter of the rule `b_xor`: an operand of its spec, `Xor`. Bound on line 8.\n\nA term of sort `TBool`."},"range":{"start":{"line":10,"character":29},"end":{"line":10,"character":31}}}}

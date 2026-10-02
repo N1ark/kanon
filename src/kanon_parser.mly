@@ -131,7 +131,7 @@ let neg loc oploc (e : expression) =
 %token <string> LID UID INT STRING INFIXWORD
 (* the operators, by precedence (see the lexer) *)
 %token <string> CMPOP CONCATOP ADDOP MULOP POWOP PREFIXOP
-%token AS ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT OF
+%token AS ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
 %token ORACLE PREFIX PRIM
 %token RULE SORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
@@ -198,6 +198,10 @@ item:
   | NODE c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl loc c ])) }
+  (* [notation C]: the constructor [C], with a [[@notation]] attribute *)
+  | NOTATION c = UID
+    { let loc = mkloc $loc in
+      item loc (Pstr_eval (econstr (mkloc $loc(c)) c None, [ attr loc "notation" [] ])) }
   | SORT c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl ~sort:true loc c ])) }
@@ -331,9 +335,18 @@ params:
 
 param_group:
   | LPAREN xs = nonempty_list(param_name) COLON t = typ RPAREN { List.map (fun (x, l) -> (x, l, t)) xs }
+  (* [(v : TBitVector n)]: terms of a sort, the type [t] with a [[@kanon.sort]]
+     attribute *)
+  | LPAREN xs = nonempty_list(param_name) COLON c = UID arg = option(simple_expr) RPAREN
+    { let sloc = mkloc ($startpos(c), $endpos(arg)) in
+      let s = econstr ~cloc:(mkloc $loc(c)) sloc c arg in
+      let tloc = { sloc with loc_ghost = true } in
+      let t = { (typ tloc (Ptyp_constr (lid tloc "t", []))) with ptyp_attributes = [ attr sloc "kanon.sort" [ eval_item sloc s ] ] } in
+      List.map (fun (x, l) -> (x, l, t)) xs }
 
 param_name:
   | x = LID { (x, $loc) }
+  | UNDERSCORE { ("_", $loc) }
 
 (* ---------------------------------------------------------------- *)
 (* Types *)
@@ -437,7 +450,6 @@ cmp_expr:
 cmp_op:
   | EQ { "=" }
   | op = CMPOP { op }
-  | op = INFIXWORD { op }
 
 concat_expr:
   | e = cons_expr { e }
@@ -464,6 +476,8 @@ mul_expr:
 mul_op:
   | STAR { "*" }
   | op = MULOP { op }
+  (* the words declared infix, as OCaml's [mod] or [land] *)
+  | op = INFIXWORD { op }
 
 pow_expr:
   | e = unary_expr { e }
@@ -536,7 +550,6 @@ cmp_pat:
 
 cmp_pat_op:
   | op = CMPOP { op }
-  | op = INFIXWORD { op }
 
 concat_pat:
   | p = cons_pat { p }

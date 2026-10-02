@@ -1,7 +1,8 @@
 (* The bool module, at the bottom of every language: booleans, equality, [Ite]
    and [Distinct]. See the README of Kanon for the syntax. *)
 
-node Bool of bool : TBool [@literal bool]
+node Bool of bool : TBool
+notation Bool
 node Not : TBool -> TBool
 node And : TBool -> TBool -> TBool [@comm] [@idem]
 node Or : TBool -> TBool -> TBool [@comm] [@idem]

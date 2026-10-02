@@ -90,7 +90,6 @@ let rec pat ft (p : pat) =
   match p.p with
   | PAny -> pf ft "_"
   | PVar x -> pf ft "%s" x
-  | PLit x -> pf ft "({ kind = %s _; _ } as %s)" (Option.get !lang.lit_node) x
   | PAs (p', x) -> pf ft "(%a as %s)" pat p' x
   | POr (a, b) | PComm (a, b) -> pf ft "(%a | %a)" pat a pat b
   | PInt z -> pf ft "%s" (Z.to_string z)
@@ -117,28 +116,11 @@ let rec pat ft (p : pat) =
 (* ---------------------------------------------------------------- *)
 (* Expressions *)
 
-(** The primitives that compute a function on the value of a literal directly on
-    the literal ([[@raw f p]]), by function. *)
-let raw_prims () =
-  List.filter_map
-    (fun (k, p) ->
-      if String.starts_with ~prefix:"raw:" k then
-        Some (String.sub k 4 (String.length k - 4), p)
-      else None)
-    !lang.lit_fns
-
-(** Whether [x] occurs in [e], ignoring shadowing. With [~decoded], only counts
-    the occurrences of the literal [x] that need its value, that is not those as
-    the last argument of the functions that have a [raw_prims], which read it
-    from the term. *)
-let rec mentions ?(decoded = false) x (e : expr) =
-  let go = mentions ~decoded x in
+(** Whether [x] occurs in [e], ignoring shadowing. *)
+let rec mentions x (e : expr) =
+  let go = mentions x in
   match e.e with
   | EVar y -> x = y
-  | ECall (f, args) when decoded && List.mem_assoc f (raw_prims ()) -> (
-      match List.rev args with
-      | { e = EVar y; _ } :: l when y = x -> List.exists go l
-      | _ -> List.exists go args)
   | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
   | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
       List.exists go l
@@ -171,7 +153,6 @@ let prims_module () =
 type ctx = {
   prims : string list;  (** in the module of [[@@@ocaml_prims]] *)
   consts : string list;
-  raw : string list;  (** literal binders that are not decoded *)
 }
 
 let rec expr ctx ft (e : expr) =
@@ -194,16 +175,6 @@ let rec expr ctx ft (e : expr) =
   | ECall ("type_of", [ a ]) -> pf ft "%a.ty" expr a
   | ECall ("tag_le", [ a; b ]) ->
       pf ft "(Int.compare %a.tag %a.tag <= 0)" expr a expr b
-  | ECall (f, args)
-    when List.mem_assoc f (raw_prims ())
-         &&
-         match List.rev args with
-         | { e = EVar x; _ } :: _ -> List.mem x ctx.raw
-         | _ -> false ->
-      pf ft "(%s.%s%a)" (prims_module ())
-        (List.assoc f (raw_prims ()))
-        (fun ft -> List.iter (fun a -> pf ft " %a" expr a))
-        args
   | ECall (f, []) ->
       if List.mem f ctx.prims then pf ft "%s.%s" (prims_module ()) f
       else if List.mem f ctx.consts then pf ft "%s" f
@@ -235,7 +206,7 @@ let rec expr ctx ft (e : expr) =
       pf ft "@[<hv>(if %a@ then %a@ else %a)@]" expr c expr a expr b
   | ELet (p, rhs, body) ->
       pf ft "@[<v>(let %a = %a in@ %a%a)@]" pat p expr rhs (small_lets body) p
-        (in_scope ctx p body) body
+        expr body
   | ELetFun (f, params, fbody, body) ->
       pf ft "@[<v>(let %s %a =@;<1 2>%a in@ %a)@]" f
         (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %a)" x ocaml_ty t))
@@ -263,34 +234,15 @@ let rec expr ctx ft (e : expr) =
 and small_lets e ft p =
   List.iter
     (fun x -> pf ft "let %s = Z.of_int %s in@ " x x)
-    (List.filter (fun x -> mentions x e) (small_binders p));
-  List.iter
-    (fun x ->
-      pf ft "let %s = %s.%s %s in@ " x (prims_module ())
-        (Option.get (lit_fn "of_term"))
-        x)
-    (List.filter (fun x -> mentions ~decoded:true x e) (Check.lit_binders p))
-
-(** Prints [e], in the scope of the binders of [p]. *)
-and in_scope ctx p e =
-  let raw =
-    List.filter
-      (fun x -> not (mentions ~decoded:true x e))
-      (Check.lit_binders p)
-  in
-  let shadowed x = List.mem_assoc x (Check.binders p) in
-  expr { ctx with raw = raw @ List.filter (fun x -> not (shadowed x)) ctx.raw }
+    (List.filter (fun x -> mentions x e) (small_binders p))
 
 and case ctx ft (c : case) =
   let guard ft = function
     | None -> ()
-    | Some g ->
-        pf ft "@ when (%a%a)" (small_lets g) c.pat (in_scope ctx c.pat g) g
+    | Some g -> pf ft "@ when (%a%a)" (small_lets g) c.pat (expr ctx) g
   in
   pf ft "@[<hv 2>| %a%a ->@ %a%a@]@ " pat c.pat guard c.guard
-    (small_lets c.body) c.pat
-    (in_scope ctx c.pat c.body)
-    c.body
+    (small_lets c.body) c.pat (expr ctx) c.body
 
 (* ---------------------------------------------------------------- *)
 (* Call graph *)
@@ -406,8 +358,8 @@ let fn ctx ft (f : fn) =
 (** The primitives that [expr] compiles inline. *)
 let inline_prims = [ "type_of"; "tag_le" ]
 
-(** The functions of the module of the primitives that [expr] calls: the
-    primitives, and those of the literals of [[@raw]], with their types. *)
+(** The primitives that [expr] calls in the module of the primitives, with their
+    types. *)
 let prim_fns (p : program) =
   let ty t = Fmt.str "%a" ocaml_ty t in
   List.filter_map
@@ -416,20 +368,6 @@ let prim_fns (p : program) =
       else
         Some (q.pname, String.concat " -> " (List.map ty (q.pargs @ [ q.pret ]))))
     p.prims
-  @ List.map
-      (fun (f, raw) ->
-        (* the type of [f], on the literal rather than its value *)
-        match
-          List.find_map
-            (fun (q : prim) ->
-              if q.pname = f then Some (q.pargs, q.pret) else None)
-            p.prims
-        with
-        | Some (args, ret) ->
-            let args = List.rev (TTerm :: List.tl (List.rev args)) in
-            (raw, String.concat " -> " (List.map ty args @ [ ty ret ]))
-        | None -> Fmt.failwith "[@raw]: unknown function %s" f)
-      (raw_prims ())
 
 (** Checks that the language names the module of its primitives, if it has any.
 *)
@@ -480,7 +418,7 @@ let program ~sources ft (p : program) =
         | _ -> [])
       groups
   in
-  let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts; raw = [] } in
+  let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts } in
   header ~sources ft;
   prim_sigs ft p;
   List.iter
@@ -521,18 +459,20 @@ let check_abstract (d : decl) =
              d.d_name ))
 
 (** The OCaml definition of the declared type [d], after [type] or [and]: an
-    abstract type is its [[@ocaml]] type. *)
+    abstract type is its [[@ocaml]] type, and a record or a variant with an
+    [[@ocaml]] type re-exports it, so that OCaml checks that they agree. *)
 let type_def ft (d : decl) =
+  let reexport ft = Option.iter (pf ft " %s =") in
   let arg ft = function Small -> pf ft "int" | Arg t -> ocaml_ty ft t in
   match (constrs_of d, d.d_fields, d.d_ocaml) with
   | [], [], Some o -> pf ft "%s = %s" d.d_name o
   | [], [], None -> pf ft "%s = |" d.d_name
-  | [], fields, _ ->
-      pf ft "%s = {" d.d_name;
+  | [], fields, o ->
+      pf ft "%s =%a {" d.d_name reexport o;
       List.iter (fun (f, t) -> pf ft "@ %s : %a;" f ocaml_ty t) fields;
       pf ft "@;<1 -2>}"
-  | cs, _, _ ->
-      pf ft "%s =" d.d_name;
+  | cs, _, o ->
+      pf ft "%s =%a" d.d_name reexport o;
       List.iter
         (fun c ->
           match c.c_args with

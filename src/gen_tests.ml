@@ -61,8 +61,7 @@ let rec fired ctx ft (e : expr) =
           | None -> ()
           | Some g ->
               pf ft "@ when (%a%a)" (Gen_ocaml.small_lets g) c.pat
-                (Gen_ocaml.in_scope ctx c.pat g)
-                g
+                (Gen_ocaml.expr ctx) g
         in
         pf ft "@[<hv 2>| %a%a ->@ %S@]@ " Gen_ocaml.pat c.pat guard c.guard
           (Option.value ~default:"main" c.rule)
@@ -107,9 +106,7 @@ let program ~sources ft (p : program) =
         | _ -> [])
       (Gen_ocaml.sccs p.fns)
   in
-  let ctx =
-    { Gen_ocaml.prims = List.map (fun p -> p.pname) p.prims; consts; raw = [] }
-  in
+  let ctx = { Gen_ocaml.prims = List.map (fun p -> p.pname) p.prims; consts } in
   let rules = List.filter (fun f -> Option.is_some f.spec) p.fns in
   let drawable (f : fn) = List.map (fun (_, t) -> draw t) f.params in
   let tested, skipped =
