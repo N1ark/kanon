@@ -46,8 +46,9 @@ the modules it uses, and writes on standard output:
 
 A file uses a module with `use "path"`: the module's declarations are in
 `path.knl` and its rules in `path.kn` (either may be missing), relative to the
-directory of the file. `use +name` uses the module `name` built into `kanon`
-(see [Modules and examples](#modules-and-examples)): `use +bool` reads
+directory of the file. `use builtin "name"` uses the module `name` built into
+`kanon` (see [Modules and examples](#modules-and-examples)): `use builtin
+"bool"` reads
 `modules/bool.knl` and `modules/bool.kn` from the binary, as `bool.knl` and
 `bool.kn` (in the locations of errors and the headers of the generated
 files). A module is read once, where it is first used; the declarations of a
@@ -55,7 +56,7 @@ file come before those of the modules it uses, and its rules after theirs. A
 language `lang.knl` that starts with
 
 ```
-use +bool
+use builtin "bool"
 use "int"
 ```
 
@@ -421,6 +422,9 @@ they open. They call the primitives in the module of
 
 ## Proofs
 
+The site's [guide to proofs](https://n1ark.github.io/kanon/proving.html) walks
+through the proof of a language, `examples/ints/`, step by step.
+
 The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
 
 - `Types.lean` and `Syntax.lean` define the types of the language, around
@@ -568,7 +572,7 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   boolean literals, `Not`, `And`, `Or`, equality (`Eq`), conditionals (`Ite`)
   and `Distinct`, with their rules (the rule functions `b_not`, `b_and`,
   `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct`). They are built
-  into `kanon`, as the module `+bool`. The modules above it can add rules to
+  into `kanon`, as the module `use builtin "bool"` uses. The modules above it can add rules to
   its rule functions with `extend rule`, and literals to its helper `sure_neq`
   with `extend fn`. It is the bool module of soteria's
   `Bv_values` and `Tiny_values`.

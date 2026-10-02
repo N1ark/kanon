@@ -46,12 +46,12 @@ let usage err =
     ^ ") FILE...\n\
       \       kanon lsp\n\
       \       kanon --version\n\
-       Files use modules with use \"path\", or use +name for those built into \
-       kanon: "
+       Files use modules with use \"path\", or use builtin \"name\" for those \
+       built into kanon: "
     ^ String.concat ", "
         (List.sort_uniq compare
            (List.map
-              (fun (n, _) -> "+" ^ Filename.remove_extension n)
+              (fun (n, _) -> Printf.sprintf "%S" (Filename.remove_extension n))
               Builtin.files)));
   raise (Exit_code 2)
 

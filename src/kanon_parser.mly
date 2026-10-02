@@ -80,8 +80,10 @@ let binding loc ?(attrs = []) p params ret body =
 
 let item loc d = { pstr_desc = d; pstr_loc = loc }
 
-let use_item loc m =
-  item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string loc m) ]), []))
+(* [use "m"], with the module at [mloc]; [kanon.use_plus] for the old
+   [use +m], which the loader rejects *)
+let use_item ?(ext = "kanon.use") loc mloc m =
+  item loc (Pstr_extension (({ txt = ext; loc }, PStr [ eval_item loc (string mloc m) ]), []))
 
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type; [sort C
@@ -131,7 +133,7 @@ let neg loc oploc (e : expression) =
 %token <string> LID UID INT STRING INFIXWORD
 (* the operators, by precedence (see the lexer) *)
 %token <string> CMPOP CONCATOP ADDOP MULOP POWOP PREFIXOP
-%token AS ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
+%token AS ASSERT BEFORE BUILTIN CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
 %token ORACLE PREFIX PRIM
 %token RULE SORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
@@ -159,10 +161,12 @@ file:
   | items = list(item) EOF { items }
 
 item:
-  (* [use +m] or [use "path"]: the module [m] built into kanon, or the module
-     whose files are [path.knl] and [path.kn] (see [Main]) *)
-  | USE PLUS m = LID { use_item (mkloc $loc) ("+" ^ m) }
-  | USE m = STRING { use_item (mkloc $loc) m }
+  (* [use builtin "m"] or [use "path"]: the module [m] built into kanon, which
+     the loader names [+m], or the module whose files are [path.knl] and
+     [path.kn] (see [Main]) *)
+  | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
+  | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
+  | USE PLUS m = LID { use_item ~ext:"kanon.use_plus" (mkloc $loc) (mkloc $loc(m)) m }
   | PRIM x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "" }
   | ORACLE x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "oracle" }
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr

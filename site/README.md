@@ -1,11 +1,13 @@
 # The Kanon site
 
-A tutorial of Kanon, its reference and a sandbox to try it, in the browser,
-published at <https://n1ark.github.io/kanon/>:
+A tutorial of Kanon, a guide to its proofs, its reference and a sandbox to try
+it, in the browser, published at <https://n1ark.github.io/kanon/>:
 
 - `index.html`, the tutorial: a tiny language built step by step, with the
   OCaml and the Lean that Kanon generates from each step, computed in the
   page;
+- `proving.html`, the guide to proofs: how to prove a language in Lean, on
+  the example `examples/ints/` of the repository, whose files it quotes;
 - `reference.html`, the reference: the declarations, the attributes and the
   operators;
 - `sandbox.html`, the sandbox: the files of a language in an editor with
@@ -58,8 +60,9 @@ server falls back on the mock when there is no runtime.
 
 `examples/index.json` lists the examples, the templates of the sandbox and the
 steps of the tutorial. Their files are imported at build time: the templates
-from the repository (`examples/bool/`, `test/tiny.t/`), the steps from
-`examples/` here.
+from the repository (`examples/bool/`, `modules/`, `test/tiny.t/`), the steps
+from `examples/` here, but the last one, which is `examples/ints/` of the
+repository (whose Lean proof the guide quotes).
 
 ### Checking it in a browser
 
@@ -71,8 +74,8 @@ CHROMIUM=path/to/chrome npm run shots -- OUT_DIR
 opens the built site in headless Chromium, checks that it works (no errors in
 the console, tree-sitter highlighting, generated code, diagnostics, hovers,
 completion, a definition in the built-in module, a shared link) and takes
-screenshots of the tutorial, the reference and the sandbox, in light and
-dark.
+screenshots of the tutorial, the guide, the reference and the sandbox, in
+light and dark.
 
 ## Deployment
 

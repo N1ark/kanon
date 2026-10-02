@@ -31,8 +31,8 @@
    (echo
     "(** The version of kanon. *)\nlet version = \"%{version:kanon}\"\n"))))
 
-; The modules of modules/, built into kanon: [use +bool] uses modules/bool.knl
-; and modules/bool.kn.
+; The modules of modules/, built into kanon: [use builtin "bool"] uses
+; modules/bool.knl and modules/bool.kn.
 
 (rule
  (target builtin.ml)

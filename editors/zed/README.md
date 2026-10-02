@@ -26,7 +26,7 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
   rule, `ac`/`ic` for a type, a node or a sort, `gc` for a comment;
 - snippets: `rule`, `case`, `casew`, `fn`, `extendrule`, `extendfn`, `prim`,
   `oracle`, `node`, `sort`, `notation`, `type`, `typer`, `infix`, `prefix`,
-  `constant`, `use`, `match`, `let`, `if`, `section`.
+  `constant`, `use`, `usebuiltin`, `match`, `let`, `if`, `section`.
 
 ## Installing
 

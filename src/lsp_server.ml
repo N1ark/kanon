@@ -261,9 +261,9 @@ let scan_uses f =
         | USE -> (
             match Kanon_lexer.token lb with
             | STRING m -> go (m :: acc)
-            | PLUS -> (
+            | BUILTIN -> (
                 match Kanon_lexer.token lb with
-                | LID m -> go (("+" ^ m) :: acc)
+                | STRING m -> go (("+" ^ m) :: acc)
                 | _ -> go acc)
             | EOF -> List.rev acc
             | _ -> go acc)
@@ -376,6 +376,7 @@ type kind =
   | Operator of int  (** its arity *)
   | Label of string  (** a rule of the function *)
   | Extend  (** [extend rule f], whose rules are its children *)
+  | Module  (** a file of a module, used by a [use] *)
 
 (** What else a definition says, for the analysis of names and the hovers. *)
 type info =
@@ -435,6 +436,25 @@ let header s (a, b) =
       | _ -> go (i + 1) depth
   in
   String.trim (sub s (a, go a 0))
+
+(** The end of the comment that starts [s], if it does (0 otherwise): where its
+    [doc_comment] is, for the hover of a module. *)
+let first_comment_end s =
+  let n = String.length s in
+  let rec skip i =
+    if i < n && (s.[i] = ' ' || s.[i] = '\n' || s.[i] = '\t' || s.[i] = '\r')
+    then skip (i + 1)
+    else i
+  in
+  let rec close i depth =
+    if i + 1 >= n then 0
+    else if s.[i] = '*' && s.[i + 1] = ')' then
+      if depth = 0 then i + 2 else close (i + 2) (depth - 1)
+    else if s.[i] = '(' && s.[i + 1] = '*' then close (i + 2) (depth + 1)
+    else close (i + 1) depth
+  in
+  let i = skip 0 in
+  if i + 1 < n && s.[i] = '(' && s.[i + 1] = '*' then close (i + 2) 0 else 0
 
 (** The comment just before the offset [a], without a blank line in between. *)
 let doc_comment s a =
@@ -1052,6 +1072,29 @@ let global_defs lang (g : Lsp_scope.global) =
       match find_defs lang (fun d -> d.name = r && d.kind = Label f) with
       | [] -> derived_rule lang f r
       | l -> l)
+  | Module fs ->
+      (* the files of the module, from their last parses *)
+      List.filter_map
+        (fun f ->
+          let f = resolve f in
+          Option.map
+            (fun e ->
+              let name = Filename.remove_extension (Loader.source_name f) in
+              {
+                name;
+                kind = Module;
+                file = f;
+                sel = (0, 0);
+                item = (0, String.length e.text.s);
+                header =
+                  (if Option.is_some (Loader.builtin f) then
+                     Printf.sprintf "use builtin %S" name
+                   else Printf.sprintf "use %S" name);
+                children = [];
+                info = No_info;
+              })
+            (Hashtbl.find_opt index f))
+        fs
 
 (** The global name that a definition defines. *)
 let global_of_def d : Lsp_scope.global option =
@@ -1063,6 +1106,7 @@ let global_of_def d : Lsp_scope.global option =
       Some (Op (Lsp_scope.parsed_sym ~prefix:(arity = 1) d.name, arity))
   | Label f -> Some (Label (f, d.name))
   | Extend -> Some (Value d.name)
+  | Module -> None
 
 (** The function [f] of [extend rule f before], if the text just before the
     offset [a] of [s] is that. *)
@@ -1350,6 +1394,7 @@ let hover params : Yojson.Safe.t =
         | Some e -> (
             match d.kind with
             | Label _ -> None
+            | Module -> doc_comment e.text.s (first_comment_end e.text.s)
             | _ -> doc_comment e.text.s (fst d.item))
         | None -> None
       in
@@ -1439,7 +1484,8 @@ let document_highlight params : Yojson.Safe.t =
 let keywords =
   String.split_on_char ' '
     "rule fn prim oracle extend before node sort notation type of infix prefix \
-     constant use let in match with if then else when as assert not true false"
+     constant use builtin let in match with if then else when as assert not \
+     true false"
 
 (** What [t] is, to rename it, or why it cannot be renamed. *)
 let renamable lang (t : Lsp_scope.target) =
@@ -1450,7 +1496,8 @@ let renamable lang (t : Lsp_scope.target) =
           (match t with
           | Local b -> b.name
           | Global (Value x | Constr x | Type x | Label (_, x)) -> x
-          | Global (Op (s, _)) -> Lsp_scope.written_sym s)
+          | Global (Op (s, _)) -> Lsp_scope.written_sym s
+          | Global (Module _) -> "the module")
           name
     | None -> ()
   in
@@ -1459,6 +1506,7 @@ let renamable lang (t : Lsp_scope.target) =
       in_builtin b.file;
       `Lower
   | Global (Op _) -> failed "operators cannot be renamed"
+  | Global (Module _) -> failed "modules cannot be renamed"
   | Global g -> (
       let defs = global_defs lang g in
       let defs =
@@ -1517,7 +1565,7 @@ let valid_name lang (t : Lsp_scope.target) case x =
       then failed "%s is already a type" x
   | Global (Label (f, _)) ->
       if taken (fun k -> k = Label f) then failed "%s already has a rule %s" f x
-  | Global (Op _) -> ()
+  | Global (Op _ | Module _) -> ()
 
 let prepare_rename params : Yojson.Safe.t =
   let f, o = doc_position params in
@@ -1614,6 +1662,7 @@ let symbol_kind = function
   | Operator _ -> 25
   | Label _ -> 22
   | Extend -> 12
+  | Module -> 2
 
 let workspace_symbol params : Yojson.Safe.t =
   let q =

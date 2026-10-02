@@ -39,7 +39,7 @@ and then calls `globalThis.onkanonready()`, if it is a function:
 self.onkanonready = () => { /* kanon is ready */ };
 importScripts("dist/kanon.js");
 const k = self.kanon;
-k.writeFile(k.root + "/lang.knl", "use +bool\n...");
+k.writeFile(k.root + "/lang.knl", 'use builtin "bool"\n...');
 k.lsp(JSON.stringify({ jsonrpc: "2.0", id: 0, method: "initialize",
   params: { rootUri: "file://" + k.root, capabilities: {} } }));
 ```

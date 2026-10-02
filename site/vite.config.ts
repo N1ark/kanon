@@ -104,6 +104,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: join(site, "index.html"),
+        proving: join(site, "proving.html"),
         reference: join(site, "reference.html"),
         sandbox: join(site, "sandbox.html"),
       },

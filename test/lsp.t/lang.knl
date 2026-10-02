@@ -1,6 +1,6 @@
 (* A language of booleans, with implication. *)
 
-use +bool
+use builtin "bool"
 use "imp"
 use "more"
 

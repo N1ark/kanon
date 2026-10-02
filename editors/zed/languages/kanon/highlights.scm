@@ -119,7 +119,7 @@
   module: (string) @string.special)
 
 (builtin_module
-  name: (identifier) @string.special.symbol)
+  name: (string) @string.special.symbol)
 
 ; the operators and literals that the language declares
 (operator_declaration
@@ -148,6 +148,7 @@
 
 [
   "use"
+  "builtin"
   "prim"
   "oracle"
   "fn"
@@ -188,10 +189,9 @@
 
 (infix_word) @keyword.operator
 
-; [=] of declarations, [+] of [use +bool], [*] of types
+; [=] of declarations, [*] of types
 [
   "="
-  "+"
   "*"
   "->"
 ] @operator

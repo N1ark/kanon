@@ -114,7 +114,8 @@ module.exports = grammar({
       field('module', choice($.builtin_module, $.string)),
     ),
 
-    builtin_module: $ => seq('+', field('name', $.identifier)),
+    // [use builtin "bool"]: a module built into kanon
+    builtin_module: $ => seq('builtin', field('name', $.string)),
 
     primitive_declaration: $ => seq(
       field('kind', choice('prim', 'oracle')),

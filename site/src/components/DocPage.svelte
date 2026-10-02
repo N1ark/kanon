@@ -10,10 +10,11 @@
     type TocItem,
   } from "purr";
   import type { Snippet } from "svelte";
+  import { highlightInlineCode } from "../highlight/inline";
   import Header from "./Header.svelte";
 
   interface Props {
-    page: "tutorial" | "reference";
+    page: "tutorial" | "proving" | "reference";
     /** The headings of the table of contents. */
     headings?: string;
     children: Snippet;
@@ -36,6 +37,10 @@
     );
     article.querySelectorAll(headings.split(",").map((h) => `${h.trim()}[id]`).join(",")).forEach((h) => seen.observe(h));
     return () => seen.disconnect();
+  });
+
+  $effect(() => {
+    if (article) highlightInlineCode(article);
   });
 </script>
 

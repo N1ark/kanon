@@ -1163,8 +1163,8 @@ let lifts ~sources ft (p : program) =
   pf ft "end Lib@ @ end %s@]@." (root ())
 
 (** Whether the case at [loc] is one of the bool module built into kanon
-    ([use +bool]), or derived from its laws: Kanon's Lean library proves its
-    arms once, for any language ([Kanon.BoolMod]). *)
+    ([use builtin "bool"]), or derived from its laws: Kanon's Lean library
+    proves its arms once, for any language ([Kanon.BoolMod]). *)
 let in_bool_module (loc : Location.t) =
   List.mem loc.loc_start.pos_fname [ "+bool.kn"; "+bool.knl" ]
 

@@ -65,7 +65,8 @@ Navigation: the definitions of a function, a node, an operator, a rule after
 before (in the function that extend extends), a function of the bool module,
 built into kanon, which the server writes to a file, but not of the type of
 terms t, which Kanon generates. Hover shows the header of the definition (here
-of a sort), and the comment before it.
+of a sort), and the comment before it. The module of a use goes to its files,
+and its hover shows its first comment; it cannot be renamed.
 
   $ {
   >   msg "$init"
@@ -78,7 +79,11 @@ of a sort), and the comment before it.
   >   msg "$(at 6 hover imp.kn 1 23)"
   >   msg "$(at 7 definition imp.kn 1 12)"
   >   msg "$(at 8 hover imp.knl 1 12)"
-  >   msg '{"jsonrpc":"2.0","id":9,"method":"shutdown"}'
+  >   msg "$(at 9 definition lang.knl 2 14)"
+  >   msg "$(at 10 hover lang.knl 2 14)"
+  >   msg "$(at 11 definition lang.knl 3 6)"
+  >   msg "$(printf '{"jsonrpc":"2.0","id":12,"method":"textDocument/rename","params":{"textDocument":{"uri":"file://ROOT/lang.knl"},"position":{"line":2,"character":14},"newName":"int"}}')"
+  >   msg '{"jsonrpc":"2.0","id":13,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
   > } > input
   $ lsp | grep -v publishDiagnostics
@@ -91,7 +96,11 @@ of a sort), and the comment before it.
   {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":26}}}}
   {"jsonrpc":"2.0","id":7,"result":null}
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
-  {"jsonrpc":"2.0","id":9,"result":null}
+  {"jsonrpc":"2.0","id":9,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"BUILTIN/bool.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
+  {"jsonrpc":"2.0","id":10,"result":{"contents":{"kind":"markdown","value":"```kanon\nuse builtin \"bool\"\n```\n\nThe bool module, at the bottom of every language: booleans, equality, [Ite]\nand [Distinct]. See the README of Kanon for the syntax.\n\n*bool.knl*"},"range":{"start":{"line":2,"character":13},"end":{"line":2,"character":17}}}}
+  {"jsonrpc":"2.0","id":11,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"file://ROOT/imp.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
+  {"jsonrpc":"2.0","id":12,"error":{"code":-32803,"message":"modules cannot be renamed"}}
+  {"jsonrpc":"2.0","id":13,"result":null}
 
 Completion offers the names of the language and the keywords; the symbols of
 the workspace include the rules of each rule function.
@@ -134,7 +143,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
 
   $ mkdir loc
   $ cat > loc/lang.knl <<'KN'
-  > use +bool
+  > use builtin "bool"
   > use "xor"
   > use "more"
   > 

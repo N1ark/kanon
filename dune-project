@@ -8,15 +8,13 @@
 
 (name kanon)
 
-(version 0.1.0)
+(version 0.2.0)
 
 (source
  (github N1ark/kanon))
 
 (package
  (name kanon)
-
-(version 0.1.0)
  (synopsis "A rule language for verified smart constructors")
  (description
   "Kanon compiles the simplification rules of a value language to OCaml smart constructors, and to a Lean model of them with one soundness statement per rule.")

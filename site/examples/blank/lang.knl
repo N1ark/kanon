@@ -3,7 +3,7 @@
 
 [@@@ocaml_prims "Prims"]
 
-use +bool
+use builtin "bool"
 use "rules"
 
 type var [@ocaml "string"] [@lean "Int"]
