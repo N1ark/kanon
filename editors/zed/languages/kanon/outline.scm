@@ -30,6 +30,10 @@
   (constructor_declaration
     name: (_) @name)) @item
 
+(notation_declaration
+  "notation" @context
+  node: (_) @name) @item
+
 (operator_declaration
   kind: _ @context
   operator: (_) @name) @item

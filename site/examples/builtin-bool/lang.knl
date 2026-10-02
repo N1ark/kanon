@@ -1,0 +1,6 @@
+(* Kanon's built-in bool module, which [use +bool] reads: here bool.knl and
+   bool.kn are copies of it, which [use "bool"] uses, to read and to edit. *)
+
+[@@@ocaml_prims "Prims"]
+
+use "bool"

@@ -15,7 +15,8 @@ def Op1.WT : Op1 → Ty → Ty → Prop
       kanon__a = Ty.TBool ∧ kanon__t = Ty.TBool
 
 def Op2.WT : Op2 → Ty → Ty → Ty → Prop
-  | .And, kanon__a, kanon__b, kanon__t | .Or, kanon__a, kanon__b, kanon__t =>
+  | .And, kanon__a, kanon__b, kanon__t
+  | .Or, kanon__a, kanon__b, kanon__t =>
       kanon__a = Ty.TBool ∧ kanon__b = Ty.TBool ∧ kanon__t = Ty.TBool
   | .Eq, kanon__a, kanon__b, kanon__t =>
       kanon__b = kanon__a ∧ kanon__t = Ty.TBool

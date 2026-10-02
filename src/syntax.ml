@@ -48,7 +48,8 @@ type constr = {
 type decl = {
   d_name : string;
   d_ocaml : string option;
-      (** [[@ocaml]]: the OCaml type of an abstract type *)
+      (** [[@ocaml]]: the OCaml type of an abstract type, or the one that a
+          record or a variant re-exports *)
   d_lean : string option;
       (** the Lean type, if it is not the Kanon name, CamelCased ([[@lean]]) *)
   d_eq : bool;
@@ -67,8 +68,8 @@ type decl = {
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
     constructor [smart], with the leading arguments [pre]; in patterns it
     matches its [node], with the parameters [params] (any parameters if there
-    are none); on the values of literals (see [lit_value]) it is the primitive
-    [on_value]. *)
+    are none); on operands that are not terms, of the types of its arguments, it
+    is the function [on_value]. *)
 type operator = {
   sym : string;
       (** as parsed: ["+"], ["&&"], ["urem"], ...; ["~-"] for the prefix [-] *)
@@ -78,11 +79,11 @@ type operator = {
   smart : string;
   pre : Ppxlib.expression list;
   on_value : string option;
+  op_loc : Location.t;  (** of its symbol, in its declaration *)
 }
 
 (** The words declared as infix operators ([infix "urem" = ...]), which the
-    lexer reads as operators, at the level of comparisons, from their
-    declaration on. *)
+    lexer reads as operators, at the level of [*], from their declaration on. *)
 let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),
@@ -125,25 +126,12 @@ type lang = {
       (** the kind constructors of the operators of each arity, whose first
           argument is an operator, which then stands for the node:
           [Add (c, l, r)] for [Op2 (Add c, l, r)] *)
-  lit_bool : string option;  (** the kind constructor of boolean literals *)
-  lit_node : string option;
-      (** the kind constructor of integer literals, which integer patterns and
-          [#x] match *)
-  lit_int : bool;
-      (** [[@literal int]]: in rules, [#x] binds the argument of the literals of
-          [lit_node], an [int], rather than their value *)
-  lit_value : string;
-      (** [[@literal t]]: the type of the values of the literals of [lit_node],
-          which [#x] binds in rules *)
+  notations : string list;
+      (** [notation C]: the leaf nodes of one [int] or [bool], which the
+          literals of patterns stand for ([0], [true], [#x]) *)
   sort_getters : (string * string) list;
       (** the functions that read the argument of the sort of a term, declared
           by [[@get f]] on the constructors of sorts with one argument *)
-  lit_fns : (string * string) list;
-      (** the functions of those literals, declared by attributes on the
-          constructor of [[@literal t]] literals: [to_term] (a value where a
-          term is expected), [of_term] (the primitive that reads the value of a
-          literal) and, for [raw:f], the primitive that computes [f] on a
-          literal rather than on its value *)
   constants : (string * (string option * Ppxlib.expression)) list;
       (** [constant c (v) = e]: the term of the literal or the named constant
           [c] ([0], [true], [ones], ...), at the sort of the term [v] if there
@@ -176,12 +164,8 @@ let lang =
       constrs = [];
       commutative = [];
       node_kinds = [];
-      lit_bool = None;
-      lit_node = None;
-      lit_int = false;
-      lit_value = "";
+      notations = [];
       sort_getters = [];
-      lit_fns = [];
       constants = [];
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
@@ -207,16 +191,6 @@ let decl_of_ty t =
   match Option.bind (decl_name t) find_decl with
   | Some d -> d
   | None -> Fmt.failwith "type %a is not declared by the language" pp_ty t
-
-(** The type of the values of literals, where [#x] binds them. *)
-let lit_value_ty () = TData !lang.lit_value
-
-(** Whether [t] is the type of the values of literals. *)
-let is_lit_value t =
-  Option.is_some !lang.lit_node && (not !lang.lit_int) && t = lit_value_ty ()
-
-(** A function of the literals (see [lit_fns]). *)
-let lit_fn name = List.assoc_opt name !lang.lit_fns
 
 let find_operator ~arity sym =
   List.find_opt (fun o -> o.sym = sym && o.arity = arity) !lang.operators
@@ -253,9 +227,6 @@ and pat_desc =
   | PNil
   | PCons of pat * pat
   | PRecord of (string * pat) list  (** partial records *)
-  | PLit of string
-      (** in [[@cases]] functions, [C x], where [C] builds integer literals: a
-          literal, whose value is bound to [x] *)
 
 type expr = { e : expr_desc; ety : ty; eloc : Location.t }
 

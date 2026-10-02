@@ -19,7 +19,7 @@ type binder_kind =
   | Spec_operand of string * string
       (** an operand of the spec of the rule, the node of the spec *)
   | Pattern_var
-  | Literal_var  (** [#x]: the value of a literal *)
+  | Literal_var  (** [#x]: the argument of a literal *)
   | Let_var
   | Let_fn  (** [let f (x : t) = ... in] *)
   | Sort_var of string  (** a variable of a sort, and what binds it *)
@@ -399,15 +399,13 @@ let analyze ctx (str : structure) : occ list =
             args
         in
         match (a.attr_name.txt, names) with
-        | ("fold" | "to_term" | "of_term" | "raw" | "get"), _ ->
+        | ("fold" | "get"), _ ->
             (* functions, and the nodes that lift the results of [[@fold]] *)
             List.iter
               (fun (s, loc) ->
                 if is_upper s then global loc (Constr s)
                 else if is_word s then global loc (Value s))
               names
-        | "literal", [ (t, loc) ] when t <> "int" && t <> "bool" ->
-            global loc (Type t)
         | _ -> ())
       attrs
   in
@@ -510,7 +508,32 @@ let analyze ctx (str : structure) : occ list =
         in
         let ps = fn_params (Param name) params in
         Option.iter (function Pconstraint t -> typ t | _ -> ()) ret;
-        let env = List.rev ps in
+        (* the variables of the sorts of the parameters, [(v : TBitVector n)] *)
+        let bound = ref [] in
+        List.iter
+          (fun (p : function_param) ->
+            match p.pparam_desc with
+            | Pparam_val
+                ( _,
+                  _,
+                  {
+                    ppat_desc =
+                      Ppat_constraint
+                        ({ ppat_desc = Ppat_var v; _ }, { ptyp_attributes; _ });
+                    _;
+                  } ) ->
+                List.iter
+                  (fun (a : attribute) ->
+                    match a.attr_payload with
+                    | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+                      when a.attr_name.txt = "kanon.sort" ->
+                        let what = Printf.sprintf "the sort of `%s`" v.txt in
+                        sort ~what ~bound ~env:[] s
+                    | _ -> ())
+                  ptyp_attributes
+            | _ -> ())
+          params;
+        let env = List.rev ps @ List.rev !bound in
         let env =
           match spec with
           | None -> env

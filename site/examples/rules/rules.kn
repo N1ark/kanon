@@ -26,6 +26,6 @@ rule plus : Plus (v1, v2) =
 
 rule eq : Eq (v1, v2) =
   | same: x == x -> Bool true
-  | lits: #x == #y -> Bool (x = y)
+  | lits: Int x == Int y -> Bool (x = y)
   | true_: true == x -> x
-  | neg: #x == y when x < 0 && is_nat y -> Bool false
+  | neg: Int x == y when x < 0 && is_nat y -> Bool false

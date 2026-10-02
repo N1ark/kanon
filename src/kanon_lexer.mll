@@ -20,6 +20,7 @@ let keywords =
     ("match", MATCH);
     ("node", NODE);
     ("not", NOT);
+    ("notation", NOTATION);
     ("of", OF);
     ("oracle", ORACLE);
     ("prefix", PREFIX);

@@ -25,8 +25,8 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
 - text objects in vim mode: `af`/`if` for a rule function, a helper or a
   rule, `ac`/`ic` for a type, a node or a sort, `gc` for a comment;
 - snippets: `rule`, `case`, `casew`, `fn`, `extendrule`, `extendfn`, `prim`,
-  `oracle`, `node`, `sort`, `type`, `typer`, `infix`, `prefix`, `constant`,
-  `use`, `match`, `let`, `if`, `section`.
+  `oracle`, `node`, `sort`, `notation`, `type`, `typer`, `infix`, `prefix`,
+  `constant`, `use`, `match`, `let`, `if`, `section`.
 
 ## Installing
 

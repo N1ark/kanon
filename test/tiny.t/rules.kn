@@ -18,4 +18,13 @@ rule and_ : And (v1, v2) =
 
 rule eq : Eq (v1, v2) =
   | same: x == x -> v_true
-  | lits: #x == #y -> of_bool (x = y)
+  | lits: Int x == Int y -> of_bool (x = y)
+
+(* a parameter of a sort, asserted on entry *)
+fn is_zero (v : TInt) : bool =
+  match v with
+  | 0 -> true
+  | _ -> false
+
+(* a node built at a sort *)
+fn zero : t = (Int 0 : TInt)

@@ -165,18 +165,10 @@ let lean_constr (c : constr) = Fmt.str "%a.%s" lean_ty c.c_res c.c_name
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
 
-(** The Lean constructor of integer literals. *)
-let lit_node () =
-  lean_constr (Option.get (find_constr (Option.get !lang.lit_node)))
-
-(** The primitive that reads the value of a literal. *)
-let of_term () = Option.get (lit_fn "of_term")
-
 let rec pat ft (p : pat) =
   match p.p with
   | PAny -> pf ft "_"
   | PVar x -> pf ft "%s" (id x)
-  | PLit x -> pf ft "%s@(Term.mk (%s _) _)" (id x) (lit_node ())
   | PAs (q, x) -> pf ft "%s@%a" (id x) pat q
   | POr _ | PComm _ -> failwith "gen_lean: or-pattern after desugaring"
   | PInt z -> pf ft "(%s : Int)" (Z.to_string z)
@@ -206,8 +198,8 @@ let rec pat ft (p : pat) =
 (* ---------------------------------------------------------------- *)
 (* Expressions *)
 
-(** Variables printed as given terms: the scrutinees and [as]/[PLit] binders of
-    a [[@cases]] alternative, in its statement. *)
+(** Variables printed as given terms: the scrutinees and [as] binders of a
+    [[@cases]] alternative, in its statement. *)
 let subst : (string * string) list ref = ref []
 
 (** [k ()] with the variables [xs] bound, hence not substituted. *)
@@ -303,32 +295,18 @@ let rec expr ctx ft (e : expr) =
 
 and pat_names p = List.map fst (Check.binders p)
 
-(** Rebinds the variables of [PLit] patterns to their values. *)
-and lit_lets ft (p : pat) =
-  List.iter
-    (fun x -> pf ft "let %s := %s %s;@ " (id x) (of_term ()) (id x))
-    (Check.lit_binders p)
-
-(** Prints [k] after the [lit_lets] of [p], if any. *)
-and with_lits p k ft () =
-  if Check.lit_binders p = [] then k ft ()
-  else pf ft "@[<hv>(%a%a)@]" lit_lets p k ()
-
 (** A case's result: [some body], under its guard. *)
 and guarded ctx (c : case) ft () =
   binding (pat_names c.pat) (fun () ->
-      with_lits c.pat
-        (fun ft () ->
-          match c.guard with
-          | None when !cases_style ->
-              pf ft "@[<hv>(whenSome true@ (%a))@]" (expr ctx) c.body
-          | None -> pf ft "some (%a)" (expr ctx) c.body
-          | Some g when !cases_style ->
-              pf ft "@[<hv>(whenSome %a@ (%a))@]" (expr ctx) g (expr ctx) c.body
-          | Some g ->
-              pf ft "@[<hv>(if %a@ then some (%a)@ else none)@]" (expr ctx) g
-                (expr ctx) c.body)
-        ft ())
+      match c.guard with
+      | None when !cases_style ->
+          pf ft "@[<hv>(whenSome true@ (%a))@]" (expr ctx) c.body
+      | None -> pf ft "some (%a)" (expr ctx) c.body
+      | Some g when !cases_style ->
+          pf ft "@[<hv>(whenSome %a@ (%a))@]" (expr ctx) g (expr ctx) c.body
+      | Some g ->
+          pf ft "@[<hv>(if %a@ then some (%a)@ else none)@]" (expr ctx) g
+            (expr ctx) c.body)
 
 (** Whether a pattern matches every value of its type. *)
 and irrefutable (p : pat) =
@@ -370,9 +348,7 @@ and sort_match ctx ft (scruts, cases) =
   let d, p, _ = discriminants ctx (scruts, cases) in
   let case ft (c : case) =
     pf ft "@ @[<hv 2>| %a =>@ %a@]" p c.pat
-      (fun ft () ->
-        binding (pat_names c.pat) (fun () ->
-            with_lits c.pat (fun ft () -> expr ctx ft c.body) ft ()))
+      (fun ft () -> binding (pat_names c.pat) (fun () -> expr ctx ft c.body))
       ()
   in
   pf ft "@[<hv 2>(match %a with%a)@]" d () (fun ft -> List.iter (case ft)) cases
@@ -397,8 +373,7 @@ and match_ ctx ft (scruts, cases) =
           fun ft () ->
             pf ft "@[<hv 2>(match %a with@ | %a =>@ %a)@]" d () p c.pat
               (fun ft () ->
-                binding (pat_names c.pat) (fun () ->
-                    with_lits c.pat (fun ft () -> expr ctx ft c.body) ft ()))
+                binding (pat_names c.pat) (fun () -> expr ctx ft c.body))
               () )
     | _ -> (cases, fun ft () -> pf ft "Inhabited.default")
   in
@@ -509,6 +484,9 @@ type arm = {
   a_subst : (string * (string * int)) list;
   a_body_subst : (string * string) list;
       (** [a_subst] without the names that the pattern rebinds *)
+  a_lets : (string * expr) list;
+      (** the [let]s before the match (the variables of the sorts of the
+          parameters), which the statement substitutes *)
 }
 
 let ty_str t = Fmt.str "%a" lean_ty t
@@ -526,14 +504,6 @@ let pat_term (p : pat) =
     | PVar x ->
         bind (id x) (ty_str p.pty);
         id x
-    | PLit x ->
-        let z = x ^ "__z" and t = x ^ "__T" in
-        bind z "Int";
-        bind t (ty_str TSty);
-        let term = Printf.sprintf "(Term.mk (%s %s) %s)" (lit_node ()) z t in
-        subst :=
-          (x, (Printf.sprintf "(%s %s)" (of_term ()) term, p.pid)) :: !subst;
-        term
     | PAs (q, x) ->
         let t = go q in
         subst := (x, (t, q.pid)) :: !subst;
@@ -631,15 +601,24 @@ let arm_of (f : fn) scruts (c : case) : arm =
     a_binders = params @ !binders;
     a_subst = !subst;
     a_body_subst = body_subst;
+    a_lets = [];
   }
 
 (** Arms of a rule function, per rule. *)
 let arms (f : fn) =
   List.map
     (fun (pre, scruts, grp) ->
-      if (pre { f.body with e = EUnit }).e <> EUnit then
-        cases_error f f.floc "[@cases]: no let before the match";
-      (rule_name f grp, List.map (arm_of f scruts) grp))
+      let rec lets (e : expr) =
+        match e.e with
+        | ELet ({ p = PVar x; _ }, rhs, b) -> (x, rhs) :: lets b
+        | EUnit -> []
+        | _ ->
+            cases_error f f.floc
+              "[@cases]: a destructuring let before the match"
+      in
+      let a_lets = lets (pre { f.body with e = EUnit }) in
+      ( rule_name f grp,
+        List.map (fun c -> { (arm_of f scruts c) with a_lets }) grp ))
     (rules f)
 
 (** Whether [x] occurs in [e] other than as the argument of [ty] or [size] (when
@@ -751,19 +730,31 @@ let derived_from (f : fn) (grp : arm list) (a : arm) =
             (List.map fst a.a_subst @ List.map fst b.a_subst)
         in
         let is_param (arm : arm) t = List.mem_assoc t arm.a_binders in
+        (* the guard and body, under the [let]s before the match that they use,
+           which read the parameters *)
+        let with_lets (e : expr) =
+          List.fold_right
+            (fun (x, (rhs : expr)) (e : expr) ->
+              if occurs ~ty_ok:false x e then
+                let p =
+                  { p = PVar x; pty = rhs.ety; ploc = rhs.eloc; pid = 0 }
+                in
+                { e with e = ELet (p, rhs, e) }
+              else e)
+            a.a_lets e
+        in
+        let e = with_lets c.body and g = Option.map with_lets c.guard in
         let independent x =
           match (List.assoc_opt x a.a_subst, List.assoc_opt x b.a_subst) with
           | Some (t, _), Some (t', _) when t = t' -> true
           | Some (t, _), Some (t', _) when is_param a t && is_param b t' -> true
           | Some (_, p), Some (_, p') ->
               let ty_ok = p = p' in
-              let e = c.body and g = c.guard in
               not
                 (occurs ~ty_ok x e
                 || Option.fold ~none:false ~some:(occurs ~ty_ok x) g)
           | Some _, None | None, Some _ ->
               (* a parameter matched in one arm and not the other *)
-              let e = c.body and g = c.guard in
               not
                 (occurs ~ty_ok:false x e
                 || Option.fold ~none:false ~some:(occurs ~ty_ok:false x) g)
@@ -1047,6 +1038,17 @@ let arm_stmt ctx ft f r arms i (a : arm) =
     pf ft "∀ %a,@ "
       (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %s)" x t))
       a.a_binders;
+  (* the [let]s before the match, over the scrutinees *)
+  let lets =
+    List.map
+      (fun (x, rhs) ->
+        ( x,
+          with_subst
+            (List.map (fun (x, (t, _)) -> (x, t)) a.a_subst)
+            (fun () -> Fmt.str "%a" (expr ctx) rhs) ))
+      a.a_lets
+  in
+  let a = { a with a_body_subst = a.a_body_subst @ lets } in
   with_subst a.a_body_subst (fun () ->
       Option.iter (fun g -> pf ft "%a = true →@ " (expr ctx) g) c.guard);
   let spec_args =
@@ -1731,8 +1733,11 @@ let typing_file ~sources ft (p : program) =
             | (ps, r') :: g when r' = r -> (p :: ps, r) :: g
             | g -> ([ p ], r) :: g)
       in
+      (* one alternative per line, when several share a typing *)
       List.iter
-        (fun (ps, r) -> pf ft "@ | %s =>@;<1 4>%s" (String.concat " | " ps) r)
+        (fun (ps, r) ->
+          List.iter (fun p -> pf ft "@ | %s" p) ps;
+          pf ft " =>@;<1 4>%s" r)
         (groups alts);
       pf ft "@]@ @ ")
     types;

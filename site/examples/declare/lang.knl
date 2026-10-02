@@ -3,8 +3,8 @@
 type var [@ocaml "string"] [@lean "String"]
 
 node Var of var
-node Bool of bool : TBool [@literal bool]
-node Int of int : TInt [@literal int]
+node Bool of bool : TBool
+node Int of int : TInt
 node Not : TBool -> TBool
 node And : TBool -> TBool -> TBool
 node Plus : TInt -> TInt -> TInt
@@ -12,3 +12,6 @@ node Eq : a -> a -> TBool
 
 sort TBool
 sort TInt
+
+notation Bool
+notation Int

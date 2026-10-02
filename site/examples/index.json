@@ -2,9 +2,20 @@
   "$comment": "The example languages of the site: the templates of the sandbox, and the steps of the tutorial. Paths are relative to site/; the sources are imported at build time.",
   "examples": [
     {
+      "id": "builtin-bool",
+      "title": "Builtin Bool",
+      "description": "modules/bool.kn[l]: the module that use +bool reads, to read and edit",
+      "template": true,
+      "files": {
+        "lang.knl": "examples/builtin-bool/lang.knl",
+        "bool.knl": "../modules/bool.knl",
+        "bool.kn": "../modules/bool.kn"
+      }
+    },
+    {
       "id": "bool",
       "title": "The bool example",
-      "description": "examples/bool: Kanon's bool module alone (use +bool)",
+      "description": "examples/bool: a language made of the bool module alone, proved in Lean",
       "template": true,
       "files": { "lang.knl": "../examples/bool/lang.knl" }
     },

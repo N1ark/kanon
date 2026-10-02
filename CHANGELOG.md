@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- [`notation C`](README.md#patterns) gives literal patterns to a leaf.
+- [Helper parameters](README.md#functions) may be annotated with a sort.
+- [`(C x : S args)`](README.md#terms) builds a node at an explicit sort.
+- [Folds](README.md#laws) receive the sorts of the literals as `ty` parameters.
+- An operator's function applies to any [non-term operands](README.md#operators-on-terms).
+- [`[@ocaml]`](README.md#types) on records and variants re-exports an existing type.
+
+### Changed
+
+- [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of `*`.
+
+### Removed
+
+- `[@literal]`: use [`notation`](README.md#patterns).
+- `[@to_term]`, `[@of_term]` and `[@raw]`: literals store integers or booleans.
+
 ## 0.1.0
 
 The first versioned release.

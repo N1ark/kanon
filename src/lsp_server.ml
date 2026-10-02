@@ -1286,7 +1286,7 @@ let local_hover f (b : Lsp_scope.binder) =
         Printf.sprintf
           "Parameter of the rule `%s`: an operand of its spec, `%s`" g c
     | Pattern_var -> "Pattern variable"
-    | Literal_var -> "Pattern variable, the value of a literal (`#x`)"
+    | Literal_var -> "Pattern variable, the argument of a literal (`#x`)"
     | Let_var -> "Variable bound by `let`"
     | Let_fn -> "Local function"
     | Sort_var w -> "Variable of a sort, bound by " ^ w
@@ -1335,7 +1335,7 @@ let operator_text d (oc : Lsp_scope.occ option) =
       @ Option.to_list
           (Option.map
              (fun v ->
-               Printf.sprintf "On the values of literals, it is `%s`." v)
+               Printf.sprintf "On values that are not terms, it is `%s`." v)
              value)
   | _ -> []
 
@@ -1438,8 +1438,8 @@ let document_highlight params : Yojson.Safe.t =
 
 let keywords =
   String.split_on_char ' '
-    "rule fn prim oracle extend before node sort type of infix prefix constant \
-     use let in match with if then else when as assert not true false"
+    "rule fn prim oracle extend before node sort notation type of infix prefix \
+     constant use let in match with if then else when as assert not true false"
 
 (** What [t] is, to rename it, or why it cannot be renamed. *)
 let renamable lang (t : Lsp_scope.target) =

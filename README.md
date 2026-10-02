@@ -70,7 +70,7 @@ along with the types it needs (see [OCaml](#ocaml)).
 ## The language
 
 A language is declared in `.knl` files, by `use`, `type`, `sort`, `node`,
-`infix`, `prefix` and `constant` items and floating attributes. The
+`notation`, `infix`, `prefix` and `constant` items and floating attributes. The
 [reference](https://n1ark.github.io/kanon/reference.html) lists them, with
 every attribute.
 
@@ -90,7 +90,10 @@ and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
 [below](#modules-nodes-and-sorts)), and cannot be declared.
 
 - `[@ocaml "..."]` gives the OCaml type of an abstract type, which
-  `ocaml-types` needs; the other types are generated, with their Kanon names.
+  `ocaml-types` needs. On a record or a variant, it is optional: `ocaml-types`
+  then re-exports that type (`type checked = M.checked = { ... }`), which
+  OCaml checks against the declaration; otherwise it generates the type, with
+  its Kanon name.
 - `[@lean "..."]` gives the Lean type, if it is not the Kanon name, CamelCased
   (`ext_ty` is `ExtTy`). Kanon generates the Lean definitions of the types,
   except for the abstract ones, which are defined by hand (in `R.Abstract`, see
@@ -113,13 +116,15 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
 - `node C ...` declares the constructor `C` of terms
   (`node And : TBool -> TBool -> TBool [@comm] [@idem]`): its arguments,
   typing, laws and operators. A node without operands (`node Var of var`,
-  `node Bool of bool : TBool [@literal bool]`) is a *leaf*; one with `k`
+  `node Bool of bool : TBool`) is a *leaf*; one with `k`
   operands in its typing is an *operator* of arity `k`; one whose only operand
   sort is a list (`node Distinct : a list -> TBool`, whose operands all have
   the sort `a`) an operator of any arity. `s list` is only allowed there.
 - `sort S ...` declares a sort, a constructor of `ty`
   (`sort TBitVector of nat [@get size]`). Sorts and nodes are constructors:
   their names differ.
+- `notation C` gives literal patterns to the leaf `C` of one `bool` or `int`
+  (see [Patterns](#patterns)).
 - `extend rule f = | r: p -> e ...`, in the rules of a module, adds rules to the
   rule function `f` of a module below it, as if they were written in `f`: last,
   but before its final catch-all case `_`, or with `extend rule f before r`,
@@ -152,21 +157,6 @@ integers, `true` and `false`, or strings for anything else (`[@fold f_add]`,
   value of its type, and a repeated one for the same (`node Eq : a -> a ->
   TBool`); a width (`nat` argument of a type) is positive, unless the condition
   constrains it.
-- `[@literal bool]` on a node of one `bool`: the boolean literals, which
-  `true` and `false` match in patterns.
-- `[@literal int]` on a node of one `int`: the integer literals, which `0`,
-  `1`, ... and `#x` match in patterns; `#x` binds their integer. These patterns
-  are sugar for the node: `x + 0` is `Plus (x, Int 0)`.
-- `[@literal v]` on a node of one `int`: integer literals whose values have the
-  (abstract) type `v`, e.g. bit-vectors, which `#x` binds in rules (and their
-  integer in helpers). The node then gives:
-  - `[@to_term f]`: `f : v -> t` makes the literal of a value, where a value is
-    used as a term (e.g. `lit`);
-  - `[@of_term p]`: the primitive `p : t -> v` reads the value of a literal
-    (e.g. `bv_of_lit`);
-  - `[@raw f p]`, any number of times: for `f : a1 -> ... -> v -> r`, the
-    primitive `p : a1 -> ... -> t -> r` computes `f` directly on the literal,
-    without reading its value (e.g. `[@raw width lit_width]`).
 - `[@get f]` on a sort with one argument: the helper `f : t -> int` reads that
   argument from the sort of a term (`sort TBitVector of nat [@get size]`). Kanon then
   reads the argument with `f v`, rather than by matching the sort of `v`,
@@ -185,8 +175,11 @@ prefix "not" = Not, b_not
 `infix "op" = Node, f args[, g]` declares what the operator builds and matches:
 in expressions, `a + b` calls the smart constructor `f` with the leading
 arguments `args` (`bv_add unchecked a b`); in patterns, it matches the node
-(`Add (_, a, b)`, whatever its parameters); on the values of literals (see
-`[@literal v]`), it is the primitive `g`. `prefix "op" = Node, f args[, g]` is
+(`Add (_, a, b)`, whatever its parameters); on operands that are not terms and
+have the types of the arguments of `g`, it is `g` (with
+`infix "land" = BitAnd, bv_and, z_land`, `a land b` on integers is
+`z_land a b`). An operator with a built-in meaning on a type cannot have a `g`
+on that type. `prefix "op" = Node, f args[, g]` is
 the same for one operand.
 
 An operator is a word (`urem`) or, as in OCaml, a sequence of the symbols
@@ -197,10 +190,11 @@ at every type. Its first character gives its precedence, as in OCaml; from the
 lowest:
 
 - `||` (right), `&&` (right);
-- `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=`, the words and the
-  operators that start with a non-ASCII character (left);
+- `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=` and the operators that
+  start with a non-ASCII character (left);
 - `@...`, `^...` (right); `::` (right);
-- `+...`, `-...` (left); `*...`, `/...`, `%...` (left); `**...` (right);
+- `+...`, `-...` (left); `*...`, `/...`, `%...` and the words (left);
+  `**...` (right);
 - the prefix `-`; the prefix `!...`, `~...` and `?...`.
 
 The prefix operators are `-`, `not` and the symbols that start with `!`, `~`
@@ -227,8 +221,8 @@ constant ones (v) = bv_ones (size v)
 `v`, and `constant c = e` at any sort, for the laws `[@unit c]` and
 `[@zero c]`. `c` is a literal, `0`, `1`, `true` or `false` (also written
 `"0"`, ...), or a name. The constant of a literal is optional: Kanon otherwise
-builds the literal node (`Bool false`, `Int 0`), but for `[@literal v]`
-literals, whose values are abstract.
+builds the node of its notation at the sort of the spec (`Bool false`,
+`Int 0`).
 
 ### Floating attributes
 
@@ -241,8 +235,8 @@ literals, whose values are abstract.
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
   statements quantify over (e.g. a semantics of floats).
 
-`use`, `type`, `sort`, `of`, `node`, `infix`, `prefix`, `constant`, `extend`
-and `before` are keywords.
+`use`, `type`, `sort`, `of`, `node`, `notation`, `infix`, `prefix`,
+`constant`, `extend` and `before` are keywords.
 
 ## Functions
 
@@ -271,7 +265,10 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
-  [Rules](#rules)).
+  [Rules](#rules)). A parameter of type `t` may be annotated with its sort
+  instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
+  bound in the body, the generated OCaml asserts the sort on entry, and the
+  literals of patterns on `v` resolve with it (see [Patterns](#patterns)).
 - `prim f : a -> b` declares a primitive, implemented by hand in OCaml, in the
   module of `[@@@ocaml_prims]` (see [OCaml](#ocaml)), and in Lean (the
   generated OCaml and `Signatures.lean` check that both define it, at this
@@ -285,8 +282,6 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 
 ## Rules
 
-- `#l` (or `C l`, for `C` the node of integer literals) binds `l` to the value
-  of the literal.
 - The pattern variables of a rule may not shadow the parameters of its
   function.
 - A case that an earlier case without a guard already matches can never be
@@ -338,15 +333,14 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
 - `[@comm]` applies to binary operators: see [Terms](#terms) and
   [Proofs](#proofs).
 - `[@fold f lift]`: `f : p1 -> ... -> a1 -> a2 -> r` takes the last parameters
-  of the node that it has room for (`lit_extract from_ to_ bv`,
-  `add_overflows signed l r`), then the literals, of the types of its
-  arguments: the values of `[@literal v]` literals are bound to `l` and `r` (to
-  `v` for one operand), the others to the first letter of their type
-  (`Int i1`, `Int i2`, `Bool b`). `lift : r -> t`, a function or a node, makes
-  a term of the result of `f`. It is optional: by default, a `bool` is lifted
-  with the `[@literal bool]` node, an `int` with the `[@literal int]` node, a
-  value of `[@literal v]` is not lifted (it is a term by its `[@to_term]`), and
-  a value of another type with the leaf of one argument of that type
+  of the node that it has room for (`z_extract from_ to_ z`,
+  `add_overflows signed l r`), then the values of the literals (`Int i1`,
+  `Int i2`, `Bool b`). Its parameters of type `ty` right before the values
+  receive the sorts of the literal operands, in order
+  (`fn z_add (s _ : ty) (l r : int) : int`). `lift : r -> t`, a function or a
+  node, makes a term of the result of `f`. It is optional: by default, a
+  `bool` or an `int` is lifted with the node of its notation, and a value of
+  another type with the leaf of one argument of that type
   (`Float (f_add f1 f2)`). A node is built at the sort that its typing gives,
   or else at the sort of the spec.
 - `[@unit c]` and `[@zero c]` take a literal, `0`, `1`, `true` or `false`,
@@ -354,9 +348,10 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
   which it compares, with `=`, to the constant at the sort of the other
   operand. The rule is named `unit_c` or `zero_c`, after the literal
   (`unit_zero`, `unit_one`, `unit_true`, `unit_false`, `zero_zero`, ...) or the
-  constant (`unit_ones`). The term of a literal is its `constant`, if the
-  language declares one, or else the literal node. On an operator that does
-  not commute, `c` is on the right; on one that does, either side.
+  constant (`unit_ones`). A literal is resolved as in patterns, at the sort of
+  the operands, and its term is its `constant`, if the language declares one,
+  or else the node of its notation. On an operator that does not commute, `c`
+  is on the right; on one that does, either side.
 
 ## Terms
 
@@ -371,11 +366,22 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
   `mk_commut_binop And v1 v2`, which puts the operand with the smallest tag on
   the left.
 - Patterns match the kind of a term directly: `Int z`, `Add (c, l, r)`.
+- `(C x : S args)` builds the node `C x` at the sort `S args`, which its
+  typing must allow: a leaf whose sort its arguments do not determine
+  (`node BitVec of int : TBitVector n`) is built this way.
 
 ## Patterns
 
-- `0`, `1`, ... match integer literals, `#_` any of them, and `#x` binds one;
-  `true` and `false` match boolean literals (see `[@literal bool]`).
+- The notations of the language (`notation Bool`, `notation Int`) give
+  literal patterns, which stand for their nodes: `true` and `false` for
+  `Bool true` and `Bool false` (a `bool` notation), the numerals `0`, `1`,
+  `-1`, ... for `Int 0`, ... (an `int` one), `#x` and `#_` for `Int x` and
+  `Int _` (either), `#x` binding the argument of the node. A literal is
+  resolved by its kind (numerals, booleans); if several notations remain, by
+  the head of the sort of its position (the operands of a spec, the arguments
+  of a node in a pattern, the parameters of helpers annotated with a sort),
+  compared with the result sort of each notation's node; otherwise it is an
+  error, and the pattern names the node (`Int x`).
 - A repeated variable matches equal terms (`=`): `| p, not p -> v_false`.
 - The operands of commutative operators match in either order: `x + #k` also
   matches `#k + x`. The swap is left out when both operands are wildcards or

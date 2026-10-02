@@ -91,8 +91,8 @@
 (attribute_name
   (_) @attribute)
 
-; the unquoted arguments of attributes are mostly functions ([@fold lit_add],
-; [@to_term lit], [@raw width lit_width])
+; the unquoted arguments of attributes are mostly functions ([@fold z_add],
+; [@get size], [@fold z_lt Bool])
 (attribute_argument
   (identifier) @function)
 
@@ -155,6 +155,7 @@
   "before"
   "node"
   "sort"
+  "notation"
   "type"
   "of"
   "infix"

@@ -110,6 +110,10 @@
         "named": true
       },
       {
+        "type": "notation_declaration",
+        "named": true
+      },
+      {
         "type": "operator_declaration",
         "named": true
       },
@@ -1852,6 +1856,22 @@
     }
   },
   {
+    "type": "notation_declaration",
+    "named": true,
+    "fields": {
+      "node": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "constructor",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "operator_declaration",
     "named": true,
     "fields": {
@@ -1935,9 +1955,23 @@
           }
         ]
       },
+      "sort": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "constructor",
+            "named": true
+          },
+          {
+            "type": "constructor_expression",
+            "named": true
+          }
+        ]
+      },
       "type": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "_type",
@@ -3215,6 +3249,10 @@
   },
   {
     "type": "not",
+    "named": false
+  },
+  {
+    "type": "notation",
     "named": false
   },
   {

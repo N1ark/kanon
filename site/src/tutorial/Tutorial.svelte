@@ -56,15 +56,18 @@
     code={`type var [@ocaml "string"] [@lean "String"]
 
 node Var of var
-node Bool of bool : TBool [@literal bool]
-node Int of int : TInt [@literal int]
+node Bool of bool : TBool
+node Int of int : TInt
 node Not : TBool -> TBool
 node And : TBool -> TBool -> TBool
 node Plus : TInt -> TInt -> TInt
 node Eq : a -> a -> TBool
 
 sort TBool
-sort TInt`}
+sort TInt
+
+notation Bool
+notation Int`}
   />
   <ul>
     <li>
@@ -77,12 +80,19 @@ sort TInt`}
       any sort, and a boolean result. Kanon generates the typing of each node in Lean.
     </li>
     <li>
-      <code>[@literal bool]</code> marks the node of the boolean literals, and
-      <code>[@literal int]</code> that of the integer literals. They give the literal patterns:
-      <code>true</code> and <code>false</code> match boolean literals, <code>0</code>,
-      <code>1</code>, … integer literals, and <code>#x</code> any integer literal, binding
-      <code>x</code> to its integer. <code>Plus (x, 0)</code> is thus
-      <code>Plus (x, Int 0)</code>.
+      <code>notation Bool</code> and <code>notation Int</code> give the literal patterns of these
+      leaves, a sugar of patterns: <code>true</code> and <code>false</code> stand for
+      <code>Bool true</code> and <code>Bool false</code>, the numerals <code>0</code>,
+      <code>1</code>, <code>-1</code>, … for <code>Int 0</code>, …, <code>#x</code> for
+      <code>Int x</code> or <code>Bool x</code>, binding <code>x</code> to the integer or the
+      boolean, and <code>#_</code> for <code>Int _</code> or <code>Bool _</code>.
+      <code>Plus (x, 0)</code> is thus <code>Plus (x, Int 0)</code>.
+    </li>
+    <li>
+      Kanon resolves a literal by its kind (a numeral is an <code>Int</code>), then by the sort of
+      its position: <code>#x</code> is an <code>Int</code> as an operand of <code>Plus</code>.
+      Where neither decides, as for <code>#x</code> as an operand of <code>Eq</code>, of any sort,
+      the rule names the node: <code>Int x</code>.
     </li>
   </ul>
   <p>
@@ -151,7 +161,7 @@ node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
     The rewrites are on whole terms: in <code>rule not_ : Not v</code>, the case of
     <code>[@invol]</code> is <code>not x -> x</code>, on the operand <code>v</code>.
     <code>[@fold f]</code> folds literals with the function <code>f</code>, and makes a term of
-    its result with the literal node of its type: <code>Bool</code> for a <code>bool</code>,
+    its result with the notation of its type: <code>Bool</code> for a <code>bool</code>,
     <code>Int</code> for an <code>int</code> (<code>[@fold f lift]</code> names another function
     or node). <code>[@unit c]</code> and <code>[@zero c]</code> take the literal <code>0</code>,
     <code>1</code>, <code>true</code> or <code>false</code>, or a named constant;
@@ -213,14 +223,14 @@ rule plus : Plus (v1, v2)`}
 
 rule eq : Eq (v1, v2) =
   | same: x == x -> Bool true
-  | lits: #x == #y -> Bool (x = y)
+  | lits: Int x == Int y -> Bool (x = y)
   | true_: true == x -> x
-  | neg: #x == y when x < 0 && is_nat y -> Bool false`}
+  | neg: Int x == y when x < 0 && is_nat y -> Bool false`}
   />
   <ul>
     <li>
       Patterns match the kind of a term directly, with the literal patterns (<code>true</code>,
-      <code>0</code>, <code>#x</code>) of the literal nodes.
+      <code>0</code>, <code>#x</code>) of the notations.
     </li>
     <li>
       In expressions, <code>x + Int (a + b)</code> calls the smart constructor <code>plus</code>
@@ -274,7 +284,8 @@ fn is_nat (v : t) : bool =
     module relative to the file, and <code>use +bool</code> the module of booleans built into
     <code>kanon</code>: boolean literals, <code>Not</code>, <code>And</code>, <code>Or</code>,
     equality (<code>Eq</code>), conditionals (<code>Ite</code>) and <code>Distinct</code>, with
-    their rules. The language adds its own nodes, here its variables.
+    their rules (all of it in the <a href="sandbox.html#example=builtin-bool">sandbox</a>). The
+    language adds its own nodes, here its variables.
   </p>
   <Code
     code={`[@@@ocaml_prims "Prims"]
@@ -299,14 +310,14 @@ node Var of var`}
   </p>
   <Code
     code={`extend rule sem_eq before same =
-  | ints: #x == #y -> of_bool (x = y)
+  | ints: Int x == Int y -> of_bool (x = y)
 
 extend fn sure_neq =
   | Int x, Int y -> not (x = y)`}
   />
   <p>
     A word declared as an operator, like <code>lt</code> below, is an infix operator in the rest of
-    the files, at the precedence of comparisons, and no longer a name.
+    the files, at the precedence of <code>*</code>, and no longer a name.
   </p>
   <Example id="modules" ocaml="ocaml" lean="lean-soundness" />
 
@@ -319,7 +330,8 @@ extend fn sure_neq =
     code={`sort TArray of nat [@get length]
 
 node Get of nat (i) : TArray n -> TInt when i < n
-node Concat : TArray n -> TArray m -> TArray (n + m)`}
+node Concat : TArray n -> TArray m -> TArray (n + m)
+node Fill of int : TArray n`}
   />
   <ul>
     <li>
@@ -329,21 +341,24 @@ node Concat : TArray n -> TArray m -> TArray (n + m)`}
     </li>
     <li>
       Nodes build terms at the sort that their typing infers: <code>Concat (l, r)</code> has the
-      sort <code>TArray (n + m)</code>, from the sorts of <code>l</code> and <code>r</code>.
+      sort <code>TArray (n + m)</code>, from the sorts of <code>l</code> and <code>r</code>. The
+      sort of <code>Fill z</code>, an array of <code>z</code>s, is not determined by its
+      argument: it is built at an explicit sort, <code>(Fill z : TArray n)</code>.
     </li>
     <li>
       <code>[@get length]</code>: the helper <code>length</code> reads the argument of the sort of a
       term, which Kanon then calls rather than matching the sort.
     </li>
     <li>
-      An operand of a spec may be annotated with its sort, to bind its variables in the rules:
-      <code>rule get : Get (i, (a : TArray n))</code> uses <code>n</code>.
+      An operand of a spec, or a parameter of a helper, may be annotated with its sort, to bind its
+      variables: <code>rule get : Get (i, (a : TArray n))</code> and
+      <code>fn last (a : TArray n) : t = Get (n - 1, a)</code> use <code>n</code>. The generated
+      OCaml asserts the sort on entry.
     </li>
   </ul>
   <p>
-    Soteria's symbolic values, with bit-vectors whose literals have an abstract type
-    (<code>[@literal v]</code>, see the <a href="reference.html#on-nodes">reference</a>),
-    are written in Kanon.
+    Soteria's symbolic values, with bit-vectors whose width is in their sort, are written in
+    Kanon (see the <a href="reference.html#notation">reference</a>).
   </p>
 
   <Heading level={2} id="generated">What Kanon generates</Heading>

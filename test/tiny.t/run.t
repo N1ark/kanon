@@ -10,6 +10,15 @@ and primitives).
   
   type var = string
   
+  and checked = Tiny_base.checked = {
+    signed : bool;
+    unsigned : bool;
+  }
+  
+  and rounding = Tiny_base.rounding =
+    | Nearest
+    | Zero
+  
   and kind =
     | Var of var
     | Bool of bool
@@ -46,6 +55,23 @@ and primitives).
   and equal_var (a : var) (b : var) = String.equal a b
   
   and hash_var (a : var) = Hashtbl.hash a
+  
+  and equal_checked (a : checked) (b : checked) =
+    Bool.equal a.signed b.signed && Bool.equal a.unsigned b.unsigned
+  
+  and hash_checked (a : checked) =
+    hash_combine (Bool.to_int a.signed) (Bool.to_int a.unsigned)
+  
+  and equal_rounding (a : rounding) (b : rounding) =
+    match (a, b) with
+    | Nearest, Nearest -> true
+    | Zero, Zero -> true
+    | _ -> false
+  
+  and hash_rounding (a : rounding) =
+    match a with
+    | Nearest -> 0
+    | Zero -> 1
   
   and equal_kind (a : kind) (b : kind) =
     match (a, b) with
@@ -243,6 +269,18 @@ The rules, in the scope of the types:
         (of_bool ((Z.equal x y)))
       | _ -> (node (mk_commut_binop Eq v1 v2) TBool)
       ))
+  
+  let is_zero (v : t) : bool =
+      (assert ((match v.ty with
+               | (TInt) -> true
+               | _ -> false
+               ) [@warning "-11"]);
+      (match v with
+      | { kind = Int (kanon__1); _ } when (((Z.equal kanon__1 Z.zero))) -> true
+      | _ -> false
+      ))
+  
+  let zero : t = (node (Int (Z.zero)) TInt)
   
   
 
@@ -900,19 +938,18 @@ OCaml asserts, and whose variables the rules may use.
   > KN
   $ kanon ocaml lang.knl word.knl word.kn | sed -n '/let trunc/,$p'
   let trunc (v : t) : t =
+      (let n = (match v.ty with
+               | (TWord (n)) -> let n = Z.of_int n in n
+               | _ -> (assert false)
+               ) in
       (assert ((match v.ty with
                | (TWord (kanon__n)) -> true
                | _ -> false
                ) [@warning "-11"]);
       (match v with
-      | _
-        when ((Z.leq (match v.ty with
-                     | (TWord (n)) -> let n = Z.of_int n in n
-                     | _ -> (assert false)
-                     ) (Z.of_int (8)))) ->
-        v
+      | _ when ((Z.leq n (Z.of_int (8)))) -> v
       | _ -> (node (Op1 (Trunc, v)) v.ty)
-      ))
+      )))
   
   
 
@@ -921,24 +958,26 @@ With a getter, the variables of the sort are read by it.
   $ sed 's/^sort TWord of nat$/sort TWord of nat [@get width]/' word.knl > getter.knl
   $ kanon ocaml lang.knl getter.knl word.kn | sed -n '/let trunc/,$p'
   let trunc (v : t) : t =
+      (let n = (width v) in
       (assert ((match v.ty with
                | (TWord (kanon__n)) -> true
                | _ -> false
                ) [@warning "-11"]);
       (match v with
-      | _ when ((Z.leq (width v) (Z.of_int (8)))) -> v
+      | _ when ((Z.leq n (Z.of_int (8)))) -> v
       | _ -> (node (Op1 (Trunc, v)) v.ty)
-      ))
+      )))
   
   
 
-Only the operands of a spec have sorts.
+Only the operands of a spec, the parameters of functions and the nodes that
+are built are annotated with sorts.
 
   $ cat > bad_sort.kn <<'KN'
   > fn f (v : t) : t = (v : TBool)
   > KN
   $ kanon ocaml lang.knl bad_sort.kn
-  bad_sort.kn:1:19: only the operands of a spec are annotated with their sort
+  bad_sort.kn:1:19: only the operands of a spec, the parameters of functions and nodes, (C args : S args), are annotated with a sort
   [1]
 
 A case that an earlier case without a guard already matches is never taken,
