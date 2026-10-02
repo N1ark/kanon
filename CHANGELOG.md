@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+
 ## 0.2.0 (2026-10-02)
 
 ### Added

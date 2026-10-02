@@ -75,6 +75,17 @@ A language is declared in `.knl` files, by `use`, `type`, `sort`, `node`,
 [reference](https://n1ark.github.io/kanon/reference.html) lists them, with
 every attribute.
 
+### Documentation comments
+
+A comment `(** ... *)` right before a `type`, `sort`, `node`, `prim`, `oracle`,
+`fn` or `rule` documents it: the generated OCaml carries it as `(** ... *)` and
+the generated Lean as `/-- ... -/`. A plain comment `(* ... *)` is ignored.
+
+```ocaml
+(** The sum of two integers. *)
+node Add : TInt -> TInt -> TInt
+```
+
 ### Types
 
 ```ocaml
