@@ -49,3 +49,22 @@
  (preprocess
   (pps kanon.ppx_include_file))
  (preprocessor_deps bool_types.gen.ml bool_rules.gen.ml))
+
+; The literals of a [@fold] law do not capture the parameters of the node,
+; named like them (hygiene/lang.knl).
+
+(rule
+ (deps
+  (glob_files hygiene/*.kn*))
+ (action
+  (with-stdout-to
+   hyg_types.ml
+   (run %{bin:kanon} ocaml-types hygiene/lang.knl))))
+
+(rule
+ (deps
+  (glob_files hygiene/*.kn*))
+ (action
+  (with-stdout-to
+   hyg_rules.ml
+   (run %{bin:kanon} ocaml hygiene/lang.knl))))

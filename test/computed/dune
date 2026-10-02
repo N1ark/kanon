@@ -1,0 +1,22 @@
+; Nodes built at a computed sort: the generated OCaml compiles, and builds the
+; nodes at the expected sorts (see ../computed_sort.t).
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   cs_types.ml
+   (run %{bin:kanon} ocaml-types lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   cs_rules.ml
+   (run %{bin:kanon} ocaml lang.knl))))
+
+(test
+ (name main)
+ (libraries zarith))
