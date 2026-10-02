@@ -1,0 +1,9 @@
+[@@@ocaml_types "Rt_types"]
+[@@@ocaml_prims "Rt_prims"]
+
+use "rules"
+
+sort TBv of nat [@get size]
+node Bv of int * nat (v, n) : TBv n
+node Neg : TBv n -> TBv n
+node Ext of nat * nat (from', to') : TBv n -> TBv (to' - from' + 1) when 0 <= from' && from' <= to' && to' < n
