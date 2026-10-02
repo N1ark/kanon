@@ -486,6 +486,25 @@ val bv_div : [< sint ] t -> [< nonzero ] t -> [> sint_ovf ] t
   of the sort: `[< 'a sseq ] t`. The width, and other values of a sort, are
   erased: Kanon does not check them. A sort with no tag, or a sort that its
   typing does not determine, has any tag, `_ t`.
+- The declarations of the tag types are emitted after those that they mention
+  (`any` after `sint` and the `sbool` of the bool module, wherever they are
+  declared; a type may mention itself, as in `any sseq`); two that mention each
+  other are an error.
+- A parameter of a node that is a `nat` is an `int`, like the arguments of a
+  sort, and an `int` is a `Z.t`. A sort that is a parameter (`ty`) is a `raw_ty`,
+  since its tag is not known, and a term that is a parameter and not an operand
+  (the body of `Exists of (var * ty) list * t`) is `_ t`: any tag. An `Exists`
+  node is therefore `val mk_exists : (var * raw_ty) list -> _ t -> [> sbool ] t`.
+- A rule function has a `val` whatever its spec. When the spec is a node over
+  the parameters of the function, it is typed as the node. Otherwise it is typed
+  by the outermost node of the spec: the result has its tag, a parameter that
+  is one of its operands has the tag of that operand, and any other parameter
+  has any tag, `_ t`; a spec that is not a node (a call of a function) has any
+  tag everywhere. For instance `rule bv_to_bool (v : t) : Not (Eq (v, bv_zero
+  (size v)))` is `_ t -> [> sbool ] t`, and `rule bv_lt_zero (v : t) : Lt (true,
+  v, bv_zero (size v))` is `[< sint ] t -> [> sbool ] t`. A `[@ghost]` after the
+  spec of the rule, `rule bv_to_bool (v : t) : ... [@ghost sint sbool]`, gives
+  the tags of its term parameters, then of the result, and replaces the above.
 - `[@ghost "t1" ... "tn"]` on a node overrides it with the tags of its operands
   and then of its result (a leaf has one, and an n-ary node two). Such
   refinements, `zero`, `nonzero` or `overflowed` for the integers, are trusted:

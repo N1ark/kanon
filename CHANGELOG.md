@@ -4,7 +4,7 @@
 
 ### Added
 
-- The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`.
+- The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`. `[@ghost t1 ... tn]` after the spec of a rule function sets its tags, and rule functions whose spec is not a single node get a `val` too.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
 
 ## 0.2.0 (2026-10-02)
