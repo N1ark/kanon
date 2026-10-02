@@ -12,7 +12,39 @@ namespace BoolExample
 
 open Classical Kanon
 
-theorem b_and.r_same.main.ok : b_and.r_same.main.Stmt := kanon_proof% b_and.r_same.main
+/-- The rule functions, oracles and helpers of the bool module in the model, for the proofs
+of its arms by Kanon's library (`Kanon.BoolMod`). -/
+def Ops.bool (O : Ops) : BoolMod.Ops boolLang where
+  b_and := O.b_and
+  b_or := O.b_or
+  b_not := O.b_not
+  b_ite := O.b_ite
+  sem_eq := O.sem_eq
+  tag_le := O.orc.tag_le
+  sort_by_tag := O.orc.sort_by_tag
+  at_most_one := at_most_one
+  distinct_check_one := distinct_check_one
+  distinct_check := distinct_check
+
+theorem Ops.Sound.bool {O : Ops} (hO : O.Sound) : O.bool.Sound where
+  b_and := hO.b_and
+  b_or := hO.b_or
+  b_not := hO.b_not
+  b_ite := hO.b_ite
+  sem_eq := hO.sem_eq
+  sort_by_tag := hO.orc.sort_by_tag
+  at_most_one _ _ _ := rfl
+  distinct_check_one_nil _ := by
+    dsimp only [Ops.bool]; rw [distinct_check_one]; rfl
+  distinct_check_one_cons _ _ _ := by
+    dsimp only [Ops.bool]; rw [distinct_check_one]; rfl
+  distinct_check_nil := by
+    dsimp only [Ops.bool]; rw [distinct_check]; rfl
+  distinct_check_cons _ _ := by
+    dsimp only [Ops.bool]; rw [distinct_check]; split <;> simp_all [firstSome]
+
+theorem b_and.r_same.main.ok : b_and.r_same.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_same.main boolLang O.bool hO.bool
 
 theorem b_and.r_same.proof : b_and.r_same.Stmt := by
   intro O hO v1 v2 res h
@@ -20,13 +52,11 @@ theorem b_and.r_same.proof : b_and.r_same.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_and.r_same.main.ok O hO)
 
-theorem b_and.r_false_.main.ok : b_and.r_false_.main.Stmt := kanon_proof% b_and.r_false_.main
+theorem b_and.r_false_.main.ok : b_and.r_false_.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_false_.main boolLang O.bool hO.bool
 
-theorem b_and.r_false_.swap.ok : b_and.r_false_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_false_.main.ok O hO v1 t__2)
+theorem b_and.r_false_.swap.ok : b_and.r_false_.swap.Stmt :=
+  fun O hO => BoolMod.b_and.r_false_.swap boolLang O.bool hO.bool
 
 theorem b_and.r_false_.proof : b_and.r_false_.Stmt := by
   intro O hO v1 v2 res h
@@ -35,13 +65,11 @@ theorem b_and.r_false_.proof : b_and.r_false_.Stmt := by
   · kanon_arm h (b_and.r_false_.main.ok O hO)
   · kanon_arm h (b_and.r_false_.swap.ok O hO)
 
-theorem b_and.r_true_.main.ok : b_and.r_true_.main.Stmt := kanon_proof% b_and.r_true_.main
+theorem b_and.r_true_.main.ok : b_and.r_true_.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_true_.main boolLang O.bool hO.bool
 
-theorem b_and.r_true_.swap.ok : b_and.r_true_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_true_.main.ok O hO v1 t__2)
+theorem b_and.r_true_.swap.ok : b_and.r_true_.swap.Stmt :=
+  fun O hO => BoolMod.b_and.r_true_.swap boolLang O.bool hO.bool
 
 theorem b_and.r_true_.proof : b_and.r_true_.Stmt := by
   intro O hO v1 v2 res h
@@ -50,13 +78,11 @@ theorem b_and.r_true_.proof : b_and.r_true_.Stmt := by
   · kanon_arm h (b_and.r_true_.main.ok O hO)
   · kanon_arm h (b_and.r_true_.swap.ok O hO)
 
-theorem b_and.r_not.main.ok : b_and.r_not.main.Stmt := kanon_proof% b_and.r_not.main
+theorem b_and.r_not.main.ok : b_and.r_not.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_not.main boolLang O.bool hO.bool
 
-theorem b_and.r_not.swap.ok : b_and.r_not.swap.Stmt := by
-  intro O hO v2 kanon__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_not.main.ok O hO v2 kanon__3 t__4 hg)
+theorem b_and.r_not.swap.ok : b_and.r_not.swap.Stmt :=
+  fun O hO => BoolMod.b_and.r_not.swap boolLang O.bool hO.bool
 
 theorem b_and.r_not.proof : b_and.r_not.Stmt := by
   intro O hO v1 v2 res h
@@ -65,17 +91,17 @@ theorem b_and.r_not.proof : b_and.r_not.Stmt := by
   · kanon_arm h (b_and.r_not.main.ok O hO)
   · kanon_arm h (b_and.r_not.swap.ok O hO)
 
-theorem b_and.r_and_.main.ok : b_and.r_and_.main.Stmt := kanon_proof% b_and.r_and_.main
+theorem b_and.r_and_.main.ok : b_and.r_and_.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_and_.main boolLang O.bool hO.bool
 
-theorem b_and.r_and_.swap1.ok : b_and.r_and_.swap1.Stmt := kanon_proof% b_and.r_and_.swap1
+theorem b_and.r_and_.swap1.ok : b_and.r_and_.swap1.Stmt :=
+  fun O hO => BoolMod.b_and.r_and_.swap1 boolLang O.bool hO.bool
 
-theorem b_and.r_and_.swap2.ok : b_and.r_and_.swap2.Stmt := by
-  intro O hO v1 a w__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_and_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_and.r_and_.swap2.ok : b_and.r_and_.swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_and_.swap2 boolLang O.bool hO.bool
 
-theorem b_and.r_and_.swap1_swap2.ok : b_and.r_and_.swap1_swap2.Stmt := kanon_proof% b_and.r_and_.swap1_swap2
+theorem b_and.r_and_.swap1_swap2.ok : b_and.r_and_.swap1_swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_and_.swap1_swap2 boolLang O.bool hO.bool
 
 theorem b_and.r_and_.proof : b_and.r_and_.Stmt := by
   intro O hO v1 v2 res h
@@ -86,25 +112,17 @@ theorem b_and.r_and_.proof : b_and.r_and_.Stmt := by
   · kanon_arm h (b_and.r_and_.swap2.ok O hO)
   · kanon_arm h (b_and.r_and_.swap1_swap2.ok O hO)
 
-theorem b_and.r_or_.main.ok : b_and.r_or_.main.Stmt := kanon_proof% b_and.r_or_.main
+theorem b_and.r_or_.main.ok : b_and.r_or_.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_or_.main boolLang O.bool hO.bool
 
-theorem b_and.r_or_.swap1.ok : b_and.r_or_.swap1.Stmt := by
-  intro O hO v2 w__3 a t__4 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_or_.main.ok O hO v2 a w__3 t__4 hg)
+theorem b_and.r_or_.swap1.ok : b_and.r_or_.swap1.Stmt :=
+  fun O hO => BoolMod.b_and.r_or_.swap1 boolLang O.bool hO.bool
 
-theorem b_and.r_or_.swap2.ok : b_and.r_or_.swap2.Stmt := by
-  intro O hO v1 a w__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_or_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_and.r_or_.swap2.ok : b_and.r_or_.swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_or_.swap2 boolLang O.bool hO.bool
 
-theorem b_and.r_or_.swap1_swap2.ok : b_and.r_or_.swap1_swap2.Stmt := by
-  intro O hO v1 w__3 a t__4 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_or_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_and.r_or_.swap1_swap2.ok : b_and.r_or_.swap1_swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_or_.swap1_swap2 boolLang O.bool hO.bool
 
 theorem b_and.r_or_.proof : b_and.r_or_.Stmt := by
   intro O hO v1 v2 res h
@@ -115,25 +133,17 @@ theorem b_and.r_or_.proof : b_and.r_or_.Stmt := by
   · kanon_arm h (b_and.r_or_.swap2.ok O hO)
   · kanon_arm h (b_and.r_or_.swap1_swap2.ok O hO)
 
-theorem b_and.r_eq_neq.main.ok : b_and.r_eq_neq.main.Stmt := kanon_proof% b_and.r_eq_neq.main
+theorem b_and.r_eq_neq.main.ok : b_and.r_eq_neq.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_eq_neq.main boolLang O.bool hO.bool
 
-theorem b_and.r_eq_neq.swap2.ok : b_and.r_eq_neq.swap2.Stmt := by
-  intro O hO a x t__4 y kanon__7 t__9 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+theorem b_and.r_eq_neq.swap2.ok : b_and.r_eq_neq.swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_eq_neq.swap2 boolLang O.bool hO.bool
 
-theorem b_and.r_eq_neq.swap1.ok : b_and.r_eq_neq.swap1.Stmt := by
-  intro O hO x a t__4 kanon__7 y t__9 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+theorem b_and.r_eq_neq.swap1.ok : b_and.r_eq_neq.swap1.Stmt :=
+  fun O hO => BoolMod.b_and.r_eq_neq.swap1 boolLang O.bool hO.bool
 
-theorem b_and.r_eq_neq.swap1_swap2.ok : b_and.r_eq_neq.swap1_swap2.Stmt := by
-  intro O hO x a t__4 y kanon__7 t__9 hg
-  exact Refinement.trans
-    (by simp only [b_and.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_and.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+theorem b_and.r_eq_neq.swap1_swap2.ok : b_and.r_eq_neq.swap1_swap2.Stmt :=
+  fun O hO => BoolMod.b_and.r_eq_neq.swap1_swap2 boolLang O.bool hO.bool
 
 theorem b_and.r_eq_neq.proof : b_and.r_eq_neq.Stmt := by
   intro O hO v1 v2 res h
@@ -144,7 +154,8 @@ theorem b_and.r_eq_neq.proof : b_and.r_eq_neq.Stmt := by
   · kanon_arm h (b_and.r_eq_neq.swap1.ok O hO)
   · kanon_arm h (b_and.r_eq_neq.swap1_swap2.ok O hO)
 
-theorem b_and.r_default.main.ok : b_and.r_default.main.Stmt := kanon_proof% b_and.r_default.main
+theorem b_and.r_default.main.ok : b_and.r_default.main.Stmt :=
+  fun O hO => BoolMod.b_and.r_default.main boolLang O.bool hO.bool
 
 theorem b_and.r_default.proof : b_and.r_default.Stmt := by
   intro O hO v1 v2 res h
@@ -152,7 +163,8 @@ theorem b_and.r_default.proof : b_and.r_default.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_and.r_default.main.ok O hO)
 
-theorem b_or.r_same.main.ok : b_or.r_same.main.Stmt := kanon_proof% b_or.r_same.main
+theorem b_or.r_same.main.ok : b_or.r_same.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_same.main boolLang O.bool hO.bool
 
 theorem b_or.r_same.proof : b_or.r_same.Stmt := by
   intro O hO v1 v2 res h
@@ -160,13 +172,11 @@ theorem b_or.r_same.proof : b_or.r_same.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_or.r_same.main.ok O hO)
 
-theorem b_or.r_true_.main.ok : b_or.r_true_.main.Stmt := kanon_proof% b_or.r_true_.main
+theorem b_or.r_true_.main.ok : b_or.r_true_.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_true_.main boolLang O.bool hO.bool
 
-theorem b_or.r_true_.swap.ok : b_or.r_true_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_true_.main.ok O hO v1 t__2)
+theorem b_or.r_true_.swap.ok : b_or.r_true_.swap.Stmt :=
+  fun O hO => BoolMod.b_or.r_true_.swap boolLang O.bool hO.bool
 
 theorem b_or.r_true_.proof : b_or.r_true_.Stmt := by
   intro O hO v1 v2 res h
@@ -175,13 +185,11 @@ theorem b_or.r_true_.proof : b_or.r_true_.Stmt := by
   · kanon_arm h (b_or.r_true_.main.ok O hO)
   · kanon_arm h (b_or.r_true_.swap.ok O hO)
 
-theorem b_or.r_false_.main.ok : b_or.r_false_.main.Stmt := kanon_proof% b_or.r_false_.main
+theorem b_or.r_false_.main.ok : b_or.r_false_.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_false_.main boolLang O.bool hO.bool
 
-theorem b_or.r_false_.swap.ok : b_or.r_false_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_false_.main.ok O hO v1 t__2)
+theorem b_or.r_false_.swap.ok : b_or.r_false_.swap.Stmt :=
+  fun O hO => BoolMod.b_or.r_false_.swap boolLang O.bool hO.bool
 
 theorem b_or.r_false_.proof : b_or.r_false_.Stmt := by
   intro O hO v1 v2 res h
@@ -190,13 +198,11 @@ theorem b_or.r_false_.proof : b_or.r_false_.Stmt := by
   · kanon_arm h (b_or.r_false_.main.ok O hO)
   · kanon_arm h (b_or.r_false_.swap.ok O hO)
 
-theorem b_or.r_not.main.ok : b_or.r_not.main.Stmt := kanon_proof% b_or.r_not.main
+theorem b_or.r_not.main.ok : b_or.r_not.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_not.main boolLang O.bool hO.bool
 
-theorem b_or.r_not.swap.ok : b_or.r_not.swap.Stmt := by
-  intro O hO v2 kanon__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_not.main.ok O hO v2 kanon__3 t__4 hg)
+theorem b_or.r_not.swap.ok : b_or.r_not.swap.Stmt :=
+  fun O hO => BoolMod.b_or.r_not.swap boolLang O.bool hO.bool
 
 theorem b_or.r_not.proof : b_or.r_not.Stmt := by
   intro O hO v1 v2 res h
@@ -205,17 +211,17 @@ theorem b_or.r_not.proof : b_or.r_not.Stmt := by
   · kanon_arm h (b_or.r_not.main.ok O hO)
   · kanon_arm h (b_or.r_not.swap.ok O hO)
 
-theorem b_or.r_or_.main.ok : b_or.r_or_.main.Stmt := kanon_proof% b_or.r_or_.main
+theorem b_or.r_or_.main.ok : b_or.r_or_.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_or_.main boolLang O.bool hO.bool
 
-theorem b_or.r_or_.swap1.ok : b_or.r_or_.swap1.Stmt := kanon_proof% b_or.r_or_.swap1
+theorem b_or.r_or_.swap1.ok : b_or.r_or_.swap1.Stmt :=
+  fun O hO => BoolMod.b_or.r_or_.swap1 boolLang O.bool hO.bool
 
-theorem b_or.r_or_.swap2.ok : b_or.r_or_.swap2.Stmt := by
-  intro O hO v1 a w__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_or_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_or.r_or_.swap2.ok : b_or.r_or_.swap2.Stmt :=
+  fun O hO => BoolMod.b_or.r_or_.swap2 boolLang O.bool hO.bool
 
-theorem b_or.r_or_.swap1_swap2.ok : b_or.r_or_.swap1_swap2.Stmt := kanon_proof% b_or.r_or_.swap1_swap2
+theorem b_or.r_or_.swap1_swap2.ok : b_or.r_or_.swap1_swap2.Stmt :=
+  fun O hO => BoolMod.b_or.r_or_.swap1_swap2 boolLang O.bool hO.bool
 
 theorem b_or.r_or_.proof : b_or.r_or_.Stmt := by
   intro O hO v1 v2 res h
@@ -226,25 +232,17 @@ theorem b_or.r_or_.proof : b_or.r_or_.Stmt := by
   · kanon_arm h (b_or.r_or_.swap2.ok O hO)
   · kanon_arm h (b_or.r_or_.swap1_swap2.ok O hO)
 
-theorem b_or.r_and_.main.ok : b_or.r_and_.main.Stmt := kanon_proof% b_or.r_and_.main
+theorem b_or.r_and_.main.ok : b_or.r_and_.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_and_.main boolLang O.bool hO.bool
 
-theorem b_or.r_and_.swap1.ok : b_or.r_and_.swap1.Stmt := by
-  intro O hO v2 w__3 a t__4 hg
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_and_.main.ok O hO v2 a w__3 t__4 hg)
+theorem b_or.r_and_.swap1.ok : b_or.r_and_.swap1.Stmt :=
+  fun O hO => BoolMod.b_or.r_and_.swap1 boolLang O.bool hO.bool
 
-theorem b_or.r_and_.swap2.ok : b_or.r_and_.swap2.Stmt := by
-  intro O hO v1 a w__3 t__4 hg
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_and_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_or.r_and_.swap2.ok : b_or.r_and_.swap2.Stmt :=
+  fun O hO => BoolMod.b_or.r_and_.swap2 boolLang O.bool hO.bool
 
-theorem b_or.r_and_.swap1_swap2.ok : b_or.r_and_.swap1_swap2.Stmt := by
-  intro O hO v1 w__3 a t__4 hg
-  exact Refinement.trans
-    (by simp only [b_or.spec, ty, Term.ty_mk]; kanon_comm)
-    (b_or.r_and_.main.ok O hO v1 a w__3 t__4 hg)
+theorem b_or.r_and_.swap1_swap2.ok : b_or.r_and_.swap1_swap2.Stmt :=
+  fun O hO => BoolMod.b_or.r_and_.swap1_swap2 boolLang O.bool hO.bool
 
 theorem b_or.r_and_.proof : b_or.r_and_.Stmt := by
   intro O hO v1 v2 res h
@@ -255,7 +253,8 @@ theorem b_or.r_and_.proof : b_or.r_and_.Stmt := by
   · kanon_arm h (b_or.r_and_.swap2.ok O hO)
   · kanon_arm h (b_or.r_and_.swap1_swap2.ok O hO)
 
-theorem b_or.r_default.main.ok : b_or.r_default.main.Stmt := kanon_proof% b_or.r_default.main
+theorem b_or.r_default.main.ok : b_or.r_default.main.Stmt :=
+  fun O hO => BoolMod.b_or.r_default.main boolLang O.bool hO.bool
 
 theorem b_or.r_default.proof : b_or.r_default.Stmt := by
   intro O hO v1 v2 res h
@@ -263,7 +262,8 @@ theorem b_or.r_default.proof : b_or.r_default.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_or.r_default.main.ok O hO)
 
-theorem b_not.r_true_.main.ok : b_not.r_true_.main.Stmt := kanon_proof% b_not.r_true_.main
+theorem b_not.r_true_.main.ok : b_not.r_true_.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_true_.main boolLang O.bool hO.bool
 
 theorem b_not.r_true_.proof : b_not.r_true_.Stmt := by
   intro O hO sv res h
@@ -271,7 +271,8 @@ theorem b_not.r_true_.proof : b_not.r_true_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_true_.main.ok O hO)
 
-theorem b_not.r_false_.main.ok : b_not.r_false_.main.Stmt := kanon_proof% b_not.r_false_.main
+theorem b_not.r_false_.main.ok : b_not.r_false_.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_false_.main boolLang O.bool hO.bool
 
 theorem b_not.r_false_.proof : b_not.r_false_.Stmt := by
   intro O hO sv res h
@@ -279,7 +280,8 @@ theorem b_not.r_false_.proof : b_not.r_false_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_false_.main.ok O hO)
 
-theorem b_not.r_not.main.ok : b_not.r_not.main.Stmt := kanon_proof% b_not.r_not.main
+theorem b_not.r_not.main.ok : b_not.r_not.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_not.main boolLang O.bool hO.bool
 
 theorem b_not.r_not.proof : b_not.r_not.Stmt := by
   intro O hO sv res h
@@ -287,7 +289,8 @@ theorem b_not.r_not.proof : b_not.r_not.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_not.main.ok O hO)
 
-theorem b_not.r_or_.main.ok : b_not.r_or_.main.Stmt := kanon_proof% b_not.r_or_.main
+theorem b_not.r_or_.main.ok : b_not.r_or_.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_or_.main boolLang O.bool hO.bool
 
 theorem b_not.r_or_.proof : b_not.r_or_.Stmt := by
   intro O hO sv res h
@@ -295,7 +298,8 @@ theorem b_not.r_or_.proof : b_not.r_or_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_or_.main.ok O hO)
 
-theorem b_not.r_and_.main.ok : b_not.r_and_.main.Stmt := kanon_proof% b_not.r_and_.main
+theorem b_not.r_and_.main.ok : b_not.r_and_.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_and_.main boolLang O.bool hO.bool
 
 theorem b_not.r_and_.proof : b_not.r_and_.Stmt := by
   intro O hO sv res h
@@ -303,7 +307,8 @@ theorem b_not.r_and_.proof : b_not.r_and_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_and_.main.ok O hO)
 
-theorem b_not.r_ite.main.ok : b_not.r_ite.main.Stmt := kanon_proof% b_not.r_ite.main
+theorem b_not.r_ite.main.ok : b_not.r_ite.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_ite.main boolLang O.bool hO.bool
 
 theorem b_not.r_ite.proof : b_not.r_ite.Stmt := by
   intro O hO sv res h
@@ -311,7 +316,8 @@ theorem b_not.r_ite.proof : b_not.r_ite.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_ite.main.ok O hO)
 
-theorem b_not.r_distinct.main.ok : b_not.r_distinct.main.Stmt := kanon_proof% b_not.r_distinct.main
+theorem b_not.r_distinct.main.ok : b_not.r_distinct.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_distinct.main boolLang O.bool hO.bool
 
 theorem b_not.r_distinct.proof : b_not.r_distinct.Stmt := by
   intro O hO sv res h
@@ -319,7 +325,8 @@ theorem b_not.r_distinct.proof : b_not.r_distinct.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_distinct.main.ok O hO)
 
-theorem b_not.r_default.main.ok : b_not.r_default.main.Stmt := kanon_proof% b_not.r_default.main
+theorem b_not.r_default.main.ok : b_not.r_default.main.Stmt :=
+  fun O hO => BoolMod.b_not.r_default.main boolLang O.bool hO.bool
 
 theorem b_not.r_default.proof : b_not.r_default.Stmt := by
   intro O hO sv res h
@@ -327,7 +334,8 @@ theorem b_not.r_default.proof : b_not.r_default.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_not.r_default.main.ok O hO)
 
-theorem b_ite.r_true_.main.ok : b_ite.r_true_.main.Stmt := kanon_proof% b_ite.r_true_.main
+theorem b_ite.r_true_.main.ok : b_ite.r_true_.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_true_.main boolLang O.bool hO.bool
 
 theorem b_ite.r_true_.proof : b_ite.r_true_.Stmt := by
   intro O hO guard if_ else_ res h
@@ -335,7 +343,8 @@ theorem b_ite.r_true_.proof : b_ite.r_true_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_true_.main.ok O hO)
 
-theorem b_ite.r_false_.main.ok : b_ite.r_false_.main.Stmt := kanon_proof% b_ite.r_false_.main
+theorem b_ite.r_false_.main.ok : b_ite.r_false_.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_false_.main boolLang O.bool hO.bool
 
 theorem b_ite.r_false_.proof : b_ite.r_false_.Stmt := by
   intro O hO guard if_ else_ res h
@@ -343,7 +352,8 @@ theorem b_ite.r_false_.proof : b_ite.r_false_.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_false_.main.ok O hO)
 
-theorem b_ite.r_bool.main.ok : b_ite.r_bool.main.Stmt := kanon_proof% b_ite.r_bool.main
+theorem b_ite.r_bool.main.ok : b_ite.r_bool.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_bool.main boolLang O.bool hO.bool
 
 theorem b_ite.r_bool.proof : b_ite.r_bool.Stmt := by
   intro O hO guard if_ else_ res h
@@ -351,7 +361,8 @@ theorem b_ite.r_bool.proof : b_ite.r_bool.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_bool.main.ok O hO)
 
-theorem b_ite.r_not_bool.main.ok : b_ite.r_not_bool.main.Stmt := kanon_proof% b_ite.r_not_bool.main
+theorem b_ite.r_not_bool.main.ok : b_ite.r_not_bool.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_not_bool.main boolLang O.bool hO.bool
 
 theorem b_ite.r_not_bool.proof : b_ite.r_not_bool.Stmt := by
   intro O hO guard if_ else_ res h
@@ -359,7 +370,8 @@ theorem b_ite.r_not_bool.proof : b_ite.r_not_bool.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_not_bool.main.ok O hO)
 
-theorem b_ite.r_false_then.main.ok : b_ite.r_false_then.main.Stmt := kanon_proof% b_ite.r_false_then.main
+theorem b_ite.r_false_then.main.ok : b_ite.r_false_then.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_false_then.main boolLang O.bool hO.bool
 
 theorem b_ite.r_false_then.proof : b_ite.r_false_then.Stmt := by
   intro O hO guard if_ else_ res h
@@ -367,7 +379,8 @@ theorem b_ite.r_false_then.proof : b_ite.r_false_then.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_false_then.main.ok O hO)
 
-theorem b_ite.r_true_then.main.ok : b_ite.r_true_then.main.Stmt := kanon_proof% b_ite.r_true_then.main
+theorem b_ite.r_true_then.main.ok : b_ite.r_true_then.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_true_then.main boolLang O.bool hO.bool
 
 theorem b_ite.r_true_then.proof : b_ite.r_true_then.Stmt := by
   intro O hO guard if_ else_ res h
@@ -375,7 +388,8 @@ theorem b_ite.r_true_then.proof : b_ite.r_true_then.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_true_then.main.ok O hO)
 
-theorem b_ite.r_false_else.main.ok : b_ite.r_false_else.main.Stmt := kanon_proof% b_ite.r_false_else.main
+theorem b_ite.r_false_else.main.ok : b_ite.r_false_else.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_false_else.main boolLang O.bool hO.bool
 
 theorem b_ite.r_false_else.proof : b_ite.r_false_else.Stmt := by
   intro O hO guard if_ else_ res h
@@ -383,7 +397,8 @@ theorem b_ite.r_false_else.proof : b_ite.r_false_else.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_false_else.main.ok O hO)
 
-theorem b_ite.r_true_else.main.ok : b_ite.r_true_else.main.Stmt := kanon_proof% b_ite.r_true_else.main
+theorem b_ite.r_true_else.main.ok : b_ite.r_true_else.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_true_else.main boolLang O.bool hO.bool
 
 theorem b_ite.r_true_else.proof : b_ite.r_true_else.Stmt := by
   intro O hO guard if_ else_ res h
@@ -391,7 +406,8 @@ theorem b_ite.r_true_else.proof : b_ite.r_true_else.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_true_else.main.ok O hO)
 
-theorem b_ite.r_not_guard.main.ok : b_ite.r_not_guard.main.Stmt := kanon_proof% b_ite.r_not_guard.main
+theorem b_ite.r_not_guard.main.ok : b_ite.r_not_guard.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_not_guard.main boolLang O.bool hO.bool
 
 theorem b_ite.r_not_guard.proof : b_ite.r_not_guard.Stmt := by
   intro O hO guard if_ else_ res h
@@ -399,7 +415,8 @@ theorem b_ite.r_not_guard.proof : b_ite.r_not_guard.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_not_guard.main.ok O hO)
 
-theorem b_ite.r_guard_then.main.ok : b_ite.r_guard_then.main.Stmt := kanon_proof% b_ite.r_guard_then.main
+theorem b_ite.r_guard_then.main.ok : b_ite.r_guard_then.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_guard_then.main boolLang O.bool hO.bool
 
 theorem b_ite.r_guard_then.proof : b_ite.r_guard_then.Stmt := by
   intro O hO guard if_ else_ res h
@@ -407,7 +424,8 @@ theorem b_ite.r_guard_then.proof : b_ite.r_guard_then.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_guard_then.main.ok O hO)
 
-theorem b_ite.r_guard_else.main.ok : b_ite.r_guard_else.main.Stmt := kanon_proof% b_ite.r_guard_else.main
+theorem b_ite.r_guard_else.main.ok : b_ite.r_guard_else.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_guard_else.main boolLang O.bool hO.bool
 
 theorem b_ite.r_guard_else.proof : b_ite.r_guard_else.Stmt := by
   intro O hO guard if_ else_ res h
@@ -415,7 +433,8 @@ theorem b_ite.r_guard_else.proof : b_ite.r_guard_else.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_guard_else.main.ok O hO)
 
-theorem b_ite.r_ite_then.main.ok : b_ite.r_ite_then.main.Stmt := kanon_proof% b_ite.r_ite_then.main
+theorem b_ite.r_ite_then.main.ok : b_ite.r_ite_then.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_ite_then.main boolLang O.bool hO.bool
 
 theorem b_ite.r_ite_then.proof : b_ite.r_ite_then.Stmt := by
   intro O hO guard if_ else_ res h
@@ -423,7 +442,8 @@ theorem b_ite.r_ite_then.proof : b_ite.r_ite_then.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_ite_then.main.ok O hO)
 
-theorem b_ite.r_ite_else.main.ok : b_ite.r_ite_else.main.Stmt := kanon_proof% b_ite.r_ite_else.main
+theorem b_ite.r_ite_else.main.ok : b_ite.r_ite_else.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_ite_else.main boolLang O.bool hO.bool
 
 theorem b_ite.r_ite_else.proof : b_ite.r_ite_else.Stmt := by
   intro O hO guard if_ else_ res h
@@ -431,9 +451,11 @@ theorem b_ite.r_ite_else.proof : b_ite.r_ite_else.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_ite_else.main.ok O hO)
 
-theorem b_ite.r_and_ite_then.main.ok : b_ite.r_and_ite_then.main.Stmt := kanon_proof% b_ite.r_and_ite_then.main
+theorem b_ite.r_and_ite_then.main.ok : b_ite.r_and_ite_then.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_and_ite_then.main boolLang O.bool hO.bool
 
-theorem b_ite.r_and_ite_then.swap.ok : b_ite.r_and_ite_then.swap.Stmt := kanon_proof% b_ite.r_and_ite_then.swap
+theorem b_ite.r_and_ite_then.swap.ok : b_ite.r_and_ite_then.swap.Stmt :=
+  fun O hO => BoolMod.b_ite.r_and_ite_then.swap boolLang O.bool hO.bool
 
 theorem b_ite.r_and_ite_then.proof : b_ite.r_and_ite_then.Stmt := by
   intro O hO guard if_ else_ res h
@@ -442,9 +464,11 @@ theorem b_ite.r_and_ite_then.proof : b_ite.r_and_ite_then.Stmt := by
   · kanon_arm h (b_ite.r_and_ite_then.main.ok O hO)
   · kanon_arm h (b_ite.r_and_ite_then.swap.ok O hO)
 
-theorem b_ite.r_or_ite_else.main.ok : b_ite.r_or_ite_else.main.Stmt := kanon_proof% b_ite.r_or_ite_else.main
+theorem b_ite.r_or_ite_else.main.ok : b_ite.r_or_ite_else.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_or_ite_else.main boolLang O.bool hO.bool
 
-theorem b_ite.r_or_ite_else.swap.ok : b_ite.r_or_ite_else.swap.Stmt := kanon_proof% b_ite.r_or_ite_else.swap
+theorem b_ite.r_or_ite_else.swap.ok : b_ite.r_or_ite_else.swap.Stmt :=
+  fun O hO => BoolMod.b_ite.r_or_ite_else.swap boolLang O.bool hO.bool
 
 theorem b_ite.r_or_ite_else.proof : b_ite.r_or_ite_else.Stmt := by
   intro O hO guard if_ else_ res h
@@ -453,7 +477,8 @@ theorem b_ite.r_or_ite_else.proof : b_ite.r_or_ite_else.Stmt := by
   · kanon_arm h (b_ite.r_or_ite_else.main.ok O hO)
   · kanon_arm h (b_ite.r_or_ite_else.swap.ok O hO)
 
-theorem b_ite.r_same.main.ok : b_ite.r_same.main.Stmt := kanon_proof% b_ite.r_same.main
+theorem b_ite.r_same.main.ok : b_ite.r_same.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_same.main boolLang O.bool hO.bool
 
 theorem b_ite.r_same.proof : b_ite.r_same.Stmt := by
   intro O hO guard if_ else_ res h
@@ -461,7 +486,8 @@ theorem b_ite.r_same.proof : b_ite.r_same.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_same.main.ok O hO)
 
-theorem b_ite.r_default.main.ok : b_ite.r_default.main.Stmt := kanon_proof% b_ite.r_default.main
+theorem b_ite.r_default.main.ok : b_ite.r_default.main.Stmt :=
+  fun O hO => BoolMod.b_ite.r_default.main boolLang O.bool hO.bool
 
 theorem b_ite.r_default.proof : b_ite.r_default.Stmt := by
   intro O hO guard if_ else_ res h
@@ -469,7 +495,8 @@ theorem b_ite.r_default.proof : b_ite.r_default.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_ite.r_default.main.ok O hO)
 
-theorem sem_eq.r_same.main.ok : sem_eq.r_same.main.Stmt := kanon_proof% sem_eq.r_same.main
+theorem sem_eq.r_same.main.ok : sem_eq.r_same.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_same.main boolLang O.bool hO.bool
 
 theorem sem_eq.r_same.proof : sem_eq.r_same.Stmt := by
   intro O hO v1 v2 res h
@@ -477,7 +504,8 @@ theorem sem_eq.r_same.proof : sem_eq.r_same.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq.r_same.main.ok O hO)
 
-theorem sem_eq.r_bools.main.ok : sem_eq.r_bools.main.Stmt := kanon_proof% sem_eq.r_bools.main
+theorem sem_eq.r_bools.main.ok : sem_eq.r_bools.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_bools.main boolLang O.bool hO.bool
 
 theorem sem_eq.r_bools.proof : sem_eq.r_bools.Stmt := by
   intro O hO v1 v2 res h
@@ -485,7 +513,8 @@ theorem sem_eq.r_bools.proof : sem_eq.r_bools.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq.r_bools.main.ok O hO)
 
-theorem sem_eq.r_ite_ite.main.ok : sem_eq.r_ite_ite.main.Stmt := kanon_proof% sem_eq.r_ite_ite.main
+theorem sem_eq.r_ite_ite.main.ok : sem_eq.r_ite_ite.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_ite_ite.main boolLang O.bool hO.bool
 
 theorem sem_eq.r_ite_ite.proof : sem_eq.r_ite_ite.Stmt := by
   intro O hO v1 v2 res h
@@ -493,13 +522,11 @@ theorem sem_eq.r_ite_ite.proof : sem_eq.r_ite_ite.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq.r_ite_ite.main.ok O hO)
 
-theorem sem_eq.r_false_.main.ok : sem_eq.r_false_.main.Stmt := kanon_proof% sem_eq.r_false_.main
+theorem sem_eq.r_false_.main.ok : sem_eq.r_false_.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_false_.main boolLang O.bool hO.bool
 
-theorem sem_eq.r_false_.swap.ok : sem_eq.r_false_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [sem_eq.spec, ty, Term.ty_mk]; kanon_comm)
-    (sem_eq.r_false_.main.ok O hO v1 t__2)
+theorem sem_eq.r_false_.swap.ok : sem_eq.r_false_.swap.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_false_.swap boolLang O.bool hO.bool
 
 theorem sem_eq.r_false_.proof : sem_eq.r_false_.Stmt := by
   intro O hO v1 v2 res h
@@ -508,13 +535,11 @@ theorem sem_eq.r_false_.proof : sem_eq.r_false_.Stmt := by
   · kanon_arm h (sem_eq.r_false_.main.ok O hO)
   · kanon_arm h (sem_eq.r_false_.swap.ok O hO)
 
-theorem sem_eq.r_true_.main.ok : sem_eq.r_true_.main.Stmt := kanon_proof% sem_eq.r_true_.main
+theorem sem_eq.r_true_.main.ok : sem_eq.r_true_.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_true_.main boolLang O.bool hO.bool
 
-theorem sem_eq.r_true_.swap.ok : sem_eq.r_true_.swap.Stmt := by
-  intro O hO v1 t__2
-  exact Refinement.trans
-    (by simp only [sem_eq.spec, ty, Term.ty_mk]; kanon_comm)
-    (sem_eq.r_true_.main.ok O hO v1 t__2)
+theorem sem_eq.r_true_.swap.ok : sem_eq.r_true_.swap.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_true_.swap boolLang O.bool hO.bool
 
 theorem sem_eq.r_true_.proof : sem_eq.r_true_.Stmt := by
   intro O hO v1 v2 res h
@@ -523,7 +548,8 @@ theorem sem_eq.r_true_.proof : sem_eq.r_true_.Stmt := by
   · kanon_arm h (sem_eq.r_true_.main.ok O hO)
   · kanon_arm h (sem_eq.r_true_.swap.ok O hO)
 
-theorem sem_eq.r_nots.main.ok : sem_eq.r_nots.main.Stmt := kanon_proof% sem_eq.r_nots.main
+theorem sem_eq.r_nots.main.ok : sem_eq.r_nots.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_nots.main boolLang O.bool hO.bool
 
 theorem sem_eq.r_nots.proof : sem_eq.r_nots.Stmt := by
   intro O hO v1 v2 res h
@@ -531,7 +557,8 @@ theorem sem_eq.r_nots.proof : sem_eq.r_nots.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq.r_nots.main.ok O hO)
 
-theorem sem_eq.r_default.main.ok : sem_eq.r_default.main.Stmt := kanon_proof% sem_eq.r_default.main
+theorem sem_eq.r_default.main.ok : sem_eq.r_default.main.Stmt :=
+  fun O hO => BoolMod.sem_eq.r_default.main boolLang O.bool hO.bool
 
 theorem sem_eq.r_default.proof : sem_eq.r_default.Stmt := by
   intro O hO v1 v2 res h
@@ -539,7 +566,8 @@ theorem sem_eq.r_default.proof : sem_eq.r_default.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq.r_default.main.ok O hO)
 
-theorem sem_eq_untyped.r_ill_typed.main.ok : sem_eq_untyped.r_ill_typed.main.Stmt := kanon_proof% sem_eq_untyped.r_ill_typed.main
+theorem sem_eq_untyped.r_ill_typed.main.ok : sem_eq_untyped.r_ill_typed.main.Stmt :=
+  fun O hO => BoolMod.sem_eq_untyped.r_ill_typed.main boolLang O.bool hO.bool
 
 theorem sem_eq_untyped.r_ill_typed.proof : sem_eq_untyped.r_ill_typed.Stmt := by
   intro O hO v1 v2 res h
@@ -547,7 +575,8 @@ theorem sem_eq_untyped.r_ill_typed.proof : sem_eq_untyped.r_ill_typed.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq_untyped.r_ill_typed.main.ok O hO)
 
-theorem sem_eq_untyped.r_typed.main.ok : sem_eq_untyped.r_typed.main.Stmt := kanon_proof% sem_eq_untyped.r_typed.main
+theorem sem_eq_untyped.r_typed.main.ok : sem_eq_untyped.r_typed.main.Stmt :=
+  fun O hO => BoolMod.sem_eq_untyped.r_typed.main boolLang O.bool hO.bool
 
 theorem sem_eq_untyped.r_typed.proof : sem_eq_untyped.r_typed.Stmt := by
   intro O hO v1 v2 res h
@@ -555,7 +584,8 @@ theorem sem_eq_untyped.r_typed.proof : sem_eq_untyped.r_typed.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (sem_eq_untyped.r_typed.main.ok O hO)
 
-theorem b_distinct.r_small.main.ok : b_distinct.r_small.main.Stmt := kanon_proof% b_distinct.r_small.main
+theorem b_distinct.r_small.main.ok : b_distinct.r_small.main.Stmt :=
+  fun O hO => BoolMod.b_distinct.r_small.main boolLang O.bool hO.bool
 
 theorem b_distinct.r_small.proof : b_distinct.r_small.Stmt := by
   intro O hO l res h
@@ -563,7 +593,8 @@ theorem b_distinct.r_small.proof : b_distinct.r_small.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_distinct.r_small.main.ok O hO)
 
-theorem b_distinct.r_distinct.main.ok : b_distinct.r_distinct.main.Stmt := kanon_proof% b_distinct.r_distinct.main
+theorem b_distinct.r_distinct.main.ok : b_distinct.r_distinct.main.Stmt :=
+  fun O hO => BoolMod.b_distinct.r_distinct.main boolLang O.bool hO.bool
 
 theorem b_distinct.r_distinct.proof : b_distinct.r_distinct.Stmt := by
   intro O hO l res h
@@ -571,7 +602,8 @@ theorem b_distinct.r_distinct.proof : b_distinct.r_distinct.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_distinct.r_distinct.main.ok O hO)
 
-theorem b_distinct.r_not_distinct.main.ok : b_distinct.r_not_distinct.main.Stmt := kanon_proof% b_distinct.r_not_distinct.main
+theorem b_distinct.r_not_distinct.main.ok : b_distinct.r_not_distinct.main.Stmt :=
+  fun O hO => BoolMod.b_distinct.r_not_distinct.main boolLang O.bool hO.bool
 
 theorem b_distinct.r_not_distinct.proof : b_distinct.r_not_distinct.Stmt := by
   intro O hO l res h
@@ -579,7 +611,8 @@ theorem b_distinct.r_not_distinct.proof : b_distinct.r_not_distinct.Stmt := by
   repeat' rcases orElse_some h with h | h
   · kanon_arm h (b_distinct.r_not_distinct.main.ok O hO)
 
-theorem b_distinct.r_default.main.ok : b_distinct.r_default.main.Stmt := kanon_proof% b_distinct.r_default.main
+theorem b_distinct.r_default.main.ok : b_distinct.r_default.main.Stmt :=
+  fun O hO => BoolMod.b_distinct.r_default.main boolLang O.bool hO.bool
 
 theorem b_distinct.r_default.proof : b_distinct.r_default.Stmt := by
   intro O hO l res h

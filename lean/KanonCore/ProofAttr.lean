@@ -21,7 +21,8 @@ Lemmas:
   `ev_opt : ev ρ t = none ∨ ∃ v, ev ρ t = some v`, or one with hypotheses such as
   `ev_int : t.WT → t.ty = .TInt → ev ρ t = none ∨ ∃ z, ev ρ t = some (.int z)`).
   `kanon_cases` uses, for each atom, the first of them (in the order they are
-  tagged) whose hypotheses are in the context;
+  tagged) whose hypotheses are in the context (and determine its other
+  arguments);
 - `kanon_congr_lemma`: refining the operands of a node refines the node
   (`Refines a a' → … → Refines (op a …) (op a' …)`), for `kanon_congr` and
   `kanon_comm`;

@@ -1038,6 +1038,43 @@ let lifts ~sources ft (p : program) =
     (rule_fns ctx);
   pf ft "end Lib@ @ end %s@]@." (root ())
 
+(** Whether the case at [loc] is one of the bool module built into kanon
+    ([use +bool]), or derived from its laws: Kanon's Lean library proves its
+    arms once, for any language ([Kanon.BoolMod]). *)
+let in_bool_module (loc : Location.t) =
+  List.mem loc.loc_start.pos_fname [ "+bool.kn"; "+bool.knl" ]
+
+(** [x] applied to the parameters of the semantics, as an argument. *)
+let with_sem_args x =
+  if !lang.lean_params = [] then x else "(" ^ x ^ sem_args () ^ ")"
+
+(** The rule functions, oracles and helpers of the bool module in the model, for
+    the proofs of its arms by Kanon's library ([Kanon.BoolMod.Ops]), with the
+    proof of what these proofs assume of them, from [O.Sound]. *)
+let bool_ops ft =
+  pf ft
+    "/-- The rule functions, oracles and helpers of the bool module in the \
+     model, for the proofs@ of its arms by Kanon's library (`Kanon.BoolMod`). \
+     -/@ ";
+  pf ft
+    "@[<v 2>def Ops.bool %s(O : Ops) : BoolMod.Ops %s where@ b_and := O.b_and@ \
+     b_or := O.b_or@ b_not := O.b_not@ b_ite := O.b_ite@ sem_eq := O.sem_eq@ \
+     tag_le := O.orc.tag_le@ sort_by_tag := O.orc.sort_by_tag@ at_most_one := \
+     at_most_one@ distinct_check_one := distinct_check_one@ distinct_check := \
+     distinct_check@]@ @ "
+    (sem_binders ()) (with_sem_args "boolLang");
+  pf ft
+    "@[<v 2>theorem Ops.Sound.bool %s{O : Ops} (hO : O.Sound%s) : %s.Sound \
+     where@ b_and := hO.b_and@ b_or := hO.b_or@ b_not := hO.b_not@ b_ite := \
+     hO.b_ite@ sem_eq := hO.sem_eq@ sort_by_tag := hO.orc.sort_by_tag@ \
+     at_most_one _ _ _ := rfl@ distinct_check_one_nil _ := by@   dsimp only \
+     [Ops.bool]; rw [distinct_check_one]; rfl@ distinct_check_one_cons _ _ _ \
+     := by@   dsimp only [Ops.bool]; rw [distinct_check_one]; rfl@ \
+     distinct_check_nil := by@   dsimp only [Ops.bool]; rw [distinct_check]; \
+     rfl@ distinct_check_cons _ _ := by@   dsimp only [Ops.bool]; rw \
+     [distinct_check]; split <;> simp_all [firstSome]@]@ @ "
+    (sem_implicits ()) (sem_args ()) (with_sem_args "O.bool")
+
 (** The proofs of the rules of a [[@cases]] function from those of its arms, and
     of the arms derived by commutativity. *)
 let cases_proofs ft (f : fn) =
@@ -1046,6 +1083,14 @@ let cases_proofs ft (f : fn) =
       List.iteri
         (fun i a ->
           match derived_from arms a with
+          | _ when in_bool_module a.a_case.cloc ->
+              (* proved once, by Kanon's library *)
+              pf ft
+                "@[<v 2>theorem %s.ok : %s.Stmt :=@ fun%s O hO => BoolMod.%s \
+                 %s %s hO.bool@]@ @ "
+                (arm_name f r arms i) (arm_name f r arms i) (sem_args ())
+                (arm_name f r arms i) (with_sem_args "boolLang")
+                (with_sem_args "O.bool")
           | None ->
               (* a hand-written [.proof] if there is one, else the default
                  tactic *)
@@ -1094,6 +1139,16 @@ let soundness ~sources ~proofs ft (p : program) =
     else proofs
   in
   header ~sources ft (md "Statements" :: proofs);
+  if
+    List.exists
+      (fun f ->
+        f.cases
+        && List.exists
+             (fun (_, arms) ->
+               List.exists (fun a -> in_bool_module a.a_case.cloc) arms)
+             (arms f))
+      (rule_fns ctx)
+  then bool_ops ft;
   List.iter (fun f -> if f.cases then cases_proofs ft f) (rule_fns ctx);
   List.iter
     (fun f ->

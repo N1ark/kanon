@@ -24,7 +24,7 @@ let parse_file ~read f =
       | None -> Check.parse_file f)
   | Some name -> (
       match List.assoc_opt name Builtin.files with
-      | Some s -> Check.parse_string ~file:name s
+      | Some s -> Check.parse_string ~file:f s
       | None -> raise (No_builtin f))
 
 (** The name of the file [f] in the headers of the generated files. *)

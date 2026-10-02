@@ -423,6 +423,45 @@ tactics that the languages share (`soteria`'s `Tiny_values` uses them):
   `kanon_lift` lifts a call `O.f args` with the lemma `R.Lib.lift_f` of
   `Lifts.lean`.
 
+`KanonCore.BoolMod`, imported on its own, proves the rules of the bool module
+(`modules/bool.kn`, see [Modules and examples](#modules-and-examples)) once, for
+any language that uses it (namespace `Kanon.BoolMod`):
+
+- `BoolMod.Lang S`, for the semantics `S : Kanon.Sem` of a language, is what
+  the language gives: the kinds of its terms (`Kind`, with `mk : Kind → Ty →
+  Term`, the `Term.mk` of the language), the kinds of the nodes of the module
+  (`litK`, `notK`, `andK`, `orK`, `eqK`, `iteK`, `distinctK`) and the type
+  `tbool`, such that the terms of the generated statements are definitionally
+  equal to them (e.g. `Term.mk (Kind.Binop Binop.And a b) Ty.TBool` to
+  `mk (andK a b) tbool`); its booleans (`vbool : Bool → Val`); the primitive
+  `equal` and the helper `sure_neq` (which the modules above extend); and their
+  laws: the typing of the nodes (`WT_and`, …), their evaluation by the
+  operations of `KanonCore.BoolMod.Val` (`ev_and : ev ρ (mk (andK a b) t) =
+  pand vbool (ev ρ a) (ev ρ b)`, …, with `pand`, `por`, `pnot`, `peq`, `pite`
+  and `pdistinct`, which the language may use in its own `ev`), that
+  well-typed booleans evaluate to booleans (`ev_bool`), that `vbool` is
+  injective, that `equal a b` implies `a = b`, and that surely different terms
+  of the same type have different values (`sure_neq_sound`). The language
+  defines it as `R.boolLang : BoolMod.Lang R.sem` (`R.boolLang x` for the
+  parameters `x` of `[@@@lean_param]`), in a module that `R.Proofs` imports;
+- `BoolMod.Ops L` is the bool module in the model of the language (its rule
+  functions, the oracles `tag_le` and `sort_by_tag`, and the helpers
+  `at_most_one`, `distinct_check_one` and `distinct_check`), and
+  `BoolMod.Ops.Sound` what the rules assume of them;
+- `KanonCore.BoolMod.Rules` proves, for every arm `f.r_rule.arm` of the module
+  (with those derived from the laws of `bool.knl` and from the swaps of
+  commutative operands), the theorem `Kanon.BoolMod.f.r_rule.arm L B hB`,
+  whose statement is that of the arm, for any `L`, `B` and `hB : B.Sound`. Most
+  are proved by the tactic `kanon_bool` (`KanonCore.BoolMod.Tactic`).
+
+`Soundness.lean` proves each arm of the module by that theorem, applied to the
+language (`fun O hO => BoolMod.f.r_rule.arm boolLang O.bool hO.bool`), and
+defines the bool module of the model, `Ops.bool O : BoolMod.Ops boolLang`, with
+the proof `Ops.Sound.bool : O.Sound → O.bool.Sound` (which uses the field
+`sort_by_tag` of the language's `Oracle.Compat`). The arms that the other
+modules add to the rule functions of the bool module (`extend rule`) are the
+language's, and proved as the others.
+
 An alternative (an arm) is one case of a rule, after expanding its or-patterns
 and the swaps of commutative operands; its statement is over the variables of
 its pattern, with its guard as a hypothesis (`f.r_name.arm.Stmt`). An arm is
@@ -460,11 +499,12 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   repository. Its generated files are committed: `dune test` checks that they
   are up to date (`dune promote` updates them). Its hand-written files are the
   semantics of the language (`Semantics.lean`: values are booleans, poison is
-  `none`), its primitives (`Prims.lean`), the tactics of its proofs
-  (`Lib/Lift.lean`: `kanon_congr`; `Lib/Rule.lean`: `kanon_comm` and
-  `kanon_auto`, which proves an arm by case analysis on the values of the
-  subterms it does not inspect) and the proofs of the arms of `b_distinct`
-  (`Proofs.lean`). To check it:
+  `none`, and the nodes are evaluated by the operations of
+  `KanonCore.BoolMod.Val`), its primitives (`Prims.lean`), the language for
+  the bool module (`Bool.lean`: `boolLang`, whose laws are one-line proofs),
+  and the congruence of its nodes, for `kanon_congr` (`Lib/Lift.lean`). Its
+  rules are those of the bool module, which `KanonCore.BoolMod` proves, so
+  `Lib/Rule.lean` and `Proofs.lean` are empty. To check it:
 
   ```
   cd examples/bool/lean

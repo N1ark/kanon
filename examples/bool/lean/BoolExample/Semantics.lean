@@ -1,3 +1,5 @@
+import KanonCore.Sem
+import KanonCore.BoolMod.Val
 import BoolExample.Model
 import BoolExample.Typing
 
@@ -9,22 +11,23 @@ or `none` for *poison*:
 
 - ill-typed terms (see `Term.WT`) are poison, and so are the variables that
   `ρ` does not give a value;
-- `not` and `==` are poison when an operand is, and `ite` only evaluates the
-  branch it selects;
-- `&&` and `||` are "parallel": a `false` (resp. `true`) operand wins over a
-  poisoned one, so that, e.g., `ite g false e` is `not g && e`.
+- the nodes of the bool module are evaluated by the operations of Kanon's
+  library (`Kanon.BoolMod.Val`): `not` and `==` are poison when an operand is,
+  `ite` only evaluates the branch it selects, and `&&` and `||` are "parallel":
+  a `false` (resp. `true`) operand wins over a poisoned one, so that, e.g.,
+  `ite g false e` is `not g && e`.
 
 A smart constructor is sound when its result *refines* the raw node it
-simplifies (`Refines`): whenever the raw node is well-typed, the result is
-well-typed, of the same type, and whenever the raw node evaluates to a value,
-the result evaluates to the same value.
+simplifies (`Refines`, Kanon's `Sem.Refines`): whenever the raw node is
+well-typed, the result is well-typed, of the same type, and whenever the raw
+node evaluates to a value, the result evaluates to the same value.
 -/
 
 noncomputable section
 
 namespace BoolExample
 
-open Classical Kanon
+open Classical Kanon BoolMod
 
 /-! ## Well-typed terms -/
 
@@ -52,33 +55,16 @@ end
 /-- The values of the variables; `none` for a poisoned variable. -/
 abbrev Env := Int → Option Bool
 
-/-- Parallel conjunction. -/
-def pand : Option Bool → Option Bool → Option Bool
-  | some false, _ => some false
-  | _, some false => some false
-  | some true, some true => some true
-  | _, _ => none
-
-/-- Parallel disjunction. -/
-def por : Option Bool → Option Bool → Option Bool
-  | some true, _ => some true
-  | _, some true => some true
-  | some false, some false => some false
-  | _, _ => none
-
 def evUnop : Unop → Option Bool → Option Bool
-  | .Not, a => a.map (!·)
+  | .Not, a => pnot id a
 
 def evBinop : Binop → Option Bool → Option Bool → Option Bool
-  | .And, a, b => pand a b
-  | .Or, a, b => por a b
-  | .Eq, some a, some b => some (a == b)
-  | .Eq, _, _ => none
+  | .And, a, b => pand id a b
+  | .Or, a, b => por id a b
+  | .Eq, a, b => peq id a b
 
 def evTriop : Triop → Option Bool → Option Bool → Option Bool → Option Bool
-  | .Ite, some true, a, _ => a
-  | .Ite, some false, _, b => b
-  | .Ite, none, _, _ => none
+  | .Ite, g, a, b => pite id g a b
 
 mutual
 /-- Evaluation, assuming well-typedness. -/
@@ -88,7 +74,7 @@ def ev (ρ : Env) : Term → Option Bool
   | .mk (.Unop op a) _ => evUnop op (ev ρ a)
   | .mk (.Binop op a b) _ => evBinop op (ev ρ a) (ev ρ b)
   | .mk (.Triop op a b c) _ => evTriop op (ev ρ a) (ev ρ b) (ev ρ c)
-  | .mk (.Nop .Distinct l) _ => (evList ρ l).map (fun vs => decide vs.Nodup)
+  | .mk (.Nop .Distinct l) _ => pdistinct id (evList ρ l)
 
 /-- The values of a list of terms, if none is poison. -/
 def evList (ρ : Env) : List Term → Option (List Bool)
@@ -99,25 +85,26 @@ def evList (ρ : Env) : List Term → Option (List Bool)
       | _, _ => none
 end
 
-/-- The value of a term; `none` for poison. -/
-def eval (ρ : Env) (t : Term) : Option Bool :=
-  if t.WT then ev ρ t else none
-
 /-! ## Refinement -/
+
+/-- The semantics of the language. -/
+@[reducible] def sem : Sem where
+  Term := Term
+  Ty := Ty
+  Val := Bool
+  Env := Env
+  ty := Term.ty
+  WT := Term.WT
+  ev := ev
+
+/-- The value of a term; `none` for poison. -/
+abbrev eval : Env → Term → Option Bool := sem.eval
 
 /-- `r` refines `spec`: it has the same type, and the same value whenever
 `spec` is not poison. -/
-def Refines (spec r : Term) : Prop :=
-  (spec.WT → r.WT ∧ r.ty = spec.ty) ∧ ∀ ρ v, eval ρ spec = some v → eval ρ r = some v
+abbrev Refines : Term → Term → Prop := sem.Refines
 
-theorem Refines.refl {t : Term} : Refines t t :=
-  ⟨fun h => ⟨h, rfl⟩, fun _ _ h => h⟩
-
-theorem Refines.trans {a b c : Term} (h1 : Refines a b) (h2 : Refines b c) : Refines a c :=
-  ⟨fun w => let ⟨wb, eb⟩ := h1.1 w; let ⟨wc, ec⟩ := h2.1 wb; ⟨wc, ec.trans eb⟩,
-   fun ρ v e => h2.2 ρ v (h1.2 ρ v e)⟩
-
-instance : Kanon.Refinement Refines := ⟨Refines.refl, Refines.trans⟩
+instance : Refinement Refines := Sem.refinement
 
 /-! ## Assumptions on the oracles -/
 

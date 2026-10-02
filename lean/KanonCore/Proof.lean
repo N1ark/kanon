@@ -98,10 +98,11 @@ def atomCase (n : Name) (a : Expr) : MetaM (Option Expr) := withNewMCtxDepth do
   if pat.getAppFn.isMVar then
     unless ← isDefEq (← inferType pat.getAppFn) (← inferType a.getAppFn) do return none
   unless ← isDefEq pat a do return none
+  -- the other arguments must be determined by the hypotheses
   for mv in mvs do
     if ← mv.mvarId!.isAssigned then continue
     let t ← instantiateMVars (← inferType mv)
-    unless ← isProp t do return none
+    unless ← isProp t do continue
     let some h ← findHyp t | return none
     unless ← isDefEq mv h do return none
   let pf ← instantiateMVars (mkAppN c mvs)
@@ -113,12 +114,14 @@ def isCtorApp (e : Expr) : MetaM Bool := do
   let .const n _ := e.getAppFn | return false
   return (← getEnv).isConstructor n
 
-/-- The first atom of the goal or of the hypotheses that a `kanon_atom_cases`
-lemma splits, with the proof of its possible values. Atoms are not applied to
-constructors (which their evaluation unfolds). -/
-def findAtomCase (g : MVarId) : MetaM (Option (Expr × Expr)) := g.withContext do
-  let lemmas ← (kanonLemmas (← getEnv) `kanon_atom_cases).filterMapM fun n =>
-    return (← atomHead n).map (n, ·)
+/-- The first atom of the goal or of the hypotheses that one of the lemmas `ls`
+(by default, the `kanon_atom_cases` lemmas) splits, with the proof of its
+possible values. Atoms are not applied to constructors (which their evaluation
+unfolds). -/
+def findAtomCase (g : MVarId) (ls : Option (Array Name) := none) :
+    MetaM (Option (Expr × Expr)) := g.withContext do
+  let ls := ls.getD (kanonLemmas (← getEnv) `kanon_atom_cases)
+  let lemmas ← ls.filterMapM fun n => return (← atomHead n).map (n, ·)
   if lemmas.isEmpty then return none
   let mut exprs := #[← instantiateMVars (← g.getType)]
   for d in (← getLCtx) do
@@ -150,9 +153,9 @@ partial def casesPattern (e : Expr) (inner := false) : String :=
   else "_"
 
 /-- Splits the main goal on the values of its first atom, if any. -/
-def caseAtom : TacticM Bool := do
+def caseAtom (ls : Option (Array Name) := none) : TacticM Bool := do
   let g ← getMainGoal
-  let some (a, pf) ← findAtomCase g | return false
+  let some (a, pf) ← findAtomCase g ls | return false
   let ty ← instantiateMVars (← inferType pf)
   let (_, g) ← (← g.assert `kanon_hc ty pf).intro1P
   let g ← g.withContext do
@@ -167,23 +170,26 @@ def caseAtom : TacticM Bool := do
   return true
 
 /-- Splits the main goal on the values of all its atoms. -/
-partial def caseAtoms : TacticM Unit := do
-  if ← caseAtom then
+partial def caseAtoms (ls : Option (Array Name) := none) : TacticM Unit := do
+  if ← caseAtom ls then
     let gs ← getGoals
     let mut out := []
     for g in gs do
       setGoals [g]
-      caseAtoms
+      caseAtoms ls
       out := out ++ (← getGoals)
     setGoals out
 
-elab "kanon_cases" : tactic => do
+/-- Splits all the goals on the values of their atoms. -/
+def caseAllAtoms (ls : Option (Array Name) := none) : TacticM Unit := do
   let mut out := []
   for g in ← getGoals do
     setGoals [g]
-    caseAtoms
+    caseAtoms ls
     out := out ++ (← getGoals)
   setGoals out
+
+elab "kanon_cases" : tactic => caseAllAtoms
 
 /-! ## Lifting the calls to rule functions to their specs
 
