@@ -55,6 +55,11 @@ let rec fired ctx ft (e : expr) =
   match e.e with
   | EAssert (c, body) ->
       pf ft "@[<v>(assert %a;@ %a)@]" (Gen_ocaml.expr ctx) c (fired ctx) body
+  | ELet (p, rhs, body) ->
+      pf ft "@[<v>(let %a = %a in@ %a%a)@]" Gen_ocaml.pat p (Gen_ocaml.expr ctx)
+        rhs
+        (Gen_ocaml.small_lets body)
+        p (fired ctx) body
   | EMatch (scruts, cases) ->
       let case ft (c : case) =
         let guard ft = function
@@ -76,7 +81,7 @@ let rec fired ctx ft (e : expr) =
 (** The names of the rules of [body], in order. *)
 let rec rule_names (e : expr) =
   match e.e with
-  | EAssert (_, body) -> rule_names body
+  | EAssert (_, body) | ELet (_, _, body) -> rule_names body
   | EMatch (_, cases) ->
       List.fold_left
         (fun acc (c : case) ->

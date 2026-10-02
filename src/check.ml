@@ -75,6 +75,7 @@ let ty_of_name = function
   | "t" -> Some TTerm
   | "kind" -> None
   | s when Option.is_some (find_decl s) -> Some (ty_of_decl s)
+  | "nat" -> Some TInt
   | _ -> None
 
 let rec ty_of_core (ct : core_type) : Syntax.ty =
@@ -2553,7 +2554,7 @@ let language (str : structure) =
             reject_no_lean "a type is part of the Lean model" tattrs;
             check_attrs [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ] tattrs;
             (match ty_of_name name with
-            | Some (TInt | TBool | TUnit) ->
+            | Some (TInt | TBool | TUnit) when name <> "nat" ->
                 error loc "%s is a built-in type" name
             | _ -> ());
             if generated_type name then
