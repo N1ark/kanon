@@ -146,7 +146,12 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
   order of the rules independent of the modules they are written in.
 - `extend fn f = | p -> e ...` adds cases to the helper `f` in the same way.
   The cases go into the match that ends `f`, behind `let`s and the right
-  operands of `||` and `&&`.
+  operands of `||` and `&&`. The final catch-all case is `_`, or a tuple of
+  blanks, which is strictly equivalent (`_, _`, `_, _, _`, `(_, _), _`): the
+  cases are added before it, however it is written. `x, _` and `_ as x` are not
+  blanks. A case that is not added, because an earlier case already matches
+  everything it does, is an error. An `extend` of a `[@no_lean]` function adds
+  cases that Lean does not model either.
 
 Kanon generates the terms from the nodes, in the order of the modules. Their
 kinds are the leaves, then, for each arity used, the operators of that arity,
@@ -286,14 +291,24 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
-  [Rules](#rules)). A parameter of type `t` may be annotated with its sort
+  [Rules](#rules)). `[@no_lean]` (after the result type) leaves it out of the
+  Lean model: it is checked and generated in OCaml as usual, but has no `def` in
+  `Model.lean`, and no statement, lift or soundness entry, so it is for
+  analysis and infrastructure code that is not a simplification rule (see
+  [Proofs](#proofs)). A function or rule that Lean models may not call a
+  `[@no_lean]` function or primitive (`rule bv_add calls f, which is
+  [@no_lean]`), but a `[@no_lean]` function may call anything. Only `fn` and
+  `prim` can be `[@no_lean]`: not rules, oracles, sorts, nodes or types. Other
+  attributes on `fn`, `prim` and `rule` are errors (a rule has `[@untyped]` and
+  `[@ghost]`). A parameter of type `t` may be annotated with its sort
   instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
   bound in the body, the generated OCaml asserts the sort on entry, and the
   literals of patterns on `v` resolve with it (see [Patterns](#patterns)).
 - `prim f : a -> b` declares a primitive, implemented by hand in OCaml, in the
   module of `[@@@ocaml_prims]` (see [OCaml](#ocaml)), and in Lean (the
   generated OCaml and `Signatures.lean` check that both define it, at this
-  type); `oracle f : a -> b` declares one that the Lean model takes as a
+  type), unless it is marked `[@no_lean]` after its type
+  (`prim hash : t -> int [@no_lean]`), which Lean does not define or check; `oracle f : a -> b` declares one that the Lean model takes as a
   parameter, so that the proofs may not rely on its behaviour (e.g. a
   hash-consing order).
 - `type_of v` is the sort of the term `v` (`v.ty` in OCaml).

@@ -5,7 +5,14 @@
 ### Added
 
 - The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`. `[@ghost t1 ... tn]` after the spec of a rule function sets its tags, and rule functions whose spec is not a single node get a `val` too.
+- [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+
+### Changed
+
+- A tuple of blanks (`_, _`) is a final catch-all case like `_`, for `extend fn`, `extend rule`, `default` and unreachable cases: the cases of `extend fn` were silently dropped after a final `| _, _ ->`.
+- An `extend` case that is not added, because an earlier case matches everything it does, is an error.
+- Unknown attributes on `fn`, `prim` and `rule` are errors.
 
 ## 0.2.0 (2026-10-02)
 
