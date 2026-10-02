@@ -12,7 +12,7 @@ semantics `S : Kanon.Sem`:
   which `mk k t` is the term at the type `t`), the kinds of the nodes (`litK`,
   `notK`, `andK`, `orK`, `eqK`, `iteK`, `distinctK`), and the type of booleans
   (`tbool`), such that the terms of the generated statements are definitionally
-  equal to them (e.g. `Term.mk (Kind.Binop Binop.And a b) Ty.TBool` to
+  equal to them (e.g. `Term.mk (Kind.Op2 Op2.And a b) Ty.TBool` to
   `mk (andK a b) tbool`);
 - the booleans among its values (`vbool`);
 - the helper `sure_neq` of the module (which the modules above it extend, so

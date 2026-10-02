@@ -58,7 +58,6 @@ type ctx = {
   file : string;
   src : string;  (** the text that was parsed *)
   is_global : string -> bool;  (** a function or a primitive *)
-  is_node : string -> bool;
   node_sig : string -> (string list * string list) option;
       (** the types of the arguments of a node or constructor, and its sorts *)
   fn_params : string -> binder list;
@@ -73,8 +72,10 @@ let text ctx (loc : Location.t) =
   let a = max 0 a and b = min b (String.length ctx.src) in
   if b <= a then "" else String.sub ctx.src a (b - a)
 
-(** The types built into Kanon, which have no definition. *)
-let builtin_types = [ "int"; "bool"; "unit"; "list"; "option"; "nat" ]
+(** The types built into Kanon, or generated from the nodes and sorts, which
+    have no definition. *)
+let builtin_types =
+  [ "int"; "bool"; "unit"; "t"; "ty"; "list"; "option"; "nat" ]
 
 (** The constructors built into Kanon. *)
 let builtin_constrs = [ "true"; "false"; "()"; "[]"; "::"; "None"; "Some"; "#" ]
@@ -405,17 +406,15 @@ let analyze ctx (str : structure) : occ list =
                 if is_upper s then global loc (Constr s)
                 else if is_word s then global loc (Value s))
               names
-        | "literal", [ (t, loc) ] when t <> "int" -> global loc (Type t)
+        | "literal", [ (t, loc) ] when t <> "int" && t <> "bool" ->
+            global loc (Type t)
         | _ -> ())
       attrs
   in
   (* a node, or a constructor of a type *)
-  let constructor ~node (cd : constructor_declaration) =
+  let constructor (cd : constructor_declaration) =
     let name = cd.pcd_name.txt in
-    if (not node) && ctx.is_node name && cd.pcd_args = Pcstr_tuple [] then
-      (* a node placed in a type by its name *)
-      global cd.pcd_name.loc (Constr name)
-    else global ~decl:true cd.pcd_name.loc (Constr name);
+    global ~decl:true cd.pcd_name.loc (Constr name);
     let tys =
       match cd.pcd_args with
       | Pcstr_tuple l ->
@@ -547,13 +546,13 @@ let analyze ctx (str : structure) : occ list =
       when List.exists
              (fun (a : attribute) -> a.attr_name.txt = "node")
              ptype_attributes ->
-        constructor ~node:true cd
+        constructor cd
     | Pstr_type (_, tds) ->
         List.iter
           (fun (td : type_declaration) ->
             global ~decl:true td.ptype_name.loc (Type td.ptype_name.txt);
             match td.ptype_kind with
-            | Ptype_variant cds -> List.iter (constructor ~node:false) cds
+            | Ptype_variant cds -> List.iter constructor cds
             | Ptype_record ls ->
                 List.iter (fun (l : label_declaration) -> typ l.pld_type) ls
             | _ -> ())

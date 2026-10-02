@@ -131,10 +131,22 @@ let lean_name s =
   String.concat ""
     (List.map String.capitalize_ascii (String.split_on_char '_' s))
 
-(** The Lean name of a declared type: [Kind] for the kinds of terms (the
-    constructors of [t]), else its Kanon name, CamelCased. *)
+(** The Lean name of a type: [Kind] for the kinds of terms, the name of the kind
+    constructor of their operators for the types of operators ([Op2], [OpN]),
+    else its Kanon name, CamelCased. *)
 let decl_lean_name (d : decl) =
-  if decl_name TKind = Some d.d_name then "Kind" else lean_name d.d_name
+  if decl_name TKind = Some d.d_name then "Kind"
+  else
+    match
+      List.find_opt
+        (fun k ->
+          match find_constr k with
+          | Some { c_args = Arg (TData t) :: _; _ } -> t = d.d_name
+          | _ -> false)
+        !lang.node_kinds
+    with
+    | Some k -> k
+    | None -> lean_name d.d_name
 
 let rec lean_ty ft = function
   | TInt -> pf ft "Int"
@@ -1678,7 +1690,9 @@ let typing_rhs ctx (ty : typing) =
   let body = if body = [] then "True" else String.concat " ∧ " body in
   if long = [] then body else Printf.sprintf "∃ %s, %s" (binders long) body
 
-(** [Typing.lean]: the typing predicates [T.WT] of the operator types. *)
+(** [Typing.lean]: the typing predicates [OpK.WT] of the types of operators,
+    over the sorts of the operands and of the result; the operands of an n-ary
+    operator ([OpN]) all have its first sort. *)
 let typing_file ~sources ft (p : program) =
   let ctx = classify p in
   header ~sources ft [ md "Prims" ];

@@ -5,8 +5,6 @@
       need the rules);
     - [ocaml]: their OCaml implementation, where these types are in scope;
     - [ocaml-tests]: the OCaml differential tests of their rule functions;
-    - [ocaml-check] (deprecated): the OCaml check that OCaml types written by
-      hand agree with the declaration of the language;
     - [lean-types], [lean-syntax]: the Lean definitions of the types of the
       language (which do not need the rules);
     - [lean-signatures]: the Lean check of the types of their primitives;

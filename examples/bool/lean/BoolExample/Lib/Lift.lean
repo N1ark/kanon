@@ -16,22 +16,22 @@ namespace BoolExample
 
 open Kanon BoolMod
 
-theorem Refines.unop {op : Unop} {a a' : Term} {t : Ty} (ha : Refines a a') :
-    Refines (.mk (.Unop op a) t) (.mk (.Unop op a') t) := by
+theorem Refines.op1 {op : Op1} {a a' : Term} {t : Ty} (ha : Refines a a') :
+    Refines (.mk (.Op1 op a) t) (.mk (.Op1 op a') t) := by
   cases op; exact Lang.refines_not (L := boolLang) ha
 
-theorem Refines.binop {op : Binop} {a a' b b' : Term} {t : Ty} (ha : Refines a a')
-    (hb : Refines b b') : Refines (.mk (.Binop op a b) t) (.mk (.Binop op a' b') t) := by
+theorem Refines.op2 {op : Op2} {a a' b b' : Term} {t : Ty} (ha : Refines a a')
+    (hb : Refines b b') : Refines (.mk (.Op2 op a b) t) (.mk (.Op2 op a' b') t) := by
   cases op
   · exact Lang.refines_and (L := boolLang) ha hb
   · exact Lang.refines_or (L := boolLang) ha hb
   · exact Lang.refines_eq (L := boolLang) ha hb
 
-theorem Refines.triop {op : Triop} {a a' b b' c c' : Term} {t t' : Ty} (ha : Refines a a')
+theorem Refines.op3 {op : Op3} {a a' b b' c c' : Term} {t t' : Ty} (ha : Refines a a')
     (hb : Refines b b') (hc : Refines c c') :
-    Refines (.mk (.Triop op a b c) t) (.mk (.Triop op a' b' c') t') := by
+    Refines (.mk (.Op3 op a b c) t) (.mk (.Op3 op a' b' c') t') := by
   cases op; exact Lang.refines_ite (L := boolLang) ha hb hc fun _ => Ty.eq_all _ _
 
-attribute [kanon_congr_lemma] Refines.unop Refines.binop Refines.triop
+attribute [kanon_congr_lemma] Refines.op1 Refines.op2 Refines.op3
 
 end BoolExample

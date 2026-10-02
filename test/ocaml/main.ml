@@ -8,6 +8,14 @@ let () =
   let int n = node (Int (Z.of_int n)) TInt in
   let x = node (Var "x") TInt and p = node (Var "p") TBool in
   check "hash-consing" (int 3 == int 3 && not (int 3 == int 4));
+  check "same tag" ((int 5).tag = (int 5).tag);
+  check "different tags"
+    ((int 5).tag <> (int 6).tag
+    && (node (Op2 (Plus, x, int 1)) TInt).tag
+       <> (node (Op2 (Plus, int 1, x)) TInt).tag);
+  check "same term"
+    ((node (Op2 (Plus, x, int 1)) TInt).tag
+    = (node (Op2 (Plus, x, int 1)) TInt).tag);
   check "fold" (plus (int 1) (int 2) == int 3);
   check "unit" (plus x (int 0) == x && plus (int 0) x == x);
   check "zero" (times x (int 0) == int 0 && times (int 1) x == x);

@@ -178,8 +178,8 @@ let split_ppat (p : pattern) =
 let split_pexp (e : expression) =
   match e.pexp_desc with Pexp_tuple l -> Some l | _ -> None
 
-(** Operators can be used directly as node constructors: [Add (c, l, r)] stands
-    for [Binop (Add c, l, r)], [Not p] for [Unop (Not, p)], etc. (see
+(** Operators are node constructors: [Add (c, l, r)] stands for
+    [Op2 (Add c, l, r)], [Not p] for [Op1 (Not, p)], etc. (see
     [Syntax.lang.node_kinds]). *)
 let node_of_op (op : constr) =
   List.find_map
@@ -821,7 +821,11 @@ let node_term loc ~name ~build (params : Syntax.expr list)
   in
   let n_ops = List.length t.t_sorts - 1 in
   let result = List.nth t.t_sorts n_ops in
-  let op_sorts = List.filteri (fun i _ -> i < n_ops) t.t_sorts in
+  (* the sort of an operand, which the sort of the result may depend on; not
+     that of a list of operands *)
+  let op_sorts =
+    if t.t_nary then [] else List.filteri (fun i _ -> i < n_ops) t.t_sorts
+  in
   let is_var x = List.mem_assoc x t.t_vars in
   let bindings = ref [] in
   let atom (e : Syntax.expr) =
@@ -1699,19 +1703,85 @@ let check_attrs allowed (attrs : attributes) =
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
-(** [[@literal t]] on the constructor of integer literals: the type of their
-    values, or [None] for [[@literal int]], where they are integers. *)
-let int_literal (attrs : attributes) =
-  match find_attr "literal" attrs with
-  | Some a -> (
-      match attr_args a with
-      | [ ("int", _) ] -> None
-      | [ (t, loc) ] -> (
-          match find_decl t with
-          | Some _ -> Some t
-          | None -> error loc "[@literal]: unknown type %s" t)
-      | _ -> error a.attr_loc "expected [@literal \"t\"] or [@literal \"int\"]")
+(** What the attribute [[@literal]] [a] declares: boolean literals
+    ([[@literal bool]]), integer literals ([[@literal int]]), or integer
+    literals whose values have the type [t] ([[@literal t]]). *)
+let literal_kind (a : attribute) =
+  match attr_args a with
+  | [ ("bool", _) ] -> `Bool
+  | [ ("int", _) ] -> `Int
+  | [ (t, loc) ] -> (
+      match find_decl t with
+      | Some _ -> `Value t
+      | None -> error loc "[@literal]: unknown type %s" t)
+  | [] ->
+      error a.attr_loc
+        "[@literal] needs the type of the literals: [@literal bool], [@literal \
+         int] or [@literal t]"
+  | _ ->
+      error a.attr_loc
+        "expected [@literal bool], [@literal int] or [@literal t]"
+
+(** The list sort [s list] of an operand of a typing, written [a list],
+    [TBool list] or [(TBitVector n) list]: [s]. *)
+let list_sort (e : expression) =
+  match e.pexp_desc with
+  | Pexp_apply
+      ( s,
+        [ (Nolabel, { pexp_desc = Pexp_ident { txt = Lident "list"; _ }; _ }) ]
+      ) ->
+      Some s
+  | Pexp_construct
+      (c, Some { pexp_desc = Pexp_ident { txt = Lident "list"; _ }; _ }) ->
+      Some { e with pexp_desc = Pexp_construct (c, None) }
+  | _ -> None
+
+(** The sorts of the typing of the node [cd], if it has one, with [s] for an
+    operand of sort [s list], and whether the node is n-ary: its only operand
+    sort is a list. *)
+let typing_sorts (cd : constructor_declaration) =
+  match find_attr "sorts" cd.pcd_attributes with
   | None -> None
+  | Some a -> (
+      let sorts =
+        match a.attr_payload with
+        | PStr
+            [
+              { pstr_desc = Pstr_eval ({ pexp_desc = Pexp_tuple l; _ }, _); _ };
+            ] ->
+            l
+        | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> [ e ]
+        | _ -> error a.attr_loc "unexpected [@sorts]"
+      in
+      match sorts with
+      | [ s; r ] when Option.is_some (list_sort s) ->
+          Some ([ Option.get (list_sort s); r ], true)
+      | _ ->
+          List.iteri
+            (fun i (s : expression) ->
+              if Option.is_some (list_sort s) then
+                error s.pexp_loc
+                  (if i = List.length sorts - 1 then
+                     "%s: the result of a node is a term, not a list"
+                   else "%s: s list is only allowed as the only operand sort")
+                  cd.pcd_name.txt)
+            sorts;
+          Some (sorts, false))
+
+(** The number of operands of the node [cd]: [Some k] for an operator of [k]
+    operands, [Some 0] for a leaf (whose typing gives only the sort of its
+    result, if it has one), and [None] for an n-ary operator. *)
+let node_arity (cd : constructor_declaration) =
+  match typing_sorts cd with
+  | None -> Some 0
+  | Some (_, true) -> None
+  | Some (sorts, false) -> Some (List.length sorts - 1)
+
+(** The type of the operators of [arity] operands ([op2]), and the constructor
+    of the terms they make ([Op2]). *)
+let op_type = function
+  | Some k -> (Printf.sprintf "op%d" k, Printf.sprintf "Op%d" k)
+  | None -> ("opn", "OpN")
 
 (** The attributes that declare the laws of an operator. *)
 let law_attrs = [ "fold"; "unit"; "zero"; "idem"; "invol" ]
@@ -1736,11 +1806,22 @@ let law_name = function
   | Idem -> "idem"
   | Invol -> "invol"
 
-(** The literal [c] of a [[@unit c]] or [[@zero c]] law. The term of a
-    [[@literal t]] literal, which a [[@zero c]] law gives, is declared by the
-    language with [constant]; Kanon builds the others. *)
+(** Whether [c], in a [[@unit c]] or [[@zero c]] law, is a literal, rather than
+    a named constant. *)
+let is_literal c = List.mem c [ "0"; "1"; "true"; "false" ]
+
+(** The literal or constant [c] of a [[@unit c]] or [[@zero c]] law. The term of
+    a [[@literal t]] literal, which a [[@zero c]] law gives, and of a named
+    constant are declared by the language with [constant]; Kanon builds the
+    others. *)
 let law_literal loc law c =
   match c with
+  | c when not (is_literal c) ->
+      if not (List.mem_assoc c !lang.constants) then
+        error loc
+          "expected the literal 0, 1, true or false, or a constant: %s is not \
+           declared"
+          c
   | ("0" | "1") when Option.is_some !lang.lit_node ->
       if
         (not !lang.lit_int)
@@ -1795,7 +1876,6 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
        "to_term";
        "of_term";
        "raw";
-       "operators";
        "params";
        "sorts";
        "when";
@@ -1822,8 +1902,8 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
       ~some:(fun (a : attribute) -> a.attr_loc)
       (find_attr n attrs)
   in
-  (match payload "sorts" with
-  | Some _ ->
+  (match typing_sorts cd with
+  | Some (rt_sorts, rt_nary) ->
       lang :=
         {
           !lang with
@@ -1833,7 +1913,8 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
                 ( name,
                   {
                     rt_params = items (payload "params");
-                    rt_sorts = items (payload "sorts");
+                    rt_sorts;
+                    rt_nary;
                     rt_when = payload "when";
                     rt_loc = attr_loc "sorts";
                   } );
@@ -1893,16 +1974,6 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
         | _ -> error a.attr_loc "[@get f] applies to sorts with one argument")
     | None -> l
   in
-  let l =
-    match find_attr "operators" attrs with
-    | Some a -> (
-        if res <> TKind then
-          error a.attr_loc "[@operators] applies to the constructors of t";
-        match args with
-        | Arg (TData _) :: _ -> { l with node_kinds = l.node_kinds @ [ name ] }
-        | _ -> error a.attr_loc "[@operators]: expected an operator argument")
-    | None -> l
-  in
   (* the functions of the literals, with the locations of their attributes *)
   let fns =
     List.filter_map
@@ -1919,8 +1990,8 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
   let l =
     match (find_attr "literal" attrs, fns) with
     | Some a, _ -> (
-        match (res, args) with
-        | TKind, [ Arg TBool ] when l.lit_bool = None -> (
+        match (literal_kind a, res, args) with
+        | `Bool, TKind, [ Arg TBool ] when l.lit_bool = None -> (
             match fns with
             | ((n, _), loc) :: _ ->
                 error loc "boolean literals have no [@%s]%s" n
@@ -1929,23 +2000,23 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
                       of a boolean"
                    else "")
             | [] -> { l with lit_bool = Some name })
-        | TKind, [ Arg TInt ] when l.lit_node = None -> (
-            match int_literal attrs with
-            | None -> (
-                match fns with
-                | (_, loc) :: _ ->
-                    error loc "integer literals have no functions"
-                | [] -> { l with lit_node = Some name; lit_int = true })
-            | Some v ->
-                {
-                  l with
-                  lit_node = Some name;
-                  lit_value = v;
-                  lit_fns = l.lit_fns @ List.map fst fns;
-                })
+        | `Int, TKind, [ Arg TInt ] when l.lit_node = None -> (
+            match fns with
+            | (_, loc) :: _ -> error loc "integer literals have no functions"
+            | [] -> { l with lit_node = Some name; lit_int = true })
+        | `Value v, TKind, [ Arg TInt ] when l.lit_node = None ->
+            {
+              l with
+              lit_node = Some name;
+              lit_value = v;
+              lit_fns = l.lit_fns @ List.map fst fns;
+            }
+        | `Bool, _, _ ->
+            error a.attr_loc
+              "[@literal bool]: expected the only leaf node of one bool"
         | _ ->
             error a.attr_loc
-              "[@literal]: expected the only node of bool or of int literals")
+              "[@literal]: expected the only leaf node of one int")
     | None, (_, loc) :: _ ->
         error loc "only literals have [@to_term], [@of_term], [@raw]"
     | None, [] -> l
@@ -2022,11 +2093,34 @@ let operator ((e : expression), (a : attribute)) =
         !lang.operators @ [ { sym; arity; node; params; smart; pre; on_value } ];
     }
 
-(** The name of the declaration [d] in the source: [t] for [kind]. *)
-let source_name d = if d = "kind" then "t" else d
+(** Whether [name] is a type that Kanon generates, which a language cannot
+    declare: [t] (the terms, whose kinds are named [kind]), [ty] and the types
+    of operators, [op1], [op2], ..., [opn]. *)
+let generated_type name =
+  List.mem name [ "t"; "kind"; "ty"; "opn" ]
+  || (String.length name > 2
+     && String.sub name 0 2 = "op"
+     && String.for_all
+          (function '0' .. '9' -> true | _ -> false)
+          (String.sub name 2 (String.length name - 2)))
+
+(** A type of the language, without constructors yet. *)
+let new_decl ?(loc = Location.none) ?ocaml ?lean ?(eq = true) ?equal ?hash name
+    =
+  {
+    d_name = name;
+    d_ocaml = ocaml;
+    d_lean = lean;
+    d_eq = eq;
+    d_equal = equal;
+    d_hash = hash;
+    d_fields = [];
+    d_loc = loc;
+  }
 
 (** Reads the declaration of a language, which the rules are then checked
-    against. *)
+    against. The terms are generated from its nodes, and their types from its
+    sorts. *)
 let language (str : structure) =
   let tds, ops =
     List.partition_map Fun.id
@@ -2034,20 +2128,7 @@ let language (str : structure) =
          (fun (si : structure_item) ->
            attempt (fun () ->
                match si.pstr_desc with
-               | Pstr_type (_, [ td ]) -> (
-                   (* the term type [t] declares the kinds of terms *)
-                   match td.ptype_name.txt with
-                   | "t" ->
-                       Either.Left
-                         {
-                           td with
-                           ptype_name = { td.ptype_name with txt = "kind" };
-                         }
-                   | "kind" ->
-                       error td.ptype_name.loc
-                         "kind is reserved: the kinds of terms are the \
-                          constructors of t"
-                   | _ -> Left td)
+               | Pstr_type (_, [ td ]) -> Either.Left td
                | Pstr_eval (e, [ a ])
                  when List.mem a.attr_name.txt [ "infix"; "prefix"; "constant" ]
                  ->
@@ -2084,26 +2165,12 @@ let language (str : structure) =
         List.mem a.attr_name.txt [ "infix"; "prefix" ])
       ops
   in
-  (* the nodes and sorts of the modules, placed where the types name them *)
+  (* the nodes and sorts of the modules, in order *)
   let nodes, tds =
     List.partition
       (fun (td : type_declaration) -> has_attr "node" td.ptype_attributes)
       tds
   in
-  (* the language's [ty], implicitly empty *)
-  let tds =
-    if List.exists (fun (td : type_declaration) -> td.ptype_name.txt = "ty") tds
-    then tds
-    else
-      tds
-      @ [
-          Ast_builder.Default.type_declaration ~loc:Location.none
-            ~name:{ txt = "ty"; loc = Location.none }
-            ~params:[] ~cstrs:[] ~kind:Ptype_abstract ~private_:Public
-            ~manifest:None;
-        ]
-  in
-  let sorts = ref [] in
   let nodes =
     List.fold_left
       (fun nodes (td : type_declaration) ->
@@ -2112,185 +2179,54 @@ let language (str : structure) =
                match td.ptype_kind with
                | Ptype_variant [ cd ] ->
                    let sort = has_attr "sort" td.ptype_attributes in
-                   if List.mem_assoc cd.pcd_name.txt nodes then
+                   if
+                     List.exists
+                       (fun (_, cd') -> cd'.pcd_name.txt = cd.pcd_name.txt)
+                       nodes
+                   then
                      error cd.pcd_name.loc "%s %s is declared twice"
                        (if sort then "sort" else "node")
                        cd.pcd_name.txt;
-                   if sort then (
-                     (match find_attr "sorts" cd.pcd_attributes with
-                     | Some a ->
+                   if sort then
+                     Option.iter
+                       (fun (a : attribute) ->
                          error a.attr_loc "sort %s: sorts have no typing"
-                           cd.pcd_name.txt
-                     | None -> ());
-                     sorts := cd.pcd_name.txt :: !sorts);
-                   nodes @ [ (cd.pcd_name.txt, cd) ]
+                           cd.pcd_name.txt)
+                       (find_attr "sorts" cd.pcd_attributes);
+                   nodes @ [ (sort, cd) ]
                | _ -> error td.ptype_loc "expected a node")))
       [] nodes
   in
-  let is_sort n = List.mem n !sorts in
-  let placed = ref [] in
-  (* in [kind], rather than in a type of operators, a node has its operands as
-     arguments, after its own *)
-  let in_kind (n : constructor_declaration) =
-    match (find_attr "sorts" n.pcd_attributes, n.pcd_args) with
-    | ( Some { attr_payload = PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]; _ },
-        Pcstr_tuple args ) ->
-        let operands =
-          match e.pexp_desc with Pexp_tuple l -> List.length l - 1 | _ -> 0
-        in
-        let t =
-          Ast_builder.Default.ptyp_constr ~loc:n.pcd_loc
-            { txt = Lident "t"; loc = n.pcd_loc }
-            []
-        in
-        {
-          n with
-          pcd_args = Pcstr_tuple (args @ List.init operands (fun _ -> t));
-        }
-    | _ -> n
-  in
-  let place ty (cd : constructor_declaration) =
-    attempt (fun () ->
-        match List.assoc_opt cd.pcd_name.txt nodes with
-        | None -> cd
-        | Some n ->
-            let name = cd.pcd_name.txt in
-            let what = if is_sort name then "sort" else "node" in
-            if cd.pcd_args <> Pcstr_tuple [] || cd.pcd_attributes <> [] then
-              error cd.pcd_loc "%s is declared by a %s, and placed by its name"
-                name what;
-            if List.mem name !placed then
-              error cd.pcd_name.loc "%s %s is placed twice" what name;
-            if is_sort name && ty <> "ty" then
-              error cd.pcd_name.loc "sort %s is placed in %s: sorts go in ty"
-                name (source_name ty);
-            if (not (is_sort name)) && ty = "ty" then
-              error cd.pcd_name.loc
-                "%s is a node, which cannot be placed in ty: sorts are \
-                 declared with sort"
-                name;
-            placed := name :: !placed;
-            if ty = "kind" then in_kind n else n)
-  in
-  let tds =
-    List.map
-      (fun (td : type_declaration) ->
-        match td.ptype_kind with
-        | Ptype_variant cds ->
-            {
-              td with
-              ptype_kind =
-                Ptype_variant (List.filter_map (place td.ptype_name.txt) cds);
-            }
-        | _ -> td)
-      tds
-  in
-  (* the nodes that the types do not name, placed by what they are, in the order
-     of the modules: an operator on [k] operands in the type of the operators of
-     the [[@operators]] constructor of [t] with [k] terms, the others in [t]
-     ([kind]), and the sorts in [ty] *)
-  let operator_types =
-    List.concat_map
-      (fun (td : type_declaration) ->
-        match (td.ptype_name.txt, td.ptype_kind) with
-        | "kind", Ptype_variant cds ->
-            List.filter_map
-              (fun (cd : constructor_declaration) ->
-                match cd.pcd_args with
-                | Pcstr_tuple
-                    ({ ptyp_desc = Ptyp_constr ({ txt = Lident op; _ }, []); _ }
-                    :: operands)
-                  when has_attr "operators" cd.pcd_attributes
-                       && List.for_all
-                            (fun (t : core_type) ->
-                              match t.ptyp_desc with
-                              | Ptyp_constr ({ txt = Lident "t"; _ }, []) ->
-                                  true
-                              | _ -> false)
-                            operands ->
-                    Some (List.length operands, op)
-                | _ -> None)
-              cds
-        | _ -> [])
-      tds
-  in
-  let target name (cd : constructor_declaration) =
-    let operands =
-      match find_attr "sorts" cd.pcd_attributes with
-      | Some { attr_payload = PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]; _ }
-        -> (
-          match e.pexp_desc with Pexp_tuple l -> List.length l - 1 | _ -> 0)
-      | _ -> 0
-    in
-    match List.assoc_opt operands operator_types with
-    | _ when is_sort name -> "ty"
-    | Some op when operands > 0 -> op
-    | _ -> "kind"
-  in
-  let auto =
+  let sorts, nodes = List.partition fst nodes in
+  let sorts = List.map snd sorts in
+  (* the nodes, with their numbers of operands *)
+  let nodes =
     List.filter_map
-      (fun (name, cd) ->
-        if List.mem name !placed then None
-        else (
-          placed := name :: !placed;
-          Some (target name cd, cd)))
+      (fun (_, cd) -> attempt (fun () -> (node_arity cd, cd)))
       nodes
   in
-  let tds =
-    List.map
-      (fun (td : type_declaration) ->
-        let ty = td.ptype_name.txt in
-        match
-          List.filter_map (fun (t, cd) -> if t = ty then Some cd else None) auto
-        with
-        | [] -> td
-        | added ->
-            Option.value ~default:td
-              (attempt (fun () ->
-                   let added =
-                     if ty = "kind" then List.map in_kind added else added
-                   in
-                   let cds =
-                     match td.ptype_kind with
-                     | Ptype_variant cds -> cds
-                     | Ptype_abstract -> []
-                     | _ ->
-                         error td.ptype_name.loc "%s: expected a variant type"
-                           (source_name ty)
-                   in
-                   { td with ptype_kind = Ptype_variant (cds @ added) })))
-      tds
-  in
-  List.iter
-    (fun (t, (cd : constructor_declaration)) ->
-      if
-        not
-          (List.exists
-             (fun (td : type_declaration) -> td.ptype_name.txt = t)
-             tds)
-      then
-        ignore
-          (attempt (fun () ->
-               error cd.pcd_name.loc "node %s: the language has no type %s"
-                 cd.pcd_name.txt (source_name t))))
-    auto;
   checkpoint ();
-  (* the types first, so that they can refer to each other *)
+  (* the declared types first, so that they can refer to each other, then the
+     generated ones *)
   let decls =
     List.filter_map
       (fun (td : type_declaration) ->
         attempt (fun () ->
             let name = td.ptype_name.txt and loc = td.ptype_name.loc in
-            check_attrs [ "ocaml"; "lean"; "noeq"; "equal" ] td.ptype_attributes;
+            check_attrs
+              [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ]
+              td.ptype_attributes;
             (match ty_of_name name with
             | Some (TInt | TBool | TUnit) ->
                 error loc "%s is a built-in type" name
             | _ -> ());
+            if generated_type name then
+              error loc "type %s is generated from the %s" name
+                (if name = "ty" then "sorts" else "nodes");
             if Option.is_some (find_decl name) then
-              error loc "type %s is declared twice" (source_name name);
-            (* the types without constructors nor fields are abstract (once the
-               nodes and sorts are placed), and only they have their own
-               equality *)
+              error loc "type %s is declared twice" name;
+            (* only abstract types have their own OCaml type, equality and
+               hash *)
             if td.ptype_kind <> Ptype_abstract then
               List.iter
                 (fun n ->
@@ -2298,26 +2234,42 @@ let language (str : structure) =
                     (fun (a : attribute) ->
                       error a.attr_name.loc "[@%s] applies to abstract types" n)
                     (find_attr n td.ptype_attributes))
-                [ "noeq"; "equal" ];
+                [ "ocaml"; "noeq"; "equal"; "hash" ];
+            let attr n =
+              Option.map string_attr (find_attr n td.ptype_attributes)
+            in
             let d =
-              {
-                d_name = name;
-                d_ocaml =
-                  Option.map string_attr (find_attr "ocaml" td.ptype_attributes);
-                d_lean =
-                  Option.map string_attr (find_attr "lean" td.ptype_attributes);
-                d_eq = not (has_attr "noeq" td.ptype_attributes);
-                d_equal =
-                  Option.map string_attr (find_attr "equal" td.ptype_attributes);
-                d_fields = [];
-                d_loc = loc;
-              }
+              new_decl ~loc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
+                ~eq:(not (has_attr "noeq" td.ptype_attributes))
+                ?equal:(attr "equal") ?hash:(attr "hash") name
             in
             lang := { !lang with decls = !lang.decls @ [ d ] };
             (d, td)))
       tds
   in
   checkpoint ();
+  (* the arities of the operators: [1], [2], ..., then n-ary *)
+  let arities =
+    List.sort_uniq
+      (fun a b ->
+        match (a, b) with
+        | Some a, Some b -> compare a b
+        | None, None -> 0
+        | None, _ -> 1
+        | _, None -> -1)
+      (List.filter_map
+         (fun (k, _) -> if k = Some 0 then None else Some k)
+         nodes)
+  in
+  lang :=
+    {
+      !lang with
+      decls =
+        !lang.decls
+        @ [ new_decl "kind" ]
+        @ List.map (fun k -> new_decl (fst (op_type k))) arities
+        @ [ new_decl "ty" ];
+    };
   let decls =
     List.map
       (fun (d, (td : type_declaration)) ->
@@ -2336,7 +2288,19 @@ let language (str : structure) =
         | _ -> (d, td))
       decls
   in
-  lang := { !lang with decls = List.map fst decls };
+  lang :=
+    {
+      !lang with
+      decls =
+        List.map
+          (fun (d : decl) ->
+            Option.value ~default:d
+              (List.find_map
+                 (fun ((d' : decl), _) ->
+                   if d'.d_name = d.d_name then Some d' else None)
+                 decls))
+          !lang.decls;
+    };
   (* a field determines its record type *)
   ignore
     (List.fold_left
@@ -2357,41 +2321,56 @@ let language (str : structure) =
   checkpoint ();
   (* the [[@comm]] attributes, for the check that their operators are binary *)
   let comm_locs = ref [] in
-  (* the constructors whose declarations have errors *)
-  let failed = ref [] in
+  let constructor res cd =
+    ignore (attempt (fun () -> constructor ~comm_locs res cd))
+  in
   List.iter
     (fun (d, (td : type_declaration)) ->
-      (match td.ptype_kind with
-      | Ptype_variant cds ->
-          let res = ty_of_decl d.d_name in
-          List.iter
-            (fun (cd : constructor_declaration) ->
-              if attempt (fun () -> constructor ~comm_locs res cd) = None then
-                failed := cd.pcd_name.txt :: !failed)
-            cds
+      match td.ptype_kind with
+      | Ptype_variant cds -> List.iter (constructor (TData d.d_name)) cds
       | Ptype_abstract | Ptype_record _ -> ()
       | Ptype_open ->
-          ignore (attempt (fun () -> error td.ptype_loc "unsupported type")));
-      (* the typings of the constructors of a type of operators are all given,
-         or none *)
-      match td.ptype_kind with
-      | Ptype_variant cds when d.d_name <> "kind" ->
-          let typed (cd : constructor_declaration) =
-            List.mem_assoc cd.pcd_name.txt !lang.raw_typing
-          in
-          if List.exists typed cds then
-            List.iter
-              (fun (cd : constructor_declaration) ->
-                if not (typed cd || List.mem cd.pcd_name.txt !failed) then
-                  ignore
-                    (attempt (fun () ->
-                         error cd.pcd_name.loc
-                           "%s has no typing, unlike the other constructors of \
-                            %s"
-                           cd.pcd_name.txt (source_name d.d_name))))
-              cds
-      | _ -> ())
+          ignore (attempt (fun () -> error td.ptype_loc "unsupported type")))
     decls;
+  (* the terms: the leaf nodes, then the operators of each arity, [Op2 of op2 *
+     t * t], which their nodes stand for *)
+  List.iter (fun (k, cd) -> if k = Some 0 then constructor TKind cd) nodes;
+  List.iter
+    (fun k ->
+      let op, c = op_type k in
+      let operands =
+        match k with
+        | Some k -> List.init k (fun _ -> Arg TTerm)
+        | None -> [ Arg (TList TTerm) ]
+      in
+      (match List.find_opt (fun (_, cd) -> cd.pcd_name.txt = c) nodes with
+      | Some (_, cd) ->
+          ignore
+            (attempt (fun () ->
+                 error cd.pcd_name.loc
+                   "%s is the constructor of the terms of the operators of %s" c
+                   op))
+      | None -> ());
+      lang :=
+        {
+          !lang with
+          constrs =
+            !lang.constrs
+            @ [
+                {
+                  c_name = c;
+                  c_res = TKind;
+                  c_args = Arg (TData op) :: operands;
+                };
+              ];
+          node_kinds = !lang.node_kinds @ [ c ];
+        })
+    arities;
+  List.iter
+    (fun (k, cd) ->
+      if k <> Some 0 then constructor (TData (fst (op_type k))) cd)
+    nodes;
+  List.iter (constructor TSty) sorts;
   checkpoint ();
   (* then the operators on terms *)
   List.iter (fun op -> ignore (attempt (fun () -> operator op))) ops;
@@ -2432,14 +2411,10 @@ let language (str : structure) =
     constants;
   checkpoint ();
   let loc = match str with si :: _ -> si.pstr_loc | [] -> Location.none in
-  if Option.is_none (find_decl "kind") then
-    ignore
-      (attempt (fun () ->
-           error loc "type t is not declared: its constructors are the terms"));
   List.iter
     (fun c ->
       match Option.bind (find_constr c) node_of_op with
-      | Some (_, [ _; _ ]) -> ()
+      | Some (_, [ TTerm; TTerm ]) -> ()
       | _ ->
           let loc = Option.value (List.assoc_opt c !comm_locs) ~default:loc in
           ignore
@@ -2809,18 +2784,25 @@ let case_rule_loc (c : Ppxlib.case) =
       type, the literals first, and nothing for a term or a value of
       [[@literal t]] literals (see [lift]). A node is built at the sort of its
       typing, or else at the sort of the spec;
-    - [[@unit c]]: [c: x, c -> x] if [op] is commutative (it then also matches
-      [c, x]), and otherwise [c: _, c -> v1];
-    - [[@zero c]]: [c: _, c -> c], where [c] stands for the term of the literal:
-      the one that the language declares for it, at the type of [v1]
-      ([constant "c" (v) = e]), or else the literal node, built as above;
+    - [[@unit c]], for a literal [c]: [unit_c: x, c -> x] if [op] is commutative
+      (it then also matches [c, x]), and otherwise [unit_c: _, c -> v1];
+    - [[@zero c]], for a literal [c]: [zero_c: _, c -> c], where [c] stands for
+      the term of the literal: the one that the language declares for it, at the
+      sort of [v1] ([constant c (v) = e]), or else the literal node, built as
+      above;
+    - [[@unit c]], for a named constant [c]: [unit_c: x, y when y = c(x) -> x],
+      where [c(x)] is the constant at the sort of [x], matched in either order
+      if [op] is commutative ([[@comm]]);
+    - [[@zero c]], for a named constant [c]: [zero_c: _, y when y = c(y) -> y],
+      likewise;
     - [[@idem]]: [same: v, v -> v].
 
     In that of a unary operator [Op], over [v]:
     - [[@invol]]: [op: Op x -> x], named after [Op].
 
-    The literals [0], [1], [true] and [false] name their rules [zero], [one],
-    [true_] and [false_]. *)
+    The literals [0] and [1] are named [zero] and [one] in the names of the
+    rules ([unit_zero], [zero_one]), and [true], [false] and the constants by
+    themselves ([unit_true], [zero_ones]). *)
 let law_cases globals raws =
   let open Ast_builder.Default in
   let derive raws n =
@@ -2838,7 +2820,7 @@ let law_cases globals raws =
     let params = List.map fst r.rparams in
     let node_params = List.filteri (fun i _ -> i < nparams) params in
     let operands = List.filteri (fun i _ -> i >= nparams) params in
-    let lit_name = function "0" -> "zero" | "1" -> "one" | c -> c ^ "_" in
+    let lit_name = function "0" -> "zero" | "1" -> "one" | c -> c in
     let case (law, loc, arg_loc) =
       let var x = evar ~loc x in
       let app f args = eapply ~loc (var f) args in
@@ -2866,9 +2848,9 @@ let law_cases globals raws =
                 pstr_eval ~loc (Option.get r.rspec) [];
               ] )
       in
-      (* the term of the literal [c]: its constant, at the type of the first
-         operand, or else its node *)
-      let lit_term c =
+      (* the term of the literal or constant [c]: its constant, at the sort of
+         the operand [at], or else its node *)
+      let lit_term ?(at = v1) c =
         match List.assoc_opt c !lang.constants with
         | Some (None, e) -> e
         | Some (Some v, e) ->
@@ -2877,7 +2859,7 @@ let law_cases globals raws =
 
               method! expression e =
                 match e.pexp_desc with
-                | Pexp_ident { txt = Lident x; _ } when x = v -> v1
+                | Pexp_ident { txt = Lident x; _ } when x = v -> at
                 | _ -> super#expression e
             end
               #expression
@@ -2913,7 +2895,11 @@ let law_cases globals raws =
         | c :: _ -> c
         | [] -> error loc "[@fold]: no literals of type %a" pp_ty t
       in
-      let rule, pats, body =
+      (* [y = c], at the sort of [x], for a named constant [c] *)
+      let is_constant c y x =
+        Some (eapply ~loc (var "=") [ var y; lit_term ~at:(var x) c ])
+      in
+      let rule, pats, guard, comm, body =
         match law with
         | Fold (g, lift) ->
             let s =
@@ -2965,14 +2951,61 @@ let law_cases globals raws =
                     (Located.lident ~loc (lit_constr t))
                     (Some (pvar ~loc x)))
                 tys xs,
+              None,
+              false,
               body )
+        | (Unit c | Zero c) when not (is_literal c) -> (
+            (* the other operand, compared with the constant, in either order if
+               [op] is commutative *)
+            let comm = is_commutative n in
+            match law with
+            | Unit _ ->
+                ( "unit_" ^ c,
+                  [ pvar ~loc "x"; pvar ~loc "y" ],
+                  is_constant c "y" "x",
+                  comm,
+                  var "x" )
+            | _ ->
+                ( "zero_" ^ c,
+                  [ ppat_any ~loc; pvar ~loc "y" ],
+                  is_constant c "y" "y",
+                  comm,
+                  var "y" ))
         | Unit c when is_commutative n ->
-            (lit_name c, [ pvar ~loc "x"; lit_pat c ], var "x")
-        | Unit c -> (lit_name c, [ ppat_any ~loc; lit_pat c ], v1)
-        | Zero c -> (lit_name c, [ ppat_any ~loc; lit_pat c ], lit_term c)
-        | Idem -> ("same", [ pvar ~loc "v"; pvar ~loc "v" ], var "v")
+            ( "unit_" ^ lit_name c,
+              [ pvar ~loc "x"; lit_pat c ],
+              None,
+              false,
+              var "x" )
+        | Unit c ->
+            ("unit_" ^ lit_name c, [ ppat_any ~loc; lit_pat c ], None, false, v1)
+        | Zero c -> (
+            match List.assoc_opt c !lang.constants with
+            | Some (Some _, _) ->
+                (* the constant at the sort of the literal, which is that of
+                   either operand *)
+                ( "zero_" ^ lit_name c,
+                  [
+                    ppat_any ~loc;
+                    ppat_alias ~loc (lit_pat c) { txt = "z"; loc };
+                  ],
+                  None,
+                  false,
+                  lit_term ~at:(var "z") c )
+            | _ ->
+                ( "zero_" ^ lit_name c,
+                  [ ppat_any ~loc; lit_pat c ],
+                  None,
+                  false,
+                  lit_term c ))
+        | Idem ->
+            ("same", [ pvar ~loc "v"; pvar ~loc "v" ], None, false, var "v")
         | Invol ->
-            (String.lowercase_ascii n, [ node_pat [ pvar ~loc "x" ] ], var "x")
+            ( String.lowercase_ascii n,
+              [ node_pat [ pvar ~loc "x" ] ],
+              None,
+              false,
+              var "x" )
       in
       (* the patterns of the operands, in the shape of the scrutinee *)
       let lhs (scrut : expression) =
@@ -3001,9 +3034,14 @@ let law_cases globals raws =
           attribute ~loc ~name:{ txt = "r"; loc }
             ~payload:(PStr [ pstr_eval ~loc (var rule) [] ])
         in
-        { p with ppat_attributes = [ name ] }
+        let comm =
+          if comm then
+            [ attribute ~loc ~name:{ txt = "comm"; loc } ~payload:(PStr []) ]
+          else []
+        in
+        { p with ppat_attributes = name :: comm }
       in
-      (rule, fun scrut -> case ~lhs:(lhs scrut) ~guard:None ~rhs:body)
+      (rule, fun scrut -> case ~lhs:(lhs scrut) ~guard ~rhs:body)
     in
     let derived = List.map case laws in
     let rec body (e : expression) =
@@ -3103,6 +3141,7 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
     t_params = params;
     t_vars = !vars;
     t_sorts = sorts;
+    t_nary = rt.rt_nary;
     t_when = cond;
   }
 
@@ -3113,23 +3152,10 @@ let typings env0 =
     (fun (n, (rt : raw_typing)) ->
       attempt @@ fun () ->
       let c = Option.get (find_constr n) in
-      let sorts = List.length rt.rt_sorts in
-      let nparams =
-        match node_of_op c with
-        | Some (_, operands) ->
-            if
-              sorts <> 1
-              && (sorts <> List.length operands + 1
-                 || not (List.for_all (( = ) TTerm) operands))
-            then
-              error rt.rt_loc
-                "%s: expected the sorts of %d operands and the result, or of \
-                 the result"
-                n (List.length operands);
-            List.length c.c_args
-        | None when c.c_res = TKind -> List.length c.c_args - (sorts - 1)
-        | None -> error rt.rt_loc "%s: only nodes have a typing" n
-      in
+      (* the operands of a node are those of its typing (see [node_arity]) *)
+      if c.c_res <> TKind && Option.is_none (node_of_op c) then
+        error rt.rt_loc "%s: only nodes have a typing" n;
+      let nparams = List.length c.c_args in
       (n, typing env0 ~nparams c rt))
     !lang.raw_typing
 
@@ -3348,8 +3374,9 @@ let spec_check globals (r : raw_fn) (spec : expression) : expression option =
           let is_ident (e : expression) =
             match e.pexp_desc with Pexp_ident _ -> true | _ -> false
           in
-          (* the operands built by the spec are well-typed *)
-          if List.for_all is_ident operands then (
+          (* the operands built by the spec are well-typed; the elements of a
+             list of operands are not checked *)
+          if (not rt.rt_nary) && List.for_all is_ident operands then (
             let param_names =
               List.map
                 (fun (e : expression) ->

@@ -12,15 +12,15 @@ and primitives).
   
   and kind =
     | Var of var
-    | Unop of unop * t
-    | Binop of binop * t * t
     | Bool of bool
     | Int of Z.t
+    | Op1 of op1 * t
+    | Op2 of op2 * t * t
   
-  and unop =
+  and op1 =
     | Not
   
-  and binop =
+  and op2 =
     | And
     | Plus
     | Times
@@ -37,6 +37,8 @@ and primitives).
     tag : int;
   }
   
+  let hash_combine x y = (x * 65599) + y
+  
   let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag
   
   and hash_t (a : t) = a.tag
@@ -48,31 +50,33 @@ and primitives).
   and equal_kind (a : kind) (b : kind) =
     match (a, b) with
     | Var a1, Var b1 -> equal_var a1 b1
-    | Unop (a1, a2), Unop (b1, b2) -> equal_unop a1 b1 && equal_t a2 b2
-    | Binop (a1, a2, a3), Binop (b1, b2, b3) ->
-        equal_binop a1 b1 && equal_t a2 b2 && equal_t a3 b3
     | Bool a1, Bool b1 -> Bool.equal a1 b1
     | Int a1, Int b1 -> Z.equal a1 b1
+    | Op1 (a1, a2), Op1 (b1, b2) -> equal_op1 a1 b1 && equal_t a2 b2
+    | Op2 (a1, a2, a3), Op2 (b1, b2, b3) ->
+        equal_op2 a1 b1 && equal_t a2 b2 && equal_t a3 b3
     | _ -> false
   
   and hash_kind (a : kind) =
     match a with
-    | Var a1 -> Hashtbl.hash (0, hash_var a1)
-    | Unop (a1, a2) -> Hashtbl.hash (1, hash_unop a1, hash_t a2)
-    | Binop (a1, a2, a3) ->
-        Hashtbl.hash (2, hash_binop a1, hash_t a2, hash_t a3)
-    | Bool a1 -> Hashtbl.hash (3, Hashtbl.hash a1)
-    | Int a1 -> Hashtbl.hash (4, Z.hash a1)
+    | Var a1 -> hash_combine (0) (hash_var a1)
+    | Bool a1 -> hash_combine (1) (Bool.to_int a1)
+    | Int a1 -> hash_combine (2) (Z.hash a1)
+    | Op1 (a1, a2) -> hash_combine (hash_combine (3) (hash_op1 a1)) (hash_t a2)
+    | Op2 (a1, a2, a3) ->
+        hash_combine
+          (hash_combine (hash_combine (4) (hash_op2 a1)) (hash_t a2))
+          (hash_t a3)
   
-  and equal_unop (a : unop) (b : unop) =
+  and equal_op1 (a : op1) (b : op1) =
     match (a, b) with
     | Not, Not -> true
   
-  and hash_unop (a : unop) =
+  and hash_op1 (a : op1) =
     match a with
     | Not -> 0
   
-  and equal_binop (a : binop) (b : binop) =
+  and equal_op2 (a : op2) (b : op2) =
     match (a, b) with
     | And, And -> true
     | Plus, Plus -> true
@@ -81,7 +85,7 @@ and primitives).
     | Eq, Eq -> true
     | _ -> false
   
-  and hash_binop (a : binop) =
+  and hash_op2 (a : op2) =
     match a with
     | And -> 0
     | Plus -> 1
@@ -100,19 +104,23 @@ and primitives).
     | TBool -> 0
     | TInt -> 1
   
+  (* Not safe across domains (TODO). *)
   let node : kind -> ty -> t =
-    let module H = Weak.Make (struct
+    let module H = Ephemeron.K1.Make (struct
       type nonrec t = t
-      
       let equal a b = equal_kind a.kind b.kind && equal_ty a.ty b.ty
-      let hash a = Hashtbl.hash (hash_kind a.kind, hash_ty a.ty)
+      let hash a = hash_combine (hash_kind a.kind) (hash_ty a.ty)
     end) in
     let table = H.create 1024 and tags = ref 0 in
     fun kind ty ->
-      let t = { kind; ty; tag = !tags } in
-      let t' = H.merge table t in
-      if t' == t then incr tags;
-      t'
+      let v = { kind; ty; tag = -1 } in
+      match H.find table v with
+      | t -> t
+      | exception Not_found ->
+        let t = { v with tag = !tags } in
+        incr tags;
+        H.add table t t;
+        t
 
 The rules, in the scope of the types:
 
@@ -128,10 +136,10 @@ The rules, in the scope of the types:
     val v_false : t
   end = Tiny_prims
   
-  let[@inline] mk_commut_binop (op : binop) (l : t) (r : t) : kind =
+  let[@inline] mk_commut_binop (op : op2) (l : t) (r : t) : kind =
       (if (Int.compare l.tag r.tag <= 0)
-      then (Binop (op, l, r))
-      else (Binop (op, r, l)))
+      then (Op2 (op, l, r))
+      else (Op2 (op, r, l)))
   
   let[@inline] of_bool (b : bool) : t =
       (if b then Tiny_prims.v_true else Tiny_prims.v_false)
@@ -186,7 +194,7 @@ The rules, in the scope of the types:
       (match v1, v2 with
       | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
         (node (Bool ((lt i1 i2))) TBool)
-      | _ -> (node (Binop (Lt, v1, v2)) TBool)
+      | _ -> (node (Op2 (Lt, v1, v2)) TBool)
       ))
   
   let not_ (v : t) : t =
@@ -196,8 +204,8 @@ The rules, in the scope of the types:
                ) [@warning "-11"]);
       (match v with
       | { kind = Bool (true); _ } -> Tiny_prims.v_false
-      | { kind = Unop ((Not), x); _ } -> x
-      | _ -> (node (Unop (Not, v)) TBool)
+      | { kind = Op1 ((Not), x); _ } -> x
+      | _ -> (node (Op1 (Not, v)) TBool)
       ))
   
   let and_ (v1 : t) (v2 : t) : t =
@@ -211,10 +219,10 @@ The rules, in the scope of the types:
       | (_, { kind = Bool (false); _ }) -> Tiny_prims.v_false
       | ({ kind = Bool (false); _ }, _) -> Tiny_prims.v_false
       | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
-      | (x, { kind = Unop ((Not), kanon__3); _ })
+      | (x, { kind = Op1 ((Not), kanon__3); _ })
         when ((Int.equal x.tag kanon__3.tag)) ->
         Tiny_prims.v_false
-      | ({ kind = Unop ((Not), kanon__3); _ }, x)
+      | ({ kind = Op1 ((Not), kanon__3); _ }, x)
         when ((Int.equal x.tag kanon__3.tag)) ->
         Tiny_prims.v_false
       | _ -> (node (mk_commut_binop And v1 v2) TBool)
@@ -237,36 +245,6 @@ The rules, in the scope of the types:
       ))
   
   
-
-The deprecated check of OCaml types written by hand, whose names are those of
-[@ocaml], or the Kanon names:
-
-  $ kanon ocaml-check lang.knl
-  kanon: ocaml-check is deprecated: ocaml-types generates the types of the language
-  (* Generated by kanon from lang.knl. Do not edit. *)
-  
-  module _ = struct
-    [@@@warning "-a@8@9"]
-    open P
-    let _ : string -> unit = fun _ -> ()
-    let _ : kind -> unit = function
-      | Var (_ : string) -> ()
-      | Unop ((_ : unop), (_ : t)) -> ()
-      | Binop ((_ : binop), (_ : t), (_ : t)) -> ()
-      | Bool (_ : bool) -> ()
-      | Int (_ : Z.t) -> ()
-    let _ : unop -> unit = function
-      | Not -> ()
-    let _ : binop -> unit = function
-      | And -> ()
-      | Plus -> ()
-      | Times -> ()
-      | Lt -> ()
-      | Eq -> ()
-    let _ : ty -> unit = function
-      | TBool -> ()
-      | TInt -> ()
-  end
 
 The Lean statements and their proofs:
 
@@ -293,38 +271,38 @@ The Lean statements and their proofs:
     and_ : ∀ (v1 : Term) (v2 : Term), Refines (and_.spec v1 v2) (O.and_ v1 v2)
     eq : ∀ (v1 : Term) (v2 : Term), Refines (eq.spec v1 v2) (O.eq v1 v2)
   
-  /-- The operands of `Binop.And` commute. -/
-  def Binop.And.comm.Stmt : Prop :=
+  /-- The operands of `Op2.And` commute. -/
+  def Op2.And.comm.Stmt : Prop :=
     ∀ (a b : Term) (t : Ty),
-    Refines (Term.mk (Kind.Binop Binop.And a b) t)
-    (Term.mk (Kind.Binop Binop.And b a) t)
+    Refines (Term.mk (Kind.Op2 Op2.And a b) t)
+    (Term.mk (Kind.Op2 Op2.And b a) t)
   
-  /-- The operands of `Binop.Plus` commute. -/
-  def Binop.Plus.comm.Stmt : Prop :=
+  /-- The operands of `Op2.Plus` commute. -/
+  def Op2.Plus.comm.Stmt : Prop :=
     ∀ (a b : Term) (t : Ty),
-    Refines (Term.mk (Kind.Binop Binop.Plus a b) t)
-    (Term.mk (Kind.Binop Binop.Plus b a) t)
+    Refines (Term.mk (Kind.Op2 Op2.Plus a b) t)
+    (Term.mk (Kind.Op2 Op2.Plus b a) t)
   
-  /-- The operands of `Binop.Times` commute. -/
-  def Binop.Times.comm.Stmt : Prop :=
+  /-- The operands of `Op2.Times` commute. -/
+  def Op2.Times.comm.Stmt : Prop :=
     ∀ (a b : Term) (t : Ty),
-    Refines (Term.mk (Kind.Binop Binop.Times a b) t)
-    (Term.mk (Kind.Binop Binop.Times b a) t)
+    Refines (Term.mk (Kind.Op2 Op2.Times a b) t)
+    (Term.mk (Kind.Op2 Op2.Times b a) t)
   
-  /-- The operands of `Binop.Eq` commute. -/
-  def Binop.Eq.comm.Stmt : Prop :=
+  /-- The operands of `Op2.Eq` commute. -/
+  def Op2.Eq.comm.Stmt : Prop :=
     ∀ (a b : Term) (t : Ty),
-    Refines (Term.mk (Kind.Binop Binop.Eq a b) t)
-    (Term.mk (Kind.Binop Binop.Eq b a) t)
+    Refines (Term.mk (Kind.Op2 Op2.Eq a b) t)
+    (Term.mk (Kind.Op2 Op2.Eq b a) t)
   
   def plus.r_lits.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_lits O v1 v2 = some res →
     Refines (plus.spec v1 v2) res
   
-  def plus.r_zero.Stmt : Prop :=
+  def plus.r_unit_zero.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_zero O v1 v2 = some res →
+    ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_unit_zero O v1 v2 = some res →
     Refines (plus.spec v1 v2) res
   
   def plus.r_default.Stmt : Prop :=
@@ -338,14 +316,14 @@ The Lean statements and their proofs:
     Refines (plus.spec (Term.mk (Kind.Int i1) t__2) (Term.mk (Kind.Int i2) t__4))
     ((Term.mk (Kind.Int (add i1 i2)) Ty.TInt))
   
-  def plus.r_zero.main.Stmt : Prop :=
+  def plus.r_unit_zero.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (0 : Int))) = true →
     Refines (plus.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
     (v1)
   
-  def plus.r_zero.swap.Stmt : Prop :=
+  def plus.r_unit_zero.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (0 : Int))) = true →
@@ -356,16 +334,16 @@ The Lean statements and their proofs:
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (plus.spec v1 v2)
-    ((Term.mk (mk_commut_binop O Binop.Plus v1 v2) Ty.TInt))
+    ((Term.mk (mk_commut_binop O Op2.Plus v1 v2) Ty.TInt))
   
-  def times.r_one.Stmt : Prop :=
+  def times.r_unit_one.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), times.r_one O v1 v2 = some res →
+    ∀ (v1 : Term) (v2 : Term) (res : Term), times.r_unit_one O v1 v2 = some res →
     Refines (times.spec v1 v2) res
   
-  def times.r_zero.Stmt : Prop :=
+  def times.r_zero_zero.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), times.r_zero O v1 v2 = some res →
+    ∀ (v1 : Term) (v2 : Term) (res : Term), times.r_zero_zero O v1 v2 = some res →
     Refines (times.spec v1 v2) res
   
   def times.r_default.Stmt : Prop :=
@@ -373,28 +351,28 @@ The Lean statements and their proofs:
     ∀ (v1 : Term) (v2 : Term) (res : Term), times.r_default O v1 v2 = some res →
     Refines (times.spec v1 v2) res
   
-  def times.r_one.main.Stmt : Prop :=
+  def times.r_unit_one.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (1 : Int))) = true →
     Refines (times.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
     (v1)
   
-  def times.r_one.swap.Stmt : Prop :=
+  def times.r_unit_one.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (1 : Int))) = true →
     Refines (times.spec (Term.mk (Kind.Int kanon__2) t__3) v2)
     (v2)
   
-  def times.r_zero.main.Stmt : Prop :=
+  def times.r_zero_zero.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (0 : Int))) = true →
     Refines (times.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
     ((Term.mk (Kind.Int (0 : Int)) Ty.TInt))
   
-  def times.r_zero.swap.Stmt : Prop :=
+  def times.r_zero_zero.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (kanon__2 : Int) (t__3 : Ty),
     (decide (kanon__2 = (0 : Int))) = true →
@@ -405,7 +383,7 @@ The Lean statements and their proofs:
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (times.spec v1 v2)
-    ((Term.mk (mk_commut_binop O Binop.Times v1 v2) Ty.TInt))
+    ((Term.mk (mk_commut_binop O Op2.Times v1 v2) Ty.TInt))
   
   def lt_.r_lits.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
@@ -427,7 +405,7 @@ The Lean statements and their proofs:
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (lt_.spec v1 v2)
-    ((Term.mk (Kind.Binop Binop.Lt v1 v2) Ty.TBool))
+    ((Term.mk (Kind.Op2 Op2.Lt v1 v2) Ty.TBool))
   
   def not_.r_lit.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
@@ -453,23 +431,23 @@ The Lean statements and their proofs:
   def not_.r_not_not.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (x : Term) (t__3 : Ty),
-    Refines (not_.spec (Term.mk (Kind.Unop Unop.Not x) t__3))
+    Refines (not_.spec (Term.mk (Kind.Op1 Op1.Not x) t__3))
     (x)
   
   def not_.r_default.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v : Term),
     Refines (not_.spec v)
-    ((Term.mk (Kind.Unop Unop.Not v) Ty.TBool))
+    ((Term.mk (Kind.Op1 Op1.Not v) Ty.TBool))
   
-  def and_.r_true_.Stmt : Prop :=
+  def and_.r_unit_true.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), and_.r_true_ O v1 v2 = some res →
+    ∀ (v1 : Term) (v2 : Term) (res : Term), and_.r_unit_true O v1 v2 = some res →
     Refines (and_.spec v1 v2) res
   
-  def and_.r_false_.Stmt : Prop :=
+  def and_.r_zero_false.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), and_.r_false_ O v1 v2 = some res →
+    ∀ (v1 : Term) (v2 : Term) (res : Term), and_.r_zero_false O v1 v2 = some res →
     Refines (and_.spec v1 v2) res
   
   def and_.r_same.Stmt : Prop :=
@@ -487,25 +465,25 @@ The Lean statements and their proofs:
     ∀ (v1 : Term) (v2 : Term) (res : Term), and_.r_default O v1 v2 = some res →
     Refines (and_.spec v1 v2) res
   
-  def and_.r_true_.main.Stmt : Prop :=
+  def and_.r_unit_true.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (t__3 : Ty),
     Refines (and_.spec v1 (Term.mk (Kind.Bool true) t__3))
     (v1)
   
-  def and_.r_true_.swap.Stmt : Prop :=
+  def and_.r_unit_true.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (t__3 : Ty),
     Refines (and_.spec (Term.mk (Kind.Bool true) t__3) v2)
     (v2)
   
-  def and_.r_false_.main.Stmt : Prop :=
+  def and_.r_zero_false.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (t__3 : Ty),
     Refines (and_.spec v1 (Term.mk (Kind.Bool false) t__3))
     (v_false)
   
-  def and_.r_false_.swap.Stmt : Prop :=
+  def and_.r_zero_false.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (t__3 : Ty),
     Refines (and_.spec (Term.mk (Kind.Bool false) t__3) v2)
@@ -522,21 +500,21 @@ The Lean statements and their proofs:
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (kanon__3 : Term) (t__4 : Ty),
     (decide (v1 = kanon__3)) = true →
-    Refines (and_.spec v1 (Term.mk (Kind.Unop Unop.Not kanon__3) t__4))
+    Refines (and_.spec v1 (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4))
     (v_false)
   
   def and_.r_not_.swap.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v2 : Term) (kanon__3 : Term) (t__4 : Ty),
     (decide (v2 = kanon__3)) = true →
-    Refines (and_.spec (Term.mk (Kind.Unop Unop.Not kanon__3) t__4) v2)
+    Refines (and_.spec (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4) v2)
     (v_false)
   
   def and_.r_default.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (and_.spec v1 v2)
-    ((Term.mk (mk_commut_binop O Binop.And v1 v2) Ty.TBool))
+    ((Term.mk (mk_commut_binop O Op2.And v1 v2) Ty.TBool))
   
   def eq.r_same.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
@@ -570,7 +548,7 @@ The Lean statements and their proofs:
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
     Refines (eq.spec v1 v2)
-    ((Term.mk (mk_commut_binop O Binop.Eq v1 v2) Ty.TBool))
+    ((Term.mk (mk_commut_binop O Op2.Eq v1 v2) Ty.TBool))
   
   end Kanon
   $ kanon lean-soundness lang.knl
@@ -588,13 +566,13 @@ The Lean statements and their proofs:
   
   open Classical Kanon
   
-  @[kanon_comm_lemma] theorem Binop.And.comm.ok : Binop.And.comm.Stmt := kanon_proof% Binop.And.comm
+  @[kanon_comm_lemma] theorem Op2.And.comm.ok : Op2.And.comm.Stmt := kanon_proof% Op2.And.comm
   
-  @[kanon_comm_lemma] theorem Binop.Plus.comm.ok : Binop.Plus.comm.Stmt := kanon_proof% Binop.Plus.comm
+  @[kanon_comm_lemma] theorem Op2.Plus.comm.ok : Op2.Plus.comm.Stmt := kanon_proof% Op2.Plus.comm
   
-  @[kanon_comm_lemma] theorem Binop.Times.comm.ok : Binop.Times.comm.Stmt := kanon_proof% Binop.Times.comm
+  @[kanon_comm_lemma] theorem Op2.Times.comm.ok : Op2.Times.comm.Stmt := kanon_proof% Op2.Times.comm
   
-  @[kanon_comm_lemma] theorem Binop.Eq.comm.ok : Binop.Eq.comm.Stmt := kanon_proof% Binop.Eq.comm
+  @[kanon_comm_lemma] theorem Op2.Eq.comm.ok : Op2.Eq.comm.Stmt := kanon_proof% Op2.Eq.comm
   
   theorem plus.r_lits.main.ok : plus.r_lits.main.Stmt := kanon_proof% plus.r_lits.main
   
@@ -604,21 +582,22 @@ The Lean statements and their proofs:
     repeat' rcases orElse_some h with h | h
     · kanon_arm h (plus.r_lits.main.ok O hO)
   
-  theorem plus.r_zero.main.ok : plus.r_zero.main.Stmt := kanon_proof% plus.r_zero.main
+  theorem plus.r_unit_zero.main.ok : plus.r_unit_zero.main.Stmt := kanon_proof% plus.r_unit_zero.main
   
-  theorem plus.r_zero.swap.ok : plus.r_zero.swap.Stmt := by
+  theorem plus.r_unit_zero.swap.ok : plus.r_unit_zero.swap.Stmt := by
     intro O hO v2 kanon__2 t__3 hg
-    refine Refinement.trans ?_ (plus.r_zero.main.ok O hO v2 kanon__2 t__3 hg)
+    refine Refinement.trans ?_
+      (plus.r_unit_zero.main.ok O hO v2 kanon__2 t__3 hg)
     simp only [plus.spec]
-    refine Refinement.trans (Binop.Plus.comm.ok ..) ?_
+    refine Refinement.trans (Op2.Plus.comm.ok ..) ?_
     kanon_congr
   
-  theorem plus.r_zero.proof : plus.r_zero.Stmt := by
+  theorem plus.r_unit_zero.proof : plus.r_unit_zero.Stmt := by
     intro O hO v1 v2 res h
-    simp only [plus.r_zero] at h
+    simp only [plus.r_unit_zero] at h
     repeat' rcases orElse_some h with h | h
-    · kanon_arm h (plus.r_zero.main.ok O hO)
-    · kanon_arm h (plus.r_zero.swap.ok O hO)
+    · kanon_arm h (plus.r_unit_zero.main.ok O hO)
+    · kanon_arm h (plus.r_unit_zero.swap.ok O hO)
   
   theorem plus.r_default.main.ok : plus.r_default.main.Stmt := kanon_proof% plus.r_default.main
   
@@ -628,37 +607,39 @@ The Lean statements and their proofs:
     repeat' rcases orElse_some h with h | h
     · kanon_arm h (plus.r_default.main.ok O hO)
   
-  theorem times.r_one.main.ok : times.r_one.main.Stmt := kanon_proof% times.r_one.main
+  theorem times.r_unit_one.main.ok : times.r_unit_one.main.Stmt := kanon_proof% times.r_unit_one.main
   
-  theorem times.r_one.swap.ok : times.r_one.swap.Stmt := by
+  theorem times.r_unit_one.swap.ok : times.r_unit_one.swap.Stmt := by
     intro O hO v2 kanon__2 t__3 hg
-    refine Refinement.trans ?_ (times.r_one.main.ok O hO v2 kanon__2 t__3 hg)
+    refine Refinement.trans ?_
+      (times.r_unit_one.main.ok O hO v2 kanon__2 t__3 hg)
     simp only [times.spec]
-    refine Refinement.trans (Binop.Times.comm.ok ..) ?_
+    refine Refinement.trans (Op2.Times.comm.ok ..) ?_
     kanon_congr
   
-  theorem times.r_one.proof : times.r_one.Stmt := by
+  theorem times.r_unit_one.proof : times.r_unit_one.Stmt := by
     intro O hO v1 v2 res h
-    simp only [times.r_one] at h
+    simp only [times.r_unit_one] at h
     repeat' rcases orElse_some h with h | h
-    · kanon_arm h (times.r_one.main.ok O hO)
-    · kanon_arm h (times.r_one.swap.ok O hO)
+    · kanon_arm h (times.r_unit_one.main.ok O hO)
+    · kanon_arm h (times.r_unit_one.swap.ok O hO)
   
-  theorem times.r_zero.main.ok : times.r_zero.main.Stmt := kanon_proof% times.r_zero.main
+  theorem times.r_zero_zero.main.ok : times.r_zero_zero.main.Stmt := kanon_proof% times.r_zero_zero.main
   
-  theorem times.r_zero.swap.ok : times.r_zero.swap.Stmt := by
+  theorem times.r_zero_zero.swap.ok : times.r_zero_zero.swap.Stmt := by
     intro O hO v2 kanon__2 t__3 hg
-    refine Refinement.trans ?_ (times.r_zero.main.ok O hO v2 kanon__2 t__3 hg)
+    refine Refinement.trans ?_
+      (times.r_zero_zero.main.ok O hO v2 kanon__2 t__3 hg)
     simp only [times.spec]
-    refine Refinement.trans (Binop.Times.comm.ok ..) ?_
+    refine Refinement.trans (Op2.Times.comm.ok ..) ?_
     kanon_congr
   
-  theorem times.r_zero.proof : times.r_zero.Stmt := by
+  theorem times.r_zero_zero.proof : times.r_zero_zero.Stmt := by
     intro O hO v1 v2 res h
-    simp only [times.r_zero] at h
+    simp only [times.r_zero_zero] at h
     repeat' rcases orElse_some h with h | h
-    · kanon_arm h (times.r_zero.main.ok O hO)
-    · kanon_arm h (times.r_zero.swap.ok O hO)
+    · kanon_arm h (times.r_zero_zero.main.ok O hO)
+    · kanon_arm h (times.r_zero_zero.swap.ok O hO)
   
   theorem times.r_default.main.ok : times.r_default.main.Stmt := kanon_proof% times.r_default.main
   
@@ -708,37 +689,37 @@ The Lean statements and their proofs:
     repeat' rcases orElse_some h with h | h
     · kanon_arm h (not_.r_default.main.ok O hO)
   
-  theorem and_.r_true_.main.ok : and_.r_true_.main.Stmt := kanon_proof% and_.r_true_.main
+  theorem and_.r_unit_true.main.ok : and_.r_unit_true.main.Stmt := kanon_proof% and_.r_unit_true.main
   
-  theorem and_.r_true_.swap.ok : and_.r_true_.swap.Stmt := by
+  theorem and_.r_unit_true.swap.ok : and_.r_unit_true.swap.Stmt := by
     intro O hO v2 t__3
-    refine Refinement.trans ?_ (and_.r_true_.main.ok O hO v2 t__3)
+    refine Refinement.trans ?_ (and_.r_unit_true.main.ok O hO v2 t__3)
     simp only [and_.spec]
-    refine Refinement.trans (Binop.And.comm.ok ..) ?_
+    refine Refinement.trans (Op2.And.comm.ok ..) ?_
     kanon_congr
   
-  theorem and_.r_true_.proof : and_.r_true_.Stmt := by
+  theorem and_.r_unit_true.proof : and_.r_unit_true.Stmt := by
     intro O hO v1 v2 res h
-    simp only [and_.r_true_] at h
+    simp only [and_.r_unit_true] at h
     repeat' rcases orElse_some h with h | h
-    · kanon_arm h (and_.r_true_.main.ok O hO)
-    · kanon_arm h (and_.r_true_.swap.ok O hO)
+    · kanon_arm h (and_.r_unit_true.main.ok O hO)
+    · kanon_arm h (and_.r_unit_true.swap.ok O hO)
   
-  theorem and_.r_false_.main.ok : and_.r_false_.main.Stmt := kanon_proof% and_.r_false_.main
+  theorem and_.r_zero_false.main.ok : and_.r_zero_false.main.Stmt := kanon_proof% and_.r_zero_false.main
   
-  theorem and_.r_false_.swap.ok : and_.r_false_.swap.Stmt := by
+  theorem and_.r_zero_false.swap.ok : and_.r_zero_false.swap.Stmt := by
     intro O hO v2 t__3
-    refine Refinement.trans ?_ (and_.r_false_.main.ok O hO v2 t__3)
+    refine Refinement.trans ?_ (and_.r_zero_false.main.ok O hO v2 t__3)
     simp only [and_.spec]
-    refine Refinement.trans (Binop.And.comm.ok ..) ?_
+    refine Refinement.trans (Op2.And.comm.ok ..) ?_
     kanon_congr
   
-  theorem and_.r_false_.proof : and_.r_false_.Stmt := by
+  theorem and_.r_zero_false.proof : and_.r_zero_false.Stmt := by
     intro O hO v1 v2 res h
-    simp only [and_.r_false_] at h
+    simp only [and_.r_zero_false] at h
     repeat' rcases orElse_some h with h | h
-    · kanon_arm h (and_.r_false_.main.ok O hO)
-    · kanon_arm h (and_.r_false_.swap.ok O hO)
+    · kanon_arm h (and_.r_zero_false.main.ok O hO)
+    · kanon_arm h (and_.r_zero_false.swap.ok O hO)
   
   theorem and_.r_same.main.ok : and_.r_same.main.Stmt := kanon_proof% and_.r_same.main
   
@@ -754,7 +735,7 @@ The Lean statements and their proofs:
     intro O hO v2 kanon__3 t__4 hg
     refine Refinement.trans ?_ (and_.r_not_.main.ok O hO v2 kanon__3 t__4 hg)
     simp only [and_.spec]
-    refine Refinement.trans (Binop.And.comm.ok ..) ?_
+    refine Refinement.trans (Op2.And.comm.ok ..) ?_
     kanon_congr
   
   theorem and_.r_not_.proof : and_.r_not_.Stmt := by
@@ -800,15 +781,15 @@ The Lean statements and their proofs:
     Refines (plus.spec v1 v2) (plus.step O v1 v2) := by
     unfold plus.step
     refine Refinement.firstSome_cons (fun res h => plus.r_lits.proof O hO v1 v2 res h) ?_
-    refine Refinement.firstSome_cons (fun res h => plus.r_zero.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => plus.r_unit_zero.proof O hO v1 v2 res h) ?_
     refine Refinement.firstSome_cons (fun res h => plus.r_default.proof O hO v1 v2 res h) ?_
     exact Refinement.firstSome_nil
   
   theorem times.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (times.spec v1 v2) (times.step O v1 v2) := by
     unfold times.step
-    refine Refinement.firstSome_cons (fun res h => times.r_one.proof O hO v1 v2 res h) ?_
-    refine Refinement.firstSome_cons (fun res h => times.r_zero.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => times.r_unit_one.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => times.r_zero_zero.proof O hO v1 v2 res h) ?_
     refine Refinement.firstSome_cons (fun res h => times.r_default.proof O hO v1 v2 res h) ?_
     exact Refinement.firstSome_nil
   
@@ -830,8 +811,8 @@ The Lean statements and their proofs:
   theorem and_.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (and_.spec v1 v2) (and_.step O v1 v2) := by
     unfold and_.step
-    refine Refinement.firstSome_cons (fun res h => and_.r_true_.proof O hO v1 v2 res h) ?_
-    refine Refinement.firstSome_cons (fun res h => and_.r_false_.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_unit_true.proof O hO v1 v2 res h) ?_
+    refine Refinement.firstSome_cons (fun res h => and_.r_zero_false.proof O hO v1 v2 res h) ?_
     refine Refinement.firstSome_cons (fun res h => and_.r_same.proof O hO v1 v2 res h) ?_
     refine Refinement.firstSome_cons (fun res h => and_.r_not_.proof O hO v1 v2 res h) ?_
     refine Refinement.firstSome_cons (fun res h => and_.r_default.proof O hO v1 v2 res h) ?_
@@ -881,7 +862,7 @@ Operators must be declared before they are used in patterns.
 Without a constant, the term of the literal of a law is its node, built at
 the sort of the spec, as Bool has no typing.
 
-  $ sed 's/^constant "false".*//' lang.knl > nofalse.knl
+  $ sed 's/^constant false.*//' lang.knl > nofalse.knl
   $ kanon ocaml nofalse.knl | sed -n '/let and_/,/^$/p'
   let and_ (v1 : t) (v2 : t) : t =
       (assert ((match v1.ty, v2.ty with
@@ -894,10 +875,10 @@ the sort of the spec, as Bool has no typing.
       | (_, { kind = Bool (false); _ }) -> (node (Bool (false)) TBool)
       | ({ kind = Bool (false); _ }, _) -> (node (Bool (false)) TBool)
       | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
-      | (x, { kind = Unop ((Not), kanon__3); _ })
+      | (x, { kind = Op1 ((Not), kanon__3); _ })
         when ((Int.equal x.tag kanon__3.tag)) ->
         Tiny_prims.v_false
-      | ({ kind = Unop ((Not), kanon__3); _ }, x)
+      | ({ kind = Op1 ((Not), kanon__3); _ }, x)
         when ((Int.equal x.tag kanon__3.tag)) ->
         Tiny_prims.v_false
       | _ -> (node (mk_commut_binop And v1 v2) TBool)
@@ -930,7 +911,7 @@ OCaml asserts, and whose variables the rules may use.
                      | _ -> (assert false)
                      ) (Z.of_int (8)))) ->
         v
-      | _ -> (node (Unop (Trunc, v)) v.ty)
+      | _ -> (node (Op1 (Trunc, v)) v.ty)
       ))
   
   
@@ -946,7 +927,7 @@ With a getter, the variables of the sort are read by it.
                ) [@warning "-11"]);
       (match v with
       | _ when ((Z.leq (width v) (Z.of_int (8)))) -> v
-      | _ -> (node (Unop (Trunc, v)) v.ty)
+      | _ -> (node (Op1 (Trunc, v)) v.ty)
       ))
   
   
@@ -977,9 +958,9 @@ and is left out (the generated OCaml has the warning on unused match cases).
                | _ -> false
                ) [@warning "-11"]);
       (match v with
-      | { kind = Unop ((Not), x); _ } -> x
+      | { kind = Op1 ((Not), x); _ } -> x
       | _ when (true) -> v
-      | _ -> (node (Unop (Not, v)) TBool)
+      | _ -> (node (Op1 (Not, v)) TBool)
       ))
   
   
@@ -1010,10 +991,10 @@ and its node may have fixed parameters, which its patterns then match.
       | ({ kind = Int (x); _ }, { kind = Int (y); _ })
         when (((Bool.equal b true))) ->
         (node (Int ((Z.sub x y))) TInt)
-      | ({ kind = Binop ((Minus (true)), x, y); _ }, z)
+      | ({ kind = Op2 ((Minus (true)), x, y); _ }, z)
         when (((Bool.equal b true))) ->
         (sub true x (plus y z))
-      | _ -> (node (Binop ((Minus (b)), v1, v2)) TInt)
+      | _ -> (node (Op2 ((Minus (b)), v1, v2)) TInt)
       ))
   
   

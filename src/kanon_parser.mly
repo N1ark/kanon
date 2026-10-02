@@ -226,8 +226,9 @@ item:
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
       item loc (Pstr_eval (e, [ attr loc "prefix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
-  (* [constant "c" (v) = e], a function of [v], or [constant "c" = e] *)
-  | CONSTANT c = STRING v = option(delimited(LPAREN, param_name, RPAREN)) EQ e = seq_expr
+  (* [constant c (v) = e], a function of [v], or [constant c = e], where [c] is
+     a literal or a name (or a string, as before) *)
+  | CONSTANT c = constant_name v = option(delimited(LPAREN, param_name, RPAREN)) EQ e = seq_expr
     { let loc = mkloc $loc in
       let f =
         match v with
@@ -237,7 +238,8 @@ item:
             let v = { pparam_loc = vloc; pparam_desc = Pparam_val (Nolabel, None, pat vloc (Ppat_var { txt = v; loc = vloc })) } in
             exp loc (Pexp_function ([ v ], None, Pfunction_body e))
       in
-      item loc (Pstr_eval (f, [ attr loc "constant" [ eval_item loc (string (mkloc (unquote $loc(c))) c) ] ])) }
+      let c, cpos = c in
+      item loc (Pstr_eval (f, [ attr loc "constant" [ eval_item loc (string (mkloc cpos) c) ] ])) }
   | LBRACKETATATAT a = LID ss = list(attr_string) RBRACKET
     { let loc = mkloc $loc in
       item loc (Pstr_attribute (named_attr loc (mkloc $loc(a)) a (strings loc ss))) }
@@ -252,6 +254,13 @@ decl_attr:
 
 attr_string:
   | s = STRING { (s, unquote $loc) }
+
+constant_name:
+  | s = attr_string { s }
+  | s = LID { (s, $loc) }
+  | i = INT { (i, $loc) }
+  | TRUE { ("true", $loc) }
+  | FALSE { ("false", $loc) }
 
 (* the arguments of attributes: strings, or names (of functions and of
    constructors) and literals, unquoted *)
@@ -272,7 +281,7 @@ type_kind:
    [[@sorts]] and [[@when]] attributes *)
 constr_decl:
   | c = UID args = loption(preceded(OF, separated_nonempty_list(STAR, typ_app)))
-    ps = option(constr_params) sorts = option(preceded(COLON, separated_nonempty_list(ARROW, app_expr)))
+    ps = option(constr_params) sorts = option(preceded(COLON, separated_nonempty_list(ARROW, typing_sort)))
     g = option(preceded(WHEN, expr)) attrs = list(decl_attr)
     { let loc = mkloc $loc in
       let tuple l = tuple_or_one (fun l -> exp loc (Pexp_tuple l)) l in
@@ -290,6 +299,12 @@ constr_decl:
         pcd_loc = loc;
         pcd_attributes = typing @ attrs;
       } }
+
+(* a sort, or a list of terms of a sort: [a list] and [TBool list] are
+   applications, as is [(TBitVector n) list] *)
+typing_sort:
+  | e = app_expr { e }
+  | LPAREN e = seq_expr RPAREN l = LID { apply (mkloc $loc) e [ ident (mkloc $loc(l)) l ] }
 
 constr_params:
   | LPAREN ps = separated_nonempty_list(COMMA, constr_param) RPAREN { ps }

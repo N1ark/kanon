@@ -43,13 +43,13 @@ theorem Ops.Sound.bool {O : Ops} (hO : O.Sound) : O.bool.Sound where
   distinct_check_cons _ _ := by
     dsimp only [Ops.bool]; rw [distinct_check]; split <;> simp_all [firstSome]
 
-@[kanon_comm_lemma] theorem Binop.And.comm.ok : Binop.And.comm.Stmt :=
+@[kanon_comm_lemma] theorem Op2.And.comm.ok : Op2.And.comm.Stmt :=
   fun _ _ _ => BoolMod.Lang.refines_and_comm (L := boolLang)
 
-@[kanon_comm_lemma] theorem Binop.Or.comm.ok : Binop.Or.comm.Stmt :=
+@[kanon_comm_lemma] theorem Op2.Or.comm.ok : Op2.Or.comm.Stmt :=
   fun _ _ _ => BoolMod.Lang.refines_or_comm (L := boolLang)
 
-@[kanon_comm_lemma] theorem Binop.Eq.comm.ok : Binop.Eq.comm.Stmt :=
+@[kanon_comm_lemma] theorem Op2.Eq.comm.ok : Op2.Eq.comm.Stmt :=
   fun _ _ _ => BoolMod.Lang.refines_eq_comm (L := boolLang)
 
 theorem b_and.r_same.main.ok : b_and.r_same.main.Stmt :=

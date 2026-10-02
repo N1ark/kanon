@@ -10,18 +10,22 @@ namespace BoolExample
 
 open Classical Kanon
 
-def Unop.WT : Unop → Ty → Ty → Prop
+def Op1.WT : Op1 → Ty → Ty → Prop
   | .Not, kanon__a, kanon__t =>
       kanon__a = Ty.TBool ∧ kanon__t = Ty.TBool
 
-def Binop.WT : Binop → Ty → Ty → Ty → Prop
+def Op2.WT : Op2 → Ty → Ty → Ty → Prop
   | .And, kanon__a, kanon__b, kanon__t | .Or, kanon__a, kanon__b, kanon__t =>
       kanon__a = Ty.TBool ∧ kanon__b = Ty.TBool ∧ kanon__t = Ty.TBool
   | .Eq, kanon__a, kanon__b, kanon__t =>
       kanon__b = kanon__a ∧ kanon__t = Ty.TBool
 
-def Triop.WT : Triop → Ty → Ty → Ty → Ty → Prop
+def Op3.WT : Op3 → Ty → Ty → Ty → Ty → Prop
   | .Ite, kanon__a, kanon__b, kanon__c, kanon__t =>
       kanon__a = Ty.TBool ∧ kanon__c = kanon__b ∧ kanon__t = kanon__b
+
+def OpN.WT : OpN → Ty → Ty → Prop
+  | .Distinct, kanon__a, kanon__t =>
+      kanon__t = Ty.TBool
 
 end BoolExample

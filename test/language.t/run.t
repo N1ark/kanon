@@ -12,20 +12,13 @@ built in.
   $ cat > ops.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
   > 
-  > type t =
-  >   | Unop of unop * t [@operators]
-  >   | Binop of binop * t * t [@operators]
-  > 
-  > type unop
-  > type binop
-  > 
   > node Int of int : TInt [@literal int]
   > node Neg : TInt -> TInt
   > node Add : TInt -> TInt -> TInt [@comm] [@fold add_z] [@unit 0]
   > node Mul : TInt -> TInt -> TInt [@fold mul_z Int]
   > node Cat : TInt -> TInt -> TInt
   > node Le : TInt -> TInt -> TBool [@fold le_z of_bool]
-  > node Bool of bool : TBool [@literal]
+  > node Bool of bool : TBool [@literal bool]
   > sort TInt
   > sort TBool
   > 
@@ -91,7 +84,7 @@ it (Int, of_bool).
       (match v1, v2 with
       | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
         (node (Int ((mul_z i1 i2))) TInt)
-      | _ -> (node (Binop (Mul, v1, v2)) TInt)
+      | _ -> (node (Op2 (Mul, v1, v2)) TInt)
       ))
   
   let le (v1 : t) (v2 : t) : t =
@@ -102,7 +95,7 @@ it (Int, of_bool).
       (match v1, v2 with
       | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
         (Prims.of_bool (le_z i1 i2))
-      | _ -> (node (Binop (Le, v1, v2)) TBool)
+      | _ -> (node (Op2 (Le, v1, v2)) TBool)
       ))
   
 
@@ -187,35 +180,80 @@ node a sort.
   $ kanon ocaml ops.knl bad.knl ops.kn
   bad.knl:1:10: sort TSeq: sorts have no typing
   [1]
-  $ cat > bad.knl <<'KN'
-  > type ty = Neg
+
+The terms (t, whose kinds are kind), their sorts (ty) and the types of the
+operators of each arity (op1, op2, ..., opn) are generated from the nodes and
+sorts: a language does not declare them.
+
+  $ kanon ocaml-types ops.knl | sed -n '/kind =/,/^and t =/p'
+  type kind =
+    | Int of Z.t
+    | Bool of bool
+    | Op1 of op1 * t
+    | Op2 of op2 * t * t
+  
+  and op1 =
+    | Neg
+  
+  and op2 =
+    | Add
+    | Mul
+    | Cat
+    | Le
+  
+  and ty =
+    | TInt
+    | TBool
+  
+  and t = {
+  $ for t in t kind ty op2 opn; do echo "type $t = A" > bad.knl; kanon ocaml ops.knl bad.knl ops.kn; done
+  bad.knl:1:5: type t is generated from the nodes
+  bad.knl:1:5: type kind is generated from the nodes
+  bad.knl:1:5: type ty is generated from the sorts
+  bad.knl:1:5: type op2 is generated from the nodes
+  bad.knl:1:5: type opn is generated from the nodes
+  [1]
+
+A node whose typing has a list as its only operand sort is an operator of any
+number of operands, whose elements all have that sort.
+
+  $ cat > nary.knl <<'KN'
+  > node Max : TInt list -> TInt
+  > node Same : a list -> TBool
   > KN
+  $ cat > nary.kn <<'KN'
+  > rule max : Max l =
+  >   | one: [ x ] -> x
+  > rule same : Same l
+  > KN
+  $ kanon ocaml ops.knl nary.knl ops.kn nary.kn | sed -n '/ max /,$p'
+  let[@inline] max (l : (t list)) : t =
+      (match l with
+      | (x :: []) -> x
+      | _ -> (node (OpN (Max, l)) TInt)
+      )
+  
+  let[@inline] same (l : (t list)) : t =
+      (match l with
+      | _ -> (node (OpN (Same, l)) TBool)
+      )
+  
+  
+  $ echo 'node Bad : TInt list -> TInt -> TInt' > bad.knl
   $ kanon ocaml ops.knl bad.knl ops.kn
-  bad.knl:1:10: Neg is a node, which cannot be placed in ty: sorts are declared with sort
+  bad.knl:1:11: Bad: s list is only allowed as the only operand sort
   [1]
 
-The kinds of terms are the constructors of t, which every language declares,
-and which may not be named kind.
+Literals give their type, and boolean literals have no function: [@fold f lift]
+makes the term of a boolean. [@ite] and [@distrib_ite] are gone.
 
-  $ cat > nokind.knl <<'KN'
-  > type kind = A
-  > KN
-  $ kanon ocaml nokind.knl
-  nokind.knl:1:5: kind is reserved: the kinds of terms are the constructors of t
-  [1]
-  $ echo 'type ty' > not.knl
-  $ kanon ocaml not.knl
-  not.knl:1:0: type t is not declared: its constructors are the terms
-  [1]
-
-Boolean literals have no function: [@fold f lift] makes the term of a boolean.
-[@ite] and [@distrib_ite] are gone.
-
-  $ cat > bad.knl <<'KN'
-  > type t = B of bool [@literal] [@to_term of_bool]
-  > KN
+  $ echo 'node B of bool [@literal]' > bad.knl
   $ kanon ocaml bad.knl
-  bad.knl:1:30: boolean literals have no [@to_term]: [@fold f lift] gives the function that makes the term of a boolean
+  bad.knl:1:15: [@literal] needs the type of the literals: [@literal bool], [@literal int] or [@literal t]
+  [1]
+  $ echo 'node B of bool [@literal bool] [@to_term of_bool]' > bad.knl
+  $ kanon ocaml bad.knl
+  bad.knl:1:31: boolean literals have no [@to_term]: [@fold f lift] gives the function that makes the term of a boolean
   [1]
   $ cat > bad.knl <<'KN'
   > node Ite : TBool -> a -> a -> a [@ite]
@@ -229,18 +267,16 @@ the term of a law, which Kanon cannot build.
 
   $ cat > bv.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
-  > type t = Binop of binop * t * t [@operators]
-  > type binop
   > type bv [@ocaml "Bv.t"]
   > node BitVec of int [@literal bv] [@to_term lit] [@of_term of_lit]
   > node BvMul : TBv -> TBv -> TBv [@zero 0]
   > sort TBv
   > KN
   $ kanon ocaml bv.knl
-  bv.knl:6:38: the constant 0 is not declared: the literals of bv values have no term that Kanon could build
+  bv.knl:4:38: the constant 0 is not declared: the literals of bv values have no term that Kanon could build
   [1]
   $ cat >> bv.knl <<'KN'
-  > constant "0" (v) = zero_of v
+  > constant 0 (v) = zero_of v
   > KN
   $ cat > bv.kn <<'KN'
   > prim lit : bv -> t
@@ -255,13 +291,47 @@ the term of a law, which Kanon cannot build.
                | _ -> false
                ) [@warning "-11"]);
       (match v1, v2 with
-      | (_, { kind = BitVec (kanon__2); _ })
+      | (_, ({ kind = BitVec (kanon__2); _ } as z))
         when (((Z.equal kanon__2 Z.zero))) ->
-        (Prims.zero_of v1)
-      | _ -> (node (Binop (BvMul, v1, v2)) TBv)
+        (Prims.zero_of z)
+      | _ -> (node (Op2 (BvMul, v1, v2)) TBv)
       ))
   
   
+
+A unit or a zero may be a named constant, built at the sort of the other
+operand, which the derived rule compares with = (a guard).
+
+  $ cat > ones.knl <<'KN'
+  > node BvAnd : TBv -> TBv -> TBv [@comm] [@unit ones] [@zero 0]
+  > constant ones (v) = ones_of v
+  > KN
+  $ cat > ones.kn <<'KN'
+  > prim ones_of : t -> t
+  > rule bv_and : BvAnd (v1, v2)
+  > KN
+  $ kanon ocaml bv.knl ones.knl bv.kn ones.kn | sed -n '/let bv_and/,/^$/p'
+  let bv_and (v1 : t) (v2 : t) : t =
+      (assert ((match v1.ty, v2.ty with
+               | ((TBv), (TBv)) -> true
+               | _ -> false
+               ) [@warning "-11"]);
+      (match v1, v2 with
+      | (x, y) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+      | (y, x) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+      | (_, ({ kind = BitVec (kanon__2); _ } as z))
+        when (((Z.equal kanon__2 Z.zero))) ->
+        (Prims.zero_of z)
+      | (({ kind = BitVec (kanon__2); _ } as z), _)
+        when (((Z.equal kanon__2 Z.zero))) ->
+        (Prims.zero_of z)
+      | _ -> (node (mk_commut_binop BvAnd v1 v2) TBv)
+      ))
+  
+  $ sed 's/unit ones/unit twos/' ones.knl > bad.knl
+  $ kanon ocaml bv.knl bad.knl bv.kn ones.kn
+  bad.knl:1:46: expected the literal 0, 1, true or false, or a constant: twos is not declared
+  [1]
 
 The rules call the primitives in the module of [@@@ocaml_prims], which the
 language must name, and the types of ocaml-types need the OCaml types of the
@@ -273,7 +343,7 @@ abstract types.
   [1]
   $ sed 's/ \[@ocaml "Bv.t"\]//' bv.knl > noocaml.knl
   $ kanon ocaml-types noocaml.knl
-  noocaml.knl:4:5: type bv is abstract: [@ocaml "M.t"] gives its OCaml type
+  noocaml.knl:2:5: type bv is abstract: [@ocaml "M.t"] gives its OCaml type
   [1]
   $ cat > bad.knl <<'KN'
   > type pair [@noeq] = { left : int; right : int }

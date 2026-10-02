@@ -31,7 +31,7 @@ let lean_files ~lang ~sources prog =
 
 (** The backends that write on standard output, in the order of the usage. *)
 let backends =
-  [ "ocaml-types"; "ocaml"; "ocaml-tests"; "ocaml-check" ]
+  [ "ocaml-types"; "ocaml"; "ocaml-tests" ]
   @ List.map
       (fun (_, b, _) -> b)
       (lean_files ~lang:[] ~sources:[] (lazy (assert false)))
@@ -89,11 +89,6 @@ let run args out err =
           (match backend with
           | "ocaml-types" -> Gen_ocaml.types ~sources:lang out
           | "ocaml" -> Gen_ocaml.program ~sources out (Lazy.force prog)
-          | "ocaml-check" ->
-              Format.fprintf err
-                "kanon: ocaml-check is deprecated: ocaml-types generates the \
-                 types of the language@.";
-              Gen_ocaml.lang_check ~sources:lang out
           | "ocaml-tests" -> Gen_tests.program ~sources out (Lazy.force prog)
           | "lean-all" ->
               List.iter

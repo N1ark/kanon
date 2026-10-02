@@ -31,18 +31,19 @@ open Classical Kanon BoolMod
 
 /-! ## Well-typed terms -/
 
-/-! The typing of the operators, `Unop.WT`, `Binop.WT` and `Triop.WT`, is
-generated from the declarations of the nodes in `Typing.lean`. -/
+/-! The typing of the operators, `Op1.WT`, `Op2.WT`, `Op3.WT` and `OpN.WT`
+(over the sort of all the operands of an n-ary operator), is generated from the
+declarations of the nodes in `Typing.lean`. -/
 
 mutual
 /-- Syntactic well-typedness. -/
 def Term.WT : Term → Prop
   | .mk (.Var _) _ => True
   | .mk (.Bool _) t => t = .TBool
-  | .mk (.Unop op a) t => op.WT a.ty t ∧ a.WT
-  | .mk (.Binop op a b) t => op.WT a.ty b.ty t ∧ a.WT ∧ b.WT
-  | .mk (.Triop op a b c) t => op.WT a.ty b.ty c.ty t ∧ a.WT ∧ b.WT ∧ c.WT
-  | .mk (.Nop .Distinct l) t => t = .TBool ∧ ∃ e, Term.WTList e l
+  | .mk (.Op1 op a) t => op.WT a.ty t ∧ a.WT
+  | .mk (.Op2 op a b) t => op.WT a.ty b.ty t ∧ a.WT ∧ b.WT
+  | .mk (.Op3 op a b c) t => op.WT a.ty b.ty c.ty t ∧ a.WT ∧ b.WT ∧ c.WT
+  | .mk (.OpN op l) t => ∃ e, op.WT e t ∧ Term.WTList e l
 
 /-- All the terms are well-typed, of the type `e`. -/
 def Term.WTList (e : Ty) : List Term → Prop
@@ -55,26 +56,29 @@ end
 /-- The values of the variables; `none` for a poisoned variable. -/
 abbrev Env := Int → Option Bool
 
-def evUnop : Unop → Option Bool → Option Bool
+def evOp1 : Op1 → Option Bool → Option Bool
   | .Not, a => pnot id a
 
-def evBinop : Binop → Option Bool → Option Bool → Option Bool
+def evOp2 : Op2 → Option Bool → Option Bool → Option Bool
   | .And, a, b => pand id a b
   | .Or, a, b => por id a b
   | .Eq, a, b => peq id a b
 
-def evTriop : Triop → Option Bool → Option Bool → Option Bool → Option Bool
+def evOp3 : Op3 → Option Bool → Option Bool → Option Bool → Option Bool
   | .Ite, g, a, b => pite id g a b
+
+def evOpN : OpN → Option (List Bool) → Option Bool
+  | .Distinct, vs => pdistinct id vs
 
 mutual
 /-- Evaluation, assuming well-typedness. -/
 def ev (ρ : Env) : Term → Option Bool
   | .mk (.Var v) _ => ρ v
   | .mk (.Bool b) _ => some b
-  | .mk (.Unop op a) _ => evUnop op (ev ρ a)
-  | .mk (.Binop op a b) _ => evBinop op (ev ρ a) (ev ρ b)
-  | .mk (.Triop op a b c) _ => evTriop op (ev ρ a) (ev ρ b) (ev ρ c)
-  | .mk (.Nop .Distinct l) _ => pdistinct id (evList ρ l)
+  | .mk (.Op1 op a) _ => evOp1 op (ev ρ a)
+  | .mk (.Op2 op a b) _ => evOp2 op (ev ρ a) (ev ρ b)
+  | .mk (.Op3 op a b c) _ => evOp3 op (ev ρ a) (ev ρ b) (ev ρ c)
+  | .mk (.OpN op l) _ => evOpN op (evList ρ l)
 
 /-- The values of a list of terms, if none is poison. -/
 def evList (ρ : Env) : List Term → Option (List Bool)

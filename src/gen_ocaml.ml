@@ -2,8 +2,7 @@
     Zarith): terms are hash-consed records [{ kind; ty; tag }]. {!program}
     defines every Kanon function, where these types are in scope, and calls the
     primitives in the module of [[@@@ocaml_prims]]. The output is not meant to
-    be read. {!lang_check}, deprecated, checks OCaml types written by hand
-    instead. *)
+    be read. *)
 
 open Syntax
 
@@ -47,19 +46,36 @@ let rec equal_fn ft = function
   | TOption t -> pf ft "(Option.equal %a)" equal_fn t
   | TList t -> pf ft "(List.equal %a)" equal_fn t
 
-(** The hash at type [t], as an OCaml function, compatible with [equal_fn]. *)
+(** [hash_combine (... (hash_combine h1 h2) ...) hn], for the hashes [l],
+    printed by [pp]. *)
+let combine pp ft l =
+  (* the last hash first *)
+  let rec go ft = function
+    | [] -> pf ft "0"
+    | [ x ] -> pp ft x
+    | x :: l -> pf ft "@[<hov 2>hash_combine@ (%a)@ (%a)@]" go l pp x
+  in
+  go ft (List.rev l)
+
+(** The hash at type [t], as an OCaml function, compatible with [equal_fn]:
+    terms are hashed by their tags, and the hashes of the components of a value
+    combined with [hash_combine] (see {!types}). *)
 let rec hash_fn ft = function
   | TInt -> pf ft "Z.hash"
-  | TBool | TUnit -> pf ft "Hashtbl.hash"
+  | TBool -> pf ft "Bool.to_int"
+  | TUnit -> pf ft "(fun () -> 0)"
   | TTerm -> pf ft "hash_t"
   | (TKind | TSty | TData _) as t -> pf ft "hash_%s" (decl_of_ty t).d_name
   | TTuple l ->
       let xs = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) l in
-      pf ft "(fun (%s) -> Hashtbl.hash (%a))" (String.concat ", " xs)
-        (list (fun ft (t, x) -> pf ft "%a %s" hash_fn t x))
+      pf ft "(fun (%s) -> %a)" (String.concat ", " xs)
+        (combine (fun ft (t, x) -> pf ft "%a %s" hash_fn t x))
         (List.combine l xs)
-  | TOption t -> pf ft "(fun o -> Hashtbl.hash (Option.map %a o))" hash_fn t
-  | TList t -> pf ft "(fun l -> Hashtbl.hash (List.map %a l))" hash_fn t
+  | TOption t ->
+      pf ft "(function None -> 0 | Some x -> hash_combine 1 (%a x))" hash_fn t
+  | TList t ->
+      pf ft "(List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)" hash_fn
+        t
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -524,9 +540,10 @@ let type_def ft (d : decl) =
           | args -> pf ft "@ | %s of %a" c.c_name (list ~sep:" * " arg) args)
         cs
 
-(** The equality [equal_d] and the hash [hash_d] of the declared type [d], in a
-    recursive definition: structural, but of the tags of terms, and on abstract
-    types, [[@equal]] (or [Stdlib.( = )]) and [Hashtbl.hash]. *)
+(** The equality [equal_d] and the hash [hash_d] of the type [d], in a recursive
+    definition: structural, but of the tags of terms, and on abstract types,
+    [[@equal]] (or [Stdlib.( = )]) and [[@hash]] (or [Hashtbl.hash]). A
+    constructor is hashed by its index, combined with its arguments. *)
 let eq_hash_def ft (d : decl) =
   let n = d.d_name in
   (* the arguments of the constructor [c], as variables [x1], [x2], ... *)
@@ -545,8 +562,9 @@ let eq_hash_def ft (d : decl) =
     | Arg t, a, b -> pf ft "%a %s %s" equal_fn t a b
   in
   let hash ft = function
-    | Small, x -> pf ft "%s" x
-    | Arg t, x -> pf ft "%a %s" hash_fn t x
+    | `Index i -> pf ft "%d" i
+    | `Arg (Small, x) -> pf ft "%s" x
+    | `Arg (Arg t, x) -> pf ft "%a %s" hash_fn t x
   in
   let conj ft =
     pf ft "@[<hov>%a@]"
@@ -559,17 +577,17 @@ let eq_hash_def ft (d : decl) =
         n n n n n
   | [], [] ->
       pf ft
-        "and equal_%s (a : %s) (b : %s) = %s a b@ @ and hash_%s (a : %s) = \
-         Hashtbl.hash a"
+        "and equal_%s (a : %s) (b : %s) = %s a b@ @ and hash_%s (a : %s) = %s a"
         n n n
         (Option.value d.d_equal ~default:"Stdlib.( = )")
         n n
+        (Option.value d.d_hash ~default:"Hashtbl.hash")
   | [], fields ->
       let fs x = List.map (fun (f, t) -> (Arg t, x ^ "." ^ f)) fields in
       pf ft "@[<hv 2>and equal_%s (a : %s) (b : %s) =@ %a@]@ @ " n n n conj
         (List.map2 (fun (t, a) (_, b) -> (t, a, b)) (fs "a") (fs "b"));
-      pf ft "@[<hv 2>and hash_%s (a : %s) =@ Hashtbl.hash (%a)@]" n n
-        (list hash) (fs "a")
+      pf ft "@[<hv 2>and hash_%s (a : %s) =@ %a@]" n n (combine hash)
+        (List.map (fun a -> `Arg a) (fs "a"))
   | cs, _ ->
       pf ft "@[<v 2>and equal_%s (a : %s) (b : %s) =@ match (a, b) with" n n n;
       List.iter
@@ -587,16 +605,18 @@ let eq_hash_def ft (d : decl) =
           match args "a" c with
           | [] -> pf ft "@ | %s -> %d" (pat "a" c) i
           | l ->
-              pf ft "@ @[<hv 4>| %s ->@ Hashtbl.hash (%d, %a)@]" (pat "a" c) i
-                (list hash) l)
+              pf ft "@ @[<hv 4>| %s ->@ %a@]" (pat "a" c) (combine hash)
+                (`Index i :: List.map (fun a -> `Arg a) l))
         cs;
       pf ft "@]"
 
 (** The types of the language, standalone: one recursive group, with terms
-    hash-consed records [{ kind; ty; tag }], where [kind] are the constructors
-    of the Kanon type [t]; their equalities and hashes; and [node], the
-    hash-consed term of a kind and a type. The tags of terms are unique, and
-    increase with their creation. *)
+    hash-consed records [{ kind; ty; tag }], where [kind] are the leaf nodes and
+    the operators of each arity; their equalities and hashes; and [node], the
+    hash-consed term of a kind and a type, in a table of ephemerons keyed on the
+    terms (which equalities and hashes ignore their tags). The tags of terms are
+    unique, and increase with their creation. The table is not safe across
+    domains (TODO). *)
 let types ~sources ft =
   List.iter check_abstract !lang.decls;
   pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
@@ -608,76 +628,18 @@ let types ~sources ft =
       pf ft "@[<v 2>%s %a@]@ @ " (if i = 0 then "type" else "and") type_def d)
     !lang.decls;
   pf ft "@[<v 2>and t = {@ kind : kind;@ ty : ty;@ tag : int;@;<1 -2>}@]@ @ ";
+  pf ft "let hash_combine x y = (x * 65599) + y@ @ ";
   pf ft "let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag@ @ ";
   pf ft "and hash_t (a : t) = a.tag@ @ ";
   List.iter (fun d -> pf ft "%a@ @ " eq_hash_def d) !lang.decls;
+  pf ft "(* Not safe across domains (TODO). *)@ ";
   pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
-  pf ft "@[<v 2>let module H = Weak.Make (struct@ type nonrec t = t@ @ ";
+  pf ft "@[<v 2>let module H = Ephemeron.K1.Make (struct@ type nonrec t = t@ ";
   pf ft "let equal a b = equal_kind a.kind b.kind && equal_ty a.ty b.ty@ ";
-  pf ft "let hash a = Hashtbl.hash (hash_kind a.kind, hash_ty a.ty)@]@ ";
+  pf ft "let hash a = hash_combine (hash_kind a.kind) (hash_ty a.ty)@]@ ";
   pf ft "end) in@ let table = H.create 1024 and tags = ref 0 in@ ";
-  pf ft "@[<v 2>fun kind ty ->@ let t = { kind; ty; tag = !tags } in@ ";
-  pf ft "let t' = H.merge table t in@ if t' == t then incr tags;@ t'@]@]@]@."
-
-(* ---------------------------------------------------------------- *)
-(* Checking the OCaml types (deprecated) *)
-
-(** The module that defines a type of the language, written by hand, with a
-    trailing dot: where its constructors and fields are. *)
-let module_of t =
-  let d = decl_of_ty t in
-  let ty = Option.value d.d_ocaml ~default:d.d_name in
-  let last = List.hd (List.rev (String.split_on_char ' ' ty)) in
-  match String.rindex_opt last '.' with
-  | Some i -> String.sub last 0 (i + 1)
-  | None -> ""
-
-(** The OCaml type of [t], written by hand ([[@ocaml]]). *)
-let rec hand_ty ft = function
-  | (TKind | TSty | TData _) as t ->
-      let d = decl_of_ty t in
-      pf ft "%s" (Option.value d.d_ocaml ~default:d.d_name)
-  | TTuple l -> pf ft "(%a)" (list ~sep:" * " hand_ty) l
-  | TOption t -> pf ft "(%a option)" hand_ty t
-  | TList t -> pf ft "(%a list)" hand_ty t
-  | t -> ocaml_ty ft t
-
-(** Checks that the OCaml types of the language, written by hand, have its
-    declared constructors and record fields, with their declared arguments, and
-    no others: it matches every value of each type. It is included next to the
-    output of {!program}, where the same types are in scope, and has no runtime
-    cost. *)
-let lang_check ~sources ft =
-  let arg ft = function Small -> pf ft "int" | Arg t -> hand_ty ft t in
-  let typed ft a = pf ft "(_ : %a)" arg a in
-  pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
-    (list Format.pp_print_string)
-    sources;
-  pf ft "@[<v 2>module _ = struct@ [@@@@@@warning \"-a@@8@@9\"]@ open P";
-  List.iter
-    (fun d ->
-      let t = TData d.d_name in
-      let m = module_of t in
-      let constrs =
-        List.filter (fun c -> decl_name c.c_res = Some d.d_name) !lang.constrs
-      in
-      pf ft "@ @[<v 2>let _ : %a -> unit =" hand_ty t;
-      match (constrs, d.d_fields) with
-      | [], [] -> pf ft " fun _ -> ()@]"
-      | [], fields ->
-          pf ft "@ fun { %a } -> ()@]"
-            (list ~sep:"; " (fun ft (f, t) ->
-                 pf ft "%s%s = %a" m f typed (Arg t)))
-            fields
-      | _ ->
-          pf ft " function";
-          List.iter
-            (fun c ->
-              match c.c_args with
-              | [] -> pf ft "@ | %s%s -> ()" m c.c_name
-              | [ a ] -> pf ft "@ | %s%s %a -> ()" m c.c_name typed a
-              | args -> pf ft "@ | %s%s (%a) -> ()" m c.c_name (list typed) args)
-            constrs;
-          pf ft "@]")
-    !lang.decls;
-  pf ft "@]@ end@]@."
+  pf ft "@[<v 2>fun kind ty ->@ let v = { kind; ty; tag = -1 } in@ ";
+  pf ft "@[<v>match H.find table v with@ | t -> t@ ";
+  pf ft "@[<v 2>| exception Not_found ->@ ";
+  pf ft "let t = { v with tag = !tags } in@ incr tags;@ H.add table t t;@ ";
+  pf ft "t@]@]@]@]@]@."

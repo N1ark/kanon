@@ -7,12 +7,14 @@ type ty =
   | TUnit
   | TTerm  (** the terms of the language, [t] *)
   | TKind
-      (** the kind of a term: the constructors of [t], which Kanon names [kind]
+      (** the kind of a term, generated from the nodes: the leaf nodes, then the
+          operators by arity ([Op2 of op2 * t * t]), which Kanon names [kind]
           internally (users cannot) *)
-  | TSty  (** the type of a term *)
+  | TSty  (** the type of a term, [ty], generated from the sorts *)
   | TData of string
-      (** the other types declared by the language: operators, enums, records
-          and abstract types *)
+      (** the other types: those of operators of each arity ([op1], [op2], ...,
+          [opn]), generated from the nodes, and those declared by the language
+          (enums, records and abstract types) *)
   | TTuple of ty list
   | TOption of ty
   | TList of ty
@@ -41,13 +43,12 @@ type constr = {
   c_args : arg list;
 }
 
-(** A type declared by the language: [t] (named [kind], see {!TKind}), [ty],
-    operators, enums, records and abstract types. *)
+(** A type of the language: generated ([kind], [ty] and the types of operators),
+    or declared (enums, records and abstract types). *)
 type decl = {
   d_name : string;
   d_ocaml : string option;
-      (** [[@ocaml]]: the OCaml type of an abstract type (and, for the
-          deprecated [ocaml-check], of any type) *)
+      (** [[@ocaml]]: the OCaml type of an abstract type *)
   d_lean : string option;
       (** the Lean type, if it is not the Kanon name, CamelCased ([[@lean]]) *)
   d_eq : bool;
@@ -56,6 +57,9 @@ type decl = {
   d_equal : string option;
       (** the OCaml function that decides [=] at an abstract type, if it is not
           [Stdlib.( = )] ([[@equal]]) *)
+  d_hash : string option;
+      (** the OCaml function that hashes an abstract type, if it is not
+          [Hashtbl.hash] ([[@hash]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
   d_loc : Location.t;  (** of its name *)
 }
@@ -86,6 +90,9 @@ let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 type raw_typing = {
   rt_params : Ppxlib.expression list;
   rt_sorts : Ppxlib.expression list;
+  rt_nary : bool;
+      (** the only operand sort was [s list]: the operands are a list of terms
+          of sort [s], the first of [rt_sorts] *)
   rt_when : Ppxlib.expression option;
   rt_loc : Location.t;
 }
@@ -97,8 +104,10 @@ type law =
   | Fold of string * string option
       (** [[@fold f lift]]: constant folding with [f], whose result [lift] (a
           function or a node) makes a term, if it is not one already *)
-  | Unit of string  (** [[@unit c]]: the literal [c] is a (right) unit *)
-  | Zero of string  (** [[@zero c]]: the literal [c] is (right) absorbing *)
+  | Unit of string
+      (** [[@unit c]]: the literal or the constant [c] is a (right) unit *)
+  | Zero of string
+      (** [[@zero c]]: the literal or the constant [c] is (right) absorbing *)
   | Idem  (** [[@idem]]: [x op x = x] *)
   | Invol  (** [[@invol]]: [op (op x) = x] *)
 
@@ -113,8 +122,9 @@ type lang = {
           and the swapped alternative is proved from the other by commutativity
       *)
   node_kinds : string list;
-      (** the kind constructors whose first argument is an operator, which then
-          stands for the node: [Add (c, l, r)] for [Binop (Add c, l, r)] *)
+      (** the kind constructors of the operators of each arity, whose first
+          argument is an operator, which then stands for the node:
+          [Add (c, l, r)] for [Op2 (Add c, l, r)] *)
   lit_bool : string option;  (** the kind constructor of boolean literals *)
   lit_node : string option;
       (** the kind constructor of integer literals, which integer patterns and
@@ -135,8 +145,9 @@ type lang = {
           literal) and, for [raw:f], the primitive that computes [f] on a
           literal rather than on its value *)
   constants : (string * (string option * Ppxlib.expression)) list;
-      (** [constant "c" (v) = e]: the term of the literal [c], at the type of
-          the term [v] if there is one, for the law [[@zero c]] *)
+      (** [constant c (v) = e]: the term of the literal or the named constant
+          [c] ([0], [true], [ones], ...), at the sort of the term [v] if there
+          is one, for the laws [[@unit c]] and [[@zero c]] *)
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
@@ -319,6 +330,8 @@ type typing = {
   t_params : string list;  (** one per argument, [_] if it is unnamed *)
   t_vars : (string * ty) list;
   t_sorts : expr list;
+  t_nary : bool;
+      (** the operands are a list, whose elements all have the first sort *)
   t_when : expr option;
 }
 

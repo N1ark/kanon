@@ -63,9 +63,9 @@ Requests are answered after the changes before them are checked.
 
 Navigation: the definitions of a function, a node, an operator, a rule after
 before (in the function that extend extends), a function of the bool module,
-built into kanon, which the server writes to a file, and of the type of terms
-t. Hover shows the header of the definition (here of a sort), and the comment
-before it.
+built into kanon, which the server writes to a file, but not of the type of
+terms t, which Kanon generates. Hover shows the header of the definition (here
+of a sort), and the comment before it.
 
   $ {
   >   msg "$init"
@@ -89,7 +89,7 @@ before it.
   {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}}]}
   {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":10}}}]}
   {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":26}}}}
-  {"jsonrpc":"2.0","id":7,"result":[{"uri":"file://ROOT/lang.knl","range":{"start":{"line":8,"character":5},"end":{"line":8,"character":6}}}]}
+  {"jsonrpc":"2.0","id":7,"result":null}
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
   {"jsonrpc":"2.0","id":9,"result":null}
 
@@ -101,13 +101,13 @@ the workspace include the rules of each rule function.
   >   msg "$(open imp.kn "$IMP")"
   >   msg "$(at 1 completion imp.kn 6 0)"
   > } > input
-  $ lsp | grep -o '{"label":"\(neg\|b_imp\|b_not\|Imp\|implies\|ty\|rule\)"[^}]*}'
+  $ lsp | grep -o '{"label":"\(neg\|b_imp\|b_not\|Imp\|implies\|var\|rule\)"[^}]*}'
   {"label":"b_not","kind":3,"detail":"rule b_not : Not sv"}
   {"label":"neg","kind":3,"detail":"fn neg (a : t) : t"}
   {"label":"b_imp","kind":3,"detail":"rule b_imp : Imp (v1, v2)"}
   {"label":"Imp","kind":4,"detail":"node Imp : TBool -> TBool -> TBool"}
   {"label":"implies","kind":24,"detail":"infix \"implies\" = Imp, b_imp"}
-  {"label":"ty","kind":7,"detail":"type ty"}
+  {"label":"var","kind":7,"detail":"type var [@ocaml \"string\"] [@noeq]"}
   {"label":"rule","kind":14}
 
   $ {
@@ -140,18 +140,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   > 
   > type var [@ocaml "string"] [@noeq]
   > 
-  > type t =
-  >   | Var of var
-  >   | Unop of unop * t [@operators]
-  >   | Binop of binop * t * t [@operators]
-  >   | Triop of triop * t * t * t [@operators]
-  >   | Nop of nop * t list [@operators]
-  > 
-  > type unop
-  > type binop
-  > type triop
-  > type nop = Distinct
-  > type ty
+  > node Var of var
   > KN
   $ cat > loc/xor.knl <<'KN'
   > node Int of int [@literal int]

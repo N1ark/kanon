@@ -6,15 +6,4 @@ use "more"
 
 type var [@ocaml "string"] [@noeq]
 
-type t =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-  | Triop of triop * t * t * t [@operators]
-  | Nop of nop * t list [@operators]
-
-type unop
-type binop
-type triop
-type nop = Distinct
-type ty
+node Var of var
