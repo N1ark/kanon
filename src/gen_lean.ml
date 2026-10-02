@@ -82,6 +82,35 @@ let keywords =
 
 let id x = if List.mem x keywords then "«" ^ x ^ "»" else x
 
+(** [text] without what would end or open a (nested) comment in Lean: [-/] and
+    [/-] get a space inside. *)
+let escape_comment text =
+  let replace sub by s =
+    let n = String.length sub in
+    let b = Buffer.create (String.length s) in
+    let rec go i =
+      if i < String.length s then
+        if i + n <= String.length s && String.sub s i n = sub then (
+          Buffer.add_string b by;
+          go (i + n))
+        else (
+          Buffer.add_char b s.[i];
+          go (i + 1))
+    in
+    go 0;
+    Buffer.contents b
+  in
+  text |> replace "-/" "- /" |> replace "/-" "/ -"
+
+(** The documentation comment of an item, if it has one. *)
+let doc ft = function
+  | None -> ()
+  | Some text ->
+      pf ft "%a@ "
+        (Gen_ocaml.doc_comment ~opening:"/--" ~closing:"-/"
+           ~escape:escape_comment)
+        text
+
 (* ---------------------------------------------------------------- *)
 (* Classification *)
 
@@ -845,7 +874,7 @@ let rec decreasing (f : fn) (e : expr) =
   | _ -> None
 
 let fn_def ctx ft (f : fn) ~o ~kw ~recursive =
-  pf ft "@[<v 2>%s %s%s %a : %a :=@ %a@]@ " kw (id f.name)
+  pf ft "%a@[<v 2>%s %s%s %a : %a :=@ %a@]@ " doc f.fdoc kw (id f.name)
     (if o then " (O : Ops)" else "")
     params f lean_ty f.ret (expr ctx) f.body;
   (if recursive then
@@ -884,7 +913,7 @@ let model ~sources ft (p : program) =
   List.iter
     (fun (q : prim) ->
       if q.oracle then (
-        pf ft "@ %s : " q.pname;
+        pf ft "@ %a%s : " doc q.pdoc q.pname;
         List.iter (fun t -> pf ft "%a → " lean_ty t) q.pargs;
         lean_ty ft q.pret))
     p.prims;
@@ -894,14 +923,16 @@ let model ~sources ft (p : program) =
   pf ft
     "/-- The rule functions, as used by the rules. -/@ @[<v 2>structure Ops \
      where@ orc : Oracle";
-  List.iter (fun f -> pf ft "@ %s : %a" f.name arrow f) (rule_fns ctx);
+  List.iter
+    (fun f -> pf ft "@ %a%s : %a" doc f.fdoc f.name arrow f)
+    (rule_fns ctx);
   pf ft "@]@ @ ";
   defs ctx ft OHelper ~o:true;
   (* specs *)
   List.iter
     (fun f ->
-      pf ft "@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " f.name
-        params f (expr ctx) (Option.get f.spec))
+      pf ft "%a@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " doc
+        f.fdoc f.name params f (expr ctx) (Option.get f.spec))
     (rule_fns ctx);
   (* rules and steps *)
   List.iter
@@ -1414,12 +1445,13 @@ let reaches p (d : decl) =
 
 let lean_decl ft (d : decl) =
   let name = decl_lean_name d in
+  doc ft d.d_doc;
   (match d.d_fields with
   | [] ->
       pf ft "@[<v 2>inductive %s where" name;
       List.iter
         (fun c ->
-          pf ft "@ | %s" c.c_name;
+          pf ft "@ %a| %s" doc c.c_doc c.c_name;
           if c.c_args <> [] then
             pf ft " : %a%s"
               (list ~sep:"" (fun ft a -> pf ft "%a → " lean_ty (arg_ty a)))
