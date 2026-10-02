@@ -121,6 +121,15 @@ let fn_kind ctx f = List.assoc f ctx.kinds
 let is_oracle ctx f = List.exists (fun p -> p.pname = f && p.oracle) ctx.prims
 let is_prim ctx f = List.exists (fun p -> p.pname = f) ctx.prims
 
+(** The program without its [[@no_lean]] functions and primitives, which Lean
+    does not see: nothing that it models calls them (see [Check.program]). *)
+let modelled (p : program) =
+  {
+    p with
+    prims = List.filter (fun (q : prim) -> not q.pno_lean) p.prims;
+    fns = List.filter (fun (f : fn) -> not f.no_lean) p.fns;
+  }
+
 let classify (p : program) =
   let is_oracle f = List.exists (fun q -> q.pname = f && q.oracle) p.prims in
   let kinds =
@@ -904,6 +913,7 @@ let defs ctx ft kind ~o =
 let rule_fns ctx = List.filter (fun f -> fn_kind ctx f.name = Rule) ctx.fns
 
 let model ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Signatures" ];
   (* oracles *)
@@ -1096,6 +1106,7 @@ let arm_stmt ctx ft f r arms i (a : arm) =
     ()
 
 let statements ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Semantics" ];
   pf ft
@@ -1153,6 +1164,7 @@ let rec calls (e : expr) =
     a call of the function on terms that refine others refines the spec on
     those. *)
 let lifts ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Lib.Lift" ];
   pf ft "namespace Lib@ @ variable %s{O : Ops}@ @ " (sem_implicits ());
@@ -1334,6 +1346,7 @@ let cases_proofs ft (f : fn) =
     (arms f)
 
 let soundness ~sources ~proofs ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   let proofs =
     if List.exists (fun f -> f.cases) (rule_fns ctx) then
@@ -1561,6 +1574,7 @@ let syntax ~sources ft =
 (** [Signatures.lean]: checks that [Prims.lean] defines the primitives (other
     than the oracles, which are fields of [Oracle]), with their types. *)
 let signatures ~sources ft (p : program) =
+  let p = modelled p in
   lean_header ~sources ft [ md "Prims" ];
   pf ft
     "/-! The primitives of the rules, with the types they are declared with. \
@@ -1728,6 +1742,7 @@ let typing_rhs ctx (ty : typing) =
     over the sorts of the operands and of the result; the operands of an n-ary
     operator ([OpN]) all have its first sort. *)
 let typing_file ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Prims" ];
   let types = uniq (List.map (fun t -> t.t_constr.c_res) p.typing) in

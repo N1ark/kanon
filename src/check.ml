@@ -198,6 +198,18 @@ let node_of_op (op : constr) =
       | _ -> None)
     !lang.node_kinds
 
+(** Whether a pattern matches anything: [_], or a tuple of blanks, at any depth
+    (see {!Syntax.is_catch_all}, on converted patterns). *)
+let rec is_blank (p : pattern) =
+  match p.ppat_desc with
+  | Ppat_any -> true
+  | Ppat_tuple l -> List.for_all is_blank l
+  | _ -> false
+
+(** The cases that [extend] added, by location, and the function they extend,
+    which must not be left out as unreachable. *)
+let extension_cases : (Location.t * string) list ref = ref []
+
 let has_attr name (attrs : attributes) =
   List.exists (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
@@ -1846,7 +1858,7 @@ let rec with_default (spec : expression) (e : expression) =
       { e with pexp_desc = Pexp_sequence (a, with_default spec b) }
   | Pexp_match (s, cases) -> (
       match List.rev cases with
-      | { pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } :: _ -> e
+      | { pc_lhs; pc_guard = None; _ } :: _ when is_blank pc_lhs -> e
       | _ ->
           let open Ast_builder.Default in
           let loc = { spec.pexp_loc with loc_ghost = true } in
@@ -1913,6 +1925,15 @@ let check_attrs allowed (attrs : attributes) =
 
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
+
+(** [[@no_lean]] is for [fn] and [prim] items only: [what] says what the item
+    is, and why it is modelled. *)
+let reject_no_lean what (attrs : attributes) =
+  Option.iter
+    (fun (a : attribute) ->
+      error a.attr_name.loc
+        "%s and cannot be [@no_lean]: only fn and prim items can be" what)
+    (find_attr "no_lean" attrs)
 
 (** The doc comment among [attrs], which the parser adds as [[@ocaml.doc "..."]]
     to a documented item, and the other attributes. *)
@@ -2095,6 +2116,11 @@ let constructor ~comm_locs ?ghost res (cd : constructor_declaration) =
           "[@%s] is gone: [notation %s] makes the literals of patterns stand \
            for a leaf node of one int or bool"
           a.attr_name.txt name)
+    attrs;
+  reject_no_lean
+    (match ghost with
+    | Some `Sort -> "a sort is part of the Lean model"
+    | _ -> "a node is part of the Lean model")
     attrs;
   check_attrs
     ([ "comm"; "params"; "sorts"; "when"; "get" ]
@@ -2481,6 +2507,7 @@ let language (str : structure) =
         attempt (fun () ->
             let name = td.ptype_name.txt and loc = td.ptype_name.loc in
             let doc, tattrs = take_doc td.ptype_attributes in
+            reject_no_lean "a type is part of the Lean model" tattrs;
             check_attrs [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ] tattrs;
             (match ty_of_name name with
             | Some (TInt | TBool | TUnit) ->
@@ -2896,6 +2923,10 @@ let raw_fn (vb : value_binding) =
     | _ -> error rname_loc "expected a function name"
   in
   let rdoc, rattrs = take_doc vb.pvb_attributes in
+  if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
+    reject_no_lean "a rule is proved in Lean" rattrs;
+    check_attrs [ "spec"; "cases"; "ty_only"; "untyped"; "ghost" ] rattrs)
+  else check_attrs [ "ty_only"; "no_lean"; "ghost" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -3501,7 +3532,11 @@ let operator_typing (t : typing) =
     position of [f]'s body, behind [let]s, sequences and the right operands of
     [||] and [&&]. *)
 let extend_rules (str : structure) =
+  extension_cases := [];
   let splice loc f before (ext : Ppxlib.case list) (cs : Ppxlib.case list) =
+    extension_cases :=
+      List.map (fun (c : Ppxlib.case) -> (c.pc_lhs.ppat_loc, f)) ext
+      @ !extension_cases;
     ignore
       (List.fold_left
          (fun names c ->
@@ -3525,8 +3560,8 @@ let extend_rules (str : structure) =
         | None -> error rloc "extend %s: %s has no rule %s" f f r)
     | None -> (
         match List.rev cs with
-        | ({ pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } as last)
-          :: rest ->
+        | ({ pc_lhs; pc_guard = None; _ } as last) :: rest when is_blank pc_lhs
+          ->
             List.rev rest @ ext @ [ last ]
         | _ -> cs @ ext)
   in
@@ -3853,6 +3888,7 @@ let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
   let all l m = List.length l = List.length m && List.for_all2 subsumes l m in
   match (p.p, q.p) with
   | (PAny | PVar _), _ -> true
+  | _ when is_catch_all p -> true
   | PAs (p, _), _ -> subsumes p q
   | _, PAs (q, _) -> subsumes p q
   | PBool a, PBool b -> a = b
@@ -3874,16 +3910,31 @@ let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
     with a guard (which includes the repeated variables and the integer literals
     of its pattern, see [linearize]) covers nothing. *)
 let prune_cases (cases : Syntax.case list) =
-  List.rev
-    (List.fold_left
-       (fun kept (c : Syntax.case) ->
-         if
-           List.exists
-             (fun (k : Syntax.case) -> k.guard = None && subsumes k.pat c.pat)
-             kept
-         then kept
-         else c :: kept)
-       [] cases)
+  let kept =
+    List.rev
+      (List.fold_left
+         (fun kept (c : Syntax.case) ->
+           if
+             List.exists
+               (fun (k : Syntax.case) -> k.guard = None && subsumes k.pat c.pat)
+               kept
+           then kept
+           else c :: kept)
+         [] cases)
+  in
+  (* a case added by [extend] is never left out without a word *)
+  List.iter
+    (fun (loc, f) ->
+      if
+        List.exists (fun (c : Syntax.case) -> c.cloc = loc) cases
+        && not (List.exists (fun (c : Syntax.case) -> c.cloc = loc) kept)
+      then
+        error loc
+          "extend %s: this case is unreachable (an earlier case of %s matches \
+           everything it does), so it was not added"
+          f f)
+    !extension_cases;
+  kept
 
 (** [e] without the cases that its matches can never take. *)
 let rec prune (e : Syntax.expr) : Syntax.expr =
@@ -4146,6 +4197,7 @@ let check_fn env0 globals r =
     floc = r.rloc;
     fdoc = r.rdoc;
     fghost;
+    no_lean = has_attr "no_lean" r.rattrs;
   }
 
 (** The number of errors collected so far. *)
@@ -4190,6 +4242,15 @@ let program (str : structure) : program =
                          oracle = vd.pval_prim = [ "oracle" ];
                          ploc = vd.pval_name.loc;
                          pdoc = fst (take_doc vd.pval_attributes);
+                         pno_lean =
+                           (let oracle = vd.pval_prim = [ "oracle" ] in
+                            let attrs = snd (take_doc vd.pval_attributes) in
+                            if oracle then
+                              reject_no_lean
+                                "an oracle is a parameter of the Lean model"
+                                attrs;
+                            check_attrs [ "no_lean" ] attrs;
+                            has_attr "no_lean" attrs);
                        },
                        vd.pval_name.loc )
                      :: prims,
@@ -4298,6 +4359,42 @@ let program (str : structure) : program =
               None)
       raws
   in
+  (* what Lean models does not call what it does not *)
+  let hidden =
+    List.filter_map
+      (fun (f : fn) -> if f.no_lean then Some f.name else None)
+      fns
+    @ List.filter_map
+        (fun (p : prim) -> if p.pno_lean then Some p.pname else None)
+        prims
+  in
+  let check_calls what (e : Syntax.expr) =
+    ignore
+      (Syntax.fold_calls
+         (fun () g loc ->
+           if List.mem g hidden then
+             ignore
+               (attempt (fun () ->
+                    error loc "%s calls %s, which is [@no_lean]" what g)))
+         () e)
+  in
+  List.iter
+    (fun (f : fn) ->
+      if not f.no_lean then (
+        let what =
+          Printf.sprintf "%s %s"
+            (if Option.is_some f.spec then "rule" else "fn")
+            f.name
+        in
+        Option.iter (check_calls what) f.spec;
+        check_calls what f.body))
+    fns;
+  List.iter
+    (fun (_, (t : typing)) ->
+      let what = Printf.sprintf "the typing of %s" t.t_constr.c_name in
+      List.iter (check_calls what) t.t_sorts;
+      Option.iter (check_calls what) t.t_when)
+    typings;
   { prims; fns; typing = List.filter operator_typing (List.map snd typings) }
 
 (** The language before any declaration. *)

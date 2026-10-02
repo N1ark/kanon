@@ -1,0 +1,165 @@
+`[@no_lean]` on a `fn` or a `prim`: it is checked, and generated in OCaml, but
+it does not exist in the Lean files.
+
+  $ cat > lang.knl <<'KN'
+  > [@@@ocaml_prims "Prims"]
+  > sort TInt
+  > node Int of int : TInt
+  > node Add : TInt -> TInt -> TInt
+  > notation Int
+  > infix "+" = Add, add
+  > KN
+
+  $ cat > rules.kn <<'KN'
+  > prim p_lean : int -> int
+  > prim p_hidden : int -> int [@no_lean]
+  > fn lean_helper (x : int) : int = p_lean x
+  > fn hidden_helper (x : int) : int [@no_lean] = p_hidden (lean_helper x) + size_hidden x
+  > fn size_hidden (x : int) : int [@no_lean] =
+  >   match x with
+  >   | 0 -> 1
+  >   | _ -> 2
+  > rule add : Add (v1, v2) =
+  >   | zero: 0, x -> x
+  > KN
+
+  $ kanon ocaml lang.knl rules.kn | grep "hidden"
+    val p_hidden : Z.t -> Z.t
+  let[@inline] size_hidden (x : Z.t) : Z.t =
+  let[@inline] hidden_helper (x : Z.t) : Z.t =
+      (Z.add (Prims.p_hidden (lean_helper x)) (size_hidden x))
+  $ kanon ocaml-typed lang.knl rules.kn | grep -c "hidden"
+  0
+  [1]
+  $ kanon ocaml-tests lang.knl rules.kn | grep -c "hidden"
+  0
+  [1]
+  $ for b in signatures model statements lifts soundness; do
+  >   echo "$b: $(kanon lean-$b lang.knl rules.kn | grep -c "hidden")"
+  > done
+  signatures: 0
+  model: 0
+  statements: 0
+  lifts: 0
+  soundness: 0
+  $ for b in signatures model; do
+  >   kanon lean-$b lang.knl rules.kn | grep "p_lean\|lean_helper"
+  > done
+  example : Int → Int := p_lean
+  def lean_helper (x : Int) : Int :=
+    (p_lean x)
+
+A `[@no_lean]` function may call anything. A function or a rule that Lean models
+may not call one, or a `[@no_lean]` primitive, even through a derived rule or in
+the typing of a node.
+
+  $ cat > bad.kn <<'KN'
+  > prim p_hidden : int -> int [@no_lean]
+  > fn hidden_helper (x : int) : int [@no_lean] = x
+  > fn caller (x : int) : int = hidden_helper x
+  > KN
+  $ kanon ocaml lang.knl bad.kn
+  bad.kn:3:28: fn caller calls hidden_helper, which is [@no_lean]
+  [1]
+
+  $ cat > bad.kn <<'KN'
+  > prim p_hidden : int -> int [@no_lean]
+  > fn caller (x : int) : int = p_hidden x
+  > KN
+  $ kanon lean-model lang.knl bad.kn
+  bad.kn:2:28: fn caller calls p_hidden, which is [@no_lean]
+  [1]
+
+  $ cat > bad.kn <<'KN'
+  > fn hidden_helper (x : int) : int [@no_lean] = x
+  > rule add : Add (v1, v2) =
+  >   | zero: 0, x when hidden_helper 1 = 1 -> x
+  > KN
+  $ kanon ocaml lang.knl bad.kn
+  bad.kn:3:20: rule add calls hidden_helper, which is [@no_lean]
+  [1]
+
+  $ cat > bad.kn <<'KN'
+  > fn ok (x : int) : int [@no_lean] = x
+  > fn unfold (x : int) : int [@no_lean] = ok x
+  > KN
+  $ kanon ocaml lang.knl bad.kn | grep -c unfold
+  1
+
+  $ cat > bad.knl <<'KN'
+  > [@@@ocaml_prims "Prims"]
+  > sort TInt
+  > node Int of int : TInt
+  > node Add : TInt -> TInt -> TInt [@fold add_z]
+  > node Pos of int (n) : TInt -> TInt when ok n
+  > notation Int
+  > infix "+" = Add, add
+  > KN
+  $ cat > bad.kn <<'KN'
+  > fn add_z (x y : int) : int [@no_lean] = x + y
+  > fn ok (x : int) : bool [@no_lean] = x > 0
+  > rule add : Add (v1, v2)
+  > KN
+  $ kanon ocaml bad.knl bad.kn
+  bad.knl:4:32: rule add calls add_z, which is [@no_lean]
+  [1]
+  $ sed -i 's/ \[@fold add_z\]//' bad.knl
+  $ kanon ocaml bad.knl bad.kn
+  bad.knl:5:40: the typing of Pos calls ok, which is [@no_lean]
+  [1]
+
+`extend fn` on a `[@no_lean]` function adds cases to the same function, which
+are not modelled either, and may call other `[@no_lean]` functions.
+
+  $ cat > base.kn <<'KN'
+  > fn hidden_helper (x : int) : int [@no_lean] =
+  >   match x with
+  >   | 0 -> 1
+  >   | _ -> 2
+  > KN
+  $ cat > ext.kn <<'KN'
+  > fn other (x : int) : int [@no_lean] = x
+  > extend fn hidden_helper =
+  >   | 3 -> other 4
+  > KN
+  $ kanon ocaml lang.knl base.kn ext.kn | grep -c "other"
+  2
+  $ kanon lean-model lang.knl base.kn ext.kn | grep -c "other\|hidden"
+  0
+  [1]
+
+Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
+`fn`, `prim` and `rule` are errors.
+
+  $ for item in 'rule add : Add (v1, v2) [@no_lean]' 'oracle o : int -> int [@no_lean]' 'sort TFoo [@no_lean]' 'node Foo : TInt [@no_lean]' 'type foo [@no_lean]' 'fn f (x : int) : int [@ocaml_only] = x' 'prim q : int [@whatever]' 'rule add : Add (v1, v2) [@whatever]' 'fn f (v : t) : int [@ty_only] [@no_lean] = 3'; do
+  >   echo "=== $item"
+  >   case "$item" in
+  >   rule*|fn*|prim*|oracle*) printf '%s\n' "$item" > bad.kn; cp lang.knl bad.knl;;
+  >   *) { cat lang.knl; printf '%s\n' "$item"; } > bad.knl; echo > bad.kn;;
+  >   esac
+  >   kanon ocaml bad.knl bad.kn
+  > done
+  === rule add : Add (v1, v2) [@no_lean]
+  bad.kn:1:26: a rule is proved in Lean and cannot be [@no_lean]: only fn and prim items can be
+  === oracle o : int -> int [@no_lean]
+  bad.kn:1:24: an oracle is a parameter of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  === sort TFoo [@no_lean]
+  bad.knl:7:12: a sort is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  === node Foo : TInt [@no_lean]
+  bad.knl:7:18: a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  === type foo [@no_lean]
+  bad.knl:7:11: a type is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  === fn f (x : int) : int [@ocaml_only] = x
+  bad.kn:1:23: unknown attribute [@ocaml_only]
+  === prim q : int [@whatever]
+  bad.kn:1:15: unknown attribute [@whatever]
+  === rule add : Add (v1, v2) [@whatever]
+  bad.kn:1:26: unknown attribute [@whatever]
+  === fn f (v : t) : int [@ty_only] [@no_lean] = 3
+  (* Generated by kanon from bad.kn. Do not edit. *)
+  
+  [@@@warning "-a+11"]
+  
+  let[@inline] f (v : t) : Z.t = (Z.of_int (3))
+  
+  

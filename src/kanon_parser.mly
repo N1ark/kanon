@@ -100,10 +100,10 @@ let node_decl ?(sort = false) loc c =
     ptype_loc = loc;
   }
 
-let prim loc (name, nloc) t kind =
+let prim loc (name, nloc) t attrs kind =
   item loc
     (Pstr_primitive
-       { pval_name = { txt = name; loc = nloc }; pval_type = t; pval_prim = [ kind ]; pval_attributes = []; pval_loc = loc })
+       { pval_name = { txt = name; loc = nloc }; pval_type = t; pval_prim = [ kind ]; pval_attributes = attrs; pval_loc = loc })
 
 (* the doc comment [d], at [dloc], of an item that it documents: an
    [ocaml.doc] attribute of the item, or of the constructor of a node or a sort *)
@@ -222,8 +222,8 @@ other_item:
       item loc (Pstr_attribute (named_attr loc (mkloc $loc(a)) a (strings loc ss))) }
 
 documented_item:
-  | PRIM x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "" }
-  | ORACLE x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "oracle" }
+  | PRIM x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "" }
+  | ORACLE x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "oracle" }
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc and xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps ret body ])) }

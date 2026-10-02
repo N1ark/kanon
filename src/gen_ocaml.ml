@@ -327,25 +327,7 @@ and case ctx ft (c : case) =
 (* ---------------------------------------------------------------- *)
 (* Call graph *)
 
-let rec calls acc (e : expr) =
-  let go = calls in
-  match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
-  | ECall (f, args) -> List.fold_left go (f :: acc) args
-  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
-  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
-      go (go acc a) b
-  | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
-  | EUnop (_, a) | ESome a | EField (a, _) -> go acc a
-  | EIf (a, b, c) -> go (go (go acc a) b) c
-  | ERecord l -> List.fold_left (fun acc (_, e) -> go acc e) acc l
-  | EMatch (scruts, cases) ->
-      let acc = List.fold_left go acc scruts in
-      List.fold_left
-        (fun acc (c : case) ->
-          let acc = Option.fold ~none:acc ~some:(go acc) c.guard in
-          go acc c.body)
-        acc cases
+let calls acc e = fold_calls (fun acc g _ -> g :: acc) acc e
 
 (** Strongly connected components of the call graph, callees first (Tarjan). *)
 let sccs (fns : fn list) : fn list list =

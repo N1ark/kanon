@@ -261,6 +261,14 @@ and pat_desc =
   | PCons of pat * pat
   | PRecord of (string * pat) list  (** partial records *)
 
+(** Whether [p] matches anything: [_], or a tuple of blanks, at any depth, which
+    is strictly equivalent. [x, _] and [_ as x] are not blank. *)
+let rec is_catch_all (p : pat) =
+  match p.p with
+  | PAny -> true
+  | PTuple l -> List.for_all is_catch_all l
+  | _ -> false
+
 type expr = { e : expr_desc; ety : ty; eloc : Location.t }
 
 and expr_desc =
@@ -319,6 +327,9 @@ type fn = {
   fghost : string list option;
       (** [[@ghost "t1" ... "tn"]] after the spec of a rule: the tags of its
           term operands, then of its result *)
+  no_lean : bool;
+      (** [[@no_lean]]: a helper that is generated in OCaml but not modelled in
+          Lean *)
 }
 
 type prim = {
@@ -328,7 +339,30 @@ type prim = {
   oracle : bool;
   ploc : Location.t;  (** of its name *)
   pdoc : string option;  (** the doc comment before [prim] or [oracle] *)
+  pno_lean : bool;  (** [[@no_lean]]: a primitive that Lean does not define *)
 }
+
+(** Folds [f] over the calls of global functions and primitives in [e], with
+    their locations, in the order they are met (a call before its arguments). *)
+let rec fold_calls f acc (e : expr) =
+  let go = fold_calls f in
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
+  | ECall (g, args) -> List.fold_left go (f acc g e.eloc) args
+  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
+  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
+      go (go acc a) b
+  | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
+  | EUnop (_, a) | ESome a | EField (a, _) -> go acc a
+  | EIf (a, b, c) -> go (go (go acc a) b) c
+  | ERecord l -> List.fold_left (fun acc (_, e) -> go acc e) acc l
+  | EMatch (scruts, cases) ->
+      let acc = List.fold_left go acc scruts in
+      List.fold_left
+        (fun acc (c : case) ->
+          let acc = Option.fold ~none:acc ~some:(go acc) c.guard in
+          go acc c.body)
+        acc cases
 
 (** The typing of a node: its operands, then its result, have the sorts
     [t_sorts] (terms of type [ty] over [t_vars], which are existentially
