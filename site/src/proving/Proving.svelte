@@ -50,9 +50,9 @@
   <Heading level={2} id="files">The files</Heading>
   <p>
     The Lean files of a language are in the namespace <code>R</code> of
-    <code>[@@@lean_root "R"]</code> (here <code>IntsExample</code>), and in its directory of
-    modules. <code>kanon lean-all lang.knl</code> writes the generated ones, <code>F.lean</code>
-    to <code>F.lean.gen</code>, in the current directory:
+    <code>{`[@@@lean_root "R"]{:kanon}`}</code> (here <code>IntsExample</code>), and in its
+    directory of modules. <code>kanon lean-all lang.knl</code> writes the generated ones,
+    <code>F.lean</code> to <code>F.lean.gen</code>, in the current directory:
   </p>
   <table>
     <thead><tr><th>File</th><th>Contents</th></tr></thead>
@@ -62,12 +62,12 @@
         <td>
           The types of the language: <code>Kind</code>, with the leaves and <code>Op1</code>,
           <code>Op2</code>, … of the operators, the sorts <code>Ty</code>, the terms
-          <code>Term.mk kind ty</code>, and which operators commute.
+          <code>{`Term.mk kind ty{:lean}`}</code>, and which operators commute.
         </td>
       </tr>
       <tr>
         <td><code>Typing.lean</code></td>
-        <td>The typing of the operators: <code>Op2.WT op a b t</code>, over the sorts of the operands and of the result.</td>
+        <td>The typing of the operators: <code>{`Op2.WT op a b t{:lean}`}</code>, over the sorts of the operands and of the result.</td>
       </tr>
       <tr>
         <td><code>Signatures.lean</code></td>
@@ -76,16 +76,17 @@
       <tr>
         <td><code>Model.lean</code></td>
         <td>
-          The model of the rule functions: each rule a function to <code>Option Term</code>, each
-          rule function the first of its rules that applies (<code>firstSome</code>), and
-          <code>Ops</code>, the rule functions, over the oracles (<code>Oracle</code>).
+          The model of the rule functions: each rule a function to
+          <code>{`Option Term{:lean}`}</code>, each rule function the first of its rules that
+          applies (<code>firstSome</code>), and <code>Ops</code>, the rule functions, over the
+          oracles (<code>Oracle</code>).
         </td>
       </tr>
       <tr>
         <td><code>Statements.lean</code></td>
         <td>
           The statement of each arm (<code>f.r_rule.arm.Stmt</code>), and of the commutativity of
-          each <code>[@comm]</code> operator (<code>Op2.Plus.comm.Stmt</code>).
+          each <code>{`[@comm]{:kanon}`}</code> operator (<code>Op2.Plus.comm.Stmt</code>).
         </td>
       </tr>
       <tr>
@@ -136,18 +137,18 @@
   <ul>
     <li>
       <code>whenSome</code> and <code>firstSome</code>, with which the model is written, and the
-      class <code>Refinement R</code> of refinement relations (reflexive and transitive), with
-      <code>Refinement.firstSome_nil</code> and <code>firstSome_cons</code>, from which the
+      class <code>{`Refinement R{:lean}`}</code> of refinement relations (reflexive and transitive),
+      with <code>Refinement.firstSome_nil</code> and <code>firstSome_cons</code>, from which the
       soundness of a rule function follows from that of its rules;
     </li>
     <li>
       the attributes <code>kanon_spec</code> (the specs <code>f.spec</code>, which the tactics
-      unfold), <code>kanon_tactic "tac"</code> (on <code>f.spec</code>: the tactic that proves the
-      arms of <code>f</code>) and <code>kanon_arm</code> (on a theorem: the hand-written proof of an
-      arm, or of the commutativity of an operator);
+      unfold), <code>{`kanon_tactic "tac"{:lean}`}</code> (on <code>f.spec</code>: the tactic that
+      proves the arms of <code>f</code>) and <code>kanon_arm</code> (on a theorem: the hand-written
+      proof of an arm, or of the commutativity of an operator);
     </li>
     <li>
-      <code>kanon_proof% X</code>, with which <code>Soundness.lean</code> proves each arm
+      <code>{`kanon_proof% X{:lean}`}</code>, with which <code>Soundness.lean</code> proves each arm
       <code>X</code>: its <code>kanon_arm</code> proof if there is one, else the
       <code>kanon_tactic</code> of its function, else <code>kanon_auto</code>;
     </li>
@@ -165,9 +166,9 @@
       <code>Kanon.Sem</code>, the semantics of a language: its terms, types, values and
       environments, with <code>ty</code>, <code>WT</code> (typing) and <code>ev</code> (evaluation,
       assuming typing). From them, <code>Sem.eval</code> (poison, <code>none</code>, for ill-typed
-      terms) and <code>Sem.Refines spec r</code>: <code>r</code> is well-typed, of the type of
-      <code>spec</code>, when <code>spec</code> is, and has its value when <code>spec</code> has
-      one. With their lemmas (<code>Sem.Refines.refl</code>, <code>trans</code>,
+      terms) and <code>{`Sem.Refines spec r{:lean}`}</code>: <code>r</code> is well-typed, of the
+      type of <code>spec</code>, when <code>spec</code> is, and has its value when <code>spec</code>
+      has one. With their lemmas (<code>Sem.Refines.refl</code>, <code>trans</code>,
       <code>intro</code>, …) and <code>Sem.refinement</code>, the instance of
       <code>Refinement</code>.
     </li>
@@ -236,7 +237,7 @@
   <Heading level={3} id="abstract">Abstract.lean</Heading>
   <p>
     The Lean types of the abstract types of the language, in the namespace <code>R</code>, unless
-    <code>[@lean]</code> names an existing type, as here:
+    <code>{`[@lean]{:kanon}`}</code> names an existing type, as here:
   </p>
   <Code lang="lean" code={file("lean/IntsExample/Abstract.lean")} />
 
@@ -265,14 +266,14 @@
 
   <Heading level={3} id="bool">Bool.lean</Heading>
   <p>
-    The language, for the bool module: a <code>BoolMod.Lang sem</code>, <code>boolLang</code>, the
-    name that <code>Soundness.lean</code> uses. With it, the library proves the arms of the bool
-    module for this language. Its fields are the terms of the nodes of the module, written as the
-    generated statements write them (<code>andK a b := .Op2 .And a b</code>), the booleans, the
-    language's <code>sure_neq</code> (extended here with integers), and their laws, mostly
-    unfoldings. The two that need a proof are that well-typed booleans evaluate to booleans, from
-    <code>ev_ty</code>, and that the terms that <code>sure_neq</code> tells apart have different
-    values.
+    The language, for the bool module: a <code>{`BoolMod.Lang sem{:lean}`}</code>,
+    <code>boolLang</code>, the name that <code>Soundness.lean</code> uses. With it, the library
+    proves the arms of the bool module for this language. Its fields are the terms of the nodes of
+    the module, written as the generated statements write them
+    (<code>{`andK a b := .Op2 .And a b{:lean}`}</code>), the booleans, the language's
+    <code>sure_neq</code> (extended here with integers), and their laws, mostly unfoldings. The two
+    that need a proof are that well-typed booleans evaluate to booleans, from <code>ev_ty</code>,
+    and that the terms that <code>sure_neq</code> tells apart have different values.
   </p>
   <Code lang="lean" code={file("lean/IntsExample/Bool.lean")} />
 
@@ -299,8 +300,8 @@
   <Heading level={3} id="proofs">Proofs.lean</Heading>
   <p>
     The proofs of the arms that <code>kanon_auto</code> does not find, tagged
-    <code>@[kanon_arm]</code>. Here <code>kanon_auto</code> proves every arm of the language's
-    rules (<code>plus</code>, <code>int_lt</code>, the <code>ints</code> rule added to
+    <code>{`@[kanon_arm]{:lean}`}</code>. Here <code>kanon_auto</code> proves every arm of the
+    language's rules (<code>plus</code>, <code>int_lt</code>, the <code>ints</code> rule added to
     <code>sem_eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
     proof of the commutativity of <code>+</code> shows how one replaces <code>kanon_auto</code>.
   </p>
@@ -311,8 +312,8 @@
     <li>
       <p>
         <code>lake build</code>. <code>Soundness.lean</code> proves each arm <code>X</code> by
-        <code>theorem X.ok : X.Stmt := kanon_proof% X</code>; an arm that its tactic does not
-        prove is an error there, which names it. Without <code>of_bool</code> in
+        <code>{`theorem X.ok : X.Stmt := kanon_proof% X{:lean}`}</code>; an arm that its tactic does
+        not prove is an error there, which names it. Without <code>of_bool</code> in
         <code>kanon_body</code>, two arms fail:
       </p>
       <Code
@@ -352,18 +353,19 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
   sem_eq.spec int_lt.spec`}
       />
       <p>
-        or prove the arm by hand, in <code>Proofs.lean</code>: an <code>@[kanon_arm]</code>
-        theorem of <code>sem_eq.r_ints.main.Stmt</code>.
+        or prove the arm by hand, in <code>Proofs.lean</code>: an
+        <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>sem_eq.r_ints.main.Stmt</code>.
       </p>
     </li>
     <li>
       <p>
-        Each <code>[@comm]</code> operator has one statement, <code>Op2.Plus.comm.Stmt</code>
-        (<code>a + b</code> is refined by <code>b + a</code>), proved by <code>kanon_auto</code> or
-        by an <code>@[kanon_arm]</code> theorem. From it, and <code>kanon_congr</code> for the
-        operands swapped below the spec, Kanon proves the arms that only swap commutative
-        operands (<code>swap</code>), if their guard and body do not depend on the swap: the
-        proofs to write are at most one per case of a rule, and one per commutative operator.
+        Each <code>{`[@comm]{:kanon}`}</code> operator has one statement,
+        <code>Op2.Plus.comm.Stmt</code> (<code>{`a + b{:kanon}`}</code> is refined by
+        <code>{`b + a{:kanon}`}</code>), proved by <code>kanon_auto</code> or by an
+        <code>{`@[kanon_arm]{:lean}`}</code> theorem. From it, and <code>kanon_congr</code> for the
+        operands swapped below the spec, Kanon proves the arms that only swap commutative operands
+        (<code>swap</code>), if their guard and body do not depend on the swap: the proofs to write
+        are at most one per case of a rule, and one per commutative operator.
       </p>
     </li>
     <li>
@@ -382,9 +384,10 @@ lake env lean check_axioms.lean
   <p>The proof of <code>examples/ints</code> ran into these:</p>
   <ul>
     <li>
-      <strong>Typed variables.</strong> With values of several types, a variable must evaluate to
-      a value of its sort (<code>if v.ty = t then some v else none</code> in <code>ev</code>):
-      <code>BoolMod.Lang.ev_bool</code> needs well-typed booleans to evaluate to booleans.
+      <strong>Typed variables.</strong> With values of several types, a variable must evaluate to a
+      value of its sort (<code>{`if v.ty = t then some v else none{:lean}`}</code> in
+      <code>ev</code>): <code>BoolMod.Lang.ev_bool</code> needs well-typed booleans to evaluate to
+      booleans.
     </li>
     <li>
       <strong>Values of their type.</strong> <code>ev_ty</code>, that well-typed terms evaluate to
@@ -393,14 +396,15 @@ lake env lean check_axioms.lean
     </li>
     <li>
       <strong>Nested conjunctions.</strong> The typing laws of <code>BoolMod.Lang</code> are flat
-      conjunctions, while the generated <code>Op2.WT</code> nests them: <code>simp [Term.WT,
-      Op2.WT, and_assoc]</code>, and <code>grind</code> for <code>WT_eq</code> and
-      <code>WT_ite</code>.
+      conjunctions, while the generated <code>Op2.WT</code> nests them:
+      <code>{`simp [Term.WT, Op2.WT, and_assoc]{:lean}`}</code>, and <code>grind</code> for
+      <code>WT_eq</code> and <code>WT_ite</code>.
     </li>
     <li>
-      <strong><code>sure_neq</code>.</strong> Its <code>decide (ty a = ty b)</code> does not
-      simplify once <code>ty</code> is unfolded: case on <code>a.ty = b.ty</code> first
-      (<code>by_cases</code>), then <code>simp_all [sure_neq, ty, firstSome]</code>.
+      <strong><code>sure_neq</code>.</strong> Its <code>{`decide (ty a = ty b){:lean}`}</code> does
+      not simplify once <code>ty</code> is unfolded: case on <code>{`a.ty = b.ty{:lean}`}</code>
+      first (<code>by_cases</code>), then
+      <code>{`simp_all [sure_neq, ty, firstSome]{:lean}`}</code>.
     </li>
     <li>
       <strong>Helpers with conditionals.</strong> Put helpers such as <code>of_bool</code> in
@@ -409,9 +413,9 @@ lake env lean check_axioms.lean
     </li>
     <li>
       <strong>The sort of <code>ite</code>.</strong> State its congruence lemma at the sort that the
-      spec of <code>b_ite</code> writes, <code>ty b</code> (the sort of the first branch), so that
-      <code>kanon_congr</code> has no side goal (or give one to <code>kanon_congr_side</code>, with
-      <code>macro_rules</code>).
+      spec of <code>b_ite</code> writes, <code>{`ty b{:lean}`}</code> (the sort of the first
+      branch), so that <code>kanon_congr</code> has no side goal (or give one to
+      <code>kanon_congr_side</code>, with <code>macro_rules</code>).
     </li>
     <li>
       <strong>Several types of values.</strong> Give <code>kanon_atom_cases</code> the typed
@@ -424,10 +428,10 @@ lake env lean check_axioms.lean
   <p>
     <a href="{REPO}/examples/bool"><code>examples/bool</code></a> is the bool module alone, with
     booleans as values. Its rules are all the bool module's, which the library proves: it has no
-    <code>kanon_auto</code>, its <code>Lib/Rule.lean</code> and <code>Proofs.lean</code> are
-    empty, and its hand-written files are its semantics, its primitives, its
-    <code>boolLang</code>, whose laws are one-line proofs, and the congruence of its nodes. It is the
-    template for a language that starts from the bool module.
+    <code>kanon_auto</code>, its <code>Lib/Rule.lean</code> and <code>Proofs.lean</code> are empty,
+    and its hand-written files are its semantics, its primitives, its <code>boolLang</code>, whose
+    laws are one-line proofs, and the congruence of its nodes. It is the template for a language
+    that starts from the bool module.
   </p>
 </DocPage>
 

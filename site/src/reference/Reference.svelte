@@ -19,18 +19,18 @@
   <p>
     A language is declared in <code>.knl</code> files, with <code>use</code>, <code>type</code>,
     <code>sort</code>, <code>node</code>, <code>notation</code>, <code>infix</code>,
-    <code>prefix</code> and <code>constant</code> items and floating attributes; its rules are in <code>.kn</code> files,
-    with <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code> and
-    <code>extend</code> items. A module <code>path</code> is the pair <code>path.knl</code> and
-    <code>path.kn</code>, either of which may be missing.
+    <code>prefix</code> and <code>constant</code> items and floating attributes; its rules are in
+    <code>.kn</code> files, with <code>prim</code>, <code>oracle</code>, <code>fn</code>,
+    <code>rule</code> and <code>extend</code> items. A module <code>path</code> is the pair
+    <code>path.knl</code> and <code>path.kn</code>, either of which may be missing.
   </p>
   <dl>
-    <dt><code>use "path"</code>, <code>use +name</code></dt>
+    <dt><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
     <dd>
       Uses the module <code>path</code>, relative to the directory of the file, or the module
-      <code>name</code> built into <code>kanon</code> (<code>+bool</code>). A module is read once;
-      the declarations of a file come before those of the modules it uses, and its rules after
-      theirs.
+      <code>name</code> built into <code>kanon</code> (<code>{`use builtin "bool"{:kanon}`}</code>).
+      A module is read once; the declarations of a file come before those of the modules it uses,
+      and its rules after theirs.
     </dd>
 
     <dt><code>type x attrs</code>, <code>type x attrs = | C of a * b | …</code>, <code>type x attrs = {"{ f : a; … }"}</code></dt>
@@ -48,63 +48,64 @@
 
     <dt><code>node C of a * b (x, y) : s1 -> s2 -> s when e attrs</code></dt>
     <dd>
-      A node: a constructor of terms, with its arguments <code>a * b</code> (named
-      <code>x</code>, <code>y</code> in its typing), and its typing, all optional. Its operands, then
-      its result, have the sorts <code>s1</code>, <code>s2</code>, <code>s</code>, terms of
-      <code>ty</code> over the arguments and over variables, which stand for any sort (or any
-      value), under the condition <code>e</code> (see <a href="./#typings">Typings</a>). A node
-      without operands (<code>node Var of var</code>) is a leaf; one with <code>k</code> operands
-      is an operator of arity <code>k</code>; one whose only operand sort is a list,
-      <code>node Distinct : a list -> TBool</code>, an operator of any number of operands, all of
-      the sort <code>a</code>.
+      A node: a constructor of terms, with its arguments <code>a * b</code> (named <code>x</code>,
+      <code>y</code> in its typing), and its typing, all optional. Its operands, then its result,
+      have the sorts <code>s1</code>, <code>s2</code>, <code>s</code>, terms of <code>ty</code> over
+      the arguments and over variables, which stand for any sort (or any value), under the condition
+      <code>e</code> (see <a href="./#typings">Typings</a>). A node without operands
+      (<code>{`node Var of var{:kanon}`}</code>) is a leaf; one with <code>k</code> operands is an
+      operator of arity <code>k</code>; one whose only operand sort is a list,
+      <code>{`node Distinct : a list -> TBool{:kanon}`}</code>, an operator of any number of
+      operands, all of the sort <code>a</code>.
     </dd>
 
-    <dt id="notation"><code>notation C</code></dt>
+    <dt id="notation"><code>{`notation C{:kanon}`}</code></dt>
     <dd>
       Literal patterns for the leaf <code>C</code>, of one <code>bool</code> or <code>int</code>
       argument, a sugar of patterns: <code>true</code> and <code>false</code> stand for
-      <code>C true</code> and <code>C false</code> (a <code>bool</code> notation), the numerals
-      <code>0</code>, <code>1</code>, <code>-1</code>, … for <code>C 0</code>, … (an
-      <code>int</code> one), and <code>#x</code> and <code>#_</code> for <code>C x</code> and
-      <code>C _</code> (either), <code>#x</code> binding the argument. A language may have any
-      number of notations. A literal is resolved by its kind (numerals, booleans), then, if several
-      notations remain, by the head of the sort of its position (an operand of a spec, an argument
-      of a node in a pattern, a parameter of a helper annotated with a sort), compared with the
-      result sort of each notation's node; otherwise it is an error, and the pattern names the
-      node (<code>Int x</code>).
+      <code>{`C true{:kanon}`}</code> and <code>{`C false{:kanon}`}</code> (a <code>bool</code>
+      notation), the numerals <code>0</code>, <code>1</code>, <code>-1</code>, … for
+      <code>{`C 0{:kanon}`}</code>, … (an <code>int</code> one), and <code>#x</code> and
+      <code>#_</code> for <code>{`C x{:kanon}`}</code> and <code>{`C _{:kanon}`}</code> (either),
+      <code>#x</code> binding the argument. A language may have any number of notations. A literal
+      is resolved by its kind (numerals, booleans), then, if several notations remain, by the head
+      of the sort of its position (an operand of a spec, an argument of a node in a pattern, a
+      parameter of a helper annotated with a sort), compared with the result sort of each notation's
+      node; otherwise it is an error, and the pattern names the node
+      (<code>{`Int x{:kanon}`}</code>).
     </dd>
 
-    <dt><code>infix "op" = Node, f args, g</code>, <code>prefix "op" = Node, f args, g</code></dt>
+    <dt><code>{`infix "op" = Node, f args, g{:kanon}`}</code>, <code>{`prefix "op" = Node, f args, g{:kanon}`}</code></dt>
     <dd>An operator on terms; <code>g</code> is optional (see <a href="#operators">Operators</a>).</dd>
 
-    <dt><code>constant c = e</code>, <code>constant c (v) = e</code></dt>
+    <dt><code>{`constant c = e{:kanon}`}</code>, <code>{`constant c (v) = e{:kanon}`}</code></dt>
     <dd>
       The term of the constant <code>c</code>, at the sort of the term <code>v</code>, for the laws
-      <code>[@unit c]</code> and <code>[@zero c]</code>. <code>c</code> is a literal
-      (<code>0</code>, <code>1</code>, <code>true</code> or <code>false</code>), whose
+      <code>{`[@unit c]{:kanon}`}</code> and <code>{`[@zero c]{:kanon}`}</code>. <code>c</code> is a
+      literal (<code>0</code>, <code>1</code>, <code>true</code> or <code>false</code>), whose
       <code>constant</code> is optional: Kanon otherwise builds the node of its notation, at the
-      sort of the spec (<code>Bool false</code>, <code>Int 0</code>). Or <code>c</code> is a name,
-      such as <code>ones</code> for the bit-vector of ones of a width:
-      <code>constant ones (v) = lit_ones (size v)</code>.
+      sort of the spec (<code>{`Bool false{:kanon}`}</code>, <code>{`Int 0{:kanon}`}</code>). Or
+      <code>c</code> is a name, such as <code>ones</code> for the bit-vector of ones of a width:
+      <code>{`constant ones (v) = lit_ones (size v){:kanon}`}</code>.
     </dd>
 
-    <dt><code>[@@@name "arg" …]</code></dt>
+    <dt><code>{`[@@@name "arg" …]{:kanon}`}</code></dt>
     <dd>A floating attribute (see <a href="#floating">below</a>).</dd>
 
-    <dt><code>prim f : a -> b</code>, <code>oracle f : a -> b</code></dt>
+    <dt><code>{`prim f : a -> b{:kanon}`}</code>, <code>{`oracle f : a -> b{:kanon}`}</code></dt>
     <dd>
       A primitive, implemented by hand in OCaml (in the module of
-      <code>[@@@ocaml_prims]</code>) and in Lean; the generated code checks that both define it, at
-      this type. The Lean model takes an oracle as a parameter, so that the proofs may not rely on
-      its behaviour (e.g. a hash-consing order).
+      <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
+      define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
+      not rely on its behaviour (e.g. a hash-consing order).
     </dd>
 
     <dt><code>fn f (x : a) (y z : b) (v : S args) : c attrs = e</code></dt>
     <dd>
       A helper. All functions can call each other. A parameter of type <code>t</code> may be
-      annotated with its sort instead (<code>(v : TBitVector n)</code>): it binds the variables of
-      the sort in the body, the generated OCaml asserts it on entry, and literals in patterns on
-      <code>v</code> resolve with it.
+      annotated with its sort instead (<code>{`(v : TBitVector n){:kanon}`}</code>): it binds the
+      variables of the sort in the body, the generated OCaml asserts it on entry, and literals in
+      patterns on <code>v</code> resolve with it.
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>
@@ -116,7 +117,7 @@
       variables, they are its parameters.
     </dd>
 
-    <dt><code>extend rule f before r = | r': p -> e | …</code>, <code>extend fn f = | p -> e | …</code></dt>
+    <dt><code>{`extend rule f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn f = | p -> e | …{:kanon}`}</code></dt>
     <dd>
       Adds rules to the rule function <code>f</code> of a module below, last but before its final
       catch-all case, or before its rule <code>r</code>; or cases to its helper <code>f</code>.
@@ -124,33 +125,35 @@
   </dl>
   <p>
     Kanon generates the type <code>t</code> of terms, in OCaml hash-consed records
-    <code>{"{ kind; ty; tag }"}</code> (whose table is not safe to use from several OCaml 5
+    <code>{`{ kind; ty; tag }{:ocaml}`}</code> (whose table is not safe to use from several OCaml 5
     domains at once, a known limitation). Their <code>kind</code> has the leaves, in the order of
-    their declarations, then, for each arity of operators, <code>Op1 of op1 * t</code>,
-    <code>Op2 of op2 * t * t</code>, …, and <code>OpN of opn * t list</code>, where the type
-    <code>opk</code> has the operators of that arity, with their other arguments
-    (<code>Add of checked</code>). <code>ty</code> has the sorts. Rules do not name
-    <code>Op2</code>: they write <code>And (a, b)</code>, or <code>a &amp;&amp; b</code>.
+    their declarations, then, for each arity of operators, <code>{`Op1 of op1 * t{:ocaml}`}</code>,
+    <code>{`Op2 of op2 * t * t{:ocaml}`}</code>, …, and
+    <code>{`OpN of opn * t list{:ocaml}`}</code>, where the type <code>opk</code> has the operators
+    of that arity, with their other arguments (<code>{`Add of checked{:ocaml}`}</code>).
+    <code>ty</code> has the sorts. Rules do not name <code>Op2</code>: they write
+    <code>{`And (a, b){:kanon}`}</code>, or <code>{`a && b{:kanon}`}</code>.
   </p>
   <p>
-    In expressions, <code>(C x : S args)</code> builds the node <code>C x</code> at the sort
-    <code>S args</code>, which its typing must allow: a leaf whose sort its arguments do not
-    determine (<code>node BitVec of int : TBitVector n</code>) is built this way.
+    In expressions, <code>{`(C x : S args){:kanon}`}</code> builds the node
+    <code>{`C x{:kanon}`}</code> at the sort <code>{`S args{:kanon}`}</code>, which its typing must
+    allow: a leaf whose sort its arguments do not determine
+    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way.
   </p>
   <p>
-    <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>, <code>node</code>,
-    <code>infix</code>, <code>prefix</code>, <code>constant</code>, <code>prim</code>,
-    <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code> and
-    <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
-    <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>,
-    …).
+    <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>,
+    <code>node</code>, <code>infix</code>, <code>prefix</code>, <code>constant</code>,
+    <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
+    and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
+    <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
   </p>
 
   <Heading level={2} id="attributes">Attributes</Heading>
   <p>
     Attributes follow what they apply to. Their arguments are names (of functions, nodes and
     constants), integers, <code>true</code> and <code>false</code>, or strings for anything else
-    (<code>[@fold f_add]</code>, <code>[@unit 0]</code>, <code>[@ocaml "Bv.t"]</code>).
+    (<code>{`[@fold f_add]{:kanon}`}</code>, <code>{`[@unit 0]{:kanon}`}</code>,
+    <code>{`[@ocaml "Bv.t"]{:kanon}`}</code>).
   </p>
 
   <Heading level={3} id="on-types">On types</Heading>
@@ -158,43 +161,44 @@
     <thead><tr><th>Attribute</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@ocaml "M.a"]</code></td>
+        <td><code>{`[@ocaml "M.a"]{:kanon}`}</code></td>
         <td>
           The OCaml type of an abstract type, which <code>ocaml-types</code> needs. Optional on a
           record or a variant: <code>ocaml-types</code> then re-exports that type
-          (<code>type checked = M.checked = {"{ … }"}</code>), which OCaml checks against the
-          declaration, rather than generating it.
+          (<code>{`type checked = M.checked = { … }{:ocaml}`}</code>), which OCaml checks against
+          the declaration, rather than generating it.
         </td>
       </tr>
       <tr>
-        <td><code>[@lean "A"]</code></td>
+        <td><code>{`[@lean "A"]{:kanon}`}</code></td>
         <td>
           The Lean type, if it is not the Kanon name, CamelCased (<code>ext_ty</code> is
           <code>ExtTy</code>). An abstract type is defined by hand in Lean, unless
-          <code>[@lean]</code> names an existing type.
+          <code>{`[@lean]{:kanon}`}</code> names an existing type.
         </td>
       </tr>
       <tr>
-        <td><code>[@noeq]</code></td>
+        <td><code>{`[@noeq]{:kanon}`}</code></td>
         <td>
           On an abstract type: <code>=</code> and <code>&lt;&gt;</code> are not allowed at this type
           (nor at tuples, options and lists of it).
         </td>
       </tr>
       <tr>
-        <td><code>[@equal "M.equal"]</code></td>
+        <td><code>{`[@equal "M.equal"]{:kanon}`}</code></td>
         <td>
-          On an abstract type <code>a</code>: the OCaml function <code>M.equal : a -> a -> bool</code>
-          that decides <code>=</code> at this type, rather than <code>Stdlib.( = )</code>. Terms are
-          always compared as hash-consed terms, by their tags, never with
-          <code>Stdlib.( = )</code>.
+          On an abstract type <code>a</code>: the OCaml function
+          <code>{`M.equal : a -> a -> bool{:ocaml}`}</code> that decides <code>=</code> at this
+          type, rather than <code>{`Stdlib.( = ){:ocaml}`}</code>. Terms are always compared as
+          hash-consed terms, by their tags, never with <code>{`Stdlib.( = ){:ocaml}`}</code>.
         </td>
       </tr>
       <tr>
-        <td><code>[@hash "M.hash"]</code></td>
+        <td><code>{`[@hash "M.hash"]{:kanon}`}</code></td>
         <td>
-          On an abstract type <code>a</code>: the OCaml function <code>M.hash : a -> int</code>
-          that hashes its values for hash-consing, rather than <code>Hashtbl.hash</code>.
+          On an abstract type <code>a</code>: the OCaml function
+          <code>{`M.hash : a -> int{:ocaml}`}</code> that hashes its values for hash-consing, rather
+          than <code>{`Hashtbl.hash{:ocaml}`}</code>.
         </td>
       </tr>
     </tbody>
@@ -205,12 +209,12 @@
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@get f]</code></td>
+        <td><code>{`[@get f]{:kanon}`}</code></td>
         <td>a sort of one argument</td>
         <td>
-          The helper <code>f : t -> int</code> reads that argument from the sort of a term
-          (<code>sort TArray of nat [@get length]</code>): Kanon calls <code>f v</code> rather than
-          matching the sort of <code>v</code>.
+          The helper <code>{`f : t -> int{:kanon}`}</code> reads that argument from the sort of a
+          term (<code>{`sort TArray of nat [@get length]{:kanon}`}</code>): Kanon calls
+          <code>{`f v{:kanon}`}</code> rather than matching the sort of <code>v</code>.
         </td>
       </tr>
     </tbody>
@@ -219,79 +223,81 @@
   <Heading level={3} id="laws">Laws</Heading>
   <p>
     On an operator, the laws derive the first rules of its <em>rule function</em> (the one whose
-    spec is the operator over the function's parameters), in this order, before the rules written
-    by hand. They are ordinary rules, generated and proved like the others. Here on
-    <code>Plus</code>, <code>And</code> and <code>Not</code>, with the rewrites on whole terms (in
-    <code>rule not_ : Not v</code>, the case of <code>[@invol]</code> is <code>not x -> x</code>, on
-    the operand <code>v</code>):
+    spec is the operator over the function's parameters), in this order, before the rules written by
+    hand. They are ordinary rules, generated and proved like the others. Here on <code>Plus</code>,
+    <code>And</code> and <code>Not</code>, with the rewrites on whole terms (in
+    <code>{`rule not_ : Not v{:kanon}`}</code>, the case of <code>{`[@invol]{:kanon}`}</code> is
+    <code>{`not x -> x{:kanon}`}</code>, on the operand <code>v</code>):
   </p>
   <table>
     <thead><tr><th>Law</th><th>Rule</th><th>Rewrite</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@comm]</code></td>
+        <td><code>{`[@comm]{:kanon}`}</code></td>
         <td>none</td>
         <td>
           The operands commute: the rules match them in either order, the generated OCaml orders
-          them by hash-consing tag (<code>a &amp;&amp; b</code> and <code>b &amp;&amp; a</code> are
-          the same term), and in Lean one statement that the operator commutes proves the arms
-          that swap them.
+          them by hash-consing tag (<code>{`a && b{:kanon}`}</code> and
+          <code>{`b && a{:kanon}`}</code> are the same term), and in Lean one statement that the
+          operator commutes proves the arms that swap them.
         </td>
       </tr>
       <tr>
-        <td><code>[@fold f]</code></td>
+        <td><code>{`[@fold f]{:kanon}`}</code></td>
         <td><code>lits</code>, <code>lit</code></td>
-        <td><code>Int i1 + Int i2 -> Int (f i1 i2)</code>, <code>not (Bool b) -> Bool (f b)</code></td>
+        <td><code>{`Int i1 + Int i2 -> Int (f i1 i2){:kanon}`}</code>, <code>{`not (Bool b) -> Bool (f b){:kanon}`}</code></td>
       </tr>
       <tr>
-        <td><code>[@fold f lift]</code></td>
+        <td><code>{`[@fold f lift]{:kanon}`}</code></td>
         <td><code>lits</code>, <code>lit</code></td>
-        <td><code>Int i1 + Int i2 -> lift (f i1 i2)</code></td>
+        <td><code>{`Int i1 + Int i2 -> lift (f i1 i2){:kanon}`}</code></td>
       </tr>
       <tr>
-        <td><code>[@unit c]</code></td>
+        <td><code>{`[@unit c]{:kanon}`}</code></td>
         <td><code>unit_zero</code>, <code>unit_true</code></td>
-        <td><code>x + 0 -> x</code>, <code>x &amp;&amp; true -> x</code></td>
+        <td><code>{`x + 0 -> x{:kanon}`}</code>, <code>{`x && true -> x{:kanon}`}</code></td>
       </tr>
       <tr>
-        <td><code>[@zero c]</code></td>
+        <td><code>{`[@zero c]{:kanon}`}</code></td>
         <td><code>zero_false</code></td>
-        <td><code>x &amp;&amp; false -> false</code></td>
+        <td><code>{`x && false -> false{:kanon}`}</code></td>
       </tr>
       <tr>
-        <td><code>[@idem]</code></td>
+        <td><code>{`[@idem]{:kanon}`}</code></td>
         <td><code>same</code></td>
-        <td><code>x &amp;&amp; x -> x</code></td>
+        <td><code>{`x && x -> x{:kanon}`}</code></td>
       </tr>
       <tr>
-        <td><code>[@invol]</code></td>
+        <td><code>{`[@invol]{:kanon}`}</code></td>
         <td><code>not</code>, after the operator</td>
-        <td><code>not (not x) -> x</code></td>
+        <td><code>{`not (not x) -> x{:kanon}`}</code></td>
       </tr>
     </tbody>
   </table>
   <ul>
     <li>
-      <code>[@comm]</code>, <code>[@unit]</code>, <code>[@zero]</code> and <code>[@idem]</code>
-      apply to binary operators, <code>[@invol]</code> to unary ones.
+      <code>{`[@comm]{:kanon}`}</code>, <code>{`[@unit]{:kanon}`}</code>,
+      <code>{`[@zero]{:kanon}`}</code> and <code>{`[@idem]{:kanon}`}</code> apply to binary
+      operators, <code>{`[@invol]{:kanon}`}</code> to unary ones.
     </li>
     <li>
-      <code>[@fold f lift]</code>: <code>f : p1 -> … -> a1 -> a2 -> r</code> takes the last
-      parameters of the node that it has room for, then the values of the literal operands (the
-      arguments of their notations). Its parameters of type <code>ty</code> right before the
-      values receive the sorts of the literal operands, in order
-      (<code>fn z_add (s _ : ty) (l r : int) : int</code>). <code>lift : r -> t</code>, a
+      <code>{`[@fold f lift]{:kanon}`}</code>: <code>f : p1 -> … -> a1 -> a2 -> r</code> takes the
+      last parameters of the node that it has room for, then the values of the literal operands (the
+      arguments of their notations). Its parameters of type <code>ty</code> right before the values
+      receive the sorts of the literal operands, in order
+      (<code>{`fn z_add (s _ : ty) (l r : int) : int{:kanon}`}</code>).
+      <code>{`lift : r -> t{:kanon}`}</code>, a
       function or a node, makes a term of the result. It is optional: by default, it is the node
       of the notation of the type of the result (<code>bool</code> or <code>int</code>), else the
       leaf of one argument of that type. A node is built at the sort that its typing gives, or
       else at the sort of the spec.
     </li>
     <li>
-      <code>[@unit c]</code> and <code>[@zero c]</code> take a literal, <code>0</code>,
-      <code>1</code>, <code>true</code> or <code>false</code>, which the rule matches, or a
-      named constant, which it compares, with <code>=</code>, to the constant at the sort of the
-      other operand. The rule is named <code>unit_c</code> or <code>zero_c</code>, after the
-      literal (<code>unit_zero</code>, <code>unit_one</code>, <code>zero_false</code>, …) or the
+      <code>{`[@unit c]{:kanon}`}</code> and <code>{`[@zero c]{:kanon}`}</code> take a literal,
+      <code>0</code>, <code>1</code>, <code>true</code> or <code>false</code>, which the rule
+      matches, or a named constant, which it compares, with <code>=</code>, to the constant at the
+      sort of the other operand. The rule is named <code>unit_c</code> or <code>zero_c</code>, after
+      the literal (<code>unit_zero</code>, <code>unit_one</code>, <code>zero_false</code>, …) or the
       constant. On an operator that does not commute, <code>c</code> is on the right; on one that
       does, on either side. A literal is resolved as in patterns, at the sort of the operands, and
       its term is its <code>constant</code>, or else the node of its notation.
@@ -305,9 +311,9 @@ constant 0 (v) = lit_zero (size v)
 node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [@zero 0]`}
   />
   <p>
-    Its rule <code>unit_ones</code> returns <code>x</code> from <code>x, y</code>, in either
-    order, when <code>y = lit_ones (size x)</code>: the constant <code>ones</code> at the sort of
-    <code>x</code>.
+    Its rule <code>unit_ones</code> returns <code>x</code> from <code>{`x, y{:kanon}`}</code>, in
+    either order, when <code>{`y = lit_ones (size x){:kanon}`}</code>: the constant
+    <code>ones</code> at the sort of <code>x</code>.
   </p>
 
   <Heading level={3} id="on-functions">On functions, rules and patterns</Heading>
@@ -315,7 +321,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@ty_only]</code></td>
+        <td><code>{`[@ty_only]{:kanon}`}</code></td>
         <td>a helper of one term, before its <code>=</code></td>
         <td>
           The helper only reads the sort of the term (<code
@@ -325,7 +331,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
-        <td><code>[@untyped]</code></td>
+        <td><code>{`[@untyped]{:kanon}`}</code></td>
         <td>a rule function, after its spec</td>
         <td>
           The function also simplifies ill-typed specs: it does not assert the sorts of its
@@ -333,11 +339,12 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
-        <td><code>[@comm]</code></td>
+        <td><code>{`[@comm]{:kanon}`}</code></td>
         <td>a pattern of a pair</td>
         <td>
-          The pattern also matches the components of the pair swapped: <code>(1, ~v) [@comm]</code>
-          matches both <code>1, ~v</code> and <code>~v, 1</code>.
+          The pattern also matches the components of the pair swapped:
+          <code>{`(1, ~v) [@comm]{:kanon}`}</code> matches both <code>{`1, ~v{:kanon}`}</code> and
+          <code>{`~v, 1{:kanon}`}</code>.
         </td>
       </tr>
     </tbody>
@@ -349,7 +356,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <thead><tr><th>Attribute</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@@@ocaml_prims "M"]</code></td>
+        <td><code>{`[@@@ocaml_prims "M"]{:kanon}`}</code></td>
         <td>
           The OCaml module of the primitives, which the generated rules call
           (<code>M.f</code>) and check against their declared types. Required when the language
@@ -357,21 +364,21 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
-        <td><code>[@@@ocaml_types "M"]</code></td>
+        <td><code>{`[@@@ocaml_types "M"]{:kanon}`}</code></td>
         <td>
           The OCaml module of the types (the output of <code>ocaml-types</code>), which the
           generated rules open. Without it, they must be included where the types are in scope.
         </td>
       </tr>
       <tr>
-        <td><code>[@@@lean_root "R"]</code></td>
+        <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
         <td>The namespace of the Lean model, and the root of its modules (<code>Kanon</code> by default).</td>
       </tr>
       <tr>
-        <td><code>[@@@lean_param "x" "T"]</code></td>
+        <td><code>{`[@@@lean_param "x" "T"]{:kanon}`}</code></td>
         <td>
-          A parameter <code>x : T</code> of the semantics, which the Lean statements quantify over
-          (e.g. a semantics of floats).
+          A parameter <code>{`x : T{:lean}`}</code> of the semantics, which the Lean statements
+          quantify over (e.g. a semantics of floats).
         </td>
       </tr>
     </tbody>
@@ -407,12 +414,12 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
 
   <Heading level={2} id="operators">Operators</Heading>
   <p>
-    An operator is a word (a lowercase name, such as <code>urem</code>) or a sequence of the
-    symbols <code>! $ % &amp; * + - . / : &lt; = &gt; ? @ ^ | ~</code>, of <code>#</code> after
-    the first character, and of non-ASCII characters (<code>≤</code>, <code>⊕</code>). Symbols are
-    read as in OCaml, as many as possible: <code>a+-b</code> is the operator <code>+-</code>. The
-    reserved <code>=</code>, <code>|</code>, <code>-&gt;</code>, <code>&lt;-</code>,
-    <code>:</code>, <code>::</code>, <code>;</code> and <code>.</code> cannot be declared, nor
+    An operator is a word (a lowercase name, such as <code>urem</code>) or a sequence of the symbols
+    <code>! $ % &amp; * + - . / : &lt; = &gt; ? @ ^ | ~</code>, of <code>#</code> after the first
+    character, and of non-ASCII characters (<code>≤</code>, <code>⊕</code>). Symbols are read as in
+    OCaml, as many as possible: <code>{`a+-b{:kanon}`}</code> is the operator <code>+-</code>. The
+    reserved <code>=</code>, <code>|</code>, <code>-&gt;</code>, <code>&lt;-</code>, <code>:</code>,
+    <code>::</code>, <code>;</code> and <code>.</code> cannot be declared, nor
     <code>&lt;&gt;</code>, which is built in at every type.
   </p>
 
@@ -456,19 +463,19 @@ infix "urem" = Rem false, bv_rem false, lit_urem
 prefix "not" = Not, b_not`}
   />
   <p>
-    <code>infix "op" = Node, f args, g</code> declares what <code>a op b</code> builds and matches:
-    in expressions, it calls the smart constructor <code>f</code> with the leading arguments
-    <code>args</code> (<code>bv_add unchecked a b</code>); in patterns, it matches the node
-    (<code>Add (_, a, b)</code>, whatever its parameters); on operands that are not terms, it is
-    the function <code>g</code>, which is optional, when they have the types of its arguments
-    (<code>infix "land" = BitAnd, bv_and, z_land</code> makes <code>a land b</code> on integers
-    <code>z_land a b</code>).
-    <code>prefix</code> is the same for one operand.
+    <code>{`infix "op" = Node, f args, g{:kanon}`}</code> declares what <code>a op b</code> builds
+    and matches: in expressions, it calls the smart constructor <code>f</code> with the leading
+    arguments <code>args</code> (<code>{`bv_add unchecked a b{:kanon}`}</code>); in patterns, it
+    matches the node (<code>{`Add (_, a, b){:kanon}`}</code>, whatever its parameters); on operands
+    that are not terms, it is the function <code>g</code>, which is optional, when they have the
+    types of its arguments (<code>{`infix "land" = BitAnd, bv_and, z_land{:kanon}`}</code> makes
+    <code>a land b</code> on integers <code>{`z_land a b{:kanon}`}</code>). <code>prefix</code> is
+    the same for one operand.
   </p>
   <ul>
     <li>
-      The node may fix its parameters, as in <code>Rem false</code>: its patterns then match only
-      these (<code>a urem b</code> is <code>Rem (false, a, b)</code>).
+      The node may fix its parameters, as in <code>{`Rem false{:kanon}`}</code>: its patterns then
+      match only these (<code>a urem b</code> is <code>{`Rem (false, a, b){:kanon}`}</code>).
     </li>
     <li>
       A word is an infix operator, and no longer a name, from its declaration on: in the rest of
@@ -479,9 +486,10 @@ prefix "not" = Not, b_not`}
       Built in: on integers, <code>+</code>, <code>-</code>, <code>*</code>, the prefix
       <code>-</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and
       <code>&gt;=</code>; on booleans, <code>&amp;&amp;</code>, <code>||</code> and
-      <code>not</code>; at every type (but those of <code>[@noeq]</code>), <code>=</code> and
-      <code>&lt;&gt;</code>. On terms, <code>=</code> is the equality of hash-consed terms. Any
-      other operator must be declared. An operator with a built-in meaning on a type cannot have a
+      <code>not</code>; at every type (but those of <code>{`[@noeq]{:kanon}`}</code>),
+      <code>=</code> and <code>&lt;&gt;</code>. On terms, <code>=</code> is the equality of
+      hash-consed terms. Any other operator must be declared. An operator with a built-in meaning on
+      a type cannot have a
       function <code>g</code> on that type.
     </li>
   </ul>
