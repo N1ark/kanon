@@ -1,5 +1,6 @@
 (* The language: Kanon's bool module, a module of integers, and variables. *)
 
+[@@@lean_root "IntsExample"]
 [@@@ocaml_prims "Prims"]
 
 use +bool

@@ -64,9 +64,9 @@
       "id": "modules",
       "title": "Tutorial 4: modules",
       "files": {
-        "lang.knl": "examples/modules/lang.knl",
-        "int.knl": "examples/modules/int.knl",
-        "int.kn": "examples/modules/int.kn"
+        "lang.knl": "../examples/ints/lang.knl",
+        "int.knl": "../examples/ints/int.knl",
+        "int.kn": "../examples/ints/int.kn"
       }
     }
   ]
