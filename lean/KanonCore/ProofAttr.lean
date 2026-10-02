@@ -13,7 +13,8 @@ Simp sets, used in this order by the tactics:
 - `kanon_lits`: the literals and primitives;
 - `kanon_wt`: the typing of the nodes;
 - `kanon_ev`: the evaluation of the nodes;
-- `kanon_val`: the operations on values, once the atoms are split.
+- `kanon_val`: the operations on values, once the atoms are split;
+- `kanon_close_simp`: the lemmas that the closing steps add to `simp_all`.
 
 Lemmas:
 - `kanon_atom_cases`: the possible values of an atom, the left-hand side of
@@ -40,6 +41,7 @@ register_simp_attr kanon_lits
 register_simp_attr kanon_wt
 register_simp_attr kanon_ev
 register_simp_attr kanon_val
+register_simp_attr kanon_close_simp
 
 open Lean
 

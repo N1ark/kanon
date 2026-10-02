@@ -470,10 +470,11 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   all_goals (try subst e)
   all_goals (try (kanon_split; subst_vars))))
 
-/-- Closes a goal on integers and booleans, or by a `kanon_close_lemma`. -/
+/-- Closes a goal on integers and booleans (with the `kanon_close_simp` lemmas),
+or by a `kanon_close_lemma`. -/
 macro "kanon_close" : tactic => `(tactic| first
-  | (simp_all; done)
-  | (simp_all; omega)
+  | (simp_all [kanon_close_simp]; done)
+  | (simp_all [kanon_close_simp]; omega)
   | omega
   | kanon_close_lemmas)
 
