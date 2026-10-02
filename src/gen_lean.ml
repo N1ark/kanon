@@ -11,9 +11,9 @@
     other helpers are plain Lean functions.
 
     Three files are generated: [Model.lean] (the above), [Statements.lean]
-    (soundness of [Ops], and one statement per rule) and [Soundness.lean]
-    (soundness of [opsN], from the proofs [f.r.name.proof] of the rule
-    statements, written by hand). *)
+    (soundness of [Ops], one statement per rule, and the commutativity of each
+    commutative operator) and [Soundness.lean] (soundness of [opsN], from the
+    proofs [f.r.name.proof] of the rule statements, written by hand). *)
 
 open Syntax
 
@@ -131,6 +131,11 @@ let lean_name s =
   String.concat ""
     (List.map String.capitalize_ascii (String.split_on_char '_' s))
 
+(** The Lean name of a declared type: [Kind] for the kinds of terms (the
+    constructors of [t]), else its Kanon name, CamelCased. *)
+let decl_lean_name (d : decl) =
+  if decl_name TKind = Some d.d_name then "Kind" else lean_name d.d_name
+
 let rec lean_ty ft = function
   | TInt -> pf ft "Int"
   | TBool -> pf ft "Bool"
@@ -138,7 +143,7 @@ let rec lean_ty ft = function
   | TTerm -> pf ft "Term"
   | (TKind | TSty | TData _) as t ->
       let d = decl_of_ty t in
-      pf ft "%s" (Option.value ~default:(lean_name d.d_name) d.d_lean)
+      pf ft "%s" (Option.value ~default:(decl_lean_name d) d.d_lean)
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
@@ -233,8 +238,7 @@ let rec expr ctx ft (e : expr) =
   | ELocalCall (f, args) -> pf ft "(%s %a)" (id f) (list ~sep:" " expr) args
   | EUnop (Neg, a) -> pf ft "(- %a)" expr a
   | EUnop (Not, a) -> pf ft "(! %a)" expr a
-  | EUnop (Lognot, a) -> pf ft "(zlognot %a)" expr a
-  | EBinop (Arith op, a, b) -> (
+  | EBinop (op, a, b) -> (
       let infix s = pf ft "(%a %s %a)" expr a s expr b in
       let dec s = pf ft "(decide (%a %s %a))" expr a s expr b in
       match op with
@@ -249,16 +253,6 @@ let rec expr ctx ft (e : expr) =
       | Ne -> dec "≠"
       | And -> infix "&&"
       | Or -> infix "||")
-  | EBinop (Bit op, a, b) ->
-      let f =
-        match op with
-        | Land -> "zland"
-        | Lor -> "zlor"
-        | Lxor -> "zlxor"
-        | Lsl -> "zshiftl"
-        | Asr -> "zasr"
-      in
-      pf ft "(%s %a %a)" f expr a expr b
   | EIf (c, a, b) ->
       pf ft "@[<hv>(if %a@ then %a@ else %a)@]" expr c expr a expr b
   | ELet ({ p = PVar x; _ }, rhs, body) ->
@@ -291,7 +285,7 @@ let rec expr ctx ft (e : expr) =
       let d = decl_of_ty e.ety in
       pf ft "({ %a } : %s)"
         (list (fun ft (f, _) -> pf ft "%s := %a" f expr (List.assoc f fs)))
-        d.d_fields (lean_name d.d_name)
+        d.d_fields (decl_lean_name d)
   | EField (e, f) -> pf ft "%a.%s" expr e f
   | EAssert (_, body) -> expr ft body
 
@@ -663,12 +657,65 @@ let rec occurs ~ty_ok x (e : expr) =
              && (Option.fold ~none:false ~some:go c.guard || go c.body))
            cases
 
-(** The arm that the arm [a] is derived from by commutativity, if any: the one
-    of the same source case that takes the same or-pattern choices and no
-    [[@comm]] swap, when [a]'s guard and body do not depend on the swaps (a
+(** The swaps of commutative operands that turn [pb] into [pa], two alternatives
+    of a pattern: the nodes swapped, as [(qa, qb, op)] for the subpatterns [qa]
+    of [pa] and [qb] of [pb] and their operator [op], inner nodes first. Raises
+    [Exit] if the patterns differ otherwise. *)
+let rec swaps (pa : pat) (pb : pat) =
+  let all la lb =
+    if List.length la <> List.length lb then raise Exit
+    else List.concat (List.map2 swaps la lb)
+  in
+  if pa.pid <> pb.pid then raise Exit;
+  match (pa.p, pb.p) with
+  | PConstr (c, [ op; x; y ]), PConstr (c', [ op'; x'; y' ])
+    when c = c' && x.pid <> x'.pid -> (
+      match op.p with
+      | PConstr (o, _) when is_commutative o.c_name ->
+          swaps op op' @ swaps x y' @ swaps y x' @ [ (pa, pb, o) ]
+      | _ -> raise Exit)
+  | PConstr (c, la), PConstr (c', lb) when c = c' -> all la lb
+  | PTuple la, PTuple lb -> all la lb
+  | PAs (q, x), PAs (q', x') when x = x' -> swaps q q'
+  | PSome q, PSome q' -> swaps q q'
+  | PCons (h, t), PCons (h', t') -> all [ h; t ] [ h'; t' ]
+  | PRecord fa, PRecord fb when List.map fst fa = List.map fst fb ->
+      all (List.map snd fa) (List.map snd fb)
+  | d, d' when d = d' -> []
+  | _ -> raise Exit
+
+(** The pids of the nodes of a pattern. *)
+let rec pids (p : pat) =
+  p.pid
+  ::
+  (match p.p with
+  | PAs (q, _) | PSome q -> pids q
+  | PTuple l | PConstr (_, l) -> List.concat_map pids l
+  | PCons (h, t) -> pids h @ pids t
+  | PRecord fs -> List.concat_map (fun (_, q) -> pids q) fs
+  | _ -> [])
+
+(** The commutative operator of the spec of [f], if it is the node of one over
+    the scrutinees [scruts] of its rules. *)
+let spec_comm (f : fn) scruts =
+  let names l =
+    List.sort compare
+      (List.map (fun (e : expr) -> match e.e with EVar x -> x | _ -> "") l)
+  in
+  match (Option.get f.spec).e with
+  | ENode ({ e = EConstr (_, [ { e = EConstr (o, _); _ }; x; y ]); _ }, _)
+    when is_commutative o.c_name && names [ x; y ] = names scruts ->
+      Some o
+  | _ -> None
+
+(** How the arm [a] is derived from another by commutativity, if it is: from the
+    arm [b] of the same source case that takes the same or-pattern choices and
+    no [[@comm]] swap, when [a]'s guard and body do not depend on the swaps (a
     variable may stand for a different parameter in each, when the arguments of
-    the function are swapped), with the arguments of its statement. *)
-let derived_from (grp : arm list) (a : arm) =
+    the function are swapped). Gives [b], the arguments of its statement, the
+    operator of the spec if the arguments of the function are swapped, and the
+    nested swaps (see [swaps]). *)
+let derived_from (f : fn) (grp : arm list) (a : arm) =
   let c = a.a_case in
   if not (List.exists (fun (_, i, comm, _) -> comm && i = 1) c.alt) then None
   else
@@ -686,7 +733,7 @@ let derived_from (grp : arm list) (a : arm) =
         grp
     with
     | None -> None
-    | Some b ->
+    | Some b -> (
         let names =
           List.sort_uniq compare
             (List.map fst a.a_subst @ List.map fst b.a_subst)
@@ -728,8 +775,24 @@ let derived_from (grp : arm list) (a : arm) =
               | _ -> y)
           | _ -> y
         in
-        if List.for_all independent names then Some (b, List.map arg b.a_binders)
-        else None
+        let scruts =
+          match rules f with (_, scruts, _) :: _ -> scruts | [] -> []
+        in
+        let shape =
+          try
+            match (c.pat.p, b.a_case.pat.p) with
+            | PTuple [ x; y ], PTuple [ x'; y' ] when x.pid <> x'.pid ->
+                if c.pat.pid <> b.a_case.pat.pid then raise Exit;
+                Option.map
+                  (fun o -> (Some o, swaps x y' @ swaps y x'))
+                  (spec_comm f scruts)
+            | _ -> Some (None, swaps c.pat b.a_case.pat)
+          with Exit -> None
+        in
+        match shape with
+        | Some (top, nested) when List.for_all independent names ->
+            Some (b, List.map arg b.a_binders, top, nested)
+        | _ -> None)
 
 (* ---------------------------------------------------------------- *)
 (* Files *)
@@ -813,8 +876,8 @@ let model ~sources ft (p : program) =
   header ~sources ft [ md "Signatures" ];
   (* oracles *)
   pf ft
-    "@[<v 2>/-- The primitives that the model is parameterised by. -/@ \
-     structure Oracle where";
+    "/-- The primitives that the model is parameterised by. -/@ @[<v \
+     2>structure Oracle where";
   List.iter
     (fun (q : prim) ->
       if q.oracle then (
@@ -826,7 +889,7 @@ let model ~sources ft (p : program) =
   defs ctx ft Pure ~o:false;
   (* Ops *)
   pf ft
-    "@[<v 2>/-- The rule functions, as used by the rules. -/@ structure Ops \
+    "/-- The rule functions, as used by the rules. -/@ @[<v 2>structure Ops \
      where@ orc : Oracle";
   List.iter (fun f -> pf ft "@ %s : %a" f.name arrow f) (rule_fns ctx);
   pf ft "@]@ @ ";
@@ -866,6 +929,52 @@ let model ~sources ft (p : program) =
     "@[<v 2>def opsN (orc : Oracle) : Nat → Ops@ | 0 => opsRaw orc@ | n + 1 => \
      opsStep (opsN orc n)@]@ @ ";
   pf ft "end %s@]@." (root ())
+
+(* ---------------------------------------------------------------- *)
+(* Commutativity: one statement per commutative operator, from which the arms
+   that swap its operands are proved *)
+
+(** The commutative operators, with the kind of their nodes. *)
+let comm_ops () =
+  List.filter_map
+    (fun name ->
+      let op = Option.get (find_constr name) in
+      match Check.node_of_op op with
+      | Some (kc, [ _; _ ]) -> Some (op, kc)
+      | _ -> None)
+    !lang.commutative
+
+(** The statement that the operands of [op] commute, without its [.Stmt]:
+    [Binop.Plus.comm]. *)
+let comm_name (op : constr) = lean_constr op ^ ".comm"
+
+(** The statement that the operands of [op] commute: its node over [a] and [b]
+    is refined by its node over [b] and [a], at any sort. *)
+let comm_stmt ft ((op : constr), (kc : constr)) =
+  let fresh x =
+    if List.mem_assoc x !lang.lean_params then "kanon__" ^ x else x
+  in
+  let a = fresh "a" and b = fresh "b" and t = fresh "t" in
+  let xs =
+    List.mapi
+      (fun i arg -> (fresh (Printf.sprintf "x%d" (i + 1)), arg_ty arg))
+      op.c_args
+  in
+  let o =
+    if xs = [] then lean_constr op
+    else
+      Printf.sprintf "(%s %s)" (lean_constr op)
+        (String.concat " " (List.map fst xs))
+  in
+  let node x y =
+    Printf.sprintf "(Term.mk (%s %s %s %s) %s)" (lean_constr kc) o x y t
+  in
+  pf ft
+    "/-- The operands of `%s` commute. -/@ @[<v 2>def %s.Stmt : Prop :=@ ∀ \
+     %s%a(%s %s : Term) (%s : %a),@ Refines%s %s@ %s@]@ @ "
+    (lean_constr op) (comm_name op) (sem_binders ())
+    (fun ft -> List.iter (fun (x, ty) -> pf ft "(%s : %a) " x lean_ty ty))
+    xs a b t lean_ty TSty (sem_args ()) (node a b) (node b a)
 
 (** The names of the arms of a rule: the names of the choices that produced each
     (see [Check.alternatives]), in the order of the source, prefixed with the
@@ -945,7 +1054,7 @@ let statements ~sources ft (p : program) =
   let ctx = classify p in
   header ~sources ft [ md "Semantics" ];
   pf ft
-    "@[<v 2>/-- Every rule function refines its spec. -/@ structure Ops.Sound \
+    "/-- Every rule function refines its spec. -/@ @[<v 2>structure Ops.Sound \
      %s(O : Ops) : Prop where@ orc : O.orc.Compat%s"
     (sem_binders ()) (sem_args ());
   List.iter
@@ -954,6 +1063,7 @@ let statements ~sources ft (p : program) =
         (sem_args ()) f.name args f f.name args f)
     (rule_fns ctx);
   pf ft "@]@ @ ";
+  List.iter (comm_stmt ft) (comm_ops ());
   List.iter
     (fun f ->
       List.iter
@@ -1075,6 +1185,24 @@ let bool_ops ft =
      [distinct_check]; split <;> simp_all [firstSome]@]@ @ "
     (sem_implicits ()) (sem_args ()) (with_sem_args "O.bool")
 
+(** The proof that the operands of [op] commute, a lemma of [kanon_comm]: by
+    Kanon's library for the operators of the bool module ([bool]), else by
+    [kanon_proof%]. *)
+let comm_proof ~bool ft ((op : constr), _) =
+  let n = comm_name op in
+  match
+    List.assoc_opt op.c_name [ ("And", "and"); ("Or", "or"); ("Eq", "eq") ]
+  with
+  | Some l when bool ->
+      pf ft
+        "@[<v 2>@@[kanon_comm_lemma] theorem %s.ok : %s.Stmt :=@ fun%s _ _ _ \
+         => BoolMod.Lang.refines_%s_comm (L := %s)@]@ @ "
+        n n (sem_args ()) l (with_sem_args "boolLang")
+  | _ ->
+      pf ft
+        "@@[kanon_comm_lemma] theorem %s.ok : %s.Stmt := kanon_proof%% %s@ @ " n
+        n n
+
 (** The proofs of the rules of a [[@cases]] function from those of its arms, and
     of the arms derived by commutativity. *)
 let cases_proofs ft (f : fn) =
@@ -1082,7 +1210,7 @@ let cases_proofs ft (f : fn) =
     (fun (r, arms) ->
       List.iteri
         (fun i a ->
-          match derived_from arms a with
+          match derived_from f arms a with
           | _ when in_bool_module a.a_case.cloc ->
               (* proved once, by Kanon's library *)
               pf ft
@@ -1097,7 +1225,7 @@ let cases_proofs ft (f : fn) =
               pf ft "theorem %s.ok : %s.Stmt := kanon_proof%% %s@ @ "
                 (arm_name f r arms i) (arm_name f r arms i)
                 (arm_name f r arms i)
-          | Some (b, args) ->
+          | Some (b, args, top, nested) ->
               let j =
                 let rec find k = function
                   | x :: _ when x == b -> k
@@ -1107,15 +1235,44 @@ let cases_proofs ft (f : fn) =
                 find 0 arms
               in
               let hg = if a.a_case.guard = None then "" else " hg" in
-              pf ft
-                "@[<v 2>theorem %s.ok : %s.Stmt := by@ intro%s O hO %a%s@ \
-                 exact Refinement.trans@   (by simp only [%s.spec, ty, \
-                 Term.ty_mk]; kanon_comm)@   (%s.ok%s O hO %a%s)@]@ @ "
+              let term q =
+                let t, _, _ = pat_term q in
+                t
+              in
+              let comm o = Fmt.str "%s.ok%s .." (comm_name o) (sem_args ()) in
+              pf ft "@[<v 2>theorem %s.ok : %s.Stmt := by@ intro%s O hO%a%s@ "
                 (arm_name f r arms i) (arm_name f r arms i) (sem_args ())
-                (list ~sep:" " (fun ft (x, _) -> pf ft "%s" x))
-                a.a_binders hg f.name (arm_name f r arms j) (sem_args ())
-                (list ~sep:" " Format.pp_print_string)
-                args hg)
+                (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
+                a.a_binders hg;
+              (* each swapped node of [a] refines that of [b], inner ones first:
+                 by commutativity, and congruence for the swaps inside *)
+              List.iter
+                (fun ((qa : pat), qb, o) ->
+                  let inner =
+                    List.exists
+                      (fun ((qa' : pat), _, _) ->
+                        qa'.pid <> qa.pid && List.mem qa'.pid (pids qa))
+                      nested
+                  in
+                  pf ft "@[<hv 2>have : Refines%s %s@ %s :=@ " (sem_args ())
+                    (term qa) (term qb);
+                  if inner then
+                    pf ft "Refinement.trans (%s) (by kanon_congr)@]@ " (comm o)
+                  else pf ft "%s@]@ " (comm o))
+                nested;
+              pf ft
+                "@[<hv 2>refine Refinement.trans ?_@ (%s.ok%s O hO%a%s)@]@ \
+                 simp only [%s.spec%s]@ "
+                (arm_name f r arms j) (sem_args ())
+                (fun ft -> List.iter (pf ft " %s"))
+                args hg f.name
+                (if List.mem "type_of" (calls (Option.get f.spec)) then
+                   ", ty, Term.ty_mk"
+                 else "");
+              Option.iter
+                (fun o -> pf ft "refine Refinement.trans (%s) ?_@ " (comm o))
+                top;
+              pf ft "kanon_congr@]@ @ ")
         arms;
       (* the alternatives come out of [repeat' rcases] in order *)
       pf ft
@@ -1139,7 +1296,7 @@ let soundness ~sources ~proofs ft (p : program) =
     else proofs
   in
   header ~sources ft (md "Statements" :: proofs);
-  if
+  let bool =
     List.exists
       (fun f ->
         f.cases
@@ -1148,7 +1305,9 @@ let soundness ~sources ~proofs ft (p : program) =
                List.exists (fun a -> in_bool_module a.a_case.cloc) arms)
              (arms f))
       (rule_fns ctx)
-  then bool_ops ft;
+  in
+  if bool then bool_ops ft;
+  List.iter (comm_proof ~bool ft) (comm_ops ());
   List.iter (fun f -> if f.cases then cases_proofs ft f) (rule_fns ctx);
   List.iter
     (fun f ->
@@ -1169,9 +1328,9 @@ let soundness ~sources ~proofs ft (p : program) =
       pf ft "exact Refinement.firstSome_nil@]@ @ ")
     (rule_fns ctx);
   pf ft
-    "@[<v 2>/-- Every rule function refines its spec, for any amount of fuel. \
-     -/@ theorem opsN_sound %s(orc : Oracle) (h : orc.Compat%s) :@ ∀ n, (opsN \
-     orc n).Sound%s@ | 0 =>\n\
+    "/-- Every rule function refines its spec, for any amount of fuel. -/@ \
+     @[<v 2>theorem opsN_sound %s(orc : Oracle) (h : orc.Compat%s) :@ ∀ n, \
+     (opsN orc n).Sound%s@ | 0 =>\n\
     \    { orc := h"
     (sem_binders ()) (sem_args ()) (sem_args ());
   List.iter
@@ -1240,7 +1399,7 @@ let reaches p (d : decl) =
   go [] d
 
 let lean_decl ft (d : decl) =
-  let name = lean_name d.d_name in
+  let name = decl_lean_name d in
   (match d.d_fields with
   | [] ->
       pf ft "@[<v 2>inductive %s where" name;
@@ -1272,7 +1431,7 @@ let comm_def ft (d : decl) =
   let cs = constrs_of d in
   let comm = List.filter (fun c -> is_commutative c.c_name) cs in
   if comm <> [] then (
-    let name = lean_name d.d_name in
+    let name = decl_lean_name d in
     pf ft
       "/-- The operators whose operands commute (`[@@comm]`). -/@ @[<v 2>def \
        %s.Comm : %s → Prop@ | %a => True"
@@ -1345,7 +1504,7 @@ let syntax ~sources ft =
           (constrs_of d)
       with
       | Some c ->
-          pf ft "instance : Inhabited %s := ⟨.%s%s⟩@ " (lean_name d.d_name)
+          pf ft "instance : Inhabited %s := ⟨.%s%s⟩@ " (decl_lean_name d)
             c.c_name
             (String.concat "" (List.map (fun _ -> " default") c.c_args))
       | None -> ())
@@ -1393,9 +1552,7 @@ let rec widths (e : expr) =
   | _ -> []
 
 let rec conjuncts (e : expr) =
-  match e.e with
-  | EBinop (Arith And, a, b) -> conjuncts a @ conjuncts b
-  | _ -> [ e ]
+  match e.e with EBinop (And, a, b) -> conjuncts a @ conjuncts b | _ -> [ e ]
 
 let prop ctx (e : expr) =
   let op = function
@@ -1408,25 +1565,32 @@ let prop ctx (e : expr) =
     | _ -> None
   in
   match e.e with
-  | EBinop (Arith o, a, b) when Option.is_some (op o) ->
+  | EBinop (o, a, b) when Option.is_some (op o) ->
       Fmt.str "%a %s %a" (expr ctx) a (Option.get (op o)) (expr ctx) b
   | _ -> Fmt.str "%a = true" (expr ctx) e
 
 let uniq l =
   List.fold_left (fun acc x -> if List.mem x acc then acc else acc @ [ x ]) [] l
 
-(** The conditions under which the operands [names] and result [t] of an
-    operator have the sorts of [ty]. A variable that stands for a whole sort is
-    the first operand (or result) of that sort; operands of a same sort with
-    variables are equal; the other variables are existentially quantified, only
-    around the one equation that uses them if they are not used elsewhere, and
-    positive when they are widths that the condition does not constrain. *)
+(** The sort of the result of an operator in its typing predicate. *)
+let result_name = "kanon__t"
+
+(** The sorts of the [n] operands and of the result of an operator in its typing
+    predicate, named so as not to clash with the variables of its typing:
+    [kanon__a], [kanon__b], ..., [kanon__t]. *)
+let typing_names n =
+  List.init n (fun i ->
+      Printf.sprintf "kanon__%c" (Char.chr (Char.code 'a' + i)))
+  @ [ result_name ]
+
+(** The conditions under which the operands and result of an operator (see
+    [typing_names]) have the sorts of [ty]. A variable that stands for a whole
+    sort is the first operand (or result) of that sort; operands of a same sort
+    with variables are equal; the other variables are existentially quantified,
+    only around the one equation that uses them if they are not used elsewhere,
+    and positive when they are widths that the condition does not constrain. *)
 let typing_rhs ctx (ty : typing) =
-  let n = List.length ty.t_sorts - 1 in
-  let names =
-    List.init n (fun i -> String.make 1 (Char.chr (Char.code 'a' + i)))
-    @ [ "t" ]
-  in
+  let names = typing_names (List.length ty.t_sorts - 1) in
   let params = List.filter (( <> ) "_") ty.t_params in
   (* a width is positive, unless the condition constrains it *)
   let widths =
@@ -1462,7 +1626,7 @@ let typing_rhs ctx (ty : typing) =
   List.iter2
     (fun name (s : expr) ->
       (* the condition, between the operands and the result *)
-      if name = "t" then cond ();
+      if name = result_name then cond ();
       match s.e with
       | EVar x when List.mem_assoc x !reps ->
           add (name ^ " = " ^ List.assoc x !reps) []
@@ -1522,11 +1686,7 @@ let typing_file ~sources ft (p : program) =
   List.iter
     (fun res ->
       let tys = List.filter (fun t -> t.t_constr.c_res = res) p.typing in
-      let arity = List.length (List.hd tys).t_sorts - 1 in
-      let names =
-        List.init arity (fun i -> String.make 1 (Char.chr (Char.code 'a' + i)))
-        @ [ "t" ]
-      in
+      let names = typing_names (List.length (List.hd tys).t_sorts - 1) in
       pf ft "@[<v 2>def %a.WT : %a → %sProp" lean_ty res lean_ty res
         (String.concat "" (List.map (fun _ -> "Ty → ") names));
       let alts =

@@ -139,17 +139,10 @@ let operator_token_at ~words s o =
     | PLUS -> infix "+"
     | MINUS -> if after_operand then infix "-" else prefix "~-"
     | STAR -> infix "*"
-    | LAND -> infix "land"
-    | LOR -> infix "lor"
-    | LXOR -> infix "lxor"
-    | LSL -> infix "lsl"
-    | LSR -> infix "lsr"
-    | ASR -> infix "asr"
-    | PLUSPLUS -> infix "++"
     | ANDAND -> infix "&&"
     | BARBAR -> infix "||"
-    | EQEQ -> infix "=="
-    | TILDE -> prefix "lognot"
+    | CMPOP s | CONCATOP s | ADDOP s | MULOP s | POWOP s -> infix s
+    | PREFIXOP s -> prefix s
     | NOT -> prefix "not"
     | INFIXWORD w -> infix w
     | LID w when List.mem w words && after_operand -> infix w
@@ -559,7 +552,7 @@ let rec rule_cases (e : Ppxlib.expression) =
   | _ -> []
 
 (** The laws of the operators: the attributes that declare them. *)
-let law_attrs = [ "fold"; "unit"; "zero"; "idem"; "invol"; "distrib_ite" ]
+let law_attrs = [ "fold"; "unit"; "zero"; "idem"; "invol" ]
 
 (** What the declaration of the constructor [cd] says. *)
 let constr_info s (cd : Ppxlib.constructor_declaration) =
@@ -1020,7 +1013,6 @@ let derived_rule lang f r =
             | c -> [ c ^ "_" ])
         | "idem" -> [ "same" ]
         | "invol" -> [ String.lowercase_ascii nd.name ]
-        | "distrib_ite" -> [ "ite" ]
         | _ -> []
       in
       match List.find_opt (fun l -> List.mem r (rule_of l)) laws with
@@ -1448,9 +1440,8 @@ let document_highlight params : Yojson.Safe.t =
 
 let keywords =
   String.split_on_char ' '
-    "rule fn prim oracle extend before node type of infix prefix constant use \
-     let in match with if then else when as assert not true false land lor \
-     lxor lsl lsr asr"
+    "rule fn prim oracle extend before node sort type of infix prefix constant \
+     use let in match with if then else when as assert not true false"
 
 (** What [t] is, to rename it, or why it cannot be renamed. *)
 let renamable lang (t : Lsp_scope.target) =
@@ -1478,8 +1469,8 @@ let renamable lang (t : Lsp_scope.target) =
         | _ -> defs
       in
       match (g, defs) with
-      | Type ("kind" | "ty"), _ ->
-          failed "kind and ty are the types of terms, which a language declares"
+      | Type ("t" | "ty"), _ ->
+          failed "t and ty are the types of terms, which a language declares"
       | Label (f, r), [] -> failed "%s has no rule %s" f r
       | Label (_, r), defs when List.for_all (fun d -> d.info = Law_info) defs
         ->

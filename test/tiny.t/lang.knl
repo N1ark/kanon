@@ -1,35 +1,39 @@
 (* A small value language: booleans and mathematical integers, in one module.
-   The terms are those of an OCaml module with the types [t_kind], [ty],
-   [unop] and [binop], and the constructors below. Its rules are in
-   rules.kn. *)
+   Its OCaml types are those of [kanon ocaml-types], in the module
+   [Tiny_types], and its primitives are in the module [Tiny_prims]. Its rules
+   are in rules.kn. *)
+
+[@@@ocaml_types "Tiny_types"]
+[@@@ocaml_prims "Tiny_prims"]
 
 use "rules"
 
-type var [@ocaml "string"] [@lean "String"] [@noeq]
+type var [@ocaml "string"] [@lean "String"] [@noeq] [@equal "String.equal"]
 
-type kind [@ocaml "t_kind"] [@noeq] =
+type t =
   | Var of var
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]
 
 type unop
 type binop
-type ty
 
-node Bool of bool [@literal] [@to_term of_bool]
-node Int of int [@literal int]
+node Bool of bool [@literal]
+node Int of int : TInt [@literal int]
 node Not : TBool -> TBool
-node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true]
-    [@zero false]
-node Plus : TInt -> TInt -> TInt [@comm]
-node Eq : a -> b -> TBool when a = b [@comm]
-node TBool
-node TInt
+node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
+node Plus : TInt -> TInt -> TInt [@comm] [@fold add] [@unit 0]
+node Times : TInt -> TInt -> TInt [@comm] [@unit 1] [@zero 0]
+node Lt : TInt -> TInt -> TBool [@fold lt]
+node Eq : a -> a -> TBool [@comm]
+sort TBool
+sort TInt
 
 infix "&&" = And, and_
 infix "+" = Plus, plus
+infix "*" = Times, times
+infix "<" = Lt, lt_
 infix "==" = Eq, eq
 prefix "not" = Not, not_
 
-constant "true" (v) = v_true
-constant "false" (v) = v_false
+constant "false" = v_false

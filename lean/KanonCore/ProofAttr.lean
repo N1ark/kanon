@@ -7,7 +7,7 @@ The rule tactics of `KanonCore.Proof` are the same for every language; a
 language gives them its lemmas by tagging them.
 
 Simp sets, used in this order by the tactics:
-- `kanon_guards`: the guards of the rules, to propositions (`equal`, …);
+- `kanon_guards`: the guards of the rules, to propositions;
 - `kanon_body`: unfolded in the bodies of the rules, with their specs
   (`kanon_spec`);
 - `kanon_lits`: the literals and primitives;
@@ -27,8 +27,9 @@ Lemmas:
 - `kanon_congr_lemma`: refining the operands of a node refines the node
   (`Refines a a' → … → Refines (op a …) (op a' …)`), for `kanon_congr` and
   `kanon_comm`;
-- `kanon_comm_lemma`: the same, swapping the operands of commutative operators,
-  for `kanon_comm`;
+- `kanon_comm_lemma`: the commutativity of an operator
+  (`Refines (op a b) (op b a)`), for `kanon_comm`: the theorems `Op.comm.ok`
+  that Kanon generates;
 - `kanon_close_lemma`: a lemma that closes the goals that are its conclusion
   (or the symmetric of an equation, or one of its conjuncts), its hypotheses
   being in the context or proved by `kanon_close_side`, for
@@ -78,8 +79,8 @@ syntax (name := kanon_atom_cases) "kanon_atom_cases" : attr
 /-- `@[kanon_congr_lemma]`: a congruence lemma of a node, for `kanon_congr` and
 `kanon_comm`. -/
 syntax (name := kanon_congr_lemma) "kanon_congr_lemma" : attr
-/-- `@[kanon_comm_lemma]`: a congruence lemma of a node that swaps the operands
-of a commutative operator, for `kanon_comm`. -/
+/-- `@[kanon_comm_lemma]`: the commutativity of an operator,
+`Refines (op a b) (op b a)`, for `kanon_comm`. -/
 syntax (name := kanon_comm_lemma) "kanon_comm_lemma" : attr
 /-- `@[kanon_close_lemma]`: a lemma that closes the goals it concludes, for
 `kanon_close_lemmas`. -/
@@ -91,6 +92,6 @@ initialize
   Kanon.registerKanonLemmaAttr `kanon_congr_lemma
     "a congruence lemma of a node, for kanon_congr and kanon_comm"
   Kanon.registerKanonLemmaAttr `kanon_comm_lemma
-    "a congruence lemma of a node that swaps commutative operands, for kanon_comm"
+    "the commutativity of an operator, for kanon_comm"
   Kanon.registerKanonLemmaAttr `kanon_close_lemma
     "a lemma that closes the goals it concludes, for kanon_close_lemmas"

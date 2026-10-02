@@ -41,8 +41,7 @@ type global =
   | Constr of string  (** a node or a constructor *)
   | Type of string
   | Op of string * int
-      (** an operator, as parsed (["~-"], ["lognot"] and ["not"] for the prefix
-          [-], [~] and [not]), and its arity *)
+      (** an operator, as parsed (["~-"] for the prefix [-]), and its arity *)
   | Label of string * string  (** the rule [r] of the function [f] *)
 
 type target = Local of binder | Global of global
@@ -75,39 +74,29 @@ let text ctx (loc : Location.t) =
   if b <= a then "" else String.sub ctx.src a (b - a)
 
 (** The types built into Kanon, which have no definition. *)
-let builtin_types = [ "int"; "bool"; "unit"; "t"; "list"; "option"; "nat" ]
+let builtin_types = [ "int"; "bool"; "unit"; "list"; "option"; "nat" ]
 
 (** The constructors built into Kanon. *)
 let builtin_constrs = [ "true"; "false"; "()"; "[]"; "::"; "None"; "Some"; "#" ]
 
-(** The prefix operators, as parsed. *)
-let prefix_syms = [ "~-"; "lognot"; "not" ]
+(** The operators built into Kanon at every type, which the language cannot
+    declare. *)
+let builtin_ops = [ "="; "<>" ]
 
-(** The infix operators of the grammar that the language may declare. *)
-let infix_syms =
-  [
-    "+";
-    "-";
-    "*";
-    "land";
-    "lor";
-    "lxor";
-    "lsl";
-    "lsr";
-    "asr";
-    "++";
-    "&&";
-    "||";
-    "==";
-  ]
+(** Whether [sym], as parsed, is a prefix operator: ["~-"] (the prefix [-]),
+    [not], and the symbols that start with [!] (but [!=]), [~] or [?]. *)
+let is_prefix_sym sym =
+  sym = "not"
+  || (sym <> "!="
+     && sym <> ""
+     && match sym.[0] with '!' | '~' | '?' -> true | _ -> false)
 
 (** The operator [sym] as written in its declaration: [-] for ["~-"]. *)
-let written_sym = function "~-" -> "-" | "lognot" -> "~" | s -> s
+let written_sym = function "~-" -> "-" | s -> s
 
 (** The operator [op] of a declaration [infix "op"] or [prefix "op"], as parsed.
 *)
-let parsed_sym ~prefix op =
-  if prefix then match op with "-" -> "~-" | "~" -> "lognot" | s -> s else op
+let parsed_sym ~prefix op = if prefix && op = "-" then "~-" else op
 
 let is_upper s = s <> "" && match s.[0] with 'A' .. 'Z' -> true | _ -> false
 
@@ -169,22 +158,19 @@ let analyze ctx (str : structure) : occ list =
   let constr ?in_pattern c loc =
     if not (List.mem c builtin_constrs) then
       if is_upper c then global ?in_pattern loc (Constr c)
-      else
-        global ?in_pattern loc (Op (c, if List.mem c prefix_syms then 1 else 2))
+      else global ?in_pattern loc (Op (c, if is_prefix_sym c then 1 else 2))
   in
   (* the operator that [f args] applies, if it is one: the application of an
      operator is that of an identifier after its first operand (or of a prefix
      operator, which is not a name) *)
   let operator f (floc : Location.t) (args : expression list) =
     match args with
-    | [ _ ] when List.mem f prefix_syms -> Some (f, 1)
-    | [ a; _ ]
-      when (List.mem f infix_syms || is_word f)
-           && floc.loc_start.pos_cnum > a.pexp_loc.loc_start.pos_cnum ->
+    | _ when List.mem f builtin_ops -> None
+    | [ _ ] when is_prefix_sym f -> Some (f, 1)
+    | [ a; _ ] when floc.loc_start.pos_cnum > a.pexp_loc.loc_start.pos_cnum ->
         Some (f, 2)
     | _ -> None
   in
-  let comparison = [ "="; "<>"; "<"; "<="; ">"; ">=" ] in
   (* the binders of a pattern: a variable bound twice, or in both alternatives
      of an or-pattern, is the same variable, bound where it first appears *)
   let pattern ?ty ~kind (p : pattern) =
@@ -250,7 +236,7 @@ let analyze ctx (str : structure) : occ list =
         let args = List.map snd args in
         (match operator f floc args with
         | Some (sym, arity) -> global floc (Op (sym, arity))
-        | None when List.mem f comparison -> ()
+        | None when List.mem f builtin_ops -> ()
         | None -> (
             match lookup_fn env f with
             | Some b -> add floc (Local b)
@@ -387,7 +373,7 @@ let analyze ctx (str : structure) : occ list =
         let args = List.map snd args in
         (match operator f floc args with
         | Some (sym, arity) -> global floc (Op (sym, arity))
-        | None when List.mem f comparison -> ()
+        | None when List.mem f builtin_ops -> ()
         | None -> global floc (Value f));
         List.iter (sort ~what ~bound ~env ~ty:"int") args
     | Pexp_tuple l -> List.iter (sort ~what ~bound ~env ?ty) l
@@ -413,8 +399,11 @@ let analyze ctx (str : structure) : occ list =
         in
         match (a.attr_name.txt, names) with
         | ("fold" | "to_term" | "of_term" | "raw" | "get"), _ ->
+            (* functions, and the nodes that lift the results of [[@fold]] *)
             List.iter
-              (fun (s, loc) -> if is_word s then global loc (Value s))
+              (fun (s, loc) ->
+                if is_upper s then global loc (Constr s)
+                else if is_word s then global loc (Value s))
               names
         | "literal", [ (t, loc) ] when t <> "int" -> global loc (Type t)
         | _ -> ())

@@ -6,7 +6,7 @@ use "more"
 
 type var [@ocaml "string"] [@noeq]
 
-type kind [@ocaml "t_kind"] [@noeq] =
+type t =
   | Var of var
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]

@@ -11,17 +11,17 @@ namespace BoolExample
 open Classical Kanon
 
 def Unop.WT : Unop → Ty → Ty → Prop
-  | .Not, a, t =>
-      a = Ty.TBool ∧ t = Ty.TBool
+  | .Not, kanon__a, kanon__t =>
+      kanon__a = Ty.TBool ∧ kanon__t = Ty.TBool
 
 def Binop.WT : Binop → Ty → Ty → Ty → Prop
-  | .And, a, b, t | .Or, a, b, t =>
-      a = Ty.TBool ∧ b = Ty.TBool ∧ t = Ty.TBool
-  | .Eq, a, b, t =>
-      a = b ∧ t = Ty.TBool
+  | .And, kanon__a, kanon__b, kanon__t | .Or, kanon__a, kanon__b, kanon__t =>
+      kanon__a = Ty.TBool ∧ kanon__b = Ty.TBool ∧ kanon__t = Ty.TBool
+  | .Eq, kanon__a, kanon__b, kanon__t =>
+      kanon__b = kanon__a ∧ kanon__t = Ty.TBool
 
 def Triop.WT : Triop → Ty → Ty → Ty → Ty → Prop
-  | .Ite, a, b, c, t =>
-      a = Ty.TBool ∧ c = b ∧ t = b
+  | .Ite, kanon__a, kanon__b, kanon__c, kanon__t =>
+      kanon__a = Ty.TBool ∧ kanon__c = kanon__b ∧ kanon__t = kanon__b
 
 end BoolExample

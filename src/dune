@@ -21,6 +21,16 @@
 (ocamllex
  (modules kanon_lexer))
 
+; The version of kanon, from dune-project.
+
+(rule
+ (target version.ml)
+ (action
+  (with-stdout-to
+   %{target}
+   (echo
+    "(** The version of kanon. *)\nlet version = \"%{version:kanon}\"\n"))))
+
 ; The modules of modules/, built into kanon: [use +bool] uses modules/bool.knl
 ; and modules/bool.kn.
 

@@ -5,8 +5,10 @@ type ty =
   | TInt  (** mathematical integers: [Z.t] in OCaml, [Int] in Lean *)
   | TBool
   | TUnit
-  | TTerm  (** the terms of the language *)
-  | TKind  (** the kind of a term *)
+  | TTerm  (** the terms of the language, [t] *)
+  | TKind
+      (** the kind of a term: the constructors of [t], which Kanon names [kind]
+          internally (users cannot) *)
   | TSty  (** the type of a term *)
   | TData of string
       (** the other types declared by the language: operators, enums, records
@@ -39,18 +41,23 @@ type constr = {
   c_args : arg list;
 }
 
-(** A type declared by the language: [kind], [ty], operators, enums, records and
-    abstract types. *)
+(** A type declared by the language: [t] (named [kind], see {!TKind}), [ty],
+    operators, enums, records and abstract types. *)
 type decl = {
   d_name : string;
-  d_ocaml : string;  (** the OCaml type *)
+  d_ocaml : string option;
+      (** [[@ocaml]]: the OCaml type of an abstract type (and, for the
+          deprecated [ocaml-check], of any type) *)
   d_lean : string option;
       (** the Lean type, if it is not the Kanon name, CamelCased ([[@lean]]) *)
-  d_eq : bool;  (** whether [=] and [<>] are allowed at this type *)
+  d_eq : bool;
+      (** whether [=] and [<>] are allowed at this type: not at an abstract type
+          marked [[@noeq]] *)
   d_equal : string option;
-      (** the function of the primitives that decides [=] in OCaml, if it is not
+      (** the OCaml function that decides [=] at an abstract type, if it is not
           [Stdlib.( = )] ([[@equal]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
+  d_loc : Location.t;  (** of its name *)
 }
 
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
@@ -60,8 +67,7 @@ type decl = {
     [on_value]. *)
 type operator = {
   sym : string;
-      (** as parsed: ["+"], ["&&"], ...; ["~-"], ["lognot"] and ["not"] for the
-          prefix [-], [~] and [not] *)
+      (** as parsed: ["+"], ["&&"], ["urem"], ...; ["~-"] for the prefix [-] *)
   arity : int;
   node : string;
   params : Ppxlib.expression list;
@@ -71,7 +77,8 @@ type operator = {
 }
 
 (** The words declared as infix operators ([infix "urem" = ...]), which the
-    lexer reads as operators from their declaration on. *)
+    lexer reads as operators, at the level of comparisons, from their
+    declaration on. *)
 let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),
@@ -87,13 +94,13 @@ type raw_typing = {
     constructor, from which Kanon derives the first rules of the operator's rule
     function (see [Check.law_cases]). *)
 type law =
-  | Fold of string  (** [[@fold f]]: constant folding with [f] *)
+  | Fold of string * string option
+      (** [[@fold f lift]]: constant folding with [f], whose result [lift] (a
+          function or a node) makes a term, if it is not one already *)
   | Unit of string  (** [[@unit c]]: the literal [c] is a (right) unit *)
   | Zero of string  (** [[@zero c]]: the literal [c] is (right) absorbing *)
   | Idem  (** [[@idem]]: [x op x = x] *)
   | Invol  (** [[@invol]]: [op (op x) = x] *)
-  | Distrib_ite
-      (** [[@distrib_ite]]: [op (Ite (b, l, r)) = Ite (b, op l, op r)] *)
 
 (** The language that the rules are written in: its types, constructors and
     operators, as declared in its [.knl] file. *)
@@ -123,16 +130,13 @@ type lang = {
           by [[@get f]] on the constructors of sorts with one argument *)
   lit_fns : (string * string) list;
       (** the functions of those literals, declared by attributes on the
-          constructors of literals: [to_term] (a value where a term is
-          expected), [of_term] (the primitive that reads the value of a
-          literal), [bool_to_term] (a boolean result of [[@fold]]) and, for
-          [raw:f], the primitive that computes [f] on a literal rather than on
-          its value *)
-  constants : (string * (string * Ppxlib.expression)) list;
-      (** [constant "c" (v) = e]: the term of the literal [c] at the type of the
-          term [v], for the laws [[@unit c]] and [[@zero c]] *)
-  ite : string option;
-      (** [[@ite]]: the node of conditionals, for [[@distrib_ite]] *)
+          constructor of [[@literal t]] literals: [to_term] (a value where a
+          term is expected), [of_term] (the primitive that reads the value of a
+          literal) and, for [raw:f], the primitive that computes [f] on a
+          literal rather than on its value *)
+  constants : (string * (string option * Ppxlib.expression)) list;
+      (** [constant "c" (v) = e]: the term of the literal [c], at the type of
+          the term [v] if there is one, for the law [[@zero c]] *)
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
@@ -141,6 +145,11 @@ type lang = {
           its modules *)
   lean_params : (string * string) list;
       (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
+  ocaml_types : string option;
+      (** [[@@@ocaml_types "M"]]: the OCaml module of the types, which the rules
+          open *)
+  ocaml_prims : string option;
+      (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
   laws : (string * law * Location.t * Location.t) list;
@@ -163,10 +172,11 @@ let lang =
       sort_getters = [];
       lit_fns = [];
       constants = [];
-      ite = None;
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
+      ocaml_types = None;
+      ocaml_prims = None;
       operators = [];
       raw_typing = [];
       laws = [];
@@ -202,12 +212,8 @@ let find_operator ~arity sym =
 
 let is_commutative name = List.mem name !lang.commutative
 
-type unop = Neg | Not | Lognot
-
+type unop = Neg | Not
 type binop = Add | Sub | Mul | Lt | Le | Gt | Ge | Eq | Ne | And | Or
-and bitop = Land | Lor | Lxor | Lsl | Asr
-
-type binop' = Arith of binop | Bit of bitop
 
 type pat = {
   p : pat_desc;
@@ -254,7 +260,7 @@ and expr_desc =
   | ECall of string * expr list  (** global function or primitive *)
   | ELocalCall of string * expr list
   | EUnop of unop * expr
-  | EBinop of binop' * expr * expr
+  | EBinop of binop * expr * expr
   | EIf of expr * expr * expr
   | ELet of pat * expr * expr
   | ELetFun of string * (string * ty) list * expr * expr
@@ -296,7 +302,13 @@ type fn = {
   floc : Location.t;
 }
 
-type prim = { pname : string; pargs : ty list; pret : ty; oracle : bool }
+type prim = {
+  pname : string;
+  pargs : ty list;
+  pret : ty;
+  oracle : bool;
+  ploc : Location.t;  (** of its name *)
+}
 
 (** The typing of a node: its operands, then its result, have the sorts
     [t_sorts] (terms of type [ty] over [t_vars], which are existentially

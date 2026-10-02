@@ -7,7 +7,8 @@ import Lean
   tactics unfold;
 - `kanon_tactic "tac"`, on the spec of a rule function: the tactic that proves
   its arms;
-- `kanon_arm`, on a theorem: a hand-written proof of the statement of an arm.
+- `kanon_arm`, on a theorem: a hand-written proof of the statement of an arm,
+  or of the commutativity of an operator.
 -/
 
 /-- The specs of the rule functions (`f.spec`), unfolded by the rule tactics. -/
@@ -40,7 +41,8 @@ arguments of attributes are macro-expanded. -/
 syntax (name := kanon_tactic) "kanon_tactic " str : attr
 
 /-- `@[kanon_arm] theorem ... : f.r_rule.arm.Stmt`: a hand-written proof of an arm,
-which its generated proof then uses. -/
+which its generated proof then uses; likewise for the commutativity of an
+operator (`Op.comm.Stmt`). -/
 syntax (name := kanon_arm) "kanon_arm" : attr
 
 initialize registerBuiltinAttribute {
@@ -65,7 +67,7 @@ initialize registerBuiltinAttribute {
     let .const stmt [] := info.type
       | throwError "kanon_arm: {decl} does not prove the statement of an arm"
     let arm := stmt.getPrefix
-    -- `R.f.r_rule.arm.Stmt`, in the namespace `R` of the model
+    -- `R.f.r_rule.arm.Stmt` (or `R.Op.C.comm.Stmt`), in the namespace `R` of the model
     unless stmt.getString! == "Stmt" && arm.components.length ≥ 4 do
       throwError "kanon_arm: {decl} does not prove the statement of an arm"
     if let some p := (Kanon.kanonArmExt.getState (← getEnv)).find? arm then

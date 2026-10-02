@@ -11,7 +11,7 @@ namespace BoolExample
 open Classical Kanon
 
 /-- The primitives that the model is parameterised by. -/
-  structure Oracle where
+structure Oracle where
   tag_le : Term → Term → Bool
   sort_by_tag : (List Term) → (List Term)
 
@@ -36,7 +36,7 @@ def distinct_check_one (a : Term) (rest : (List Term)) : (Option Bool) :=
   ((firstSome [(match rest with | [] => some ((some true)) | _ => none),
     (match rest with
       | (b :: rest) =>
-      some ((if (equal a b)
+      some ((if (decide (a = b))
             then (some false)
             else (if (sure_neq a b)
                  then (distinct_check_one a rest)
@@ -67,7 +67,7 @@ decreasing_by all_goals (simp_wf; omega)
 end
 
 /-- The rule functions, as used by the rules. -/
-  structure Ops where
+structure Ops where
   orc : Oracle
   b_and : Term → Term → Term
   b_or : Term → Term → Term
@@ -102,7 +102,7 @@ def mk_commut_binop (O : Ops) (op : Binop) (l : Term) (r : Term) : Kind :=
   (Term.mk (Kind.Nop Nop.Distinct l) Ty.TBool)
 
 def b_and.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
-  (match v1, v2 with | v, kanon__2 => (whenSome (equal v kanon__2) (v)))
+  (match v1, v2 with | v, kanon__2 => (whenSome (decide (v = kanon__2)) (v)))
 
 def b_and.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
@@ -127,65 +127,65 @@ def b_and.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
 def b_and.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | p, (Term.mk (Kind.Unop Unop.Not kanon__3) _) =>
-    (whenSome (equal p kanon__3) (v_false))
+    (whenSome (decide (p = kanon__3)) (v_false))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Unop Unop.Not kanon__3) _), p =>
-        (whenSome (equal p kanon__3) (v_false))
+        (whenSome (decide (p = kanon__3)) (v_false))
         | _, _ => none)
 
 def b_and.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x@(Term.mk (Kind.Binop Binop.And a _) _), kanon__7 =>
-    (whenSome (equal a kanon__7) (x))
+    (whenSome (decide (a = kanon__7)) (x))
     | _, _ => none)
   <|> (match v1, v2 with
         | x@(Term.mk (Kind.Binop Binop.And _ a) _), kanon__7 =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__7, x@(Term.mk (Kind.Binop Binop.And a _) _) =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__7, x@(Term.mk (Kind.Binop Binop.And _ a) _) =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
 
 def b_and.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Binop Binop.Or a _) _), kanon__6 =>
-    (whenSome (equal a kanon__6) (a))
+    (whenSome (decide (a = kanon__6)) (a))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Binop Binop.Or _ a) _), kanon__6 =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__6, (Term.mk (Kind.Binop Binop.Or a _) _) =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__6, (Term.mk (Kind.Binop Binop.Or _ a) _) =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
 
 def b_and.r_eq_neq (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Binop Binop.Eq a x) _), (Term.mk (Kind.Binop Binop.Eq kanon__7 y) _) =>
-    (whenSome ((equal a kanon__7) && (sure_neq x y)) (v_false))
+    (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Binop Binop.Eq a x) _), (Term.mk (Kind.Binop Binop.Eq y kanon__7) _) =>
-        (whenSome ((equal a kanon__7) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
         | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Binop Binop.Eq x a) _), (Term.mk (Kind.Binop Binop.Eq kanon__7 y) _) =>
-        (whenSome ((equal a kanon__7) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
         | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Binop Binop.Eq x a) _), (Term.mk (Kind.Binop Binop.Eq y kanon__7) _) =>
-        (whenSome ((equal a kanon__7) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
         | _, _ => none)
 
 def b_and.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
@@ -197,7 +197,7 @@ def b_and.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
   (firstSome [b_and.r_same O v1 v2, b_and.r_false_ O v1 v2, b_and.r_true_ O v1 v2, b_and.r_not O v1 v2, b_and.r_and_ O v1 v2, b_and.r_or_ O v1 v2, b_and.r_eq_neq O v1 v2, b_and.r_default O v1 v2]).getD (b_and.spec v1 v2)
 
 def b_or.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
-  (match v1, v2 with | v, kanon__2 => (whenSome (equal v kanon__2) (v)))
+  (match v1, v2 with | v, kanon__2 => (whenSome (decide (v = kanon__2)) (v)))
 
 def b_or.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
@@ -222,47 +222,47 @@ def b_or.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
 def b_or.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | p, (Term.mk (Kind.Unop Unop.Not kanon__3) _) =>
-    (whenSome (equal p kanon__3) (v_true))
+    (whenSome (decide (p = kanon__3)) (v_true))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Unop Unop.Not kanon__3) _), p =>
-        (whenSome (equal p kanon__3) (v_true))
+        (whenSome (decide (p = kanon__3)) (v_true))
         | _, _ => none)
 
 def b_or.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x@(Term.mk (Kind.Binop Binop.Or a _) _), kanon__7 =>
-    (whenSome (equal a kanon__7) (x))
+    (whenSome (decide (a = kanon__7)) (x))
     | _, _ => none)
   <|> (match v1, v2 with
         | x@(Term.mk (Kind.Binop Binop.Or _ a) _), kanon__7 =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__7, x@(Term.mk (Kind.Binop Binop.Or a _) _) =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__7, x@(Term.mk (Kind.Binop Binop.Or _ a) _) =>
-        (whenSome (equal a kanon__7) (x))
+        (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
 
 def b_or.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Binop Binop.And a _) _), kanon__6 =>
-    (whenSome (equal a kanon__6) (a))
+    (whenSome (decide (a = kanon__6)) (a))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Binop Binop.And _ a) _), kanon__6 =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__6, (Term.mk (Kind.Binop Binop.And a _) _) =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
   <|> (match v1, v2 with
         | kanon__6, (Term.mk (Kind.Binop Binop.And _ a) _) =>
-        (whenSome (equal a kanon__6) (a))
+        (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
 
 def b_or.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
@@ -380,49 +380,49 @@ def b_ite.r_not_guard (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Opt
 def b_ite.r_guard_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, kanon__2, _ =>
-    (whenSome (equal g kanon__2) ((O.b_or guard else_))))
+    (whenSome (decide (g = kanon__2)) ((O.b_or guard else_))))
 
 def b_ite.r_guard_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, _, kanon__3 =>
-    (whenSome (equal g kanon__3) ((O.b_and guard if_))))
+    (whenSome (decide (g = kanon__3)) ((O.b_and guard if_))))
 
 def b_ite.r_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, (Term.mk (Kind.Triop Triop.Ite kanon__3 x _) _), _ =>
-    (whenSome (equal g kanon__3) ((O.b_ite guard x else_)))
+    (whenSome (decide (g = kanon__3)) ((O.b_ite guard x else_)))
     | _, _, _ => none)
 
 def b_ite.r_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, _, (Term.mk (Kind.Triop Triop.Ite kanon__4 _ y) _) =>
-    (whenSome (equal g kanon__4) ((O.b_ite guard if_ y)))
+    (whenSome (decide (g = kanon__4)) ((O.b_ite guard if_ y)))
     | _, _, _ => none)
 
 def b_ite.r_and_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Binop Binop.And g _) _), (Term.mk (Kind.Triop Triop.Ite kanon__7 x _) _), _ =>
-    (whenSome (equal g kanon__7) ((O.b_ite guard x else_)))
+    (whenSome (decide (g = kanon__7)) ((O.b_ite guard x else_)))
     | _, _, _ => none)
   <|> (match guard, if_, else_ with
         | (Term.mk (Kind.Binop Binop.And _ g) _), (Term.mk (Kind.Triop Triop.Ite kanon__7 x _) _), _ =>
-        (whenSome (equal g kanon__7) ((O.b_ite guard x else_)))
+        (whenSome (decide (g = kanon__7)) ((O.b_ite guard x else_)))
         | _, _, _ => none)
 
 def b_ite.r_or_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Binop Binop.Or g _) _), _, (Term.mk (Kind.Triop Triop.Ite kanon__8 _ y) _) =>
-    (whenSome (equal g kanon__8) ((O.b_ite guard if_ y)))
+    (whenSome (decide (g = kanon__8)) ((O.b_ite guard if_ y)))
     | _, _, _ => none)
   <|> (match guard, if_, else_ with
         | (Term.mk (Kind.Binop Binop.Or _ g) _), _, (Term.mk (Kind.Triop Triop.Ite kanon__8 _ y) _) =>
-        (whenSome (equal g kanon__8) ((O.b_ite guard if_ y)))
+        (whenSome (decide (g = kanon__8)) ((O.b_ite guard if_ y)))
         | _, _, _ => none)
 
 def b_ite.r_same (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, x, kanon__3 =>
-    (whenSome (equal x kanon__3) (if_)))
+    (whenSome (decide (x = kanon__3)) (if_)))
 
 def b_ite.r_default (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
@@ -434,7 +434,9 @@ def b_ite.step (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Term :=
   (firstSome [b_ite.r_true_ O guard if_ else_, b_ite.r_false_ O guard if_ else_, b_ite.r_bool O guard if_ else_, b_ite.r_not_bool O guard if_ else_, b_ite.r_false_then O guard if_ else_, b_ite.r_true_then O guard if_ else_, b_ite.r_false_else O guard if_ else_, b_ite.r_true_else O guard if_ else_, b_ite.r_not_guard O guard if_ else_, b_ite.r_guard_then O guard if_ else_, b_ite.r_guard_else O guard if_ else_, b_ite.r_ite_then O guard if_ else_, b_ite.r_ite_else O guard if_ else_, b_ite.r_and_ite_then O guard if_ else_, b_ite.r_or_ite_else O guard if_ else_, b_ite.r_same O guard if_ else_, b_ite.r_default O guard if_ else_]).getD (b_ite.spec guard if_ else_)
 
 def sem_eq.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
-  (match v1, v2 with | v, kanon__2 => (whenSome (equal v kanon__2) (v_true)))
+  (match v1, v2 with
+    | v, kanon__2 =>
+    (whenSome (decide (v = kanon__2)) (v_true)))
 
 def sem_eq.r_bools (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
@@ -445,7 +447,7 @@ def sem_eq.r_bools (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
 def sem_eq.r_ite_ite (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Triop Triop.Ite b l r) _), (Term.mk (Kind.Triop Triop.Ite kanon__7 l' r') _) =>
-    (whenSome (equal b kanon__7)
+    (whenSome (decide (b = kanon__7))
     ((O.b_ite b (O.sem_eq l l') (O.sem_eq r r'))))
     | _, _ => none)
 

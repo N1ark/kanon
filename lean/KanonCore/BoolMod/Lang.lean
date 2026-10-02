@@ -15,11 +15,13 @@ semantics `S : Kanon.Sem`:
   equal to them (e.g. `Term.mk (Kind.Binop Binop.And a b) Ty.TBool` to
   `mk (andK a b) tbool`);
 - the booleans among its values (`vbool`);
-- the primitives `equal` and `sure_neq` of the module (`sure_neq` is extended
-  by the modules above it, so it is the language's);
+- the helper `sure_neq` of the module (which the modules above it extend, so
+  it is the language's);
 - laws: the typing of the nodes, their evaluation by the operations of
   `KanonCore.BoolMod.Val`, that well-typed booleans evaluate to booleans, and
-  what the rules assume of `equal` and `sure_neq`.
+  what the rules assume of `sure_neq`.
+
+The rules compare terms with `decide (a = b)`, as the generated model does.
 
 The model of the language gives its rule functions, oracles and helpers of the
 module as a `BoolMod.Ops` (`Ops.bool`, which Kanon generates in
@@ -49,8 +51,6 @@ structure Lang (S : Sem) where
   distinctK : List S.Term → Kind
   /-- The boolean values. -/
   vbool : Bool → S.Val
-  /-- The primitive `equal` of the module. -/
-  equal : S.Term → S.Term → Bool
   /-- The helper `sure_neq` of the module, as extended by the language. -/
   sure_neq : S.Term → S.Term → Bool
   ty_mk : ∀ k t, S.ty (mk k t) = t
@@ -76,7 +76,6 @@ structure Lang (S : Sem) where
   /-- Well-typed booleans evaluate to booleans. -/
   ev_bool : ∀ ρ t v, S.WT t → S.ty t = tbool → S.ev ρ t = some v → ∃ b, v = vbool b
   vbool_inj : Function.Injective vbool
-  equal_eq : ∀ a b, equal a b = true → a = b
   /-- Surely different terms of the same type have different values. -/
   sure_neq_sound : ∀ ρ a b u, sure_neq a b = true → S.ty a = S.ty b → S.WT a → S.WT b →
     S.ev ρ a = some u → S.ev ρ b = some u → False
@@ -222,7 +221,7 @@ structure Ops.Sound {S : Sem} {L : Lang S} (B : Ops L) : Prop where
   at_most_one : ∀ a b l, B.at_most_one (a :: b :: l) = false
   distinct_check_one_nil : ∀ a, B.distinct_check_one a [] = some true
   distinct_check_one_cons : ∀ a b l, B.distinct_check_one a (b :: l) =
-    if L.equal a b then some false
+    if decide (a = b) then some false
     else if L.sure_neq a b then B.distinct_check_one a l else none
   distinct_check_nil : B.distinct_check [] = some true
   distinct_check_cons : ∀ a l, B.distinct_check (a :: l) =

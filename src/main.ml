@@ -1,10 +1,12 @@
 (** [kanon BACKEND FILE...]: generates, from the Kanon rules in the [.kn] files,
     written in the language declared by the [.knl] files (a language and the
     modules it is made of), with the modules that they use, in order:
-    - [ocaml]: their OCaml implementation;
-    - [ocaml-check]: the OCaml check that the OCaml types of the language agree
-      with its declaration (which does not need the rules);
+    - [ocaml-types]: the OCaml types of the language, standalone (which do not
+      need the rules);
+    - [ocaml]: their OCaml implementation, where these types are in scope;
     - [ocaml-tests]: the OCaml differential tests of their rule functions;
+    - [ocaml-check] (deprecated): the OCaml check that OCaml types written by
+      hand agree with the declaration of the language;
     - [lean-types], [lean-syntax]: the Lean definitions of the types of the
       language (which do not need the rules);
     - [lean-signatures]: the Lean check of the types of their primitives;
@@ -23,7 +25,8 @@
     declarations of a file come before those of the modules it uses, and its
     rules after theirs.
 
-    [kanon lsp] is the language server of Kanon files (see {!Lsp_server}).
+    [kanon lsp] is the language server of Kanon files (see {!Lsp_server}), and
+    [kanon --version] prints the version of kanon.
 
     The command line is {!Cli.run}. *)
 

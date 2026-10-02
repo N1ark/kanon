@@ -62,9 +62,10 @@ Requests are answered after the changes before them are checked.
   {"jsonrpc":"2.0","id":5,"result":null}
 
 Navigation: the definitions of a function, a node, an operator, a rule after
-before (in the function that extend extends), and a function of the bool
-module, built into kanon, which the server writes to a file. Hover shows the
-header of the definition, and the comment before it.
+before (in the function that extend extends), a function of the bool module,
+built into kanon, which the server writes to a file, and of the type of terms
+t. Hover shows the header of the definition (here of a sort), and the comment
+before it.
 
   $ {
   >   msg "$init"
@@ -75,7 +76,9 @@ header of the definition, and the comment before it.
   >   msg "$(at 4 definition more.kn 0 26)"
   >   msg "$(at 5 definition imp.kn 1 23)"
   >   msg "$(at 6 hover imp.kn 1 23)"
-  >   msg '{"jsonrpc":"2.0","id":7,"method":"shutdown"}'
+  >   msg "$(at 7 definition imp.kn 1 12)"
+  >   msg "$(at 8 hover imp.knl 1 12)"
+  >   msg '{"jsonrpc":"2.0","id":9,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
   > } > input
   $ lsp | grep -v publishDiagnostics
@@ -84,9 +87,11 @@ header of the definition, and the comment before it.
   {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":1,"character":5},"end":{"line":1,"character":8}}}]}
   {"jsonrpc":"2.0","id":3,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":14}}}]}
   {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}}]}
-  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":53,"character":5},"end":{"line":53,"character":10}}}]}
+  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":10}}}]}
   {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":26}}}}
-  {"jsonrpc":"2.0","id":7,"result":null}
+  {"jsonrpc":"2.0","id":7,"result":[{"uri":"file://ROOT/lang.knl","range":{"start":{"line":8,"character":5},"end":{"line":8,"character":6}}}]}
+  {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
+  {"jsonrpc":"2.0","id":9,"result":null}
 
 Completion offers the names of the language and the keywords; the symbols of
 the workspace include the rules of each rule function.
@@ -135,7 +140,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   > 
   > type var [@ocaml "string"] [@noeq]
   > 
-  > type kind [@ocaml "t_kind"] [@noeq] =
+  > type t =
   >   | Var of var
   >   | Unop of unop * t [@operators]
   >   | Binop of binop * t * t [@operators]

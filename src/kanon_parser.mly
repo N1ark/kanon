@@ -2,8 +2,8 @@
    converts to typed Kanon: rules become functions with [[@spec]] and [[@cases]]
    attributes, and rule names [[@r]] attributes on their patterns. In the
    declaration of a language, types are OCaml type declarations, nodes are types
-   [node] with a [[@node]] attribute, and operators [[@infix]] or [[@prefix]]
-   expressions; [extend rule f] and [extend fn f] items are [function]s of the
+   [node] with a [[@node]] attribute (and sorts with a [[@sort]] one too), and
+   operators [[@infix]] or [[@prefix]] expressions; [extend rule f] and [extend fn f] items are [function]s of the
    cases they add to [f], with [[@extend]], [[@before]] and [[@fn]] attributes.
    *)
 
@@ -84,8 +84,9 @@ let use_item loc m =
   item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string loc m) ]), []))
 
 (* [node C ...] in the declaration of a language: a type [node] with the only
-   constructor [C], which [Check] places where [C] appears in a type *)
-let node_decl loc c =
+   constructor [C], which [Check] places where [C] appears in a type; [sort C
+   ...] is the same, marked [[@sort]] *)
+let node_decl ?(sort = false) loc c =
   {
     ptype_name = { txt = "node"; loc };
     ptype_params = [];
@@ -93,7 +94,7 @@ let node_decl loc c =
     ptype_kind = Ptype_variant [ c ];
     ptype_private = Public;
     ptype_manifest = None;
-    ptype_attributes = [ attr loc "node" [] ];
+    ptype_attributes = attr loc "node" [] :: (if sort then [ attr loc "sort" [] ] else []);
     ptype_loc = loc;
   }
 
@@ -128,12 +129,14 @@ let neg loc oploc (e : expression) =
 %}
 
 %token <string> LID UID INT STRING INFIXWORD
-%token AS ASR ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LAND LET LOR LSL LSR LXOR MATCH NODE NOT OF
+(* the operators, by precedence (see the lexer) *)
+%token <string> CMPOP CONCATOP ADDOP MULOP POWOP PREFIXOP
+%token AS ASSERT BEFORE CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT OF
 %token ORACLE PREFIX PRIM
-%token RULE THEN TRUE TYPE USE WHEN WITH
-%token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW LE GE NE ANDAND BARBAR
-%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ LT GT PLUS MINUS STAR DOT
-%token EQEQ PLUSPLUS HASH TILDE UNDERSCORE EOF
+%token RULE SORT THEN TRUE TYPE USE WHEN WITH
+%token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
+%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS STAR DOT
+%token HASH UNDERSCORE EOF
 
 (* the bodies of [let], [match] and [if] extend as far as possible *)
 %nonassoc below_SEMI
@@ -144,6 +147,9 @@ let neg loc oploc (e : expression) =
 %nonassoc COMMA
 %nonassoc below_BARBAR
 %nonassoc BARBAR
+(* [!x.f] is [!(x.f)] *)
+%nonassoc below_DOT
+%nonassoc DOT
 
 %start <Ppxlib.structure> file
 
@@ -162,7 +168,7 @@ item:
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc and xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps ret body ])) }
-  | RULE x = LID ps = params COLON spec = cons_expr rattrs = list(decl_attr) body = option(rule_body)
+  | RULE x = LID ps = params COLON spec = concat_expr rattrs = list(decl_attr) body = option(rule_body)
     { let loc = mkloc $loc in
       (* the cases of a rule match the operands of its spec ([kanon.operands],
          see [Check.raw_fn]); a rule without a body only has the rules from laws
@@ -175,7 +181,9 @@ item:
         | None -> exp loc (Pexp_match (operands, []))
       in
       let attrs = [ attr loc "spec" [ eval_item loc spec ]; attr loc "cases" [] ] @ rattrs in
-      let t = typ loc (Ptyp_constr (lid loc "t", [])) in
+      (* the result type, which the source does not write *)
+      let tloc = { loc with loc_ghost = true } in
+      let t = typ tloc (Ptyp_constr (lid tloc "t", [])) in
       let xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps (Some t) body ])) }
   | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
@@ -190,6 +198,9 @@ item:
   | NODE c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl loc c ])) }
+  | SORT c = constr_decl
+    { let loc = mkloc $loc in
+      item loc (Pstr_type (Recursive, [ node_decl ~sort:true loc c ])) }
   | TYPE x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
     { let loc = mkloc $loc in
       item loc
@@ -215,10 +226,17 @@ item:
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
       item loc (Pstr_eval (e, [ attr loc "prefix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
-  | CONSTANT c = STRING LPAREN v = LID RPAREN EQ e = seq_expr
-    { let loc = mkloc $loc and vloc = mkloc $loc(v) in
-      let v = { pparam_loc = vloc; pparam_desc = Pparam_val (Nolabel, None, pat vloc (Ppat_var { txt = v; loc = vloc })) } in
-      let f = exp loc (Pexp_function ([ v ], None, Pfunction_body e)) in
+  (* [constant "c" (v) = e], a function of [v], or [constant "c" = e] *)
+  | CONSTANT c = STRING v = option(delimited(LPAREN, param_name, RPAREN)) EQ e = seq_expr
+    { let loc = mkloc $loc in
+      let f =
+        match v with
+        | None -> e
+        | Some (v, vpos) ->
+            let vloc = mkloc vpos in
+            let v = { pparam_loc = vloc; pparam_desc = Pparam_val (Nolabel, None, pat vloc (Ppat_var { txt = v; loc = vloc })) } in
+            exp loc (Pexp_function ([ v ], None, Pfunction_body e))
+      in
       item loc (Pstr_eval (f, [ attr loc "constant" [ eval_item loc (string (mkloc (unquote $loc(c))) c) ] ])) }
   | LBRACKETATATAT a = LID ss = list(attr_string) RBRACKET
     { let loc = mkloc $loc in
@@ -235,10 +253,12 @@ decl_attr:
 attr_string:
   | s = STRING { (s, unquote $loc) }
 
-(* the arguments of attributes: strings, or names and literals, unquoted *)
+(* the arguments of attributes: strings, or names (of functions and of
+   constructors) and literals, unquoted *)
 attr_arg:
   | s = attr_string { s }
   | s = LID { (s, $loc) }
+  | s = UID { (s, $loc) }
   | i = INT { (i, $loc) }
   | TRUE { ("true", $loc) }
   | FALSE { ("false", $loc) }
@@ -396,17 +416,17 @@ and_rhs:
   | e = open_expr { e }
 
 cmp_expr:
-  | e = cons_expr { e }
-  | a = cmp_expr op = cmp_op b = cons_expr { binop (mkloc $loc) (mkloc $loc(op)) op a b }
+  | e = concat_expr { e }
+  | a = cmp_expr op = cmp_op b = concat_expr { binop (mkloc $loc) (mkloc $loc(op)) op a b }
 
 cmp_op:
   | EQ { "=" }
-  | NE { "<>" }
-  | LT { "<" }
-  | LE { "<=" }
-  | GT { ">" }
-  | GE { ">=" }
-  | EQEQ { "==" }
+  | op = CMPOP { op }
+  | op = INFIXWORD { op }
+
+concat_expr:
+  | e = cons_expr { e }
+  | a = cons_expr op = CONCATOP b = concat_expr { binop (mkloc $loc) (mkloc $loc(op)) op a b }
 
 cons_expr:
   | e = add_expr { e }
@@ -415,9 +435,12 @@ cons_expr:
 
 add_expr:
   | e = mul_expr { e }
-  | a = add_expr op = PLUS b = mul_expr { binop (mkloc $loc) (mkloc $loc(op)) "+" a b }
-  | a = add_expr op = MINUS b = mul_expr { binop (mkloc $loc) (mkloc $loc(op)) "-" a b }
-  | a = add_expr op = PLUSPLUS b = mul_expr { binop (mkloc $loc) (mkloc $loc(op)) "++" a b }
+  | a = add_expr op = add_op b = mul_expr { binop (mkloc $loc) (mkloc $loc(op)) op a b }
+
+add_op:
+  | PLUS { "+" }
+  | MINUS { "-" }
+  | op = ADDOP { op }
 
 mul_expr:
   | e = pow_expr { e }
@@ -425,21 +448,15 @@ mul_expr:
 
 mul_op:
   | STAR { "*" }
-  | op = INFIXWORD { op }
-  | LAND { "land" }
-  | LOR { "lor" }
-  | LXOR { "lxor" }
+  | op = MULOP { op }
 
 pow_expr:
   | e = unary_expr { e }
-  | a = unary_expr op = LSL b = pow_expr { binop (mkloc $loc) (mkloc $loc(op)) "lsl" a b }
-  | a = unary_expr op = ASR b = pow_expr { binop (mkloc $loc) (mkloc $loc(op)) "asr" a b }
-  | a = unary_expr op = LSR b = pow_expr { binop (mkloc $loc) (mkloc $loc(op)) "lsr" a b }
+  | a = unary_expr op = POWOP b = pow_expr { binop (mkloc $loc) (mkloc $loc(op)) op a b }
 
 unary_expr:
   | e = app_expr { e }
   | op = MINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
-  | op = TILDE e = unary_expr { apply (mkloc $loc) (ident (mkloc $loc(op)) "lognot") [ e ] }
 
 app_expr:
   | e = simple_expr { e }
@@ -465,6 +482,7 @@ simple_expr:
   | LBRACKET es = separated_list(SEMI, expr) RBRACKET { elist (mkloc $loc) es }
   | LBRACE fs = separated_nonempty_list(SEMI, field_expr) RBRACE { exp (mkloc $loc) (Pexp_record (fs, None)) }
   | e = simple_expr DOT f = LID { exp (mkloc $loc) (Pexp_field (e, lid (mkloc $loc(f)) f)) }
+  | op = PREFIXOP e = simple_expr %prec below_DOT { apply (mkloc $loc) (ident (mkloc $loc(op)) op) [ e ] }
 
 field_expr:
   | f = LID EQ e = expr { (lid (mkloc $loc(f)) f, e) }
@@ -494,12 +512,20 @@ or_node_pat:
   | a = and_node_pat op = BARBAR b = or_node_pat { pnode (mkloc $loc) (mkloc $loc(op)) "||" [ a; b ] }
 
 and_node_pat:
-  | p = eq_node_pat { p }
-  | a = eq_node_pat op = ANDAND b = and_node_pat { pnode (mkloc $loc) (mkloc $loc(op)) "&&" [ a; b ] }
+  | p = cmp_pat { p }
+  | a = cmp_pat op = ANDAND b = and_node_pat { pnode (mkloc $loc) (mkloc $loc(op)) "&&" [ a; b ] }
 
-eq_node_pat:
+cmp_pat:
+  | p = concat_pat { p }
+  | a = cmp_pat op = cmp_pat_op b = concat_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
+
+cmp_pat_op:
+  | op = CMPOP { op }
+  | op = INFIXWORD { op }
+
+concat_pat:
   | p = cons_pat { p }
-  | a = cons_pat op = EQEQ b = cons_pat { pnode (mkloc $loc) (mkloc $loc(op)) "==" [ a; b ] }
+  | a = cons_pat op = CONCATOP b = concat_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
 
 cons_pat:
   | p = add_pat { p }
@@ -508,23 +534,15 @@ cons_pat:
 
 add_pat:
   | p = mul_pat { p }
-  | a = add_pat op = PLUS b = mul_pat { pnode (mkloc $loc) (mkloc $loc(op)) "+" [ a; b ] }
-  | a = add_pat op = MINUS b = mul_pat { pnode (mkloc $loc) (mkloc $loc(op)) "-" [ a; b ] }
-  | a = add_pat op = PLUSPLUS b = mul_pat { pnode (mkloc $loc) (mkloc $loc(op)) "++" [ a; b ] }
+  | a = add_pat op = add_op b = mul_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
 
 mul_pat:
   | p = pow_pat { p }
-  | a = mul_pat op = STAR b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "*" [ a; b ] }
-  | a = mul_pat op = LAND b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "land" [ a; b ] }
-  | a = mul_pat op = LOR b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "lor" [ a; b ] }
-  | a = mul_pat op = LXOR b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "lxor" [ a; b ] }
-  | a = mul_pat op = INFIXWORD b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
+  | a = mul_pat op = mul_op b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
 
 pow_pat:
   | p = unary_pat { p }
-  | a = unary_pat op = LSL b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "lsl" [ a; b ] }
-  | a = unary_pat op = LSR b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "lsr" [ a; b ] }
-  | a = unary_pat op = ASR b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) "asr" [ a; b ] }
+  | a = unary_pat op = POWOP b = pow_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ a; b ] }
 
 unary_pat:
   | p = app_pat { p }
@@ -532,7 +550,6 @@ unary_pat:
     { match p.ppat_desc with
       | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer ("-" ^ i, None)))
       | _ -> pnode (mkloc $loc) (mkloc $loc(op)) "~-" [ p ] }
-  | op = TILDE p = unary_pat { pnode (mkloc $loc) (mkloc $loc(op)) "lognot" [ p ] }
   | op = NOT p = unary_pat { pnode (mkloc $loc) (mkloc $loc(op)) "not" [ p ] }
 
 app_pat:
@@ -553,6 +570,7 @@ simple_pat:
   | LPAREN p = pattern COLON t = typ RPAREN { pat (mkloc $loc) (Ppat_constraint (p, t)) }
   | LBRACKET ps = separated_list(SEMI, pattern) RBRACKET { plist (mkloc $loc) ps }
   | LBRACE fs = field_pats RBRACE { let fs, closed = fs in pat (mkloc $loc) (Ppat_record (fs, closed)) }
+  | op = PREFIXOP p = simple_pat { pnode (mkloc $loc) (mkloc $loc(op)) op [ p ] }
 
 field_pats:
   | f = field_pat { ([ f ], Closed) }

@@ -11,7 +11,7 @@ namespace BoolExample
 open Classical Kanon
 
 /-- Every rule function refines its spec. -/
-  structure Ops.Sound (O : Ops) : Prop where
+structure Ops.Sound (O : Ops) : Prop where
   orc : O.orc.Compat
   b_and : ∀ (v1 : Term) (v2 : Term), Refines (b_and.spec v1 v2) (O.b_and v1 v2)
   b_or : ∀ (v1 : Term) (v2 : Term), Refines (b_or.spec v1 v2) (O.b_or v1 v2)
@@ -20,6 +20,24 @@ open Classical Kanon
   sem_eq : ∀ (v1 : Term) (v2 : Term), Refines (sem_eq.spec v1 v2) (O.sem_eq v1 v2)
   sem_eq_untyped : ∀ (v1 : Term) (v2 : Term), Refines (sem_eq_untyped.spec v1 v2) (O.sem_eq_untyped v1 v2)
   b_distinct : ∀ (l : (List Term)), Refines (b_distinct.spec l) (O.b_distinct l)
+
+/-- The operands of `Binop.And` commute. -/
+def Binop.And.comm.Stmt : Prop :=
+  ∀ (a b : Term) (t : Ty),
+  Refines (Term.mk (Kind.Binop Binop.And a b) t)
+  (Term.mk (Kind.Binop Binop.And b a) t)
+
+/-- The operands of `Binop.Or` commute. -/
+def Binop.Or.comm.Stmt : Prop :=
+  ∀ (a b : Term) (t : Ty),
+  Refines (Term.mk (Kind.Binop Binop.Or a b) t)
+  (Term.mk (Kind.Binop Binop.Or b a) t)
+
+/-- The operands of `Binop.Eq` commute. -/
+def Binop.Eq.comm.Stmt : Prop :=
+  ∀ (a b : Term) (t : Ty),
+  Refines (Term.mk (Kind.Binop Binop.Eq a b) t)
+  (Term.mk (Kind.Binop Binop.Eq b a) t)
 
 def b_and.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
@@ -64,7 +82,7 @@ def b_and.r_default.Stmt : Prop :=
 def b_and.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  (equal v1 v2) = true →
+  (decide (v1 = v2)) = true →
   Refines (b_and.spec v1 v2)
   (v1)
 
@@ -95,98 +113,98 @@ def b_and.r_true_.swap.Stmt : Prop :=
 def b_and.r_not.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__3 : Term) (t__4 : Ty),
-  (equal v1 kanon__3) = true →
+  (decide (v1 = kanon__3)) = true →
   Refines (b_and.spec v1 (Term.mk (Kind.Unop Unop.Not kanon__3) t__4))
   (v_false)
 
 def b_and.r_not.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__3 : Term) (t__4 : Ty),
-  (equal v2 kanon__3) = true →
+  (decide (v2 = kanon__3)) = true →
   Refines (b_and.spec (Term.mk (Kind.Unop Unop.Not kanon__3) t__4) v2)
   (v_false)
 
 def b_and.r_and_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.And a w__3) t__4) v2)
   ((Term.mk (Kind.Binop Binop.And a w__3) t__4))
 
 def b_and.r_and_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.And w__3 a) t__4) v2)
   ((Term.mk (Kind.Binop Binop.And w__3 a) t__4))
 
 def b_and.r_and_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_and.spec v1 (Term.mk (Kind.Binop Binop.And a w__3) t__4))
   ((Term.mk (Kind.Binop Binop.And a w__3) t__4))
 
 def b_and.r_and_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_and.spec v1 (Term.mk (Kind.Binop Binop.And w__3 a) t__4))
   ((Term.mk (Kind.Binop Binop.And w__3 a) t__4))
 
 def b_and.r_or_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Or a w__3) t__4) v2)
   (a)
 
 def b_and.r_or_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Or w__3 a) t__4) v2)
   (a)
 
 def b_and.r_or_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_and.spec v1 (Term.mk (Kind.Binop Binop.Or a w__3) t__4))
   (a)
 
 def b_and.r_or_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_and.spec v1 (Term.mk (Kind.Binop Binop.Or w__3 a) t__4))
   (a)
 
 def b_and.r_eq_neq.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (a : Term) (x : Term) (t__4 : Ty) (kanon__7 : Term) (y : Term) (t__9 : Ty),
-  ((equal a kanon__7) && (sure_neq x y)) = true →
+  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Eq a x) t__4) (Term.mk (Kind.Binop Binop.Eq kanon__7 y) t__9))
   (v_false)
 
 def b_and.r_eq_neq.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (a : Term) (x : Term) (t__4 : Ty) (y : Term) (kanon__7 : Term) (t__9 : Ty),
-  ((equal a kanon__7) && (sure_neq x y)) = true →
+  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Eq a x) t__4) (Term.mk (Kind.Binop Binop.Eq y kanon__7) t__9))
   (v_false)
 
 def b_and.r_eq_neq.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Term) (a : Term) (t__4 : Ty) (kanon__7 : Term) (y : Term) (t__9 : Ty),
-  ((equal a kanon__7) && (sure_neq x y)) = true →
+  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Eq x a) t__4) (Term.mk (Kind.Binop Binop.Eq kanon__7 y) t__9))
   (v_false)
 
 def b_and.r_eq_neq.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Term) (a : Term) (t__4 : Ty) (y : Term) (kanon__7 : Term) (t__9 : Ty),
-  ((equal a kanon__7) && (sure_neq x y)) = true →
+  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
   Refines (b_and.spec (Term.mk (Kind.Binop Binop.Eq x a) t__4) (Term.mk (Kind.Binop Binop.Eq y kanon__7) t__9))
   (v_false)
 
@@ -234,7 +252,7 @@ def b_or.r_default.Stmt : Prop :=
 def b_or.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  (equal v1 v2) = true →
+  (decide (v1 = v2)) = true →
   Refines (b_or.spec v1 v2)
   (v1)
 
@@ -265,70 +283,70 @@ def b_or.r_false_.swap.Stmt : Prop :=
 def b_or.r_not.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__3 : Term) (t__4 : Ty),
-  (equal v1 kanon__3) = true →
+  (decide (v1 = kanon__3)) = true →
   Refines (b_or.spec v1 (Term.mk (Kind.Unop Unop.Not kanon__3) t__4))
   (v_true)
 
 def b_or.r_not.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__3 : Term) (t__4 : Ty),
-  (equal v2 kanon__3) = true →
+  (decide (v2 = kanon__3)) = true →
   Refines (b_or.spec (Term.mk (Kind.Unop Unop.Not kanon__3) t__4) v2)
   (v_true)
 
 def b_or.r_or_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_or.spec (Term.mk (Kind.Binop Binop.Or a w__3) t__4) v2)
   ((Term.mk (Kind.Binop Binop.Or a w__3) t__4))
 
 def b_or.r_or_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_or.spec (Term.mk (Kind.Binop Binop.Or w__3 a) t__4) v2)
   ((Term.mk (Kind.Binop Binop.Or w__3 a) t__4))
 
 def b_or.r_or_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_or.spec v1 (Term.mk (Kind.Binop Binop.Or a w__3) t__4))
   ((Term.mk (Kind.Binop Binop.Or a w__3) t__4))
 
 def b_or.r_or_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_or.spec v1 (Term.mk (Kind.Binop Binop.Or w__3 a) t__4))
   ((Term.mk (Kind.Binop Binop.Or w__3 a) t__4))
 
 def b_or.r_and_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_or.spec (Term.mk (Kind.Binop Binop.And a w__3) t__4) v2)
   (a)
 
 def b_or.r_and_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v2) = true →
+  (decide (a = v2)) = true →
   Refines (b_or.spec (Term.mk (Kind.Binop Binop.And w__3 a) t__4) v2)
   (a)
 
 def b_or.r_and_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_or.spec v1 (Term.mk (Kind.Binop Binop.And a w__3) t__4))
   (a)
 
 def b_or.r_and_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
-  (equal a v1) = true →
+  (decide (a = v1)) = true →
   Refines (b_or.spec v1 (Term.mk (Kind.Binop Binop.And w__3 a) t__4))
   (a)
 
@@ -568,63 +586,63 @@ def b_ite.r_not_guard.main.Stmt : Prop :=
 def b_ite.r_guard_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
-  (equal guard if_) = true →
+  (decide (guard = if_)) = true →
   Refines (b_ite.spec guard if_ else_)
   ((O.b_or guard else_))
 
 def b_ite.r_guard_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
-  (equal guard else_) = true →
+  (decide (guard = else_)) = true →
   Refines (b_ite.spec guard if_ else_)
   ((O.b_and guard if_))
 
 def b_ite.r_ite_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (else_ : Term) (kanon__3 : Term) (x : Term) (w__5 : Term) (t__6 : Ty),
-  (equal guard kanon__3) = true →
+  (decide (guard = kanon__3)) = true →
   Refines (b_ite.spec guard (Term.mk (Kind.Triop Triop.Ite kanon__3 x w__5) t__6) else_)
   ((O.b_ite guard x else_))
 
 def b_ite.r_ite_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (kanon__4 : Term) (w__5 : Term) (y : Term) (t__7 : Ty),
-  (equal guard kanon__4) = true →
+  (decide (guard = kanon__4)) = true →
   Refines (b_ite.spec guard if_ (Term.mk (Kind.Triop Triop.Ite kanon__4 w__5 y) t__7))
   ((O.b_ite guard if_ y))
 
 def b_ite.r_and_ite_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (else_ : Term) (g : Term) (w__3 : Term) (t__4 : Ty) (kanon__7 : Term) (x : Term) (w__9 : Term) (t__10 : Ty),
-  (equal g kanon__7) = true →
+  (decide (g = kanon__7)) = true →
   Refines (b_ite.spec (Term.mk (Kind.Binop Binop.And g w__3) t__4) (Term.mk (Kind.Triop Triop.Ite kanon__7 x w__9) t__10) else_)
   ((O.b_ite (Term.mk (Kind.Binop Binop.And g w__3) t__4) x else_))
 
 def b_ite.r_and_ite_then.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (else_ : Term) (w__3 : Term) (g : Term) (t__4 : Ty) (kanon__7 : Term) (x : Term) (w__9 : Term) (t__10 : Ty),
-  (equal g kanon__7) = true →
+  (decide (g = kanon__7)) = true →
   Refines (b_ite.spec (Term.mk (Kind.Binop Binop.And w__3 g) t__4) (Term.mk (Kind.Triop Triop.Ite kanon__7 x w__9) t__10) else_)
   ((O.b_ite (Term.mk (Kind.Binop Binop.And w__3 g) t__4) x else_))
 
 def b_ite.r_or_ite_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (g : Term) (w__3 : Term) (t__4 : Ty) (kanon__8 : Term) (w__9 : Term) (y : Term) (t__11 : Ty),
-  (equal g kanon__8) = true →
+  (decide (g = kanon__8)) = true →
   Refines (b_ite.spec (Term.mk (Kind.Binop Binop.Or g w__3) t__4) if_ (Term.mk (Kind.Triop Triop.Ite kanon__8 w__9 y) t__11))
   ((O.b_ite (Term.mk (Kind.Binop Binop.Or g w__3) t__4) if_ y))
 
 def b_ite.r_or_ite_else.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (w__3 : Term) (g : Term) (t__4 : Ty) (kanon__8 : Term) (w__9 : Term) (y : Term) (t__11 : Ty),
-  (equal g kanon__8) = true →
+  (decide (g = kanon__8)) = true →
   Refines (b_ite.spec (Term.mk (Kind.Binop Binop.Or w__3 g) t__4) if_ (Term.mk (Kind.Triop Triop.Ite kanon__8 w__9 y) t__11))
   ((O.b_ite (Term.mk (Kind.Binop Binop.Or w__3 g) t__4) if_ y))
 
 def b_ite.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
-  (equal if_ else_) = true →
+  (decide (if_ = else_)) = true →
   Refines (b_ite.spec guard if_ else_)
   (if_)
 
@@ -672,7 +690,7 @@ def sem_eq.r_default.Stmt : Prop :=
 def sem_eq.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  (equal v1 v2) = true →
+  (decide (v1 = v2)) = true →
   Refines (sem_eq.spec v1 v2)
   (v_true)
 
@@ -685,7 +703,7 @@ def sem_eq.r_bools.main.Stmt : Prop :=
 def sem_eq.r_ite_ite.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (b : Term) (l : Term) (r : Term) (t__5 : Ty) (kanon__7 : Term) (l' : Term) (r' : Term) (t__10 : Ty),
-  (equal b kanon__7) = true →
+  (decide (b = kanon__7)) = true →
   Refines (sem_eq.spec (Term.mk (Kind.Triop Triop.Ite b l r) t__5) (Term.mk (Kind.Triop Triop.Ite kanon__7 l' r') t__10))
   ((O.b_ite b (O.sem_eq l l') (O.sem_eq r r')))
 

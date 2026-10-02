@@ -6,7 +6,6 @@ exception Error of Lexing.position * string
 let keywords =
   [
     ("as", AS);
-    ("asr", ASR);
     ("assert", ASSERT);
     ("before", BEFORE);
     ("constant", CONSTANT);
@@ -17,12 +16,7 @@ let keywords =
     ("if", IF);
     ("in", IN);
     ("infix", INFIX);
-    ("land", LAND);
     ("let", LET);
-    ("lor", LOR);
-    ("lsl", LSL);
-    ("lsr", LSR);
-    ("lxor", LXOR);
     ("match", MATCH);
     ("node", NODE);
     ("not", NOT);
@@ -31,6 +25,7 @@ let keywords =
     ("prefix", PREFIX);
     ("prim", PRIM);
     ("rule", RULE);
+    ("sort", SORT);
     ("then", THEN);
     ("true", TRUE);
     ("type", TYPE);
@@ -43,6 +38,15 @@ let keywords =
 let ident_char = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
 let lid = ['a'-'z' '_'] ident_char*
 let uid = ['A'-'Z'] ident_char*
+
+(* Operators are read as in OCaml, as long as possible, and their first
+   character gives their precedence. The bytes of non-ASCII characters (UTF-8)
+   are symbols, so that [≤] or [⊕] are operators, at the level of
+   comparisons. *)
+let utf8 = ['\128'-'\255']
+let op_char =
+  ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<' '=' '>' '?' '@' '^' '|' '~' '#']
+  | utf8
 
 rule token = parse
   | [' ' '\t' '\r']+ { token lexbuf }
@@ -59,14 +63,23 @@ rule token = parse
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }
   | "::" { COLONCOLON }
-  | "==" { EQEQ }
-  | "++" { PLUSPLUS }
   | "->" { ARROW }
-  | "<=" { LE }
-  | ">=" { GE }
-  | "<>" { NE }
+  | "<-" { raise (Error (lexbuf.lex_start_p, "<- is reserved")) }
   | "&&" { ANDAND }
   | "||" { BARBAR }
+  | '=' { EQ }
+  | '|' { BAR }
+  | '+' { PLUS }
+  | '-' { MINUS }
+  | '*' { STAR }
+  | "!=" { CMPOP "!=" }
+  | ['=' '<' '>' '|' '&' '$'] op_char* as s { CMPOP s }
+  | utf8 op_char* as s { CMPOP s }
+  | ['@' '^'] op_char* as s { CONCATOP s }
+  | ['+' '-'] op_char* as s { ADDOP s }
+  | "**" op_char* as s { POWOP s }
+  | ['*' '/' '%'] op_char* as s { MULOP s }
+  | ['!' '~' '?'] op_char* as s { PREFIXOP s }
   | '(' { LPAREN }
   | ')' { RPAREN }
   | '[' { LBRACKET }
@@ -76,16 +89,8 @@ rule token = parse
   | ',' { COMMA }
   | ';' { SEMI }
   | ':' { COLON }
-  | '|' { BAR }
-  | '=' { EQ }
-  | '<' { LT }
-  | '>' { GT }
-  | '+' { PLUS }
-  | '-' { MINUS }
-  | '*' { STAR }
   | '.' { DOT }
   | '#' { HASH }
-  | '~' { TILDE }
   | eof { EOF }
   | _ as c { raise (Error (lexbuf.lex_start_p, Printf.sprintf "unexpected character %C" c)) }
 

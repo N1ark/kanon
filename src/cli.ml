@@ -31,7 +31,7 @@ let lean_files ~lang ~sources prog =
 
 (** The backends that write on standard output, in the order of the usage. *)
 let backends =
-  [ "ocaml"; "ocaml-check"; "ocaml-tests" ]
+  [ "ocaml-types"; "ocaml"; "ocaml-tests"; "ocaml-check" ]
   @ List.map
       (fun (_, b, _) -> b)
       (lean_files ~lang:[] ~sources:[] (lazy (assert false)))
@@ -45,6 +45,7 @@ let usage err =
     ^ String.concat " | " (backends @ [ "lean-all" ])
     ^ ") FILE...\n\
       \       kanon lsp\n\
+      \       kanon --version\n\
        Files use modules with use \"path\", or use +name for those built into \
        kanon: "
     ^ String.concat ", "
@@ -60,6 +61,9 @@ let usage err =
 let run args out err =
   try
     match args with
+    | [ "--version" ] ->
+        Format.fprintf out "%s@." Version.version;
+        0
     | backend :: files -> (
         try
           if files = [] then usage err;
@@ -83,8 +87,13 @@ let run args out err =
           let sources = List.map (fun (f, _) -> Loader.source_name f) files in
           let lean = lean_files ~lang ~sources prog in
           (match backend with
+          | "ocaml-types" -> Gen_ocaml.types ~sources:lang out
           | "ocaml" -> Gen_ocaml.program ~sources out (Lazy.force prog)
-          | "ocaml-check" -> Gen_ocaml.lang_check ~sources:lang out
+          | "ocaml-check" ->
+              Format.fprintf err
+                "kanon: ocaml-check is deprecated: ocaml-types generates the \
+                 types of the language@.";
+              Gen_ocaml.lang_check ~sources:lang out
           | "ocaml-tests" -> Gen_tests.program ~sources out (Lazy.force prog)
           | "lean-all" ->
               List.iter

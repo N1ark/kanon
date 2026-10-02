@@ -9,9 +9,6 @@
 
 (* {1 Primitives} *)
 
-(* Terms *)
-prim equal : t -> t -> bool
-
 (* Sorts terms along the hash-consing order. *)
 oracle sort_by_tag : t list -> t list
 
@@ -100,7 +97,7 @@ fn distinct_check_one (a : t) (rest : t list) : bool option =
   match rest with
   | [] -> Some true
   | b :: rest ->
-      if equal a b then Some false
+      if a = b then Some false
       else if sure_neq a b then distinct_check_one a rest
       else None
 

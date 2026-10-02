@@ -5,9 +5,10 @@ import BoolExample.Semantics
 # The language, for the bool module
 
 Kanon's library proves the rules of the bool module once (`Kanon.BoolMod`), for
-any language that gives the terms of its nodes, its booleans and its primitives,
-with their laws: a `BoolMod.Lang` of its semantics, `boolLang`. Here, the terms
-are variables and the nodes of the module, and the values are booleans.
+any language that gives the terms of its nodes, its booleans and the helper
+`sure_neq`, with their laws: a `BoolMod.Lang` of its semantics, `boolLang`.
+Here, the terms are variables and the nodes of the module, and the values are
+booleans.
 -/
 
 namespace BoolExample
@@ -46,7 +47,6 @@ noncomputable def boolLang : BoolMod.Lang sem where
   iteK g a b := .Triop .Ite g a b
   distinctK l := .Nop .Distinct l
   vbool := id
-  equal := equal
   sure_neq := sure_neq
   ty_mk _ _ := rfl
   WT_lit _ _ := by simp [Term.WT]
@@ -65,7 +65,6 @@ noncomputable def boolLang : BoolMod.Lang sem where
   ev_distinct ρ l _ := by simp [ev, evList_eq]
   ev_bool _ _ v _ _ _ := ⟨v, rfl⟩
   vbool_inj _ _ h := h
-  equal_eq _ _ h := by simpa [equal] using h
   sure_neq_sound ρ a b u h _ _ _ ea eb := by
     obtain ⟨x, y, t, t', rfl, rfl, hxy⟩ := sure_neq_iff.1 h
     simp only [ev, Option.some.injEq] at ea eb
