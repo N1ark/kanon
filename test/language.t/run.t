@@ -1,7 +1,7 @@
 The version of kanon:
 
   $ kanon --version
-  0.1.0
+  0.2.0
 
 A language of integers, whose operators are symbols. An operator is read as in
 OCaml, as long as possible, and its first character gives its precedence: from

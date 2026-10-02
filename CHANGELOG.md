@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-02)
 
 ### Added
 
@@ -10,6 +10,7 @@
 - [Folds](README.md#laws) receive the sorts of the literals as `ty` parameters.
 - An operator's function applies to any [non-term operands](README.md#operators-on-terms).
 - [`[@ocaml]`](README.md#types) on records and variants re-exports an existing type.
+- The site has a [guide to proofs](https://n1ark.github.io/kanon/proving.html) in Lean.
 
 ### Changed
 
@@ -20,7 +21,7 @@
 - `[@literal]`: use [`notation`](README.md#patterns).
 - `[@to_term]`, `[@of_term]` and `[@raw]`: literals store integers or booleans.
 
-## 0.1.0
+## 0.1.0 (2026-10-02)
 
 The first versioned release.
 
