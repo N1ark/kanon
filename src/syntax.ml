@@ -19,6 +19,9 @@ type ty =
   | TOption of ty
   | TList of ty
 
+(** A doc comment where it cannot be attached: its location, and the message. *)
+exception Misplaced_doc of Location.t * string
+
 let rec pp_ty ft = function
   | TInt -> Fmt.string ft "int"
   | TBool -> Fmt.string ft "bool"
@@ -41,6 +44,9 @@ type constr = {
   c_name : string;  (** the Kanon (and OCaml and Lean) name *)
   c_res : ty;
   c_args : arg list;
+  c_doc : string option;
+      (** the doc comment of a node or a sort ([(** ... *)] before [node] or
+          [sort]) *)
 }
 
 (** A type of the language: generated ([kind], [ty] and the types of operators),
@@ -63,6 +69,7 @@ type decl = {
           [Hashtbl.hash] ([[@hash]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
   d_loc : Location.t;  (** of its name *)
+  d_doc : string option;  (** the doc comment before [type] *)
 }
 
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
@@ -80,6 +87,7 @@ type operator = {
   pre : Ppxlib.expression list;
   on_value : string option;
   op_loc : Location.t;  (** of its symbol, in its declaration *)
+  op_doc : string option;  (** the doc comment before [infix] or [prefix] *)
 }
 
 (** The words declared as infix operators ([infix "urem" = ...]), which the
@@ -136,6 +144,9 @@ type lang = {
       (** [constant c (v) = e]: the term of the literal or the named constant
           [c] ([0], [true], [ones], ...), at the sort of the term [v] if there
           is one, for the laws [[@unit c]] and [[@zero c]] *)
+  constant_docs : (string * string) list;
+      (** the doc comments before [constant], by constant (only of those that
+          have one) *)
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
@@ -167,6 +178,7 @@ let lang =
       notations = [];
       sort_getters = [];
       constants = [];
+      constant_docs = [];
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
@@ -282,6 +294,7 @@ type fn = {
           proved per alternative *)
   body : expr;
   floc : Location.t;
+  fdoc : string option;  (** the doc comment before [fn] or [rule] *)
 }
 
 type prim = {
@@ -290,6 +303,7 @@ type prim = {
   pret : ty;
   oracle : bool;
   ploc : Location.t;  (** of its name *)
+  pdoc : string option;  (** the doc comment before [prim] or [oracle] *)
 }
 
 (** The typing of a node: its operands, then its result, have the sorts
