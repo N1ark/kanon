@@ -165,6 +165,8 @@ type lang = {
           backend, in order of declaration: the name, possibly with type
           parameters (["'a sseq"]), and the polymorphic variant that it stands
           for *)
+  ghost_locs : (string * Location.t) list;
+      (** the locations of the declarations of the ghost tag types, by name *)
   sort_ghosts : (string * string) list;
       (** [[@ghost tag]] on a sort: the tag of its terms, by sort constructor *)
   node_ghosts : (string * string list) list;
@@ -199,6 +201,7 @@ let lang =
       ocaml_types = None;
       ocaml_prims = None;
       ghost_tags = [];
+      ghost_locs = [];
       sort_ghosts = [];
       node_ghosts = [];
       node_ctors = [];
@@ -313,6 +316,9 @@ type fn = {
   body : expr;
   floc : Location.t;
   fdoc : string option;  (** the doc comment before [fn] or [rule] *)
+  fghost : string list option;
+      (** [[@ghost "t1" ... "tn"]] after the spec of a rule: the tags of its
+          term operands, then of its result *)
 }
 
 type prim = {

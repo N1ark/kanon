@@ -2412,6 +2412,7 @@ let language (str : structure) =
                          {
                            !lang with
                            ghost_tags = !lang.ghost_tags @ [ (n, text) ];
+                           ghost_locs = !lang.ghost_locs @ [ (n, a.attr_loc) ];
                          };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ghost", _ ->
@@ -4112,6 +4113,29 @@ let check_fn env0 globals r =
   cases_mode := false;
   ordered := false;
   sort_vars := [];
+  let fghost =
+    match find_attr "ghost" r.rattrs with
+    | None -> None
+    | Some a ->
+        if Option.is_none r.rspec then
+          error a.attr_loc "%s: [@ghost] applies to rule functions" r.rname;
+        let tags = attr_args a in
+        List.iter
+          (fun (t, tloc) ->
+            if not (ghost_tag_known t) then
+              error tloc "unknown ghost tag %s: declare it with [@@@@@@ghost]" t)
+          tags;
+        let operands =
+          List.length
+            (List.filter (fun (_, t) -> t = TTerm || t = TList TTerm) r.rparams)
+        in
+        if List.length tags <> operands + 1 then
+          error a.attr_loc
+            "%s: [@ghost] expects %d tag(s) (the tags of its %d operand(s), \
+             then of its result), got %d"
+            r.rname (operands + 1) operands (List.length tags);
+        Some (List.map fst tags)
+  in
   {
     name = r.rname;
     params = r.rparams;
@@ -4121,6 +4145,7 @@ let check_fn env0 globals r =
     body = prune body;
     floc = r.rloc;
     fdoc = r.rdoc;
+    fghost;
   }
 
 (** The number of errors collected so far. *)
