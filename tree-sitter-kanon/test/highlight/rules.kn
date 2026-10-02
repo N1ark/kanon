@@ -30,6 +30,14 @@ type bv [@equal "Bv.equal"] [@ocaml "Bv.t"]
 (*               ^ string *)
 (*                                   ^ string *)
 
+node Distinct : a list -> TBool
+(*                 ^ type.builtin *)
+
+constant ones (v) = bv_ones (size v)
+(* <- keyword *)
+(*       ^ constant *)
+(*             ^ variable.parameter *)
+
 sort TBitVector of nat [@get size]
 (* <- keyword *)
 (*   ^ constructor *)

@@ -772,8 +772,33 @@
         {
           "type": "SYMBOL",
           "name": "constructor_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "list_sort"
         }
       ]
+    },
+    "list_sort": {
+      "type": "PREC",
+      "value": 14,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "element",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "list"
+          }
+        ]
+      }
     },
     "record_declaration": {
       "type": "SEQ",
@@ -908,8 +933,25 @@
           "type": "FIELD",
           "name": "literal",
           "content": {
-            "type": "SYMBOL",
-            "name": "string"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "string"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "identifier"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "number"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "boolean"
+              }
+            ]
           }
         },
         {

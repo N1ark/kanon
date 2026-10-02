@@ -128,6 +128,14 @@
 (constant_declaration
   literal: (string) @string.special.symbol)
 
+; [constant ones (v) = ...]: a named constant, for [@unit ones]
+(constant_declaration
+  literal: (identifier) @constant)
+
+; [node Distinct : a list -> TBool]
+(list_sort
+  "list" @type.builtin)
+
 ((comment) @comment
   (#not-match? @comment "^\\(\\*\\*[^*]"))
 

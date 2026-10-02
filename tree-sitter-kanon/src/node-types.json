@@ -1024,6 +1024,18 @@
         "required": true,
         "types": [
           {
+            "type": "boolean",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
             "type": "string",
             "named": true
           }
@@ -1759,6 +1771,22 @@
     }
   },
   {
+    "type": "list_sort",
+    "named": true,
+    "fields": {
+      "element": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "literal_pattern",
     "named": true,
     "fields": {
@@ -2405,6 +2433,10 @@
         },
         {
           "type": "list_expression",
+          "named": true
+        },
+        {
+          "type": "list_sort",
           "named": true
         },
         {
@@ -3167,6 +3199,10 @@
   },
   {
     "type": "let",
+    "named": false
+  },
+  {
+    "type": "list",
     "named": false
   },
   {

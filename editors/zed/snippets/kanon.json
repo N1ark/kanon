@@ -71,8 +71,8 @@
   },
   "Constant": {
     "prefix": "constant",
-    "body": ["constant \"${1:0}\" = ${0}"],
-    "description": "The term of a literal, for the laws [@unit] and [@zero]"
+    "body": ["constant ${1:0} = ${0}"],
+    "description": "The term of a literal or of a named constant, for the laws [@unit] and [@zero]"
   },
   "Use a module": {
     "prefix": "use",

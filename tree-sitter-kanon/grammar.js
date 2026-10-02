@@ -203,7 +203,11 @@ module.exports = grammar({
       $._simple_expression,
       $.application_expression,
       $.constructor_expression,
+      $.list_sort,
     ),
+
+    // [a list], the sort of the operands of an n-ary node
+    list_sort: $ => prec(PREC.app + 1, seq(field('element', $.identifier), 'list')),
 
     record_declaration: $ => seq(
       '{',
@@ -226,10 +230,11 @@ module.exports = grammar({
       field('body', $._sequence_or_expression),
     ),
 
-    // [constant "0" (v) = bv_zero (size v)], [constant "true" = v_true]
+    // [constant 0 (v) = bv_zero (size v)], [constant ones (v) = ...],
+    // [constant true = v_true], [constant "0" = ...]
     constant_declaration: $ => seq(
       'constant',
-      field('literal', $.string),
+      field('literal', choice($.string, $.identifier, $.number, $.boolean)),
       optional(seq('(', field('parameter', $.identifier), ')')),
       '=',
       field('body', $._sequence_or_expression),
