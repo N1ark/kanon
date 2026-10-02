@@ -151,7 +151,9 @@
     In expressions, <code>{`(C x : S args){:kanon}`}</code> builds the node
     <code>{`C x{:kanon}`}</code> at the sort <code>{`S args{:kanon}`}</code>, which its typing must
     allow: a leaf whose sort its arguments do not determine
-    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way.
+    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way. The sort may be
+    any expression of type <code>ty</code>: <code>{`(Field (i, v) : field_ty v i){:kanon}`}</code>; the typing of an
+    operator is then not checked against it.
   </p>
   <p>
     <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>,
@@ -373,6 +375,22 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           that <code>extend fn</code> adds to it are not modelled either. It cannot mark a rule
           function, an oracle, a sort, a node or a type, which are proved or modelled.
           <code>{`[@ty_only]{:kanon}`}</code> combines with it.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@total]{:kanon}`}</code></td>
+        <td>a helper, after its result type</td>
+        <td>
+          A per-node function: its body ends with a match on its first term parameter, which must
+          have a case for every node of the language (leaf or operator). A catch-all case (<code
+            >_</code
+          >, a variable, even guarded) is an error, and so is a missing node, listed with all the
+          others. The check runs on the final language, after the cases of every <code
+            >extend fn</code
+          > are added (which append their cases): a module that adds nodes extends the function. A
+          case covers a node if it has no guard, and its patterns on the node's arguments and on the
+          other scrutinees match anything (<code>Int _</code> does, <code>Int 0</code> does not).
+          Combines with <code>{`[@no_lean]{:kanon}`}</code>.
         </td>
       </tr>
       <tr>

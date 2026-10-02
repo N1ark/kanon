@@ -298,7 +298,25 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   [Proofs](#proofs)). A function or rule that Lean models may not call a
   `[@no_lean]` function or primitive (`rule bv_add calls f, which is
   [@no_lean]`), but a `[@no_lean]` function may call anything. Only `fn` and
-  `prim` can be `[@no_lean]`: not rules, oracles, sorts, nodes or types. Other
+  `prim` can be `[@no_lean]`: not rules, oracles, sorts, nodes or types.
+  `[@total]` (on a `fn` only, and it combines with `[@no_lean]`) makes the
+  function a per-node function that must have a case for every node of the
+  language, leaf or operator, so that a node added without a case is an error
+  and not a silent fall through (`fn operands (v : t) : t list [@total] = match
+  v with | Int _ -> [] | a + b -> [a; b] | ...`). The check runs once, on the
+  final language, after all the modules are loaded and the cases of every
+  `extend fn` are added, so a module that adds nodes, even one used after the
+  function, satisfies it with an `extend fn`, which appends its cases to the
+  match (a `[@total]` function has no final catch-all case to go before). The
+  function matches on its first parameter of type `t` (its body ends with a
+  match on it, behind `let`s, possibly among other scrutinees). A node is
+  covered by a case without a guard whose pattern on the term is the node, alone
+  or in an or-pattern, with arguments and operands that match anything (`Int _`
+  does, `Int 0` and `Sub (a, 0)` do not), and whose other patterns match
+  anything. A case that matches any term (`_`, a variable, with or without a
+  guard) is an error, since it would hide the missing nodes. The error lists all
+  the missing nodes, leaves first and then operators, in the order of their
+  declaration, at the function. Other
   attributes on `fn`, `prim` and `rule` are errors (a rule has `[@untyped]` and
   `[@ghost]`). A parameter of type `t` may be annotated with its sort
   instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
@@ -405,6 +423,19 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
 - `(C x : S args)` builds the node `C x` at the sort `S args`, which its
   typing must allow: a leaf whose sort its arguments do not determine
   (`node BitVec of int : TBitVector n`) is built this way.
+- The sort may also be computed: `(C x : e)`, for any expression `e` of type
+  `ty` (a variable, a call of a function or of a primitive, or a parenthesised
+  expression such as an `if` or a `match`), builds `C x` at the sort `e`:
+  `(Tuple vs : TTuple (types_of vs))` (a sort constructor applied to
+  arguments, as above), `(Var x : s)` for a parameter `s : ty`,
+  `(Field (i, v) : field_ty v i)`. A computed sort is not checked against the
+  typing of `C`, which the sort-constructor form checks for an operator (a leaf
+  has no operands to check), so it is up to the function to build `C` at a
+  sort that its typing allows. In a rule, the Lean spec of the rule is built at
+  the sort of the typing of its node, not at the computed sort, and the
+  `ocaml-typed` backend does not constrain the tag of the result. A
+  constructor-led sort is a sort constructor (`S args`); `(C x : t)` with the
+  name of a type `t` is a type annotation.
 
 ## Patterns
 

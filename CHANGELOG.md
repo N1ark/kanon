@@ -6,7 +6,13 @@
 
 - The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`. `[@ghost t1 ... tn]` after the spec of a rule function sets its tags, and rule functions whose spec is not a single node get a `val` too.
 - [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
+- [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
+- [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+
+### Fixed
+
+- The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
 
 ### Changed
 
