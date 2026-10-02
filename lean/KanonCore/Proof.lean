@@ -25,7 +25,8 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
 - `kanon_congr` and `kanon_comm` (declared by `KanonCore.Tactics`) prove
   refinements by congruence, with the `kanon_congr_lemma` and
   `kanon_comm_lemma` lemmas, and the side goals left to `kanon_congr_side` and
-  `kanon_comm_side`, which the language may give.
+  `kanon_comm_side`, which the language may give, as it may give
+  `kanon_congr_pre`, which `kanon_congr` first applies to each refinement.
 -/
 
 namespace Kanon.Proof
@@ -116,8 +117,8 @@ def isCtorApp (e : Expr) : MetaM Bool := do
 
 /-- The first atom of the goal or of the hypotheses that one of the lemmas `ls`
 (by default, the `kanon_atom_cases` lemmas) splits, with the proof of its
-possible values. Atoms are not applied to constructors (which their evaluation
-unfolds). -/
+possible values. Atoms applied to constructors, which their evaluation usually
+unfolds, come last. -/
 def findAtomCase (g : MVarId) (ls : Option (Array Name) := none) :
     MetaM (Option (Expr × Expr)) := g.withContext do
   let ls := ls.getD (kanonLemmas (← getEnv) `kanon_atom_cases)
@@ -126,15 +127,23 @@ def findAtomCase (g : MVarId) (ls : Option (Array Name) := none) :
   let mut exprs := #[← instantiateMVars (← g.getType)]
   for d in (← getLCtx) do
     if !d.isImplementationDetail then exprs := exprs.push (← instantiateMVars d.type)
+  let atomCase? (s : Expr) : MetaM (Option (Expr × Expr)) := do
+    for (n, h) in lemmas do
+      unless hasHead s h do continue
+      if let some pf ← atomCase n s then return some (s, pf)
+    return none
   let mut seen : Std.HashSet Expr := {}
+  let mut onCtors := #[]
   for e in exprs do
     for s in closedSubterms e #[] do
       unless s.isApp && !seen.contains s do continue
       seen := seen.insert s
-      if ← s.getAppArgs.anyM isCtorApp then continue
-      for (n, h) in lemmas do
-        unless hasHead s h do continue
-        if let some pf ← atomCase n s then return some (s, pf)
+      if ← s.getAppArgs.anyM isCtorApp then
+        onCtors := onCtors.push s
+        continue
+      if let some r ← atomCase? s then return some r
+  for s in onCtors do
+    if let some r ← atomCase? s then return some r
   return none
 
 /-- The `rcases` pattern of a disjunction of (existentials of) equations, which
@@ -258,6 +267,11 @@ elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
 /-- The side goals of `kanon_congr`, given by the language with `macro_rules`. -/
 syntax "kanon_congr_side" : tactic
 
+/-- What `kanon_congr` does first to a refinement, before applying a congruence
+lemma (e.g. rewriting the types of the refined terms in it), given by the
+language with `macro_rules`. -/
+syntax "kanon_congr_pre" : tactic
+
 /-- The side goals of `kanon_comm`, given by the language with `macro_rules`. -/
 syntax "kanon_comm_side" : tactic
 
@@ -267,11 +281,14 @@ macro_rules
   | `(tactic| kanon_congr) => `(tactic| first
       | exact Kanon.Sem.Refines.refl
       | assumption
-      | kanon_apply_lemmas [kanon_congr_lemma]
-          (first
-            | (intro _; rfl)
-            | kanon_congr_side
-            | kanon_congr))
+      | ((try kanon_congr_pre)
+         first
+           | exact Kanon.Sem.Refines.refl
+           | kanon_apply_lemmas [kanon_congr_lemma]
+               (first
+                 | (intro _; rfl)
+                 | kanon_congr_side
+                 | kanon_congr)))
 
 /-- Proves `Refines s s'` for terms that only differ by the order of the
 operands of commutative operators. -/
@@ -289,10 +306,16 @@ macro_rules
 /-- The primitives and literals, unfolded. -/
 macro "kanon_lits" : tactic => `(tactic| try simp only [kanon_lits] at *)
 
-/-- The guards, as propositions. -/
-macro "kanon_guards" : tactic => `(tactic|
-  simp only [kanon_guards, decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true,
-    Bool.not_eq_true', decide_eq_false_iff_not] at *)
+/-- The guards, as propositions: their boolean structure first, so that the
+lemmas of the language (`kanon_guards`) then rewrite propositions rather than
+the propositions of `decide`s, which would leave their instances behind. -/
+macro "kanon_guards" : tactic => `(tactic| first
+  | (simp only [decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true, Bool.not_eq_true',
+      decide_eq_false_iff_not] at *
+     try simp only [kanon_guards, decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true,
+       Bool.not_eq_true', decide_eq_false_iff_not] at *)
+  | simp only [kanon_guards, decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true,
+      Bool.not_eq_true', decide_eq_false_iff_not] at *)
 
 /-- Closes the refinements left by `kanon_rule_lift` in a way of the language,
 given with `macro_rules`. -/

@@ -100,6 +100,13 @@ theorem Refines.intro {a b : S.Term} (syn : S.WT a → S.WT b ∧ S.ty b = S.ty 
   rw [eval_eq_ev w] at e; rw [eval_eq_ev w']
   exact sem ρ v w w' e
 
+/-- `Refines.intro`, with the value half on the values of the terms (`eval`)
+rather than on their evaluation (`ev`). -/
+theorem Refines.intro_eval {a b : S.Term} (syn : S.WT a → S.WT b ∧ S.ty b = S.ty a)
+    (sem : ∀ ρ v, S.WT a → S.WT b → S.eval ρ a = some v → S.eval ρ b = some v) :
+    S.Refines a b :=
+  ⟨syn, fun ρ v e => sem ρ v (eval_WT e) (syn (eval_WT e)).1 e⟩
+
 /-- A term refines anything when it is ill-typed. -/
 theorem Refines.of_WT {s r : S.Term} (h : S.WT s → S.Refines s r) : S.Refines s r := by
   by_cases w : S.WT s
