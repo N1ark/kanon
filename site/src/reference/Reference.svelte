@@ -24,6 +24,12 @@
     <code>rule</code> and <code>extend</code> items. A module <code>path</code> is the pair
     <code>path.knl</code> and <code>path.kn</code>, either of which may be missing.
   </p>
+  <p>
+    A documentation comment <code>(** … *)</code> right before a <code>type</code>,
+    <code>sort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code> or
+    <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
+    and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored.
+  </p>
   <dl>
     <dt><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
     <dd>
