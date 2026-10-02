@@ -8,6 +8,7 @@ let keywords =
     ("as", AS);
     ("assert", ASSERT);
     ("before", BEFORE);
+    ("builtin", BUILTIN);
     ("constant", CONSTANT);
     ("else", ELSE);
     ("extend", EXTEND);

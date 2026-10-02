@@ -3,7 +3,7 @@
 [@@@lean_root "IntsExample"]
 [@@@ocaml_prims "Prims"]
 
-use +bool
+use builtin "bool"
 use "int"
 
 type var [@ocaml "string"] [@lean "String"]

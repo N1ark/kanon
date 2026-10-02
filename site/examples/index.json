@@ -4,7 +4,7 @@
     {
       "id": "builtin-bool",
       "title": "Builtin Bool",
-      "description": "modules/bool.kn[l]: the module that use +bool reads, to read and edit",
+      "description": "modules/bool.kn[l]: the module that use builtin \"bool\" reads, to read and edit",
       "template": true,
       "files": {
         "lang.knl": "examples/builtin-bool/lang.knl",

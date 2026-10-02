@@ -15,6 +15,7 @@
 ### Changed
 
 - [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of `*`.
+- Built-in modules are used with [`use builtin "bool"`](README.md#usage).
 
 ### Removed
 

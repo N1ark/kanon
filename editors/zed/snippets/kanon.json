@@ -84,6 +84,11 @@
     "body": ["use \"${0:path}\""],
     "description": "Use the module whose files are path.knl and path.kn"
   },
+  "Use a built-in module": {
+    "prefix": "usebuiltin",
+    "body": ["use builtin \"${0:bool}\""],
+    "description": "Use a module built into kanon"
+  },
   "Match": {
     "prefix": "match",
     "body": ["match ${1:e} with", "| ${2:_} -> ${0}"],

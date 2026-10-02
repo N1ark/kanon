@@ -18,8 +18,8 @@
 
     [use "path"], in a file, uses the module whose declarations are [path.knl]
     and whose rules are [path.kn] (either may be missing), relative to the
-    directory of the file, and [use +name] the module built into kanon (the
-    files of [modules/]). A module is used once, the first time; the
+    directory of the file, and [use builtin "name"] the module built into kanon
+    (the files of [modules/]). A module is used once, the first time; the
     declarations of a file come before those of the modules it uses, and its
     rules after theirs.
 

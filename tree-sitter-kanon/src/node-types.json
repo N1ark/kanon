@@ -929,7 +929,7 @@
         "required": true,
         "types": [
           {
-            "type": "identifier",
+            "type": "string",
             "named": true
           }
         ]
@@ -3123,10 +3123,6 @@
     "named": false
   },
   {
-    "type": "+",
-    "named": false
-  },
-  {
     "type": ",",
     "named": false
   },
@@ -3176,6 +3172,10 @@
   },
   {
     "type": "before",
+    "named": false
+  },
+  {
+    "type": "builtin",
     "named": false
   },
   {

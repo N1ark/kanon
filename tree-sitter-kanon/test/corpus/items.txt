@@ -2,7 +2,7 @@
 Uses
 ================================================================================
 
-use +bool
+use builtin "bool"
 use "../modules/exists"
 
 --------------------------------------------------------------------------------
@@ -10,7 +10,8 @@ use "../modules/exists"
 (source_file
   (use_declaration
     (builtin_module
-      (identifier)))
+      (string
+        (string_content))))
   (use_declaration
     (string
       (string_content))))

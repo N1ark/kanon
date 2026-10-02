@@ -43,6 +43,9 @@ type global =
   | Op of string * int
       (** an operator, as parsed (["~-"] for the prefix [-]), and its arity *)
   | Label of string * string  (** the rule [r] of the function [f] *)
+  | Module of string list
+      (** the module of a [use], by its files ([+bool.knl] for
+          [use builtin "bool"]), existing or not *)
 
 type target = Local of binder | Global of global
 
@@ -553,6 +556,26 @@ let analyze ctx (str : structure) : occ list =
               (case (if Option.is_some spec then Some name else None) env)
               cases
         | _ -> expr env body)
+    | Pstr_extension
+        ( ( { txt = "kanon.use"; _ },
+            PStr
+              [
+                {
+                  pstr_desc =
+                    Pstr_eval
+                      ( {
+                          pexp_desc = Pexp_constant (Pconst_string (m, _, _));
+                          pexp_loc;
+                          _;
+                        },
+                        _ );
+                  _;
+                };
+              ] ),
+          _ ) ->
+        (* the module of [use "m"] or [use builtin "m"], at its name *)
+        global pexp_loc
+          (Module (snd (Loader.module_files (Filename.dirname ctx.file) m)))
     | Pstr_primitive vd ->
         global ~decl:true vd.pval_name.loc (Value vd.pval_name.txt);
         typ vd.pval_type

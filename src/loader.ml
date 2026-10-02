@@ -1,7 +1,8 @@
 (** Reading Kanon files with the modules they use, for the command line and the
     language server. *)
 
-(** A file named [+name] on the command line that is not built into kanon. *)
+(** A file named [+name] on the command line that is not built into kanon.
+    ([use builtin "name"] uses the file [+name], see [module_files].) *)
 exception No_builtin of string
 
 (** A [use] whose module has no file: the location of the [use], and the
@@ -85,6 +86,28 @@ let uses (items : Ppxlib.structure) =
                 ] ),
             _ ) ->
           Left (m, si.pstr_loc)
+      | Pstr_extension
+          ( ( { txt = "kanon.use_plus"; _ },
+              PStr
+                [
+                  {
+                    pstr_desc =
+                      Pstr_eval
+                        ( {
+                            pexp_desc = Pexp_constant (Pconst_string (m, _, _));
+                            _;
+                          },
+                          _ );
+                    _;
+                  };
+                ] ),
+            _ ) ->
+          raise
+            (Check.Error
+               ( si.pstr_loc,
+                 Printf.sprintf
+                   "use +%s: a built-in module is used with use builtin %S" m m
+               ))
       | _ -> Right si)
     items
 
@@ -111,7 +134,23 @@ let load ?(read = fun _ -> None) ?(resolve = Fun.id) ?(on_parse = fun _ _ -> ())
     match List.filter (exists ~read) (List.map resolve fs) with
     | [] ->
         raise
-          (Missing (loc, Printf.sprintf "use %S: no %s.knl or %s.kn" m base base))
+          (Missing
+             ( loc,
+               match builtin m with
+               | Some name ->
+                   Printf.sprintf
+                     "use builtin %S: kanon has no built-in module %s (it has \
+                      %s)"
+                     name name
+                     (String.concat ", "
+                        (List.sort_uniq compare
+                           (List.map
+                              (fun (n, _) ->
+                                Printf.sprintf "%S"
+                                  (Filename.remove_extension n))
+                              Builtin.files)))
+               | None -> Printf.sprintf "use %S: no %s.knl or %s.kn" m base base
+             ))
     | fs -> List.iter file fs
   in
   List.iter file (List.map normalize files);

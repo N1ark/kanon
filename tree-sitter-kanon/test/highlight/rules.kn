@@ -1,7 +1,7 @@
-use +bool
+use builtin "bool"
 (* <- keyword *)
-(*  ^ operator *)
-(*   ^ string.special.symbol *)
+(*  ^ keyword *)
+(*          ^ string.special.symbol *)
 
 infix "urem" = Rem false, bv_rem false, lit_urem
 (* <- keyword *)

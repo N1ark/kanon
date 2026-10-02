@@ -94,14 +94,14 @@
       "members": [
         {
           "type": "STRING",
-          "value": "+"
+          "value": "builtin"
         },
         {
           "type": "FIELD",
           "name": "name",
           "content": {
             "type": "SYMBOL",
-            "name": "identifier"
+            "name": "string"
           }
         }
       ]

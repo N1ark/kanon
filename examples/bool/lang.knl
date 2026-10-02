@@ -1,5 +1,5 @@
 (* An example language made of Kanon's bool module alone (modules/bool.kn[l],
-   built into kanon as +bool), and of variables: Kanon generates the types of
+   built into kanon, use builtin "bool"), and of variables: Kanon generates the types of
    its terms from these nodes. Its Lean model is in lean/; [kanon ocaml-types]
    and [kanon ocaml] generate its OCaml types and rules, with the primitives of
    the module [Prims]. *)
@@ -7,7 +7,7 @@
 [@@@lean_root "BoolExample"]
 [@@@ocaml_prims "Prims"]
 
-use +bool
+use builtin "bool"
 
 type var [@ocaml "string"] [@lean "Int"] [@noeq]
 
