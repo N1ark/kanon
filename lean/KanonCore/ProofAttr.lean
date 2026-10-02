@@ -27,7 +27,11 @@ Lemmas:
   (`Refines a a' → … → Refines (op a …) (op a' …)`), for `kanon_congr` and
   `kanon_comm`;
 - `kanon_comm_lemma`: the same, swapping the operands of commutative operators,
-  for `kanon_comm`.
+  for `kanon_comm`;
+- `kanon_close_lemma`: a lemma that closes the goals that are its conclusion
+  (or the symmetric of an equation, or one of its conjuncts), its hypotheses
+  being in the context or proved by `kanon_close_side`, for
+  `kanon_close_lemmas`.
 -/
 
 register_simp_attr kanon_guards
@@ -75,6 +79,9 @@ syntax (name := kanon_congr_lemma) "kanon_congr_lemma" : attr
 /-- `@[kanon_comm_lemma]`: a congruence lemma of a node that swaps the operands
 of a commutative operator, for `kanon_comm`. -/
 syntax (name := kanon_comm_lemma) "kanon_comm_lemma" : attr
+/-- `@[kanon_close_lemma]`: a lemma that closes the goals it concludes, for
+`kanon_close_lemmas`. -/
+syntax (name := kanon_close_lemma) "kanon_close_lemma" : attr
 
 initialize
   Kanon.registerKanonLemmaAttr `kanon_atom_cases
@@ -83,3 +90,5 @@ initialize
     "a congruence lemma of a node, for kanon_congr and kanon_comm"
   Kanon.registerKanonLemmaAttr `kanon_comm_lemma
     "a congruence lemma of a node that swaps commutative operands, for kanon_comm"
+  Kanon.registerKanonLemmaAttr `kanon_close_lemma
+    "a lemma that closes the goals it concludes, for kanon_close_lemmas"

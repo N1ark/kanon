@@ -18,10 +18,12 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
 - `kanon_rule_lift` takes the guard of an arm, unfolds its spec, splits the
   conditionals of its body, lifts its calls, and closes the refinements that are
   reflexivity or commutativity (or `kanon_rule_close`, which the language may
-  give);
+  give, or a `kanon_close_lemma`);
 - `kanon_rule` then proves the typing half of the refinement (`kanon_wt`) and
   reduces its value half to the values of the atoms (`kanon_sem_core`), closing
   what `simp_all` and `omega` can (`kanon_sem`, `kanon_close`);
+- `kanon_close_lemmas` closes a goal by a `kanon_close_lemma` lemma, which
+  `kanon_rule_lift` and `kanon_sem` try last;
 - `kanon_congr` and `kanon_comm` (declared by `KanonCore.Tactics`) prove
   refinements by congruence, with the `kanon_congr_lemma` and
   `kanon_comm_lemma` lemmas, and the side goals left to `kanon_congr_side` and
@@ -301,6 +303,102 @@ macro_rules
             | kanon_comm
             | (intro _; rfl)))
 
+/-! ## Closing by lemmas -/
+
+/-- The side goals of `kanon_close_lemmas` that are not hypotheses of the
+context: `omega`, and what the language gives with `macro_rules`. -/
+syntax "kanon_close_side" : tactic
+
+macro_rules | `(tactic| kanon_close_side) => `(tactic| omega)
+
+/-- The statements proved by `pf : c`: `c`, the symmetric of an equation or
+equivalence, and the conjuncts of a conjunction. -/
+partial def closeForms (pf c : Expr) : MetaM (List (Expr × Expr)) := do
+  let c ← instantiateMVars c
+  if c.isAppOfArity ``And 2 then
+    return (← closeForms (← mkAppM ``And.left #[pf]) (c.getArg! 0)) ++
+      (← closeForms (← mkAppM ``And.right #[pf]) (c.getArg! 1))
+  if c.isAppOfArity ``Eq 3 || c.isAppOfArity ``Iff 2 then
+    let pf' ← mkAppM (if c.isAppOfArity ``Eq 3 then ``Eq.symm else ``Iff.symm) #[pf]
+    return [(pf, c), (pf', ← inferType pf')]
+  return [(pf, c)]
+
+/-- Proves the hypotheses `mvs` of a lemma, once its conclusion is unified with
+the goal: its instances by synthesis, its propositions by the hypotheses of the
+context (first those that its conclusion determines), or by `side`. -/
+def closeHyps (mvs : Array Expr) (bis : Array BinderInfo) (side : MVarId → TacticM Bool) :
+    TacticM Bool := do
+  let mut open_ := #[]
+  for mv in mvs, bi in bis do
+    if ← mv.mvarId!.isAssigned then continue
+    let t ← instantiateMVars (← inferType mv)
+    if bi.isInstImplicit then
+      unless ← isDefEq mv (← synthInstance t) do return false
+    else if (← isProp t) && !t.hasExprMVar then
+      match ← findHyp t with
+      | some h => unless ← isDefEq mv h do return false
+      | none => open_ := open_.push mv
+    else open_ := open_.push mv
+  for mv in open_ do
+    if ← mv.mvarId!.isAssigned then continue
+    let t ← instantiateMVars (← inferType mv)
+    unless ← isProp t do continue
+    if let some h ← findHyp t then
+      unless ← isDefEq mv h do return false
+  for mv in open_ do
+    if ← mv.mvarId!.isAssigned then continue
+    let t ← instantiateMVars (← inferType mv)
+    unless (← isProp t) && !t.hasExprMVar do return false
+    unless ← side mv.mvarId! do return false
+  return true
+
+/-- Closes `g` by the `kanon_close_lemma` lemma `n`, if one of the statements
+it proves (`closeForms`) is `g` and its hypotheses can be proved. -/
+def closeByLemma (g : MVarId) (n : Name) (side : MVarId → TacticM Bool) : TacticM Bool :=
+  g.withContext do
+  let s ← saveState
+  try
+    let c ← mkConstWithFreshMVarLevels n
+    let (mvs, bis, concl) ← forallMetaTelescopeReducing (← inferType c)
+    let target ← instantiateMVars (← g.getType)
+    for (pf, t) in ← closeForms (mkAppN c mvs) concl do
+      let s' ← saveState
+      if ← withTransparency .instances (isDefEq t target) then
+        if ← closeHyps mvs bis side then
+          let pf ← instantiateMVars pf
+          unless pf.hasExprMVar do
+            g.assign pf
+            return true
+      s'.restore
+    s.restore
+    return false
+  catch _ =>
+    s.restore
+    return false
+
+/-- Closes `g` by the first `kanon_close_lemma` lemma that proves it, the
+hypotheses of the lemma that are not in the context being proved by
+`kanon_close_side`, or else (unless `nested`) by a lemma in turn. -/
+partial def closeGoal (g : MVarId) (nested := false) : TacticM Bool := do
+  let side (mv : MVarId) : TacticM Bool := do
+    let s ← saveState
+    try
+      if (← Tactic.run mv (evalTactic (← `(tactic| kanon_close_side)))).isEmpty then
+        return true
+      s.restore
+    catch _ => s.restore
+    if nested then return false
+    closeGoal mv true
+  for n in kanonLemmas (← getEnv) `kanon_close_lemma do
+    if ← closeByLemma g n side then return true
+  return false
+
+/-- Closes the main goal by a `kanon_close_lemma` lemma. -/
+elab "kanon_close_lemmas" : tactic => do
+  unless ← closeGoal (← getMainGoal) do
+    throwError "kanon_close_lemmas: no lemma closes the goal"
+  replaceMainGoal []
+
 /-! ## The rule tactics -/
 
 /-- The primitives and literals, unfolded. -/
@@ -324,7 +422,7 @@ syntax "kanon_rule_close" : tactic
 /-- The first steps of the proof of an arm: takes its guard, unfolds its spec,
 splits the conditionals of its body, lifts the calls of the body to their
 specs, and closes the refinement if it is one of reflexivity or commutativity
-(or `kanon_rule_close`). -/
+(or `kanon_rule_close`, or a `kanon_close_lemma`). -/
 macro "kanon_rule_lift" : tactic => `(tactic| (
   intro _
   intros
@@ -338,7 +436,8 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
   all_goals (try first
     | exact Kanon.Sem.Refines.refl
     | (kanon_comm; done)
-    | kanon_rule_close)))
+    | kanon_rule_close
+    | kanon_close_lemmas)))
 
 /-- The typing lemmas of the nodes. -/
 macro "kanon_wt_simp" : tactic => `(tactic| try
@@ -371,11 +470,12 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   all_goals (try subst e)
   all_goals (try (kanon_split; subst_vars))))
 
-/-- Closes a goal on integers and booleans. -/
+/-- Closes a goal on integers and booleans, or by a `kanon_close_lemma`. -/
 macro "kanon_close" : tactic => `(tactic| first
   | (simp_all; done)
   | (simp_all; omega)
-  | omega)
+  | omega
+  | kanon_close_lemmas)
 
 set_option hygiene false in
 /-- The value half: `kanon_sem_core`, then `kanon_close`, splitting the
