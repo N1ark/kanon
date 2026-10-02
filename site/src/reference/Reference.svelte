@@ -33,15 +33,14 @@
       theirs.
     </dd>
 
-    <dt><code>type x attrs</code>, <code>type x attrs = | C of a * b attrs | …</code>, <code>type x attrs = {"{ f : a; … }"}</code></dt>
+    <dt><code>type x attrs</code>, <code>type x attrs = | C of a * b | …</code>, <code>type x attrs = {"{ f : a; … }"}</code></dt>
     <dd>
-      An abstract, variant or record type. The constructors of <code>t</code>, the type of terms,
-      are the kinds of terms (<code>type t = | Var of var | Binop of binop * t * t [@operators]</code>);
-      <code>ty</code>, the type of sorts, is declared without constructors if the language does not
-      declare it. <code>int</code> (arbitrary precision), <code>bool</code>, <code>unit</code>,
-      tuples, <code>option</code> and <code>list</code> are built in; <code>nat</code>, in the
-      arguments of constructors, is an OCaml <code>int</code> (a width, an index) and a Kanon
-      <code>int</code>.
+      An abstract, variant or record type, of the arguments of nodes and of the helpers.
+      <code>int</code> (arbitrary precision), <code>bool</code>, <code>unit</code>, tuples,
+      <code>option</code> and <code>list</code> are built in; <code>nat</code>, in the arguments
+      of nodes and sorts, is an OCaml <code>int</code> (a width, an index) and a Kanon
+      <code>int</code>. <code>t</code>, the type of terms, and <code>ty</code>, the type of their
+      sorts, are generated from the nodes and the sorts, and cannot be declared.
     </dd>
 
     <dt><code>sort S attrs</code>, <code>sort S of a * b attrs</code></dt>
@@ -53,22 +52,25 @@
       <code>x</code>, <code>y</code> in its typing), and its typing, all optional. Its operands, then
       its result, have the sorts <code>s1</code>, <code>s2</code>, <code>s</code>, terms of
       <code>ty</code> over the arguments and over variables, which stand for any sort (or any
-      value), under the condition <code>e</code> (see <a href="./#typings">Typings</a>). Kanon places
-      a node with <code>k</code> operands in the type of operators of the
-      <code>[@operators]</code> constructor of <code>t</code> with <code>k</code> terms, and the
-      other nodes in <code>t</code>, unless a type names it (<code>type nop = Distinct</code>).
+      value), under the condition <code>e</code> (see <a href="./#typings">Typings</a>). A node
+      without operands (<code>node Var of var</code>) is a leaf; one with <code>k</code> operands
+      is an operator of arity <code>k</code>; one whose only operand sort is a list,
+      <code>node Distinct : a list -> TBool</code>, an operator of any number of operands, all of
+      the sort <code>a</code>.
     </dd>
 
     <dt><code>infix "op" = Node, f args, g</code>, <code>prefix "op" = Node, f args, g</code></dt>
     <dd>An operator on terms; <code>g</code> is optional (see <a href="#operators">Operators</a>).</dd>
 
-    <dt><code>constant "c" = e</code>, <code>constant "c" (v) = e</code></dt>
+    <dt><code>constant c = e</code>, <code>constant c (v) = e</code></dt>
     <dd>
-      The term of the literal <code>c</code> (<code>0</code>, <code>1</code>, <code>true</code> or
-      <code>false</code>), at the sort of the term <code>v</code>, for the laws that build it
-      (<code>[@zero c]</code>). Optional: Kanon otherwise builds the literal node itself
-      (<code>Bool false</code>, <code>Int 0</code>), except for <code>[@literal t]</code>
-      literals, whose values are abstract.
+      The term of the constant <code>c</code>, at the sort of the term <code>v</code>, for the laws
+      <code>[@unit c]</code> and <code>[@zero c]</code>. <code>c</code> is a literal
+      (<code>0</code>, <code>1</code>, <code>true</code> or <code>false</code>), whose
+      <code>constant</code> is optional: Kanon otherwise builds the literal node itself
+      (<code>Bool false</code>, <code>Int 0</code>), except for <code>[@literal v]</code>
+      literals, whose values are abstract. Or <code>c</code> is a name, such as <code>ones</code>
+      for the bit-vector of ones of a width: <code>constant ones (v) = lit_ones (size v)</code>.
     </dd>
 
     <dt><code>[@@@name "arg" …]</code></dt>
@@ -101,6 +103,16 @@
     </dd>
   </dl>
   <p>
+    Kanon generates the type <code>t</code> of terms, in OCaml hash-consed records
+    <code>{"{ kind; ty; tag }"}</code> (whose table is not safe to use from several OCaml 5
+    domains at once, a known limitation). Their <code>kind</code> has the leaves, in the order of
+    their declarations, then, for each arity of operators, <code>Op1 of op1 * t</code>,
+    <code>Op2 of op2 * t * t</code>, …, and <code>OpN of opn * t list</code>, where the type
+    <code>opk</code> has the operators of that arity, with their other arguments
+    (<code>Add of checked</code>). <code>ty</code> has the sorts. Rules do not name
+    <code>Op2</code>: they write <code>And (a, b)</code>, or <code>a &amp;&amp; b</code>.
+  </p>
+  <p>
     <code>use</code>, <code>type</code>, <code>sort</code>, <code>of</code>, <code>node</code>,
     <code>infix</code>, <code>prefix</code>, <code>constant</code>, <code>prim</code>,
     <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code> and
@@ -111,9 +123,10 @@
 
   <Heading level={2} id="attributes">Attributes</Heading>
   <p>
-    Attributes follow what they apply to. Their arguments are names, integers, <code>true</code>
-    and <code>false</code>, or strings for anything else (<code>[@fold f_add]</code>,
-    <code>[@unit 0]</code>, <code>[@ocaml "Bv.t"]</code>).
+    Attributes follow what they apply to. Their arguments are names (of functions, nodes and
+    constants), integers, <code>true</code> and <code>false</code>, or strings for anything else
+    (<code>[@fold f_add]</code>, <code>[@unit 0]</code>, <code>[@ocaml "Bv.t"]</code>). Below,
+    <code>v</code> is the type of the values of <code>[@literal v]</code> literals.
   </p>
 
   <Heading level={3} id="on-types">On types</Heading>
@@ -121,14 +134,13 @@
     <thead><tr><th>Attribute</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@ocaml "M.t"]</code></td>
+        <td><code>[@ocaml "M.a"]</code></td>
         <td>
-          The OCaml type of an abstract type, which <code>ocaml-types</code> needs. (The deprecated
-          <code>ocaml-check</code> reads it on every type.)
+          The OCaml type of an abstract type, which <code>ocaml-types</code> needs.
         </td>
       </tr>
       <tr>
-        <td><code>[@lean "T"]</code></td>
+        <td><code>[@lean "A"]</code></td>
         <td>
           The Lean type, if it is not the Kanon name, CamelCased (<code>ext_ty</code> is
           <code>ExtTy</code>). An abstract type is defined by hand in Lean, unless
@@ -145,31 +157,29 @@
       <tr>
         <td><code>[@equal "M.equal"]</code></td>
         <td>
-          On an abstract type: the OCaml function that decides <code>=</code> at this type, rather
-          than <code>Stdlib.( = )</code>.
+          On an abstract type <code>a</code>: the OCaml function <code>M.equal : a -> a -> bool</code>
+          that decides <code>=</code> at this type, rather than <code>Stdlib.( = )</code>. Terms are
+          always compared as hash-consed terms, by their tags, never with
+          <code>Stdlib.( = )</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>[@hash "M.hash"]</code></td>
+        <td>
+          On an abstract type <code>a</code>: the OCaml function <code>M.hash : a -> int</code>
+          that hashes its values for hash-consing, rather than <code>Hashtbl.hash</code>.
         </td>
       </tr>
     </tbody>
   </table>
 
-  <Heading level={3} id="on-constructors">On constructors, nodes and sorts</Heading>
-  <p>
-    These go on the constructors of <code>type</code> declarations and on <code>node</code> and
-    <code>sort</code> declarations, after their typing.
-  </p>
+  <Heading level={3} id="on-nodes">On nodes and sorts</Heading>
+  <p>These go on <code>node</code> and <code>sort</code> declarations, after their typing.</p>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@operators]</code></td>
-        <td>a constructor of <code>t</code> whose first argument is a type of operators</td>
-        <td>
-          The constructors of that type are node constructors too: <code>Plus (l, r)</code> stands
-          for <code>Binop (Plus, l, r)</code>, for <code>Binop of binop * t * t</code>.
-        </td>
-      </tr>
-      <tr>
-        <td><code>[@literal]</code></td>
+        <td><code>[@literal bool]</code></td>
         <td>a node of one <code>bool</code></td>
         <td>
           The boolean literals: in patterns, <code>true</code> and <code>false</code> match them;
@@ -186,45 +196,37 @@
         </td>
       </tr>
       <tr>
-        <td><code>[@literal t]</code></td>
+        <td><code>[@literal v]</code></td>
         <td>a node of one <code>int</code></td>
         <td>
-          Integer literals whose values have the abstract type <code>t</code> (e.g. bit-vectors),
+          Integer literals whose values have the abstract type <code>v</code> (e.g. bit-vectors),
           which <code>#x</code> binds in rules (and their integer in helpers).
         </td>
       </tr>
       <tr>
         <td><code>[@to_term f]</code></td>
-        <td>a <code>[@literal t]</code> node</td>
-        <td>The function that makes the literal of a value, where a value is used as a term.</td>
+        <td>a <code>[@literal v]</code> node</td>
+        <td><code>f : v -> t</code> makes the literal of a value, where a value is used as a term.</td>
       </tr>
       <tr>
         <td><code>[@of_term p]</code></td>
-        <td>a <code>[@literal t]</code> node</td>
-        <td>The primitive that reads the value of a literal.</td>
+        <td>a <code>[@literal v]</code> node</td>
+        <td>The primitive <code>p : t -> v</code> reads the value of a literal.</td>
       </tr>
       <tr>
         <td><code>[@raw f p]</code></td>
-        <td>a <code>[@literal t]</code> node, any number of times</td>
+        <td>a <code>[@literal v]</code> node, any number of times</td>
         <td>
-          The primitive <code>p</code> computes <code>f</code>, whose last argument is a value,
-          directly on the literal, without reading its value.
-        </td>
-      </tr>
-      <tr>
-        <td><code>[@comm]</code></td>
-        <td>a binary operator</td>
-        <td>
-          Its operands commute: the rules match them in either order, and the generated OCaml
-          orders them by hash-consing tag (<code>mk_commut_binop</code>). In Lean, one statement
-          that the operator commutes proves the arms that swap them.
+          For <code>f : a1 -> … -> v -> r</code>, the primitive
+          <code>p : a1 -> … -> t -> r</code> computes <code>f</code> directly on the literal,
+          without reading its value.
         </td>
       </tr>
       <tr>
         <td><code>[@get f]</code></td>
         <td>a sort of one argument</td>
         <td>
-          The helper <code>f</code> reads that argument from the sort of a term
+          The helper <code>f : t -> int</code> reads that argument from the sort of a term
           (<code>sort TArray of nat [@get length]</code>): Kanon calls <code>f v</code> rather than
           matching the sort of <code>v</code>.
         </td>
@@ -235,53 +237,97 @@
   <Heading level={3} id="laws">Laws</Heading>
   <p>
     On an operator, the laws derive the first rules of its <em>rule function</em> (the one whose
-    spec is the operator over the function's parameters), in this order, before the rules written by
-    hand. They are ordinary rules, generated and proved like the others. Here, for
-    <code>rule plus : Plus (v1, v2)</code>, <code>rule and_ : And (v1, v2)</code> and
-    <code>rule not_ : Not v</code>:
+    spec is the operator over the function's parameters), in this order, before the rules written
+    by hand. They are ordinary rules, generated and proved like the others. Here on
+    <code>Plus</code>, <code>And</code> and <code>Not</code>, with the rewrites on whole terms (in
+    <code>rule not_ : Not v</code>, the case of <code>[@invol]</code> is <code>not x -> x</code>, on
+    the operand <code>v</code>):
   </p>
   <table>
-    <thead><tr><th>Law</th><th>Derived rules</th></tr></thead>
+    <thead><tr><th>Law</th><th>Rule</th><th>Rewrite</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>[@fold f]</code>, <code>[@fold f lift]</code></td>
-        <td><code>lits: Int i1 + Int i2 -> Int (f i1 i2)</code>, <code>lit: Bool b -> Bool (f b)</code></td>
+        <td><code>[@comm]</code></td>
+        <td>none</td>
+        <td>
+          The operands commute: the rules match them in either order, the generated OCaml orders
+          them by hash-consing tag (<code>a &amp;&amp; b</code> and <code>b &amp;&amp; a</code> are
+          the same term), and in Lean one statement that the operator commutes proves the arms
+          that swap them.
+        </td>
+      </tr>
+      <tr>
+        <td><code>[@fold f]</code></td>
+        <td><code>lits</code>, <code>lit</code></td>
+        <td><code>Int i1 + Int i2 -> Int (f i1 i2)</code>, <code>not (Bool b) -> Bool (f b)</code></td>
+      </tr>
+      <tr>
+        <td><code>[@fold f lift]</code></td>
+        <td><code>lits</code>, <code>lit</code></td>
+        <td><code>Int i1 + Int i2 -> lift (f i1 i2)</code></td>
       </tr>
       <tr>
         <td><code>[@unit c]</code></td>
-        <td><code>zero: x + 0 -> x</code>, <code>true_: x &amp;&amp; true -> x</code></td>
+        <td><code>unit_zero</code>, <code>unit_true</code></td>
+        <td><code>x + 0 -> x</code>, <code>x &amp;&amp; true -> x</code></td>
       </tr>
       <tr>
         <td><code>[@zero c]</code></td>
-        <td><code>false_: _ &amp;&amp; false -> Bool false</code></td>
+        <td><code>zero_false</code></td>
+        <td><code>x &amp;&amp; false -> false</code></td>
       </tr>
-      <tr><td><code>[@idem]</code></td><td><code>same: v &amp;&amp; v -> v</code></td></tr>
-      <tr><td><code>[@invol]</code></td><td><code>not: not x -> x</code>, named after the operator</td></tr>
+      <tr>
+        <td><code>[@idem]</code></td>
+        <td><code>same</code></td>
+        <td><code>x &amp;&amp; x -> x</code></td>
+      </tr>
+      <tr>
+        <td><code>[@invol]</code></td>
+        <td><code>not</code>, after the operator</td>
+        <td><code>not (not x) -> x</code></td>
+      </tr>
     </tbody>
   </table>
   <ul>
     <li>
-      <code>[@fold f lift]</code>: <code>f</code> takes the last parameters of the node that it has
-      room for, then the values of the literal operands, of the types of its arguments; they are
-      named after the first letter of their type (<code>i1</code>, <code>i2</code>; <code>l</code>
-      and <code>r</code> for <code>[@literal t]</code> values). <code>lift</code>, a function or a
-      node, makes a term of the result. By default, it is the literal node of the type of the
-      result (the <code>[@literal]</code> node for <code>bool</code>, the
-      <code>[@literal int]</code> one for <code>int</code>, else the constructor of
-      <code>t</code> of one argument of that type), and nothing for the values of
-      <code>[@literal t]</code>. A node is built at the sort that its typing gives, or else at the
-      sort of the spec.
+      <code>[@comm]</code>, <code>[@unit]</code>, <code>[@zero]</code> and <code>[@idem]</code>
+      apply to binary operators, <code>[@invol]</code> to unary ones.
     </li>
     <li>
-      <code>[@unit c]</code> and <code>[@zero c]</code> take the literal <code>0</code>,
-      <code>1</code>, <code>true</code> or <code>false</code>, which names the rule
-      (<code>zero</code>, <code>one</code>, <code>true_</code>, <code>false_</code>). On an
-      operator that does not commute, <code>c</code> is on the right; on one that does, the rule
-      matches it on either side. The term of <code>c</code> is its <code>constant</code>, if the
-      language declares one, or else the literal node.
+      <code>[@fold f lift]</code>: <code>f : p1 -> … -> a1 -> a2 -> r</code> takes the last
+      parameters of the node that it has room for, then the values of the literal operands; they
+      are named after the first letter of their type (<code>i1</code>, <code>i2</code>;
+      <code>l</code> and <code>r</code> for <code>[@literal v]</code> values).
+      <code>lift : r -> t</code>, a function or a node, makes a term of the result. It is optional:
+      by default, it is the literal node of the type of the result (the
+      <code>[@literal bool]</code> node for <code>bool</code>, the <code>[@literal int]</code> one
+      for <code>int</code>, else the leaf of one argument of that type), and nothing for
+      <code>v</code>, whose values are terms by <code>[@to_term]</code>. A node is built at the
+      sort that its typing gives, or else at the sort of the spec.
     </li>
-    <li><code>[@unit]</code>, <code>[@zero]</code> and <code>[@idem]</code> apply to binary operators, <code>[@invol]</code> to unary ones.</li>
+    <li>
+      <code>[@unit c]</code> and <code>[@zero c]</code> take a literal, <code>0</code>,
+      <code>1</code>, <code>true</code> or <code>false</code>, which the rule matches, or a
+      named constant, which it compares, with <code>=</code>, to the constant at the sort of the
+      other operand. The rule is named <code>unit_c</code> or <code>zero_c</code>, after the
+      literal (<code>unit_zero</code>, <code>unit_one</code>, <code>zero_false</code>, …) or the
+      constant. On an operator that does not commute, <code>c</code> is on the right; on one that
+      does, on either side. The term of <code>c</code> is its <code>constant</code>, or else the
+      literal node.
+    </li>
   </ul>
+  <p>With all-ones, the bitwise and of bit-vectors has a named unit:</p>
+  <Code
+    code={`constant ones (v) = lit_ones (size v)
+constant 0 (v) = lit_zero (size v)
+
+node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [@zero 0]`}
+  />
+  <p>
+    Its rule <code>unit_ones</code> returns <code>x</code> from <code>x, y</code>, in either
+    order, when <code>y = lit_ones (size x)</code>: the constant <code>ones</code> at the sort of
+    <code>x</code>.
+  </p>
 
   <Heading level={3} id="on-functions">On functions, rules and patterns</Heading>
   <table>
@@ -405,7 +451,7 @@ prefix "not" = Not, b_not`}
     in expressions, it calls the smart constructor <code>f</code> with the leading arguments
     <code>args</code> (<code>bv_add unchecked a b</code>); in patterns, it matches the node
     (<code>Add (_, a, b)</code>, whatever its parameters); on the values of
-    <code>[@literal t]</code> literals, it is the primitive <code>g</code>, which is optional.
+    <code>[@literal v]</code> literals, it is the primitive <code>g</code>, which is optional.
     <code>prefix</code> is the same for one operand.
   </p>
   <ul>

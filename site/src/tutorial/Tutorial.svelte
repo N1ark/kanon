@@ -44,44 +44,23 @@
 
   <Heading level={2} id="declare">Declaring a language</Heading>
   <p>
-    A language is declared in <code>.knl</code> files. Its types are those of its OCaml AST, and
-    <code>t</code> is the type of its terms: its constructors are the <em>kinds</em> of terms.
-    <code>int</code> (arbitrary precision, <code>Z.t</code> in OCaml), <code>bool</code>,
-    <code>unit</code>, tuples, <code>option</code> and <code>list</code> are built in.
+    A language is declared in <code>.knl</code> files. A <code>node</code> declares a constructor
+    of its terms, with its arguments and its <em>typing</em>: the sorts of its operands, then of
+    its result. A <code>sort</code> declares a type of terms. <code>type</code> declares the other
+    types, here the abstract type of variables, whose OCaml and Lean types
+    <code>[@ocaml "..."]</code> and <code>[@lean "..."]</code> give. <code>int</code> (arbitrary
+    precision, <code>Z.t</code> in OCaml), <code>bool</code>, <code>unit</code>, tuples,
+    <code>option</code> and <code>list</code> are built in.
   </p>
   <Code
     code={`type var [@ocaml "string"] [@lean "String"]
 
-type t =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]`}
-  />
-  <ul>
-    <li>
-      <code>var</code> is abstract: <code>[@ocaml "..."]</code> and <code>[@lean "..."]</code> give
-      its OCaml and Lean types.
-    </li>
-    <li>
-      <code>[@operators]</code> on a constructor of <code>t</code>: the constructors of the type of
-      its first argument are node constructors too, <code>Plus (l, r)</code> standing for
-      <code>Binop (Plus, l, r)</code>.
-    </li>
-  </ul>
-  <p>
-    A <code>node</code> declares a constructor of terms, with its arguments and its
-    <em>typing</em>: the sorts of its operands, then of its result. A <code>sort</code> declares a
-    type of terms, a constructor of <code>ty</code>. Kanon places each node in the types of the
-    language: an operator on one or two terms in <code>unop</code> or <code>binop</code> (the types
-    of the operators of the <code>[@operators]</code> constructors with that many terms), and the
-    other nodes in <code>t</code>.
-    A type that only has nodes is declared without constructors (<code>type binop</code>), and
-    <code>ty</code>, which only has sorts here, need not be declared.
-  </p>
-  <Code
-    code={`node Bool of bool : TBool [@literal]
+node Var of var
+node Bool of bool : TBool [@literal bool]
 node Int of int : TInt [@literal int]
 node Not : TBool -> TBool
+node And : TBool -> TBool -> TBool
+node Plus : TInt -> TInt -> TInt
 node Eq : a -> a -> TBool
 
 sort TBool
@@ -89,11 +68,16 @@ sort TInt`}
   />
   <ul>
     <li>
+      <code>Var</code>, <code>Bool</code> and <code>Int</code> have no operands: they are the
+      leaves of terms. <code>Not</code>, <code>And</code>, <code>Plus</code> and <code>Eq</code> are
+      operators, of one and two operands.
+    </li>
+    <li>
       <code>Eq</code> has two operands of the same sort <code>a</code>, a variable that stands for
       any sort, and a boolean result. Kanon generates the typing of each node in Lean.
     </li>
     <li>
-      <code>[@literal]</code> marks the node of the boolean literals, and
+      <code>[@literal bool]</code> marks the node of the boolean literals, and
       <code>[@literal int]</code> that of the integer literals. They give the literal patterns:
       <code>true</code> and <code>false</code> match boolean literals, <code>0</code>,
       <code>1</code>, … integer literals, and <code>#x</code> any integer literal, binding
@@ -102,6 +86,10 @@ sort TInt`}
     </li>
   </ul>
   <p>
+    Kanon generates the types of the terms from the nodes and the sorts: in OCaml, the leaves are
+    constructors of the terms, and the operators of one and two operands constructors of the types
+    <code>op1</code> and <code>op2</code>, under the constructors <code>Op1 of op1 * t</code> and
+    <code>Op2 of op2 * t * t</code>. Rules never name these: they write <code>And (a, b)</code>.
     This is enough for the backends that only need the declarations: the OCaml types
     (<code>ocaml-types</code>), and the Lean types and syntax.
   </p>
@@ -121,37 +109,54 @@ node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
   />
   <table>
     <thead>
-      <tr><th>Law</th><th>Derived rule</th></tr>
+      <tr><th>Law</th><th>Rule</th><th>Rewrite</th></tr>
     </thead>
     <tbody>
       <tr>
         <td><code>[@comm]</code></td>
-        <td>none: the operands commute, and the rules match them in either order</td>
+        <td>none</td>
+        <td>the operands commute: the rules match them in either order</td>
       </tr>
       <tr>
         <td><code>[@fold f]</code></td>
+        <td><code>lits</code>, <code>lit</code></td>
         <td>
-          <code>lits: Int i1 + Int i2 -> Int (add i1 i2)</code>,
-          <code>lit: Bool b -> Bool (negb b)</code>
+          <code>Int i1 + Int i2 -> Int (add i1 i2)</code>,
+          <code>not (Bool b) -> Bool (negb b)</code>
         </td>
       </tr>
-      <tr><td><code>[@unit c]</code></td><td><code>zero: x + 0 -> x</code></td></tr>
-      <tr><td><code>[@zero c]</code></td><td><code>false_: _ &amp;&amp; false -> Bool false</code></td></tr>
-      <tr><td><code>[@idem]</code></td><td><code>same: v &amp;&amp; v -> v</code></td></tr>
+      <tr>
+        <td><code>[@unit c]</code></td>
+        <td><code>unit_zero</code>, <code>unit_true</code></td>
+        <td><code>x + 0 -> x</code>, <code>x &amp;&amp; true -> x</code></td>
+      </tr>
+      <tr>
+        <td><code>[@zero c]</code></td>
+        <td><code>zero_false</code></td>
+        <td><code>x &amp;&amp; false -> false</code></td>
+      </tr>
+      <tr>
+        <td><code>[@idem]</code></td>
+        <td><code>same</code></td>
+        <td><code>x &amp;&amp; x -> x</code></td>
+      </tr>
       <tr>
         <td><code>[@invol]</code></td>
-        <td><code>not: not x -> x</code>, named after the operator (unary operators)</td>
+        <td><code>not</code>, after the operator</td>
+        <td><code>not (not x) -> x</code></td>
       </tr>
     </tbody>
   </table>
   <p>
+    The rewrites are on whole terms: in <code>rule not_ : Not v</code>, the case of
+    <code>[@invol]</code> is <code>not x -> x</code>, on the operand <code>v</code>.
     <code>[@fold f]</code> folds literals with the function <code>f</code>, and makes a term of
     its result with the literal node of its type: <code>Bool</code> for a <code>bool</code>,
     <code>Int</code> for an <code>int</code> (<code>[@fold f lift]</code> names another function
     or node). <code>[@unit c]</code> and <code>[@zero c]</code> take the literal <code>0</code>,
-    <code>1</code>, <code>true</code> or <code>false</code>; <code>[@zero false]</code> builds the
-    literal <code>Bool false</code>, unless the language gives another term for it, with the
-    optional <code>constant "false" = e</code>.
+    <code>1</code>, <code>true</code> or <code>false</code>, or a named constant;
+    <code>[@zero false]</code> builds the literal <code>Bool false</code>, unless the language
+    gives another term for it, with the optional <code>constant false = e</code>.
   </p>
   <p>
     Operators give a syntax to nodes. <code>infix "op" = Node, f</code> declares what
@@ -215,7 +220,7 @@ rule eq : Eq (v1, v2) =
   <ul>
     <li>
       Patterns match the kind of a term directly, with the literal patterns (<code>true</code>,
-      <code>0</code>, <code>#x</code>) of the <code>[@literal]</code> nodes.
+      <code>0</code>, <code>#x</code>) of the literal nodes.
     </li>
     <li>
       In expressions, <code>x + Int (a + b)</code> calls the smart constructor <code>plus</code>
@@ -269,25 +274,25 @@ fn is_nat (v : t) : bool =
     module relative to the file, and <code>use +bool</code> the module of booleans built into
     <code>kanon</code>: boolean literals, <code>Not</code>, <code>And</code>, <code>Or</code>,
     equality (<code>Eq</code>), conditionals (<code>Ite</code>) and <code>Distinct</code>, with
-    their rules. The language declares its types, as its OCaml AST has them, and Kanon places the
-    nodes of the modules in them.
+    their rules. The language adds its own nodes, here its variables.
   </p>
   <Code
-    code={`use +bool
+    code={`[@@@ocaml_prims "Prims"]
+
+use +bool
 use "int"
 
-type t =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-  | Triop of triop * t * t * t [@operators]
-  | Nop of nop * t list [@operators]
+type var [@ocaml "string"] [@lean "String"]
 
-type nop = Distinct`}
+node Var of var`}
   />
   <p>
-    <code>Distinct</code> has a list of operands: the language places it itself, by naming it alone
-    in a type. A module adds rules to the rule function of a module below it with
+    <code>Distinct</code>, of the bool module, has any number of operands, of the same sort:
+    <code>node Distinct : a list -> TBool</code>. The bool module has primitives, whose OCaml
+    module <code>[@@@ocaml_prims]</code> names.
+  </p>
+  <p>
+    A module adds rules to the rule function of a module below it with
     <code>extend rule f</code>: last, but before its final catch-all case, or before its rule
     <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
     helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>.
@@ -337,7 +342,7 @@ node Concat : TArray n -> TArray m -> TArray (n + m)`}
   </ul>
   <p>
     Soteria's symbolic values, with bit-vectors whose literals have an abstract type
-    (<code>[@literal t]</code>, see the <a href="reference.html#on-constructors">reference</a>),
+    (<code>[@literal v]</code>, see the <a href="reference.html#on-nodes">reference</a>),
     are written in Kanon.
   </p>
 
@@ -350,8 +355,10 @@ node Concat : TArray n -> TArray m -> TArray (n + m)`}
     <dt><code>ocaml-types</code></dt>
     <dd>
       the types of the language and its terms, hash-consed records
-      <code>{"{ kind; ty; tag }"}</code> (<code>kind</code> has the constructors of
-      <code>t</code>), as a standalone OCaml file that only needs Zarith;
+      <code>{"{ kind; ty; tag }"}</code> (<code>kind</code> has the leaves and the
+      <code>Op1</code>, <code>Op2</code>, … of the operators, <code>ty</code> the sorts), as a
+      standalone OCaml file that only needs Zarith. Its table of hash-consing is not safe to use
+      from several OCaml 5 domains at once (a known limitation);
     </dd>
     <dt><code>ocaml</code></dt>
     <dd>
@@ -375,9 +382,8 @@ node Concat : TArray n -> TArray m -> TArray (n + m)`}
   <p>
     The generated OCaml asserts the sorts of the operands on entry to each rule function (compiled
     out with <code>-noassert</code>), and puts the operands of commutative operators in the
-    hash-consing order. <code>ocaml-check</code>, the check of the OCaml types of a language
-    against hand-written ones, is deprecated. The <a href="sandbox.html">sandbox</a> shows every
-    backend on your own files.
+    hash-consing order. The <a href="sandbox.html">sandbox</a> shows every backend on your own
+    files.
   </p>
 
   <Heading level={2} id="proofs">Proofs</Heading>
@@ -417,7 +423,7 @@ node Concat : TArray n -> TArray m -> TArray (n + m)`}
   </p>
   <p>
     A rule over commutative operators has an arm for each swap of their operands. Kanon states once
-    that each <code>[@comm]</code> operator commutes (<code>Binop.Plus.comm.Stmt</code>, proved by
+    that each <code>[@comm]</code> operator commutes (<code>Op2.Plus.comm.Stmt</code>, proved by
     <code>kanon_auto</code> or by hand), and proves from it, with <code>kanon_congr</code> for the
     operands swapped below the spec, every arm that only swaps operands, if its guard and body do
     not depend on the swap. The proofs to write are thus one per case of a rule, when

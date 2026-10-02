@@ -6,15 +6,8 @@ use "rules"
 
 type var [@ocaml "string"] [@lean "String"]
 
-type t =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-
-type unop
-type binop
-
-node Bool of bool : TBool [@literal]
+node Var of var
+node Bool of bool : TBool [@literal bool]
 node Int of int : TInt [@literal int]
 node Not : TBool -> TBool [@invol] [@fold negb]
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]

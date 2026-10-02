@@ -14,7 +14,6 @@ const kanon = process.env.KANON ?? "kanon";
 const backends = [
   "ocaml-types",
   "ocaml",
-  "ocaml-check",
   "ocaml-tests",
   "lean-types",
   "lean-syntax",

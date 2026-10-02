@@ -89,6 +89,10 @@
   article :global(:is(code, pre)) {
     font-variant-ligatures: none;
   }
+  /* The first column of a table names an attribute or a law: it never wraps (the table scrolls). */
+  article :global(td:first-child code) {
+    white-space: nowrap;
+  }
   article :global(:is(h2, h3)) {
     scroll-margin-top: calc(var(--btn) + var(--sp-5) * 2);
   }

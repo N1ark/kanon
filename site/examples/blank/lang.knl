@@ -8,16 +8,6 @@ use "rules"
 
 type var [@ocaml "string"] [@lean "Int"]
 
-type t =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-  | Triop of triop * t * t * t [@operators]
-  | Nop of nop * t list [@operators]
-
-type unop
-type binop
-type triop
-type nop = Distinct
+node Var of var
 
 node Xor : TBool -> TBool -> TBool [@comm] [@unit false]
