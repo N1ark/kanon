@@ -2066,10 +2066,24 @@ let span_of (l : Location.t list) default =
       let last = List.nth l (List.length l - 1) in
       { first with loc_end = last.loc_end }
 
+(** The name of a ghost tag type, without its type parameters: ["'a sseq"] is
+    [sseq]. *)
+let ghost_base name =
+  match List.rev (String.split_on_char ' ' (String.trim name)) with
+  | b :: _ -> b
+  | [] -> name
+
+(** Whether [t], a tag of a sort or of a node, is a declared tag (possibly
+    applied, ["any sseq"]) or a type variable (["'a"]). *)
+let ghost_tag_known t =
+  let t = String.trim t in
+  (String.length t > 1 && t.[0] = '\'')
+  || List.exists (fun (n, _) -> ghost_base n = ghost_base t) !lang.ghost_tags
+
 (** Reads the declaration of the constructor [cd] of a type whose constructors
     have the type [res], into the language. [comm_locs] collects the locations
     of the [[@comm]] attributes. *)
-let constructor ~comm_locs res (cd : constructor_declaration) =
+let constructor ~comm_locs ?ghost res (cd : constructor_declaration) =
   let name = cd.pcd_name.txt and loc = cd.pcd_loc in
   let c_doc, attrs = take_doc cd.pcd_attributes in
   (* the attributes of the literals before [notation] *)
@@ -2082,7 +2096,14 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
            for a leaf node of one int or bool"
           a.attr_name.txt name)
     attrs;
-  check_attrs ([ "comm"; "params"; "sorts"; "when"; "get" ] @ law_attrs) attrs;
+  check_attrs
+    ([ "comm"; "params"; "sorts"; "when"; "get" ]
+    @ (match ghost with
+      | Some `Sort -> [ "ghost" ]
+      | Some (`Node _) -> [ "ghost"; "ctor" ]
+      | None -> [])
+    @ law_attrs)
+    attrs;
   let payload n =
     Option.map
       (fun (a : attribute) ->
@@ -2173,6 +2194,46 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
             { l with sort_getters = l.sort_getters @ [ (name, f) ] }
         | _ -> error a.attr_loc "[@get f] applies to sorts with one argument")
     | None -> l
+  in
+  let l =
+    match find_attr "ghost" attrs with
+    | None -> l
+    | Some a -> (
+        let tags = attr_args a in
+        let check_tag (t, tloc) =
+          if not (ghost_tag_known t) then
+            error tloc "unknown ghost tag %s: declare it with [@@@@@@ghost]" t
+        in
+        List.iter check_tag tags;
+        match ghost with
+        | Some `Sort -> (
+            match tags with
+            | [ (t, _) ] ->
+                { l with sort_ghosts = l.sort_ghosts @ [ (name, t) ] }
+            | _ -> error a.attr_loc "sort %s: expected [@ghost tag]" name)
+        | Some (`Node arity) ->
+            let expected = Option.value arity ~default:1 + 1 in
+            if List.length tags <> expected then
+              error a.attr_loc "%s: [@ghost] expects %d tag(s) (%s), got %d"
+                name expected
+                (match arity with
+                | Some 0 -> "the tag of its result"
+                | Some _ -> "the tags of its operands, then of its result"
+                | None -> "the tag of its operands, then of its result")
+                (List.length tags);
+            {
+              l with
+              node_ghosts = l.node_ghosts @ [ (name, List.map fst tags) ];
+            }
+        | None -> l)
+  in
+  let l =
+    match find_attr "ctor" attrs with
+    | None -> l
+    | Some a -> (
+        match strings_attr a with
+        | [ f ] -> { l with node_ctors = l.node_ctors @ [ (name, f) ] }
+        | _ -> error a.attr_loc "[@ctor f] expects the name of a function")
   in
   lang := l
 
@@ -2323,6 +2384,39 @@ let language (str : structure) =
                    | "ocaml_prims", [ m ] ->
                        lang := { !lang with ocaml_prims = Some m };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "ghost", [ n; text ] ->
+                       let ok =
+                         match String.split_on_char ' ' (String.trim n) with
+                         | [] -> false
+                         | l ->
+                             let rec go = function
+                               | [ b ] -> b <> "" && b.[0] <> '\''
+                               | p :: r ->
+                                   String.length p > 1 && p.[0] = '\'' && go r
+                               | [] -> false
+                             in
+                             go l
+                       in
+                       if not ok then
+                         error
+                           (snd (List.hd (attr_args a)))
+                           "invalid ghost tag name %S: expected a name, with \
+                            type parameters before it (\"'a name\")"
+                           n;
+                       if
+                         List.exists
+                           (fun (n', _) -> ghost_base n' = ghost_base n)
+                           !lang.ghost_tags
+                       then error a.attr_loc "ghost tag %s is declared twice" n;
+                       lang :=
+                         {
+                           !lang with
+                           ghost_tags = !lang.ghost_tags @ [ (n, text) ];
+                         };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "ghost", _ ->
+                       error a.attr_loc
+                         "expected [@@@@@@ghost \"name\" \"ocaml type\"]"
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
                          a.attr_name.txt)
@@ -2493,8 +2587,8 @@ let language (str : structure) =
   checkpoint ();
   (* the [[@comm]] attributes, for the check that their operators are binary *)
   let comm_locs = ref [] in
-  let constructor res cd =
-    ignore (attempt (fun () -> constructor ~comm_locs res cd))
+  let constructor ?ghost res cd =
+    ignore (attempt (fun () -> constructor ~comm_locs ?ghost res cd))
   in
   List.iter
     (fun (d, (td : type_declaration)) ->
@@ -2506,7 +2600,9 @@ let language (str : structure) =
     decls;
   (* the terms: the leaf nodes, then the operators of each arity, [Op2 of op2 *
      t * t], which their nodes stand for *)
-  List.iter (fun (k, cd) -> if k = Some 0 then constructor TKind cd) nodes;
+  List.iter
+    (fun (k, cd) -> if k = Some 0 then constructor ~ghost:(`Node k) TKind cd)
+    nodes;
   List.iter
     (fun k ->
       let op, c = op_type k in
@@ -2541,9 +2637,10 @@ let language (str : structure) =
     arities;
   List.iter
     (fun (k, cd) ->
-      if k <> Some 0 then constructor (TData (fst (op_type k))) cd)
+      if k <> Some 0 then
+        constructor ~ghost:(`Node k) (TData (fst (op_type k))) cd)
     nodes;
-  List.iter (constructor TSty) sorts;
+  List.iter (constructor ~ghost:`Sort TSty) sorts;
   checkpoint ();
   (* then the notations of literals, and the operators on terms *)
   let notations, constants =

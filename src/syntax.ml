@@ -160,6 +160,20 @@ type lang = {
           open *)
   ocaml_prims : string option;
       (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
+  ghost_tags : (string * string) list;
+      (** [[@@@ghost "name" "ocaml text"]]: the ghost tag types of the typed
+          backend, in order of declaration: the name, possibly with type
+          parameters (["'a sseq"]), and the polymorphic variant that it stands
+          for *)
+  sort_ghosts : (string * string) list;
+      (** [[@ghost tag]] on a sort: the tag of its terms, by sort constructor *)
+  node_ghosts : (string * string list) list;
+      (** [[@ghost "t1" ... "tn"]] on a node: the tags of its operands, then of
+          its result, by node (a leaf has only the tag of its result, and the
+          operands of an n-ary node, a list, have one tag) *)
+  node_ctors : (string * string) list;
+      (** [[@ctor f]] on a node: the name of its smart constructor, if no rule
+          function is its spec *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
   laws : (string * law * Location.t * Location.t) list;
@@ -184,6 +198,10 @@ let lang =
       lean_params = [];
       ocaml_types = None;
       ocaml_prims = None;
+      ghost_tags = [];
+      sort_ghosts = [];
+      node_ghosts = [];
+      node_ctors = [];
       operators = [];
       raw_typing = [];
       laws = [];
