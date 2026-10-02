@@ -122,6 +122,7 @@ module.exports = grammar({
       field('name', $.identifier),
       ':',
       field('type', $._type),
+      repeat($.attribute),
     ),
 
     function_definition: $ => seq(
