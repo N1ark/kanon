@@ -421,6 +421,9 @@ they open. They call the primitives in the module of
 
 ## Proofs
 
+The site's [guide to proofs](https://n1ark.github.io/kanon/proving.html) walks
+through the proof of a language, `examples/ints/`, step by step.
+
 The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
 
 - `Types.lean` and `Syntax.lean` define the types of the language, around

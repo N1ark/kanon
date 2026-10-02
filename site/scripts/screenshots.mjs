@@ -1,7 +1,8 @@
 // Checks the built site (dist/) in a headless Chromium, and takes screenshots
-// of the tutorial, the reference and the sandbox, in light and dark: no errors
-// in the console, Kanon highlighted by tree-sitter, the generated code shown,
-// and in the sandbox a diagnostic, a hover and the outputs.
+// of the tutorial, the guide to proofs, the reference and the sandbox, in light
+// and dark: no errors in the console, Kanon highlighted by tree-sitter, the
+// generated code shown, and in the sandbox a diagnostic, a hover and the
+// outputs.
 //
 //   npm run build:mock && npm run shots -- OUT_DIR
 //
@@ -84,6 +85,15 @@ for (const scheme of ["light", "dark"]) {
   await r.locator("#operators").scrollIntoViewIfNeeded();
   await shot(r, `reference-operators-${scheme}`);
   await r.close();
+
+  // the guide to proofs
+  const g = await page(scheme);
+  await g.goto(`${base}proving.html`);
+  await g.waitForSelector('pre[data-lang="kanon"] span.ts-keyword');
+  const leanBlocks = await g.$$eval('pre[data-lang="lean"]', (x) => x.filter((e) => e.textContent.length > 100).length);
+  check(leanBlocks >= 5, `${scheme}: the guide quotes the Lean files of examples/ints (${leanBlocks} blocks)`);
+  await shot(g, `proving-top-${scheme}`);
+  await g.close();
 
   // the sandbox, with the tiny language
   const s = await page(scheme);

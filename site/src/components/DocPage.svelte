@@ -13,7 +13,7 @@
   import Header from "./Header.svelte";
 
   interface Props {
-    page: "tutorial" | "reference";
+    page: "tutorial" | "proving" | "reference";
     /** The headings of the table of contents. */
     headings?: string;
     children: Snippet;

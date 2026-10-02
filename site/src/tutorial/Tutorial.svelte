@@ -456,6 +456,10 @@ node Fill of int : TArray n`}
 lake build
 lake env lean check_axioms.lean  # must not mention sorryAx`}
   />
+  <p>
+    The <a href="proving.html">guide to proofs</a> walks through the proof of the language of this
+    tutorial, <code>examples/ints/</code>: the files to write, and how to prove the rules.
+  </p>
   <p><a class="btn" href="sandbox.html#example=bool">Open the bool example in the sandbox</a></p>
 
   <Heading level={2} id="editors">Editors</Heading>
