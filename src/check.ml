@@ -1143,11 +1143,36 @@ let node_term loc ~name ~build (params : Syntax.expr list)
     commutative operators with their operands in order (see [comm_fns]). *)
 let ordered = ref false
 
+let is_node_constr c =
+  match find_constr c with
+  | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
+  | None -> false
+
+(** The expression [s] of [(C x : s)], that the parser read as a type. *)
+let sortexpr_of (e : expression) =
+  List.find_map
+    (fun (a : attribute) ->
+      match a.attr_payload with
+      | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+        when a.attr_name.txt = "kanon.sortexpr" ->
+          Some s
+      | _ -> None)
+    e.pexp_attributes
+  |> Option.get
+
 let rec expr env ?expected (e : expression) : Syntax.expr =
   let loc = e.pexp_loc in
   let mk ety d =
     Option.iter (fun expected -> expect loc ~expected ety) expected;
     { e = d; ety; eloc = loc }
+  in
+  (* [(C x : e)] for an expression [e] of type [ty] that is not a sort
+     constructor applied to arguments: the sort is computed, and the typing of
+     [C], if it has one, is not checked against it *)
+  let computed_node k s =
+    let kind = expr env ~expected:TKind k in
+    let sort = expr env ~expected:TSty s in
+    mk TTerm (ENode (kind, sort))
   in
   (* an operator on terms, if one of its operands is a term *)
   let term_op op (args : Syntax.expr list) =
@@ -1446,6 +1471,28 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let c = expr env ~expected:TBool c in
       let body = expr env ?expected body in
       mk body.ety (EAssert (c, body))
+  | Pexp_constraint
+      (({ pexp_desc = Pexp_construct ({ txt = Lident c; _ }, _); _ } as k), ct)
+    when is_node_constr c
+         && List.exists
+              (fun (a : attribute) -> a.attr_name.txt = "kanon.sortexpr")
+              e.pexp_attributes
+         &&
+         (* [(C x : t)] with a type [t] and no variable of that name is a type
+            annotation *)
+         match sortexpr_of e with
+         | { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ } -> (
+             List.mem_assoc x env.vars
+             || List.mem_assoc x env.globals
+             || List.mem_assoc x !sort_vars
+             ||
+               try
+                 ignore (ty_of_core ct);
+                 false
+               with Error _ -> true)
+         | _ -> true ->
+      (* [(C x : s)] for a variable [s]: the node at the computed sort *)
+      computed_node k (sortexpr_of e)
   | Pexp_constraint (e, ct) ->
       let t = ty_of_core ct in
       Option.iter (fun expected -> expect loc ~expected t) expected;
@@ -1458,11 +1505,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             { pstr_desc = Pstr_eval (s, _); _ };
           ] ) -> (
       (* [(C args : S args)]: the node [C], built at the sort [S args] *)
-      let is_node c =
-        match find_constr c with
-        | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
-        | None -> false
-      in
+      let is_node = is_node_constr in
       match (k.pexp_desc, s.pexp_desc) with
       | ( Pexp_construct ({ txt = Lident c; _ }, _),
           Pexp_construct ({ txt = Lident h; _ }, sarg) )
@@ -1489,7 +1532,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           let sort = expr env ~expected:TSty s in
           mk TTerm (ENode (kind, sort))
       | Pexp_construct ({ txt = Lident c; _ }, _), _ when is_node c ->
-          error s.pexp_loc "expected a sort, C args"
+          computed_node k s
       | _ ->
           error loc
             "only the operands of a spec, the parameters of functions and \
@@ -2926,7 +2969,7 @@ let raw_fn (vb : value_binding) =
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
     check_attrs [ "spec"; "cases"; "ty_only"; "untyped"; "ghost" ] rattrs)
-  else check_attrs [ "ty_only"; "no_lean"; "ghost" ] rattrs;
+  else check_attrs [ "ty_only"; "no_lean"; "ghost"; "total" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -3107,12 +3150,13 @@ let case_rule_loc (c : Ppxlib.case) =
       parameters before the values of the literals have type [ty], the sorts
       [s1], [s2] of the literal operands, then the values of the literals, named
       after the first letter of their type ([i1], [i2] for [int]s, [i] for a
-      unary operator). [C] is the notation of the type of a value, at the sort
-      of its operand (see [resolve_notation]), or else the only leaf node of one
-      value of that type. [lift], a function or a node, makes a term of the
-      result; by default, the notation (or node) of its type at the sort of the
-      result of the node, and nothing for a term. A node is built at the sort of
-      its typing, or else at the sort of the spec;
+      unary operator), prefixed with [kanon__] if one of them is the name of a
+      parameter of the rule. [C] is the notation of the type of a value, at the
+      sort of its operand (see [resolve_notation]), or else the only leaf node
+      of one value of that type. [lift], a function or a node, makes a term of
+      the result; by default, the notation (or node) of its type at the sort of
+      the result of the node, and nothing for a term. A node is built at the
+      sort of its typing, or else at the sort of the spec;
     - [[@unit c]], for a literal [c]: [unit_c: x, c -> x] if [op] is commutative
       (it then also matches [c, x]), and otherwise [unit_c: _, c -> v1];
     - [[@zero c]], for a literal [c]: [zero_c: _, c -> c], where [c] stands for
@@ -3265,8 +3309,18 @@ let law_cases globals raws =
               match tys with
               | t :: _ ->
                   let x = String.sub (Fmt.str "%a" pp_ty t) 0 1 in
-                  if arity = 1 then [ x ]
-                  else List.init arity (fun i -> x ^ string_of_int (i + 1))
+                  let xs =
+                    if arity = 1 then [ x ]
+                    else List.init arity (fun i -> x ^ string_of_int (i + 1))
+                  in
+                  (* the literals must not capture a parameter of the node or of
+                     the rule *)
+                  let clash x =
+                    List.exists (fun p -> p = x || p = "lit_" ^ x) params
+                  in
+                  if List.exists clash xs then
+                    List.map (fun x -> "kanon__" ^ x) xs
+                  else xs
               | [] -> []
             in
             (* the terms of the literals, whose sorts [f] takes *)
@@ -4206,6 +4260,104 @@ let errors_so_far () = List.length (Option.value !collected ~default:[])
 (** The end of a phase that started with [n] errors: stops if it had errors. *)
 let checkpoint_since n = if errors_so_far () > n then raise Stop
 
+(** The nodes of the language, in the order of their declaration: the leaves,
+    then the operators. *)
+let all_nodes () =
+  List.filter_map
+    (fun (c : constr) ->
+      if
+        (c.c_res = TKind && not (List.mem c.c_name !lang.node_kinds))
+        || Option.is_some (node_of_op c)
+      then Some c.c_name
+      else None)
+    !lang.constrs
+
+(** The check of a [[@total]] function [f], once the cases of every [extend fn]
+    are in: its body ends in a match on its first term parameter, with no
+    catch-all case on it, and with a case for each node of the language. A node
+    is covered by a case without a guard whose pattern on the term is that node
+    (possibly in an or-pattern, or under [as]) with arguments that match
+    anything, and whose other patterns match anything. *)
+let check_total (f : fn) =
+  let x =
+    match List.find_opt (fun (_, t) -> t = TTerm) f.params with
+    | Some (x, _) -> x
+    | None -> error f.floc "fn %s is [@total]: it has no term parameter" f.name
+  in
+  let rec tail (e : Syntax.expr) =
+    match e.e with
+    | ELet (_, _, b) | EAssert (_, b) | EBinop ((And | Or), _, b) -> tail b
+    | EMatch (scruts, cases) -> (scruts, cases)
+    | _ ->
+        error f.floc "fn %s is [@total]: it must end with a match on %s" f.name
+          x
+  in
+  let scruts, cases = tail f.body in
+  let i =
+    match
+      List.find_index
+        (fun (s : Syntax.expr) -> match s.e with EVar y -> y = x | _ -> false)
+        scruts
+    with
+    | Some i -> i
+    | None -> error f.floc "fn %s is [@total]: it must match on %s" f.name x
+  in
+  let rec irrefutable (p : Syntax.pat) =
+    match p.p with
+    | PAny | PVar _ | PUnit -> true
+    | PAs (p, _) | PComm (p, _) -> irrefutable p
+    | POr (a, b) -> irrefutable a || irrefutable b
+    | PTuple l -> List.for_all irrefutable l
+    | PRecord l -> List.for_all (fun (_, p) -> irrefutable p) l
+    | _ -> false
+  in
+  let rec covers (p : Syntax.pat) =
+    match p.p with
+    | POr (a, b) -> covers a @ covers b
+    | PAs (p, _) | PComm (p, _) -> covers p
+    | PConstr (kc, { p = PConstr (op, params); _ } :: operands)
+      when List.mem kc.c_name !lang.node_kinds && Option.is_some (node_of_op op)
+      ->
+        if List.for_all irrefutable (params @ operands) then [ op.c_name ]
+        else []
+    | PConstr (c, args)
+      when c.c_res = TKind
+           && (not (List.mem c.c_name !lang.node_kinds))
+           && List.for_all irrefutable args ->
+        [ c.c_name ]
+    | _ -> []
+  in
+  let component (c : case) =
+    match c.pat.p with
+    | PTuple l when List.length scruts > 1 -> List.nth l i
+    | _ -> c.pat
+  in
+  let others (c : case) =
+    match c.pat.p with
+    | PTuple l when List.length scruts > 1 ->
+        List.for_all irrefutable (List.filteri (fun j _ -> j <> i) l)
+    | _ -> true
+  in
+  List.iter
+    (fun (c : case) ->
+      if irrefutable (component c) then
+        error c.cloc
+          "fn %s is [@total]: it cannot have a catch-all case, which would \
+           hide missing nodes: list the nodes"
+          f.name)
+    cases;
+  let covered =
+    List.concat_map
+      (fun (c : case) ->
+        if c.guard = None && others c then covers (component c) else [])
+      cases
+  in
+  match List.filter (fun n -> not (List.mem n covered)) (all_nodes ()) with
+  | [] -> ()
+  | missing ->
+      error f.floc "fn %s is [@total] but has no case for %s" f.name
+        (String.concat ", " missing)
+
 let program (str : structure) : program =
   let str = extend_rules (comm_fns () @ str) in
   (* the functions whose operators could not be replaced, which are not checked
@@ -4368,6 +4520,13 @@ let program (str : structure) : program =
         (fun (p : prim) -> if p.pno_lean then Some p.pname else None)
         prims
   in
+  List.iter
+    (fun (r : raw_fn) ->
+      if has_attr "total" r.rattrs then
+        match List.find_opt (fun (f : fn) -> f.name = r.rname) fns with
+        | Some f -> ignore (attempt (fun () -> check_total f))
+        | None -> ())
+    raws;
   let check_calls what (e : Syntax.expr) =
     ignore
       (Syntax.fold_calls
