@@ -1,12 +1,14 @@
 (* A new language, on top of Kanon's bool module: declare its nodes here, and
    write its rules in rules.kn. *)
 
+[@@@ocaml_prims "Prims"]
+
 use +bool
 use "rules"
 
-type var [@ocaml "string"] [@lean "Int"] [@noeq]
+type var [@ocaml "string"] [@lean "Int"]
 
-type kind [@ocaml "t_kind"] [@noeq] =
+type t =
   | Var of var
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]
@@ -17,6 +19,5 @@ type unop
 type binop
 type triop
 type nop = Distinct
-type ty
 
 node Xor : TBool -> TBool -> TBool [@comm] [@unit false]

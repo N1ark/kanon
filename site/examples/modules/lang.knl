@@ -1,12 +1,14 @@
 (* The language: Kanon's bool module, and a module of integers. Kanon places
    the nodes of the modules in the types below. *)
 
+[@@@ocaml_prims "Prims"]
+
 use +bool
 use "int"
 
-type var [@ocaml "string"] [@lean "String"] [@noeq]
+type var [@ocaml "string"] [@lean "String"]
 
-type kind [@ocaml "t_kind"] [@noeq] =
+type t =
   | Var of var
   | Unop of unop * t [@operators]
   | Binop of binop * t * t [@operators]
@@ -17,4 +19,3 @@ type unop
 type binop
 type triop
 type nop = Distinct
-type ty

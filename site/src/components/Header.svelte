@@ -1,12 +1,12 @@
 <script lang="ts">
-  // The bar of both pages: the name, the switch between the tutorial and the sandbox, the theme
-  // and the repository.
+  // The bar of the pages: the name, the switch between the tutorial, the reference and the
+  // sandbox, the theme and the repository.
   import { IconButton, Segmented, liveTheme, tooltip } from "purr";
   import { GithubLogo, Moon, Sun } from "purr/icons";
   import type { Snippet } from "svelte";
   import { toggleTheme } from "../lib/theme";
 
-  type Page = "tutorial" | "sandbox";
+  type Page = "tutorial" | "reference" | "sandbox";
 
   interface Props {
     page: Page;
@@ -18,9 +18,14 @@
 
   const PAGES: { id: Page; label: string }[] = [
     { id: "tutorial", label: "Tutorial" },
+    { id: "reference", label: "Reference" },
     { id: "sandbox", label: "Sandbox" },
   ];
-  const HREF: Record<Page, string> = { tutorial: "./", sandbox: "sandbox.html" };
+  const HREF: Record<Page, string> = {
+    tutorial: "./",
+    reference: "reference.html",
+    sandbox: "sandbox.html",
+  };
 </script>
 
 <header class="bar">
