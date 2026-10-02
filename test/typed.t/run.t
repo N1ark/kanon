@@ -156,3 +156,129 @@ The tags are checked:
   $ kanon ocaml-typed bad.knl bad.knl
   bad.knl:1:18: unknown ghost tag sint: declare it with [@@@ghost]
   [1]
+
+The tag types are declared after those that they mention, whatever the order
+of the declarations (here `any` mentions `sint` and the `sbool` of the bool
+module, which comes last), and a type may mention itself:
+
+  $ cat > order.knl <<'KN'
+  > [@@@ghost "any" "[ sint | sbool | any sseq ]"]
+  > [@@@ghost "sint" "[ `NonZero | `Zero ]"]
+  > [@@@ghost "'a sseq" "[ `List of 'a ]"]
+  > use builtin "bool"
+  > sort TInt [@ghost sint]
+  > KN
+  $ kanon ocaml-typed order.knl | sed -n '/module T/,/^  end/p'
+    module T : sig
+      type sint = [ `NonZero | `Zero ]
+      type 'a sseq = [ `List of 'a ]
+      type sbool = [ `Bool ]
+      type any = [ sint | sbool | any sseq ]
+    end
+
+Tag types that mention each other are an error:
+
+  $ cat > cycle.knl <<'KN'
+  > use builtin "bool"
+  > [@@@ghost "a" "[ b | `A ]"]
+  > [@@@ghost "b" "[ a | `B ]"]
+  > KN
+  $ kanon ocaml-typed cycle.knl
+  cycle.knl:2:0: ghost tag types are defined in terms of each other: a -> b -> a
+  [1]
+
+The `nat` parameters of a node are `int`s, like those of a sort, and the other
+integers are `Z.t`. The sorts that are parameters of a node are raw (`raw_ty`):
+their tag is not known, and the terms that are parameters (not operands) have
+any tag:
+
+  $ cat > params.knl <<'KN'
+  > [@@@ghost "sint" "[ `NonZero | `Zero ]"]
+  > use builtin "bool"
+  > type var = { id : int }
+  > sort TBitVec of nat [@ghost sint]
+  > node Extract of nat * nat (i, j) : TBitVec n -> TBitVec (j - i + 1)
+  > node Lit of int * nat (v, n) : TBitVec n [@ctor lit]
+  > node Exists of (var * ty) list * t : TBool
+  > node Eqz : TBitVec n -> TBool
+  > KN
+  $ cat > params.kn <<'KN'
+  > rule extract : Extract (i, j, v)
+  > rule mk_exists : Exists (vars, body)
+  > KN
+  $ kanon ocaml-typed params.knl params.kn | sed -n '/Smart/,$p' | grep -v "b_\|sem_eq"
+    (** {2 Smart constructors} *)
+    
+    val extract : int -> int -> [< sint ] t -> [> sint ] t
+    val mk_exists : ((var * raw_ty) list) -> _ t -> [> sbool ] t
+    val lit : Z.t -> int -> [> sint ] t
+  end
+
+A rule function whose spec is not a single node over its parameters is typed
+by the outermost node of its spec: the result has the tag of that node, a
+parameter that is an operand of it has the tag of the operand, and any other
+parameter has any tag. The spec of `to_bool` is `Not (Eqz v)`, where `v` is not
+an operand of `Not`; that of `lt_zero` is a node over a term that is not a
+parameter; and that of `fmod` is not a node:
+
+  $ cat > comp.knl <<'KN'
+  > [@@@ghost "sint" "[ `NonZero | `Zero ]"]
+  > [@@@ghost "sfloat" "[ `Float ]"]
+  > use builtin "bool"
+  > sort TBitVec of nat [@get size] [@ghost sint]
+  > sort TFloat [@ghost sfloat]
+  > node Eqz : TBitVec n -> TBool
+  > node Ult : TBitVec n -> TBitVec n -> TBool
+  > node FRem : TFloat -> TFloat -> TFloat
+  > node Zero of nat (n) : TBitVec n
+  > KN
+  $ cat > comp.kn <<'KN'
+  > prim size : t -> int
+  > rule to_bool (v : t) : Not (Eqz v)
+  > rule ult_swapped (a b : t) : Ult (b, a)
+  > rule lt_zero (v : t) : Ult (v, Zero (size v))
+  > rule fmod (v1 v2 : t) : raw_fmod (FRem (v1, v2)) v1
+  > fn raw_fmod (r v : t) : t = r
+  > KN
+  $ kanon ocaml-typed comp.knl comp.kn 2>&1 | sed -n '/Smart/,$p' | grep -v "b_\|sem_eq"
+    (** {2 Smart constructors} *)
+    
+    val to_bool : _ t -> [> sbool ] t
+    val ult_swapped : [< sint ] t -> [< sint ] t -> [> sbool ] t
+    val lt_zero : [< sint ] t -> [> sbool ] t
+    val fmod : _ t -> _ t -> _ t
+  end
+
+A `[@ghost]` after the spec gives the tags of the operands that are terms, then
+of the result, as on a node. It must have the right number of tags, which must
+be declared, and applies to rule functions only:
+
+  $ cat > comp.kn <<'KN'
+  > rule to_bool (v : t) : Not (Eqz v) [@ghost sint sbool]
+  > rule fmod (v1 v2 : t) : raw_fmod (FRem (v1, v2)) v1 [@ghost sfloat sfloat sfloat]
+  > fn raw_fmod (r v : t) : t = r
+  > KN
+  $ kanon ocaml-typed comp.knl comp.kn 2>&1 | sed -n '/Smart/,$p' | grep -v "b_\|sem_eq"
+    (** {2 Smart constructors} *)
+    
+    val to_bool : [< sint ] t -> [> sbool ] t
+    val fmod : [< sfloat ] t -> [< sfloat ] t -> [> sfloat ] t
+  end
+  $ cat > comp.kn <<'KN'
+  > rule to_bool (v : t) : Not (Eqz v) [@ghost sint]
+  > KN
+  $ kanon ocaml-typed comp.knl comp.kn
+  comp.kn:1:35: to_bool: [@ghost] expects 2 tag(s) (the tags of its 1 operand(s), then of its result), got 1
+  [1]
+  $ cat > comp.kn <<'KN'
+  > rule to_bool (v : t) : Not (Eqz v) [@ghost sint nothing]
+  > KN
+  $ kanon ocaml-typed comp.knl comp.kn
+  comp.kn:1:48: unknown ghost tag nothing: declare it with [@@@ghost]
+  [1]
+  $ cat > comp.kn <<'KN'
+  > fn f (v : t) : t [@ghost sint sint] = v
+  > KN
+  $ kanon ocaml-typed comp.knl comp.kn
+  comp.kn:1:17: f: [@ghost] applies to rule functions
+  [1]
