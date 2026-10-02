@@ -31,7 +31,7 @@ let lean_files ~lang ~sources prog =
 
 (** The backends that write on standard output, in the order of the usage. *)
 let backends =
-  [ "ocaml-types"; "ocaml"; "ocaml-tests" ]
+  [ "ocaml-types"; "ocaml"; "ocaml-typed"; "ocaml-tests" ]
   @ List.map
       (fun (_, b, _) -> b)
       (lean_files ~lang:[] ~sources:[] (lazy (assert false)))
@@ -89,6 +89,8 @@ let run args out err =
           (match backend with
           | "ocaml-types" -> Gen_ocaml.types ~sources:lang out
           | "ocaml" -> Gen_ocaml.program ~sources out (Lazy.force prog)
+          | "ocaml-typed" ->
+              Gen_typed.program ~sources:(lang @ sources) out (Lazy.force prog)
           | "ocaml-tests" -> Gen_tests.program ~sources out (Lazy.force prog)
           | "lean-all" ->
               List.iter
