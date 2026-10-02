@@ -4,6 +4,7 @@
 
 ### Added
 
+- The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
 
 ## 0.2.0 (2026-10-02)
