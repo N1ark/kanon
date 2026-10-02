@@ -4,10 +4,8 @@ Kanon is a rule language for the simplifying smart constructors of a *value
 language*: the functions that build its terms (`b_and a b`, `bv_add c a b`,
 ...) and simplify them on the fly. From the rules, the `kanon` tool generates:
 
-- their OCaml implementation, meant to be included in the module that defines
-  the terms;
-- an OCaml check that the OCaml types of the language agree with its
-  declaration;
+- the OCaml types of the language, with its hash-consed terms;
+- the OCaml implementation of the rules;
 - OCaml differential tests of the rule functions;
 - a Lean model of the rules, with one soundness statement per rule, and the
   proof that the whole simplifier is sound from the proofs of these
@@ -15,12 +13,14 @@ language*: the functions that build its terms (`b_and a b`, `bv_add c a b`,
 
 The value language (its types, nodes, literals, operators and their laws) is
 declared, in `.knl` files: Kanon does not hard-code any. The targets are fixed:
-OCaml, where terms are hash-consed (`Hc`) records `{ kind; ty }`, and Lean,
+OCaml, where terms are hash-consed records `{ kind; ty; tag }`, and Lean,
 where they are `Term.mk kind ty`. Soteria's `Bv_values` and `Tiny_values` are
 written in Kanon.
 
 Kanon is a small, pure, first-order language with its own typing. Its syntax is
-that of OCaml, apart from the declarations and rule names below.
+that of OCaml, apart from the declarations and rule names below. The
+[site](https://n1ark.github.io/kanon/) has a tutorial, a reference of the
+declarations, attributes and operators, and a sandbox.
 
 ## Usage
 
@@ -31,15 +31,18 @@ kanon BACKEND FILE...
 reads the language declared by the files, usually its one `.knl` file, with
 the modules it uses, and writes on standard output:
 
-- `ocaml`: the OCaml implementation of the rule functions and helpers, in terms
-  of a module `P` of primitives, which must be in scope where it is included;
-- `ocaml-check`: the OCaml check of the types of the language (which only needs
-  the `.knl` files);
+- `ocaml-types`: the types of the language and its terms, a standalone OCaml
+  file that only needs Zarith (and only the `.knl` files, see [OCaml](#ocaml));
+- `ocaml`: the OCaml implementation of the rule functions and helpers, which
+  needs the types in scope;
 - `ocaml-tests`: the differential tests (see [Tests](#tests));
 - `lean-types`, `lean-syntax`, `lean-signatures`, `lean-typing`, `lean-model`,
   `lean-statements`, `lean-lifts`, `lean-soundness`: the generated Lean files
   (see [Proofs](#proofs)); `lean-all` writes each of them, `F.lean`, to
   `F.lean.gen` in the current directory.
+
+`kanon --version` prints the version of Kanon (see the
+[changelog](CHANGELOG.md)).
 
 A file uses a module with `use "path"`: the module's declarations are in
 `path.knl` and its rules in `path.kn` (either may be missing), relative to the
@@ -62,76 +65,61 @@ and `kanon ocaml lang.knl` generates its rules.
 The ppx `kanon.ppx_include_file` includes the generated OCaml:
 `[%%include_file "rules.gen.ml"]` is the structure of `rules.gen.ml`, a file
 next to the current one, as `include struct ... end`, so that it is compiled
-along with its primitives.
+along with the types it needs (see [OCaml](#ocaml)).
 
 ## The language
 
-A language is declared in `.knl` files, by `use`, `type`, `node`, `infix`,
-`prefix` and `constant` items and floating attributes.
+A language is declared in `.knl` files, by `use`, `type`, `sort`, `node`,
+`infix`, `prefix` and `constant` items and floating attributes. The
+[reference](https://n1ark.github.io/kanon/reference.html) lists them, with
+every attribute.
 
 ### Types
 
 ```ocaml
-type var [@ocaml "Symex.Var.t"] [@lean "Int"] [@noeq]
-
-type kind [@ocaml "t_kind"] [@noeq] =
-  | Var of var
-  | Bool
-  | Int
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-
-type binop [@ocaml "Binop.t"] =
-  | And
-  | Plus
+type var [@ocaml "Symex.Var.t"] [@lean "Int"] [@equal "Symex.Var.equal"]
+    [@hash "Symex.Var.hash"]
 
 type checked = { signed : bool; unsigned : bool }
-
-type ty = TBool | TInt
 ```
 
-A type is abstract, a variant or a record. `kind` and `ty`, the kinds and types
-of terms, must be declared; `t` (terms), `int` (arbitrary precision, `Z.t` in
-OCaml), `bool`, `unit`, tuples, `option` and `list` are built in.
+A type is abstract, a variant or a record: the types of the arguments of nodes
+and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
+`unit`, tuples, `option` and `list` are built in. `t`, the type of terms, and
+`ty`, the type of their sorts, are generated from the nodes and the sorts (see
+[below](#modules-nodes-and-sorts)), and cannot be declared.
 
-- `[@ocaml "..."]` gives the OCaml type, if it is not the Kanon name. The
-  constructors of a type (and the fields of a record) are in its module, and
-  those of `kind` and `ty` are the fields of terms.
+- `[@ocaml "..."]` gives the OCaml type of an abstract type, which
+  `ocaml-types` needs; the other types are generated, with their Kanon names.
 - `[@lean "..."]` gives the Lean type, if it is not the Kanon name, CamelCased
   (`ext_ty` is `ExtTy`). Kanon generates the Lean definitions of the types,
   except for the abstract ones, which are defined by hand (in `R.Abstract`, see
   [Proofs](#proofs)) unless `[@lean]` names an existing type.
-- `[@noeq]`: `=` and `<>` are not allowed at this type. `[@equal "f"]`: in
-  OCaml, `=` is the primitive `P.f` rather than `Stdlib.( = )`.
-- A `nat` argument of a constructor is an OCaml `int` (a width, an index), and
-  an `int` in Kanon.
-- `[@operators]` on a kind constructor: the constructors of the type of its
-  first argument are node constructors too, `Add (c, l, r)` standing for
-  `Binop (Add c, l, r)`.
+- `=` and `<>` are allowed at every type, but at an abstract type marked
+  `[@noeq]` (and the tuples, options and lists of it). Terms are compared as
+  hash-consed terms (by their tags in OCaml), never with `Stdlib.( = )`.
+- On an abstract type `a`, `[@equal "M.equal"]` gives the OCaml function
+  `M.equal : a -> a -> bool` that decides `=` (`Stdlib.( = )` by default), and
+  `[@hash "M.hash"]` the function `M.hash : a -> int` that hashes its values
+  for hash-consing (`Hashtbl.hash` by default).
+- A `nat` argument of a node or a sort is an OCaml `int` (a width, an index),
+  and an `int` in Kanon.
 
-### Modules and nodes
+### Modules, nodes and sorts
 
 A language is made of the modules it uses (see [Usage](#usage)), each with its
 declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
-The language itself declares its types, as its OCaml AST has them, in which
-Kanon places the nodes of its modules.
 
-- `node C ...`, in a module, declares the constructor `C` as a type would
-  (`node And : TBool -> TBool -> TBool [@comm] [@idem]`). The module declares
-  what the node is (its arguments, typing, laws and operators), and Kanon
-  places it in the types of the language, in the order of the modules: an
-  operator on `k` operands in the type of the operators of the
-  `[@operators]` constructor of `kind` with `k` terms (`And` in `binop`, for
-  `Binop of binop * t * t`), a sort that the typings use in `ty`, and the other
-  nodes in `kind`. The language declares those types, as its OCaml AST has
-  them, with their other constructors (`Var of var`, `TSeq of ty`); a type
-  that only has nodes is declared without constructors (`type binop
-  [@ocaml "Binop.t"]`). The language may also place a node itself, by naming
-  it alone in a type (`type nop = Distinct`), which it must for a node with
-  operands that Kanon does not place by their number, such as `Distinct` in
-  `Nop of nop * t list`.
-- A node placed in `kind` itself, rather than in a type of operators, has its
-  operands as arguments (`Ite of t * t * t`).
+- `node C ...` declares the constructor `C` of terms
+  (`node And : TBool -> TBool -> TBool [@comm] [@idem]`): its arguments,
+  typing, laws and operators. A node without operands (`node Var of var`,
+  `node Bool of bool : TBool [@literal bool]`) is a *leaf*; one with `k`
+  operands in its typing is an *operator* of arity `k`; one whose only operand
+  sort is a list (`node Distinct : a list -> TBool`, whose operands all have
+  the sort `a`) an operator of any arity. `s list` is only allowed there.
+- `sort S ...` declares a sort, a constructor of `ty`
+  (`sort TBitVector of nat [@get size]`). Sorts and nodes are constructors:
+  their names differ.
 - `extend rule f = | r: p -> e ...`, in the rules of a module, adds rules to the
   rule function `f` of a module below it, as if they were written in `f`: last,
   but before its final catch-all case `_`, or with `extend rule f before r`,
@@ -141,37 +129,46 @@ Kanon places the nodes of its modules.
   The cases go into the match that ends `f`, behind `let`s and the right
   operands of `||` and `&&`.
 
+Kanon generates the terms from the nodes, in the order of the modules. Their
+kinds are the leaves, then, for each arity used, the operators of that arity,
+in a type `opk` (with their other arguments: `Add of checked`) under a
+constructor `Opk`: `Op1 of op1 * t`, `Op2 of op2 * t * t`, ..., and
+`OpN of opn * t list`. In Lean, they are `Kind.Op2 Op2.And a b`. The rules do
+not name them: they write `And (a, b)` or `a && b`.
+
 ### Attributes of nodes
 
-The arguments of attributes are names, integers, `true` and `false`, or strings
-for anything else (`[@fold f_add]`, `[@zero 0]`, `[@ocaml "Svalue_ast.Unop.t"]`).
+The arguments of attributes are names (of functions, nodes and constants),
+integers, `true` and `false`, or strings for anything else (`[@fold f_add]`,
+`[@zero 0]`, `[@ocaml "Bv.t"]`).
 
-- `[@comm]` on a binary operator: its operands commute.
+- `[@comm]` on a binary operator: its operands commute (see [Terms](#terms)
+  and [Proofs](#proofs)).
 - `C of a * b (x, y) : s1 -> s2 when e` on an operator: its typing, from which
   Kanon generates `T.WT` in `Typing.lean`. Its operands, then its result, have
   the sorts `s1`, `s2`, which are terms of `ty` over the arguments `x`, `y` of
-  `C` and over free variables, under the condition `e`. A free variable stands
-  for any sort where a sort is expected, and otherwise for any value of its
-  type; a width (`nat` argument of a type) is positive, unless the condition
+  `C` and over free variables, under the condition `e` (optional). A free
+  variable stands for any sort where a sort is expected, and otherwise for any
+  value of its type, and a repeated one for the same (`node Eq : a -> a ->
+  TBool`); a width (`nat` argument of a type) is positive, unless the condition
   constrains it.
-- `[@literal]` on a kind constructor of one `bool`: the boolean literals, which
-  `true` and `false` match. `[@to_term f]` gives the function that makes the
-  literal of a boolean, for `[@fold]` (e.g. `of_bool`).
-- `[@literal int]` on a kind constructor of one `int`: the integer literals,
-  which `0`, `1`, ... and `#x` match; `#x` binds their integer.
-- `[@literal t]` on a kind constructor of one `int`: integer literals whose
-  values have the (abstract) type `t`, e.g. bit-vectors, which `#x` binds in
-  rules (and their integer in helpers). The constructor then gives:
-  - `[@to_term f]`: the function that makes the literal of a value, called
-    where a value is used as a term (e.g. `lit`);
-  - `[@of_term p]`: the primitive that reads the value of a literal (e.g.
-    `bv_of_lit`);
-  - `[@raw f p]`, any number of times: the primitive `p` computes `f`,
-    whose last argument is a value, directly on the literal, without reading its
-    value (e.g. `[@raw width lit_width]`).
-- `[@ite]`: the node of conditionals, for `[@distrib_ite]`.
-- `[@get f]` on a sort with one argument: the helper `f` reads that argument
-  from the sort of a term (`node TBitVector of nat [@get size]`). Kanon then
+- `[@literal bool]` on a node of one `bool`: the boolean literals, which
+  `true` and `false` match in patterns.
+- `[@literal int]` on a node of one `int`: the integer literals, which `0`,
+  `1`, ... and `#x` match in patterns; `#x` binds their integer. These patterns
+  are sugar for the node: `x + 0` is `Plus (x, Int 0)`.
+- `[@literal v]` on a node of one `int`: integer literals whose values have the
+  (abstract) type `v`, e.g. bit-vectors, which `#x` binds in rules (and their
+  integer in helpers). The node then gives:
+  - `[@to_term f]`: `f : v -> t` makes the literal of a value, where a value is
+    used as a term (e.g. `lit`);
+  - `[@of_term p]`: the primitive `p : t -> v` reads the value of a literal
+    (e.g. `bv_of_lit`);
+  - `[@raw f p]`, any number of times: for `f : a1 -> ... -> v -> r`, the
+    primitive `p : a1 -> ... -> t -> r` computes `f` directly on the literal,
+    without reading its value (e.g. `[@raw width lit_width]`).
+- `[@get f]` on a sort with one argument: the helper `f : t -> int` reads that
+  argument from the sort of a term (`sort TBitVector of nat [@get size]`). Kanon then
   reads the argument with `f v`, rather than by matching the sort of `v`,
   where it infers the sort of a node or binds the variables of the sort of an
   operand (see [Rules](#rules)).
@@ -189,13 +186,29 @@ prefix "not" = Not, b_not
 in expressions, `a + b` calls the smart constructor `f` with the leading
 arguments `args` (`bv_add unchecked a b`); in patterns, it matches the node
 (`Add (_, a, b)`, whatever its parameters); on the values of literals (see
-`[@literal t]`), it is the primitive `g`. The operators are `+`, `-`, `*`,
-`land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`, `++`, `&&`, `||` and `==`, the
-prefix `-`, `~` and `not`, and any word (`urem`), which is then an infix
-operator, at the precedence of `*`, in the rest of the files (the declarations
-of a module come before its rules, and before the modules it uses after them),
-and no longer a name. Otherwise, the arithmetic and bitwise operators are those
-of integers, and `&&`, `||` and `not` those of booleans.
+`[@literal v]`), it is the primitive `g`. `prefix "op" = Node, f args[, g]` is
+the same for one operand.
+
+An operator is a word (`urem`) or, as in OCaml, a sequence of the symbols
+`! $ % & * + - . / : < = > ? @ ^ | ~`, of `#` after the first, and of
+non-ASCII characters (`≤`, `⊕`), read as long as possible. The reserved `=`,
+`|`, `->`, `<-`, `:`, `::`, `;` and `.` cannot be declared, nor `<>`, built in
+at every type. Its first character gives its precedence, as in OCaml; from the
+lowest:
+
+- `||` (right), `&&` (right);
+- `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=`, the words and the
+  operators that start with a non-ASCII character (left);
+- `@...`, `^...` (right); `::` (right);
+- `+...`, `-...` (left); `*...`, `/...`, `%...` (left); `**...` (right);
+- the prefix `-`; the prefix `!...`, `~...` and `?...`.
+
+The prefix operators are `-`, `not` and the symbols that start with `!`, `~`
+or `?`. A word is an infix operator, and no longer a name, from its
+declaration on: in the rest of the files (the declarations of a module come
+before its rules, and before the modules it uses after them). Otherwise,
+`+`, `-`, `*`, the prefix `-`, `<`, `<=`, `>` and `>=` are those of integers,
+and `&&`, `||` and `not` those of booleans; the others must be declared.
 
 The node of an operator may fix its parameters, as in `Rem false`: its patterns
 then match only these (`a urem b` is `Rem (false, a, b)`), and in a rule on the
@@ -205,29 +218,37 @@ node, a case `p urem q` is the case `p, q` when the parameter of the spec is
 ### Constants
 
 ```ocaml
-constant "0" (v) = bv_zero (size v)
-constant "true" (v) = v_true
+constant 0 (v) = bv_zero (size v)
+constant true = v_true
+constant ones (v) = bv_ones (size v)
 ```
 
-`constant "c" (v) = e` is the term of the literal `c` (`0`, `1`, `true` or
-`false`) at the type of the term `v`, for the laws `[@unit c]` and
-`[@zero c]`.
+`constant c (v) = e` is the term of the constant `c` at the sort of the term
+`v`, and `constant c = e` at any sort, for the laws `[@unit c]` and
+`[@zero c]`. `c` is a literal, `0`, `1`, `true` or `false` (also written
+`"0"`, ...), or a name. The constant of a literal is optional: Kanon otherwise
+builds the literal node (`Bool false`, `Int 0`), but for `[@literal v]`
+literals, whose values are abstract.
 
-### Lean
+### Floating attributes
 
+- `[@@@ocaml_prims "M"]`: the OCaml module of the primitives (see
+  [OCaml](#ocaml)), required when the language has primitives.
+- `[@@@ocaml_types "M"]`: the OCaml module of the types, which the generated
+  rules open (see [OCaml](#ocaml)).
 - `[@@@lean_root "R"]`: the namespace of the Lean model, and the root of its
   modules (`Kanon` by default).
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
   statements quantify over (e.g. a semantics of floats).
 
-`use`, `type`, `of`, `node`, `infix`, `prefix`, `constant`, `extend` and
-`before` are keywords.
+`use`, `type`, `sort`, `of`, `node`, `infix`, `prefix`, `constant`, `extend`
+and `before` are keywords.
 
 ## Functions
 
 ```ocaml
 rule bv_not : BvNot v =
-  | lit: BitVec bv -> lit (lognot bv)
+  | not: BvNot x -> x
   | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
 
 fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
@@ -239,7 +260,7 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   returns a term that must refine the raw term `e` (its spec). Its cases match
   the operands of the spec (its parameters of type `t` and `t list`, as a tuple
   when there are several), and each is a rule, named by the label before its
-  pattern (`lit:`). A rule function may instead have an expression as its body,
+  pattern (`not:`). A rule function may instead have an expression as its body,
   `rule f : e = expr`, with no rules. When the spec is
   a node over variables, `C (x1, ..., xn)`, they are the parameters of the
   function, at the types of the arguments of `C` (`v : t` above); otherwise the
@@ -251,15 +272,13 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
   [Rules](#rules)).
-- `prim f : a -> b` declares a primitive, implemented by hand in `P` and in
-  Lean (the generated OCaml and `Signatures.lean` check that both define it, at
-  this type); `oracle f : a -> b` declares one that the Lean model takes as a
+- `prim f : a -> b` declares a primitive, implemented by hand in OCaml, in the
+  module of `[@@@ocaml_prims]` (see [OCaml](#ocaml)), and in Lean (the
+  generated OCaml and `Signatures.lean` check that both define it, at this
+  type); `oracle f : a -> b` declares one that the Lean model takes as a
   parameter, so that the proofs may not rely on its behaviour (e.g. a
   hash-consing order).
-- `type_of v` is the sort of the term `v`. It and the primitive `equal`
-  (physical equality of hash-consed terms) are compiled to direct accesses of
-  the terms in OCaml. `P` must also define `node`, `zcompare`,
-  `zequal` and `equal_ty`.
+- `type_of v` is the sort of the term `v` (`v.ty` in OCaml).
 - A language with commutative operators gets the oracle `tag_le` (the
   hash-consing order, compiled to a comparison of the tags in OCaml) and the
   helper `mk_commut_binop` (see [Terms](#terms)).
@@ -303,29 +322,41 @@ whose spec is the operator over the function's parameters, e.g. `bv_mul` for
 derived rules are ordinary rules: they are generated and proved like the
 others, and a hand-written rule may not reuse their names.
 
-| law | derived rule, in `bv_add (checked) (v1 v2)`, `bv_sub`, `bv_neg`, ... |
-|---|---|
-| `[@fold f]` | `lits: #l + #r -> f l r`, `lit: #bv -> f bv` |
-| `[@unit c]` | `zero: x + 0 -> x` (commutative), `zero: _ lsl 0 -> v1` (otherwise) |
-| `[@zero c]` | `zero: _ * 0 -> bv_zero (size v1)`, `false_: _ && false -> v_false` |
-| `[@idem]` | `same: v && v -> v` |
-| `[@invol]` | `neg: -x -> x`, named after the operator (unary operators) |
-| `[@distrib_ite]` | `ite: Ite (b, l, r) -> b_ite b (bv_neg checked l) (bv_neg checked r)` (unary operators) |
+| law | rule | rewrite, in `plus (v1 v2)`, `b_and`, `b_not`, `bv_and`, ... |
+|---|---|---|
+| `[@comm]` | none | the rules match the operands in either order |
+| `[@fold f]` | `lits`, `lit` | `Int i1 + Int i2 -> Int (f i1 i2)`, `not (Bool b) -> Bool (f b)` |
+| `[@fold f lift]` | `lits`, `lit` | `Int i1 + Int i2 -> lift (f i1 i2)` |
+| `[@unit c]` | `unit_zero`, `unit_ones` | `x + 0 -> x`, `x & y -> x` when `y` is `ones` |
+| `[@zero c]` | `zero_false` | `x && false -> false` |
+| `[@idem]` | `same` | `x && x -> x` |
+| `[@invol]` | `not`, after the operator | `not (not x) -> x` |
 
-- `[@fold f]`: `f` takes the last parameters of the node that it has room
-  for (`lit_extract from_ to_ bv`, `add_overflows signed l r`), then the
-  literals, of the types of its arguments: the values of integer literals of
-  type `t` (`[@literal t]`) are bound to `l` and `r` (to `t` for one
-  operand), the others to the first letter of their type (`Float f1`,
-  `Float f2`, `Float f`). A `bool` result is lifted with the `[@to_term]` of
-  the boolean literals, and a result of another type `T` with its literal
-  constructor, at the sort of the spec (`Float (f_add f1 f2)`).
-- `[@unit c]` and `[@zero c]` take the literal `0`, `1`, `true` or `false`,
-  which names the rule (`zero`, `one`, `true_`, `false_`), and whose term the
-  language declares with `constant`. On an operator that does not commute, `c`
-  is on the right; on one that does, the rule matches it on either side.
-- `[@distrib_ite]` rebuilds the branches with the rule function itself, and the
-  conditional (the node marked `[@ite]`) with its rule function.
+The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
+`[@invol]` is the case `not x -> x`, on the operand `v`.
+
+- `[@comm]` applies to binary operators: see [Terms](#terms) and
+  [Proofs](#proofs).
+- `[@fold f lift]`: `f : p1 -> ... -> a1 -> a2 -> r` takes the last parameters
+  of the node that it has room for (`lit_extract from_ to_ bv`,
+  `add_overflows signed l r`), then the literals, of the types of its
+  arguments: the values of `[@literal v]` literals are bound to `l` and `r` (to
+  `v` for one operand), the others to the first letter of their type
+  (`Int i1`, `Int i2`, `Bool b`). `lift : r -> t`, a function or a node, makes
+  a term of the result of `f`. It is optional: by default, a `bool` is lifted
+  with the `[@literal bool]` node, an `int` with the `[@literal int]` node, a
+  value of `[@literal v]` is not lifted (it is a term by its `[@to_term]`), and
+  a value of another type with the leaf of one argument of that type
+  (`Float (f_add f1 f2)`). A node is built at the sort that its typing gives,
+  or else at the sort of the spec.
+- `[@unit c]` and `[@zero c]` take a literal, `0`, `1`, `true` or `false`,
+  which the rule matches, or a named constant (see [Constants](#constants)),
+  which it compares, with `=`, to the constant at the sort of the other
+  operand. The rule is named `unit_c` or `zero_c`, after the literal
+  (`unit_zero`, `unit_one`, `unit_true`, `unit_false`, `zero_zero`, ...) or the
+  constant (`unit_ones`). The term of a literal is its `constant`, if the
+  language declares one, or else the literal node. On an operator that does
+  not commute, `c` is on the right; on one that does, either side.
 
 ## Terms
 
@@ -339,15 +370,13 @@ others, and a hand-written rule may not reuse their names.
   hash-consing order: `And (v1, v2)` is the node of
   `mk_commut_binop And v1 v2`, which puts the operand with the smallest tag on
   the left.
-- Operators are node constructors (see `[@operators]`). The long forms remain
-  available.
 - Patterns match the kind of a term directly: `Int z`, `Add (c, l, r)`.
 
 ## Patterns
 
 - `0`, `1`, ... match integer literals, `#_` any of them, and `#x` binds one;
-  `true` and `false` match boolean literals.
-- A repeated variable matches equal terms: `| p, not p -> v_false`.
+  `true` and `false` match boolean literals (see `[@literal bool]`).
+- A repeated variable matches equal terms (`=`): `| p, not p -> v_false`.
 - The operands of commutative operators match in either order: `x + #k` also
   matches `#k + x`. The swap is left out when both operands are wildcards or
   variables bound nowhere else, as it matches the same terms.
@@ -358,21 +387,56 @@ others, and a hand-written rule may not reuse their names.
   (`{ unsigned = true; _ }`) are supported. Each alternative of an or-pattern is
   tried in turn, together with the guard.
 
+## OCaml
+
+`kanon ocaml-types lang.knl` generates the types of the language, in one
+recursive group, with their Kanon names, and its terms:
+
+```ocaml
+type t = { kind : kind; ty : ty; tag : int }
+```
+
+where `kind` has the leaves and the `Op1`, `Op2`, ... of the operators (see
+[Modules, nodes and sorts](#modules-nodes-and-sorts)), and `ty` the sorts.
+`node : kind -> ty -> t` hash-conses a term: a table of ephemerons, keyed on
+the kind and the sort of the term, gives the term already built, or the new
+one, with the next tag. `equal_x` and `hash_x` compare and hash the values of
+each type: structurally, terms by their tags, and the abstract types with
+their `[@equal]` and `[@hash]`. It only needs Zarith (`int` is `Z.t`). The
+table is not safe to use from several OCaml 5 domains at once: a known
+limitation.
+
+`kanon ocaml lang.knl` generates the rule functions and helpers, which need
+those types in scope: included next to them (`[%%include_file]`, see
+[Usage](#usage)), or in the module of `[@@@ocaml_types "Lang_types"]`, which
+they open. They call the primitives in the module of
+`[@@@ocaml_prims "Lang_prims"]`, which they check against the declarations
+(`module _ : sig ... end = Lang_prims`). On terms, `=` compares their tags.
+
 ## Proofs
 
 The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
 
 - `Types.lean` and `Syntax.lean` define the types of the language, around
-  `R.Abstract` (written by hand), and which operators commute (`Binop.Comm`,
-  from `[@comm]`), and `Typing.lean` the typing of the operators.
+  `R.Abstract` (written by hand): the operators of each arity (`Op1`, `Op2`,
+  …, `OpN`), the sorts (`Ty`), the terms (`Term.mk kind ty`, with
+  `Kind.Var x`, `Kind.Op2 Op2.And a b`, `Kind.OpN OpN.Distinct l`, …), and
+  which operators commute (`Op2.Comm`, from `[@comm]`); `Typing.lean` gives
+  the typing of the operators (`Op2.WT op a b t`, over the sorts of the
+  operands and of the result; `OpN.WT op e t`, over the sort `e` of all the
+  operands).
 - `Signatures.lean` checks that `R.Prims` defines the primitives, at their
   types.
 - `Model.lean` is a Lean model of the rule functions, over the primitives.
 - `Statements.lean` states that every alternative of every rule is sound: its
-  result *refines* its spec (the raw term it simplifies).
+  result *refines* its spec (the raw term it simplifies), and that the
+  operands of every commutative operator commute (`Op2.Plus.comm.Stmt`:
+  `Term.mk (Kind.Op2 Op2.Plus a b) t` is refined by
+  `Term.mk (Kind.Op2 Op2.Plus b a) t`).
 - `Lifts.lean` states that the specs are monotone in their term arguments.
-- `Soundness.lean` proves each rule from its alternatives, and every function
-  from its rules, up to `R.opsN_sound`: the whole simplifier is sound.
+- `Soundness.lean` proves the commutativity of each operator, each rule from
+  its alternatives, and every function from its rules, up to `R.opsN_sound`:
+  the whole simplifier is sound.
 
 They build on Kanon's Lean library, `lean/` (the package `kanon`, library
 `KanonCore`, namespace `Kanon`, which they open), and on modules written by
@@ -391,15 +455,16 @@ The library gives what does not depend on the language:
   the soundness of a rule function follows from that of its rules;
 - the attributes `kanon_spec` (the specs, which the rule tactics unfold),
   `kanon_tactic "tac"` (on the spec of a rule function: the tactic that proves
-  its arms) and `kanon_arm` (on a theorem: the hand-written proof of an arm);
-- `kanon_proof% X`, the proof of the arm `X`: its hand-written proof, or the
-  tactic of its function, or `kanon_auto`; and the tactic `kanon_arm`, the proof
-  of a rule from those of its arms.
+  its arms) and `kanon_arm` (on a theorem: the hand-written proof of an arm, or
+  of the commutativity of an operator);
+- `kanon_proof% X`, the proof of the arm `X` (or of the commutativity
+  `Op2.Plus.comm`): its hand-written proof, or the tactic of its function, or
+  `kanon_auto`; and the tactic `kanon_arm`, the proof of a rule from those of
+  its arms.
 
-The language gives the tactics `kanon_auto` (the default proof of an arm),
-`kanon_comm` (refinement up to the order of the operands of commutative
-operators) and `kanon_congr` (refinement by congruence), which the library
-declares, with `macro_rules`.
+The language gives the tactics `kanon_auto` (the default proof of an arm and
+of the commutativity of an operator) and `kanon_congr` (refinement by
+congruence), which the library declares, with `macro_rules`.
 
 `KanonCore.Proof`, imported on its own, gives the semantic layer and the rule
 tactics that the languages share (`soteria`'s `Tiny_values` uses them):
@@ -413,14 +478,16 @@ tactics that the languages share (`soteria`'s `Tiny_values` uses them):
   `instance : Refinement Refines := Sem.refinement`;
 - the tactics `kanon_split`, `kanon_cases`, `kanon_lift`, `kanon_lift_body`,
   `kanon_guards`, `kanon_lits`, `kanon_wt`, `kanon_sem_core`, `kanon_sem`,
-  `kanon_close`, `kanon_rule_lift` and `kanon_rule`, and `macro_rules` for
-  `kanon_comm` and `kanon_congr`. The language gives them its lemmas by
+  `kanon_close`, `kanon_comm`, `kanon_rule_lift` and `kanon_rule`, and
+  `macro_rules` for `kanon_congr`. The language gives them its lemmas by
   attributes (`KanonCore.ProofAttr`): the simp sets `kanon_guards`,
   `kanon_body`, `kanon_lits`, `kanon_wt`, `kanon_ev` and `kanon_val`, the
   possible values of the atoms (`kanon_atom_cases`), and the congruence lemmas
-  of its nodes (`kanon_congr_lemma`, `kanon_comm_lemma`), and may extend the
-  tactics `kanon_congr_pre`, `kanon_congr_side`, `kanon_comm_side` and
-  `kanon_rule_close`.
+  of its nodes (`kanon_congr_lemma`), and may extend the tactics
+  `kanon_congr_pre`, `kanon_congr_side` and `kanon_rule_close`. `kanon_comm`
+  (refinement up to the order of the operands of commutative operators, which
+  `kanon_rule_lift` tries) uses the congruence lemmas and the commutativity of
+  the operators, which `Soundness.lean` tags `kanon_comm_lemma`.
   `kanon_lift` lifts a call `O.f args` with the lemma `R.Lib.lift_f` of
   `Lifts.lean`.
 
@@ -433,18 +500,18 @@ any language that uses it (namespace `Kanon.BoolMod`):
   Term`, the `Term.mk` of the language), the kinds of the nodes of the module
   (`litK`, `notK`, `andK`, `orK`, `eqK`, `iteK`, `distinctK`) and the type
   `tbool`, such that the terms of the generated statements are definitionally
-  equal to them (e.g. `Term.mk (Kind.Binop Binop.And a b) Ty.TBool` to
-  `mk (andK a b) tbool`); its booleans (`vbool : Bool → Val`); the primitive
-  `equal` and the helper `sure_neq` (which the modules above extend); and their
-  laws: the typing of the nodes (`WT_and`, …), their evaluation by the
-  operations of `KanonCore.BoolMod.Val` (`ev_and : ev ρ (mk (andK a b) t) =
+  equal to them (e.g. `Term.mk (Kind.Op2 Op2.And a b) Ty.TBool` to
+  `mk (andK a b) tbool`); its booleans (`vbool : Bool → Val`); the helper
+  `sure_neq` (which the modules above extend); and their laws: the typing of
+  the nodes (`WT_and`, …), their evaluation by the operations of
+  `KanonCore.BoolMod.Val` (`ev_and : ev ρ (mk (andK a b) t) =
   pand vbool (ev ρ a) (ev ρ b)`, …, with `pand`, `por`, `pnot`, `peq`, `pite`
   and `pdistinct`, which the language may use in its own `ev`), that
   well-typed booleans evaluate to booleans (`ev_bool`), that `vbool` is
-  injective, that `equal a b` implies `a = b`, and that surely different terms
-  of the same type have different values (`sure_neq_sound`). The language
-  defines it as `R.boolLang : BoolMod.Lang R.sem` (`R.boolLang x` for the
-  parameters `x` of `[@@@lean_param]`), in a module that `R.Proofs` imports;
+  injective, and that surely different terms of the same type have different
+  values (`sure_neq_sound`). The language defines it as
+  `R.boolLang : BoolMod.Lang R.sem` (`R.boolLang x` for the parameters `x` of
+  `[@@@lean_param]`), in a module that `R.Proofs` imports;
 - `BoolMod.Ops L` is the bool module in the model of the language (its rule
   functions, the oracles `tag_le` and `sort_by_tag`, and the helpers
   `at_most_one`, `distinct_check_one` and `distinct_check`), and
@@ -456,7 +523,8 @@ any language that uses it (namespace `Kanon.BoolMod`):
   are proved by the tactic `kanon_bool` (`KanonCore.BoolMod.Tactic`).
 
 `Soundness.lean` proves each arm of the module by that theorem, applied to the
-language (`fun O hO => BoolMod.f.r_rule.arm boolLang O.bool hO.bool`), and
+language (`fun O hO => BoolMod.f.r_rule.arm boolLang O.bool hO.bool`), the
+commutativity of `And`, `Or` and `Eq` by `BoolMod.Lang.refines_and_comm`, …, and
 defines the bool module of the model, `Ops.bool O : BoolMod.Ops boolLang`, with
 the proof `Ops.Sound.bool : O.Sound → O.bool.Sound` (which uses the field
 `sort_by_tag` of the language's `Oracle.Compat`). The arms that the other
@@ -472,7 +540,12 @@ with an index when both branches have the same head (`lt_leq`, `lt1`), and
 `swap` for a swap (numbered when there are several), prefixed by `cN` when the
 rule has several cases; an arm with no choice is `main`. An alternative that
 only swaps commutative operands is proved from the unswapped one, if its guard
-and body do not depend on the swap.
+and body do not depend on the swaps: by the commutativity of the operators
+swapped (`Op2.Plus.comm.ok`), with `kanon_congr` for the operands swapped
+below the spec (and for the sort of a spec that is that of an operand,
+`type_of v1`, which its typing makes equal to that of the other one, by
+`kanon_congr_side`). The proofs to write are thus one per case (when
+`kanon_auto` does not find it) and one per commutative operator.
 
 `KanonCore.Lang`, in the library, is a trial of a generic core: terms, their
 evaluation and their refinement, for any language.
@@ -489,13 +562,13 @@ evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
   boolean literals, `Not`, `And`, `Or`, equality (`Eq`), conditionals (`Ite`)
   and `Distinct`, with their rules (the rule functions `b_not`, `b_and`,
   `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct`). They are built
-  into `kanon`, as the module `+bool`. A language that uses the module places its nodes in its types, and declares the type `TBool`; the
-  modules above it can add rules to its rule functions with `extend rule`, and
-  literals to its helper `sure_neq` with `extend fn`. It is the bool module of
-  soteria's `Bv_values` and `Tiny_values`.
+  into `kanon`, as the module `+bool`. The modules above it can add rules to
+  its rule functions with `extend rule`, and literals to its helper `sure_neq`
+  with `extend fn`. It is the bool module of soteria's
+  `Bv_values` and `Tiny_values`.
 - `examples/bool/` is a complete example language, made of the bool module
-  alone, to start from: `lang.knl` declares its types and places the nodes of
-  the module in them, and `lean/` is the Lean proof of its rules (the package
+  alone, to start from: `lang.knl` adds its variables to the module, and
+  `lean/` is the Lean proof of its rules (the package
   `bool_example`, library `BoolExample`), which uses Kanon's library from this
   repository. Its generated files are committed: `dune test` checks that they
   are up to date (`dune promote` updates them). Its hand-written files are the
@@ -525,7 +598,7 @@ It knows the names of the language, as Kanon scopes them:
 
 - the global names: functions, primitives, nodes, constructors, types, rules
   (`before r` goes to the rule `r` of the extended function, or to the law that
-  derives it, `[@unit 0]`) and operators (`+`, `land`, `not`, `urem`, ...,
+  derives it, `[@unit 0]`) and operators (`+`, `&&`, `not`, `urem`, ...,
   which go to their `infix` or `prefix` declaration, and whose hover says what
   they build, match and compute);
 - the local names: parameters, operands of specs (`v1` in `And (v1, v2)`),

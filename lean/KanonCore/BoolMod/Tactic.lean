@@ -13,19 +13,6 @@ namespace Kanon.BoolMod
 
 open Classical Kanon Lean Meta Elab Tactic
 
-/-- Replaces the guards `L.equal a b = true` by `a = b`. -/
-elab "kanon_bool_equal" : tactic => liftMetaTactic fun g => g.withContext do
-  let mut g := g
-  for d in ← getLCtx do
-    if d.isImplementationDetail then continue
-    let ty ← instantiateMVars d.type
-    let some (_, lhs, rhs) := ty.eq? | continue
-    unless lhs.isAppOfArity ``Lang.equal 4 && rhs.isConstOf ``Bool.true do continue
-    let pf ← mkAppM ``Lang.equal_eq #[lhs.getArg! 1, lhs.getArg! 2, lhs.getArg! 3, d.toExpr]
-    let (_, g') ← (← g.assert `kanon_eq (← inferType pf) pf).intro1P
-    g := ← g'.tryClear d.fvarId
-  return [g]
-
 /-- The typing and evaluation of the nodes of the module. -/
 macro "kanon_bool_simp" loc:(Lean.Parser.Tactic.location)? : tactic => `(tactic|
   simp only [Lang.vtrue, Lang.vfalse, Lang.mkNot, Lang.mkAnd, Lang.mkOr, Lang.mkEq, Lang.mkIte,
@@ -67,7 +54,6 @@ macro "kanon_bool" : tactic => `(tactic| (
   (try simp only [Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq,
     decide_eq_false_iff_not] at *)
   (try kanon_split)
-  kanon_bool_equal
   (try subst_vars)
   (try simp only [Lang.of_bool])
   (repeat' split)

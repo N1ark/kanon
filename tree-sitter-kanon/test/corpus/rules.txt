@@ -25,12 +25,14 @@ rule b_and : And (v1, v2) =
           (identifier))
         (binary_pattern
           (boolean)
+          (operator)
           (wildcard))
         (identifier))
       (case
         (rule_name)
         (binary_pattern
           (identifier)
+          (operator)
           (unary_pattern
             (identifier)))
         (identifier))
@@ -42,8 +44,10 @@ rule b_and : And (v1, v2) =
             (alias_pattern
               (binary_pattern
                 (identifier)
+                (operator)
                 (wildcard))
               (identifier)))
+          (operator)
           (identifier))
         (identifier))
       (case
@@ -52,9 +56,12 @@ rule b_and : And (v1, v2) =
         (binary_pattern
           (binary_pattern
             (identifier)
+            (operator)
             (identifier))
+          (operator)
           (binary_pattern
             (identifier)
+            (operator)
             (identifier)))
         (application_expression
           (identifier)
@@ -97,6 +104,7 @@ rule bv_add (c : checked) : Add (c, v1, v2) = bv_add_impl c v1 v2
               (application_expression
                 (identifier)
                 (identifier))
+              (operator)
               (application_expression
                 (identifier)
                 (identifier)))))
@@ -107,6 +115,7 @@ rule bv_add (c : checked) : Add (c, v1, v2) = bv_add_impl c v1 v2
         (wildcard)
         (binary_expression
           (identifier)
+          (operator)
           (identifier)))))
   (rule_definition
     (identifier)
@@ -169,7 +178,8 @@ extend fn sure_neq =
             (parenthesized_pattern
               (tuple_pattern
                 (number)
-                (unary_pattern
+                (prefix_pattern
+                  (operator)
                   (identifier))))
             (attribute
               (attribute_name
@@ -188,6 +198,7 @@ extend fn sure_neq =
           (parenthesized_expression
             (binary_expression
               (identifier)
+              (operator)
               (identifier))))))))
 
 ================================================================================
@@ -250,6 +261,7 @@ fn checked_meet (a b : checked) : checked =
           (field_expression
             (identifier)
             (field_identifier))
+          (operator)
           (field_expression
             (identifier)
             (field_identifier))))
@@ -259,6 +271,7 @@ fn checked_meet (a b : checked) : checked =
           (field_expression
             (identifier)
             (field_identifier))
+          (operator)
           (field_expression
             (identifier)
             (field_identifier)))))))
@@ -300,6 +313,7 @@ fn f (l : t list) : bool option =
             (identifier)
             (identifier)
             (identifier))
+          (operator)
           (assert_expression
             (identifier))))
       (match_expression
@@ -316,6 +330,7 @@ fn f (l : t list) : bool option =
           (case
             (binary_pattern
               (identifier)
+              (operator)
               (identifier))
             (parenthesized_expression
               (match_expression
@@ -349,12 +364,13 @@ fn h : t = f x urem y
     (identifier)
     (type_identifier)
     (binary_expression
-      (binary_expression
-        (parenthesized_expression
-          (identifier))
-        (infix_word)
+      (parenthesized_expression
         (identifier))
-      (number)))
+      (infix_word)
+      (binary_expression
+        (identifier)
+        (operator)
+        (number))))
   (function_definition
     (identifier)
     (type_identifier)
@@ -363,3 +379,126 @@ fn h : t = f x urem y
       (identifier)
       (identifier)
       (identifier))))
+
+================================================================================
+Symbolic operators
+================================================================================
+
+fn f : t = a || b && c = d <= e |> g @ h :: l + i -. j * k /. m ** n ** o
+fn g : t = x ≤ -y != ~z && f !x
+rule le : Le (v1, v2) =
+  | lits: #x ≤ #y -> of_bool (x <= y)
+  | not: ~x +. 0 -> x
+  | cons: -x :: l -> x
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (type_identifier)
+    (binary_expression
+      (identifier)
+      (operator)
+      (binary_expression
+        (identifier)
+        (operator)
+        (binary_expression
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (operator)
+              (identifier))
+            (operator)
+            (identifier))
+          (operator)
+          (binary_expression
+            (identifier)
+            (operator)
+            (binary_expression
+              (identifier)
+              (operator)
+              (binary_expression
+                (binary_expression
+                  (identifier)
+                  (operator)
+                  (identifier))
+                (operator)
+                (binary_expression
+                  (binary_expression
+                    (identifier)
+                    (operator)
+                    (identifier))
+                  (operator)
+                  (binary_expression
+                    (identifier)
+                    (operator)
+                    (binary_expression
+                      (identifier)
+                      (operator)
+                      (identifier)))))))))))
+  (function_definition
+    (identifier)
+    (type_identifier)
+    (binary_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (operator)
+          (unary_expression
+            (operator)
+            (identifier)))
+        (operator)
+        (prefix_expression
+          (operator)
+          (identifier)))
+      (operator)
+      (application_expression
+        (identifier)
+        (prefix_expression
+          (operator)
+          (identifier)))))
+  (rule_definition
+    (identifier)
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier))))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (literal_pattern
+            (identifier))
+          (operator)
+          (literal_pattern
+            (identifier)))
+        (application_expression
+          (identifier)
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (operator)
+              (identifier)))))
+      (case
+        (rule_name)
+        (binary_pattern
+          (prefix_pattern
+            (operator)
+            (identifier))
+          (operator)
+          (number))
+        (identifier))
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (unary_pattern
+            (operator)
+            (identifier))
+          (operator)
+          (identifier))
+        (identifier)))))

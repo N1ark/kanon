@@ -25,6 +25,11 @@
   (constructor_declaration
     name: (_) @name)) @item
 
+(sort_declaration
+  "sort" @context
+  (constructor_declaration
+    name: (_) @name)) @item
+
 (operator_declaration
   kind: _ @context
   operator: (_) @name) @item

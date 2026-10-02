@@ -43,6 +43,15 @@ theorem Ops.Sound.bool {O : Ops} (hO : O.Sound) : O.bool.Sound where
   distinct_check_cons _ _ := by
     dsimp only [Ops.bool]; rw [distinct_check]; split <;> simp_all [firstSome]
 
+@[kanon_comm_lemma] theorem Op2.And.comm.ok : Op2.And.comm.Stmt :=
+  fun _ _ _ => BoolMod.Lang.refines_and_comm (L := boolLang)
+
+@[kanon_comm_lemma] theorem Op2.Or.comm.ok : Op2.Or.comm.Stmt :=
+  fun _ _ _ => BoolMod.Lang.refines_or_comm (L := boolLang)
+
+@[kanon_comm_lemma] theorem Op2.Eq.comm.ok : Op2.Eq.comm.Stmt :=
+  fun _ _ _ => BoolMod.Lang.refines_eq_comm (L := boolLang)
+
 theorem b_and.r_same.main.ok : b_and.r_same.main.Stmt :=
   fun O hO => BoolMod.b_and.r_same.main boolLang O.bool hO.bool
 
@@ -709,7 +718,7 @@ theorem b_distinct.step_sound (O : Ops) (hO : O.Sound) (l : (List Term)) :
   exact Refinement.firstSome_nil
 
 /-- Every rule function refines its spec, for any amount of fuel. -/
-  theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
+theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
   ∀ n, (opsN orc n).Sound
   | 0 =>
     { orc := h,

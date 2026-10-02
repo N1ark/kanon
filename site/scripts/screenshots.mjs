@@ -1,7 +1,7 @@
 // Checks the built site (dist/) in a headless Chromium, and takes screenshots
-// of the tutorial and of the sandbox, in light and dark: no errors in the
-// console, Kanon highlighted by tree-sitter, the generated code shown, and in
-// the sandbox a diagnostic, a hover and the outputs.
+// of the tutorial, the reference and the sandbox, in light and dark: no errors
+// in the console, Kanon highlighted by tree-sitter, the generated code shown,
+// and in the sandbox a diagnostic, a hover and the outputs.
 //
 //   npm run build:mock && npm run shots -- OUT_DIR
 //
@@ -74,6 +74,17 @@ for (const scheme of ["light", "dark"]) {
     await m.close();
   }
 
+  // the reference
+  const r = await page(scheme);
+  await r.goto(`${base}reference.html`);
+  await r.waitForSelector('pre[data-lang="kanon"] span.ts-keyword');
+  const rows = await r.$$eval("table tr", (x) => x.length);
+  check(rows > 30, `${scheme}: reference tables (${rows} rows)`);
+  await shot(r, `reference-top-${scheme}`);
+  await r.locator("#operators").scrollIntoViewIfNeeded();
+  await shot(r, `reference-operators-${scheme}`);
+  await r.close();
+
   // the sandbox, with the tiny language
   const s = await page(scheme);
   await s.goto(`${base}sandbox.html#example=tiny`);
@@ -130,10 +141,10 @@ for (const scheme of ["light", "dark"]) {
   await s.waitForFunction(() => window.sandbox?.status === "ready", null, { timeout: 30000 });
   await s.getByRole("tab", { name: "int.kn", exact: true }).click();
   // hover on an operator
-  await s.locator(".editor .cm-line", { hasText: "lits: #x + #y" }).locator("span", { hasText: /^\+$/ }).first().hover();
+  await s.locator(".editor .cm-line", { hasText: "lits: #x lt #y" }).locator("span", { hasText: /^lt$/ }).first().hover();
   await s.waitForSelector(".cm-lsp-hover", { timeout: 10000 });
   const opHover = await s.locator(".cm-lsp-hover").textContent();
-  check(/Plus|plus/.test(opHover), `hover on + shows its operator (${opHover.replace(/\s+/g, " ").slice(0, 60)}…)`);
+  check(/Lt|int_lt/.test(opHover), `hover on lt shows its operator (${opHover.replace(/\s+/g, " ").slice(0, 60)}…)`);
   await shot(s, "sandbox-hover-operator-light");
   await s.mouse.move(5, 5);
   // references of of_bool, if the server finds them

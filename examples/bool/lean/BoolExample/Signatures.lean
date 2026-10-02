@@ -8,7 +8,6 @@ namespace BoolExample
 
 noncomputable section
 
-example : Term → Term → Bool := equal
 example : Term := v_true
 example : Term := v_false
 

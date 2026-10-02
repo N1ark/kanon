@@ -1,0 +1,51 @@
+; The generated OCaml compiles and runs: the types and rules of the language
+; of ../tiny.t, as modules (Tiny_types, Tiny_rules, opened through
+; [@@@ocaml_types] and the primitives of Tiny_prims), and of the example
+; language of examples/bool, included in one module (Bool_lang).
+
+(rule
+ (deps
+  (glob_files ../tiny.t/*.kn*))
+ (action
+  (with-stdout-to
+   tiny_types.ml
+   (run %{bin:kanon} ocaml-types ../tiny.t/lang.knl))))
+
+(rule
+ (deps
+  (glob_files ../tiny.t/*.kn*))
+ (action
+  (with-stdout-to
+   tiny_rules.ml
+   (run %{bin:kanon} ocaml ../tiny.t/lang.knl))))
+
+(rule
+ (deps
+  (glob_files ../tiny.t/*.kn*))
+ (action
+  (with-stdout-to
+   tiny_tests.ml
+   (progn
+    (echo "open Tiny_rules\n")
+    (run %{bin:kanon} ocaml-tests ../tiny.t/lang.knl)))))
+
+(rule
+ (deps %{project_root}/examples/bool/lang.knl)
+ (action
+  (with-stdout-to
+   bool_types.gen.ml
+   (run %{bin:kanon} ocaml-types %{project_root}/examples/bool/lang.knl))))
+
+(rule
+ (deps %{project_root}/examples/bool/lang.knl)
+ (action
+  (with-stdout-to
+   bool_rules.gen.ml
+   (run %{bin:kanon} ocaml %{project_root}/examples/bool/lang.knl))))
+
+(test
+ (name main)
+ (libraries zarith)
+ (preprocess
+  (pps kanon.ppx_include_file))
+ (preprocessor_deps bool_types.gen.ml bool_rules.gen.ml))

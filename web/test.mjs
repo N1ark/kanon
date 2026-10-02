@@ -84,8 +84,8 @@ same(kanon.root, "/sandbox", "root");
 same(
   Array.from(kanon.backends),
   [
+    "ocaml-types",
     "ocaml",
-    "ocaml-check",
     "ocaml-tests",
     "lean-types",
     "lean-syntax",
@@ -171,7 +171,7 @@ compare([], bool, "", "usage");
 compare(["ocaml"], bool, "", "usage");
 compare(["lean-everything", "lang.knl"], bool, "", "unknown backend");
 compare(["ocaml", "+nope"], bool, "", "unknown built-in module");
-compare(["ocaml-check", "+bool.knl"], bool, "", "built-in module");
+compare(["ocaml-types", "+bool.knl"], bool, "", "built-in module");
 
 const tiny = path.join(repo, "test/tiny.t");
 copy(tiny, `${root}/tiny`);
@@ -307,7 +307,7 @@ check(
 );
 same(
   loc?.range,
-  { start: { line: 53, character: 5 }, end: { line: 53, character: 10 } },
+  { start: { line: 50, character: 5 }, end: { line: 50, character: 10 } },
   "range of the definition in bool.kn",
 );
 const builtinPath = decodeURIComponent(loc?.uri?.slice(7) ?? "");

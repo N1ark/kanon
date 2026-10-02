@@ -21,6 +21,7 @@ Floating attributes
 
 [@@@lean_root "Kanon"]
 [@@@lean_param "FS" "FloatSem"]
+[@@@ocaml_prims "Prims"]
 
 --------------------------------------------------------------------------------
 
@@ -36,6 +37,11 @@ Floating attributes
     (string
       (string_content))
     (string
+      (string_content)))
+  (floating_attribute
+    (attribute_name
+      (identifier))
+    (string
       (string_content))))
 
 ================================================================================
@@ -44,11 +50,11 @@ Types
 
 type var [@ocaml "Symex.Var.t"] [@lean "Int"] [@noeq]
 type checked = { signed : bool; unsigned : bool }
-type kind [@ocaml "t_kind"] =
+type ext [@ocaml "Ext.t"] =
   | Var of var
   | Seq of t list
-  | Binop of binop * t * t [@operators]
-type binop
+  | Pair of checked * t * t [@attr]
+type bv
 
 --------------------------------------------------------------------------------
 
@@ -108,12 +114,16 @@ type binop
 Nodes
 ================================================================================
 
-node Bool of bool : TBool [@literal] [@to_term of_bool]
-node Eq : a -> b -> TBool when a = b [@comm]
+node Var of var
+node Bool of bool : TBool [@literal bool]
+node Eq : a -> a -> TBool [@comm]
+node Distinct : a list -> TBool
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold z_add Int]
 node BvExtract of nat * nat (i, j) : TBitVector n -> TBitVector (j - i + 1)
     when 0 <= i && i <= j && j < n [@fold lit_extract]
 node BvExtend of bool * nat (_, k) : TBitVector n -> TBitVector (n + k)
-node TBitVector of nat [@get size]
+sort TBitVector of nat [@get size]
+sort TBool
 
 --------------------------------------------------------------------------------
 
@@ -121,12 +131,13 @@ node TBitVector of nat [@get size]
   (node_declaration
     (constructor_declaration
       (constructor)
+      (type_identifier)))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
       (type_identifier)
       (sorts
         (constructor))
-      (attribute
-        (attribute_name
-          (identifier)))
       (attribute
         (attribute_name
           (identifier))
@@ -139,12 +150,37 @@ node TBitVector of nat [@get size]
         (identifier)
         (identifier)
         (constructor))
-      (binary_expression
-        (identifier)
-        (identifier))
       (attribute
         (attribute_name
           (identifier)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (sorts
+        (list_sort
+          (identifier))
+        (constructor))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (sorts
+        (constructor)
+        (constructor)
+        (constructor))
+      (attribute
+        (attribute_name
+          (identifier)))
+      (attribute
+        (attribute_name
+          (identifier))
+        (number))
+      (attribute
+        (attribute_name
+          (identifier))
+        (attribute_argument
+          (identifier))
+        (attribute_argument
+          (constructor)))))
   (node_declaration
     (constructor_declaration
       (constructor)
@@ -163,18 +199,25 @@ node TBitVector of nat [@get size]
             (binary_expression
               (binary_expression
                 (identifier)
+                (operator)
                 (identifier))
+              (operator)
               (number)))))
       (binary_expression
         (binary_expression
           (number)
+          (operator)
           (identifier))
+        (operator)
         (binary_expression
           (binary_expression
             (identifier)
+            (operator)
             (identifier))
+          (operator)
           (binary_expression
             (identifier)
+            (operator)
             (identifier))))
       (attribute
         (attribute_name
@@ -198,8 +241,9 @@ node TBitVector of nat [@get size]
           (parenthesized_expression
             (binary_expression
               (identifier)
+              (operator)
               (identifier)))))))
-  (node_declaration
+  (sort_declaration
     (constructor_declaration
       (constructor)
       (type_identifier)
@@ -207,7 +251,10 @@ node TBitVector of nat [@get size]
         (attribute_name
           (identifier))
         (attribute_argument
-          (identifier))))))
+          (identifier)))))
+  (sort_declaration
+    (constructor_declaration
+      (constructor))))
 
 ================================================================================
 Operators and constants
@@ -216,7 +263,11 @@ Operators and constants
 infix "&&" = And, b_and
 infix "urem" = Rem false, bv_rem false, lit_urem
 prefix "not" = Not, b_not
+infix "≤" = Le, b_le
 constant "0" (v) = bv_zero (size v)
+constant ones (v) = bv_ones (size v)
+constant 1 = one
+constant true = v_true
 
 --------------------------------------------------------------------------------
 
@@ -244,6 +295,12 @@ constant "0" (v) = bv_zero (size v)
     (tuple_expression
       (constructor)
       (identifier)))
+  (operator_declaration
+    (string
+      (string_content))
+    (tuple_expression
+      (constructor)
+      (identifier)))
   (constant_declaration
     (string
       (string_content))
@@ -253,13 +310,28 @@ constant "0" (v) = bv_zero (size v)
       (parenthesized_expression
         (application_expression
           (identifier)
-          (identifier))))))
+          (identifier)))))
+  (constant_declaration
+    (identifier)
+    (identifier)
+    (application_expression
+      (identifier)
+      (parenthesized_expression
+        (application_expression
+          (identifier)
+          (identifier)))))
+  (constant_declaration
+    (number)
+    (identifier))
+  (constant_declaration
+    (boolean)
+    (identifier)))
 
 ================================================================================
 Primitives and oracles
 ================================================================================
 
-prim equal : t -> t -> bool
+prim bv_of_lit : t -> bv
 oracle sort_by_tag : t list -> t list
 prim used_binders : (var * ty) list -> t -> (var * ty) list
 
@@ -270,9 +342,7 @@ prim used_binders : (var * ty) list -> t -> (var * ty) list
     (identifier)
     (function_type
       (type_identifier)
-      (function_type
-        (type_identifier)
-        (type_identifier))))
+      (type_identifier)))
   (primitive_declaration
     (identifier)
     (function_type

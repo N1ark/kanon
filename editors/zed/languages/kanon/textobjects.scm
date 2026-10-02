@@ -1,5 +1,5 @@
 ; Functions: rule functions, helpers and extensions, and the rules of a rule
-; function. Classes: types and nodes.
+; function. Classes: types, nodes and sorts.
 
 (function_definition
   body: (_) @function.inside) @function.around
@@ -22,6 +22,9 @@
   body: (_) @class.inside) @class.around
 
 (node_declaration
+  (constructor_declaration) @class.inside) @class.around
+
+(sort_declaration
   (constructor_declaration) @class.inside) @class.around
 
 (comment) @comment.inside

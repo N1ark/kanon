@@ -2,25 +2,25 @@
 
 namespace BoolExample
 
-inductive Unop where
+inductive Op1 where
   | Not
   deriving DecidableEq, Repr, Inhabited
 
-inductive Binop where
+inductive Op2 where
   | And
   | Or
   | Eq
   deriving DecidableEq, Repr, Inhabited
 
 /-- The operators whose operands commute (`[@comm]`). -/
-def Binop.Comm : Binop → Prop
+def Op2.Comm : Op2 → Prop
   | .And | .Or | .Eq => True
 
-inductive Triop where
+inductive Op3 where
   | Ite
   deriving DecidableEq, Repr, Inhabited
 
-inductive Nop where
+inductive OpN where
   | Distinct
   deriving DecidableEq, Repr, Inhabited
 

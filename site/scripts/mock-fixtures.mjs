@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const kanon = process.env.KANON ?? "kanon";
 const backends = [
+  "ocaml-types",
   "ocaml",
-  "ocaml-check",
   "ocaml-tests",
   "lean-types",
   "lean-syntax",

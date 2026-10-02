@@ -23,12 +23,28 @@ node Add of checked : TBitVector n -> TBitVector n [@comm] [@fold lit_add]
 (*                                                           ^ attribute *)
 (*                                                                ^ function *)
 
-type bv [@literal bv] [@ocaml "Bv.t"]
+type bv [@equal "Bv.equal"] [@ocaml "Bv.t"]
 (* <- keyword *)
 (*   ^ type *)
 (*        ^ attribute *)
-(*                ^ function *)
-(*                            ^ string *)
+(*               ^ string *)
+(*                                   ^ string *)
+
+node Distinct : a list -> TBool
+(*                 ^ type.builtin *)
+
+constant ones (v) = bv_ones (size v)
+(* <- keyword *)
+(*       ^ constant *)
+(*             ^ variable.parameter *)
+
+sort TBitVector of nat [@get size]
+(* <- keyword *)
+(*   ^ constructor *)
+(*              ^ keyword *)
+(*                 ^ type.builtin *)
+(*                      ^ attribute *)
+(*                           ^ function *)
 
 node BitVec of int [@raw to_z lit_to_z] [@raw width lit_width]
 (*                   ^ attribute *)
@@ -53,17 +69,21 @@ rule b_and : And (v1, v2) =
 (*         ^ operator *)
 (*            ^ keyword.operator *)
 (*                  ^ operator *)
-  | urem: l urem #n, _ when equal l n -> v_false
+  | urem: l urem #n, _ when type_of l = n -> v_false
 (*  ^ label *)
 (*          ^ keyword.operator *)
 (*               ^ punctuation.special *)
 (*                   ^ variable.special *)
 (*                     ^ keyword *)
 (*                          ^ function.builtin *)
-  | or_: x lor 0 -> x
+(*                                    ^ operator *)
+  | le: x <=. 0 || ~x ≤ y -> x
 (*  ^ label *)
-(*         ^ keyword.operator *)
-(*             ^ number *)
+(*        ^ operator *)
+(*            ^ number *)
+(*              ^ operator *)
+(*                 ^ operator *)
+(*                    ^ operator *)
 
 extend rule b_and before not =
 (* <- keyword *)

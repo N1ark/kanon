@@ -1,31 +1,23 @@
 (* A tiny value language: booleans and integers. *)
 
+[@@@ocaml_prims "Prims"]
+
 use "rules"
 
-type var [@ocaml "string"] [@lean "String"] [@noeq]
+type var [@ocaml "string"] [@lean "String"]
 
-type kind [@ocaml "t_kind"] [@noeq] =
-  | Var of var
-  | Unop of unop * t [@operators]
-  | Binop of binop * t * t [@operators]
-
-type unop
-type binop
-type ty
-
-node Bool of bool [@literal] [@to_term of_bool]
-node Int of int [@literal int]
-node Not : TBool -> TBool [@invol]
+node Var of var
+node Bool of bool : TBool [@literal bool]
+node Int of int : TInt [@literal int]
+node Not : TBool -> TBool [@invol] [@fold negb]
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
-node Plus : TInt -> TInt -> TInt [@comm]
-node Eq : a -> b -> TBool when a = b [@comm]
-node TBool
-node TInt
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+node Eq : a -> a -> TBool [@comm]
+
+sort TBool
+sort TInt
 
 infix "&&" = And, and_
 infix "+" = Plus, plus
 infix "==" = Eq, eq
 prefix "not" = Not, not_
-
-constant "true" (v) = v_true
-constant "false" (v) = v_false

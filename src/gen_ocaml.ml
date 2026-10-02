@@ -1,31 +1,22 @@
-(** OCaml backend. The output defines every Kanon function, in terms of a module
-    [P] of primitives, which must be in scope where it is included. Terms are
-    hash-consed ([Hc]) records [{ kind; ty }]. It is not meant to be read. *)
+(** OCaml backends. {!types} defines the types of the language, standalone (with
+    Zarith): terms are hash-consed records [{ kind; ty; tag }]. {!program}
+    defines every Kanon function, where these types are in scope, and calls the
+    primitives in the module of [[@@@ocaml_prims]]. The output is not meant to
+    be read. *)
 
 open Syntax
 
 let pf = Format.fprintf
 
-(** The module that defines a type of the language, with a trailing dot: where
-    its constructors and fields are. *)
-let module_of t =
-  let ty = (decl_of_ty t).d_ocaml in
-  let last = List.hd (List.rev (String.split_on_char ' ' ty)) in
-  match String.rindex_opt last '.' with
-  | Some i -> String.sub last 0 (i + 1)
-  | None -> ""
-
-let constr_path (c : constr) = module_of c.c_res
-
-(** The module of the fields [kind] and [ty] of terms: that of their kind. *)
-let term_path () = module_of TKind
-
+(** The OCaml type of [t], where the types of {!types} are in scope: a declared
+    type has its Kanon name, and the kinds of terms (the constructors of [t])
+    are [kind]. *)
 let rec ocaml_ty ft = function
   | TInt -> pf ft "Z.t"
   | TBool -> pf ft "bool"
   | TUnit -> pf ft "unit"
   | TTerm -> pf ft "t"
-  | (TKind | TSty | TData _) as t -> pf ft "%s" (decl_of_ty t).d_ocaml
+  | (TKind | TSty | TData _) as t -> pf ft "%s" (decl_of_ty t).d_name
   | TTuple l ->
       pf ft "(%a)"
         (Format.pp_print_list ~pp_sep:(fun ft () -> pf ft " * ") ocaml_ty)
@@ -35,6 +26,56 @@ let rec ocaml_ty ft = function
 
 let list ?(sep = ", ") pp ft l =
   Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
+
+(** The equality at type [t], as an OCaml function: on terms, of their tags; on
+    the declared types, the generated [equal_d] (see {!types}). *)
+let rec equal_fn ft = function
+  | TInt -> pf ft "Z.equal"
+  | TBool -> pf ft "Bool.equal"
+  | TUnit -> pf ft "Unit.equal"
+  | TTerm -> pf ft "equal_t"
+  | (TKind | TSty | TData _) as t -> pf ft "equal_%s" (decl_of_ty t).d_name
+  | TTuple l ->
+      let xs p = List.mapi (fun i _ -> Printf.sprintf "%s%d" p (i + 1)) l in
+      pf ft "(fun (%s) (%s) -> %a)"
+        (String.concat ", " (xs "a"))
+        (String.concat ", " (xs "b"))
+        (list ~sep:" && " (fun ft (t, (a, b)) ->
+             pf ft "%a %s %s" equal_fn t a b))
+        (List.combine l (List.combine (xs "a") (xs "b")))
+  | TOption t -> pf ft "(Option.equal %a)" equal_fn t
+  | TList t -> pf ft "(List.equal %a)" equal_fn t
+
+(** [hash_combine (... (hash_combine h1 h2) ...) hn], for the hashes [l],
+    printed by [pp]. *)
+let combine pp ft l =
+  (* the last hash first *)
+  let rec go ft = function
+    | [] -> pf ft "0"
+    | [ x ] -> pp ft x
+    | x :: l -> pf ft "@[<hov 2>hash_combine@ (%a)@ (%a)@]" go l pp x
+  in
+  go ft (List.rev l)
+
+(** The hash at type [t], as an OCaml function, compatible with [equal_fn]:
+    terms are hashed by their tags, and the hashes of the components of a value
+    combined with [hash_combine] (see {!types}). *)
+let rec hash_fn ft = function
+  | TInt -> pf ft "Z.hash"
+  | TBool -> pf ft "Bool.to_int"
+  | TUnit -> pf ft "(fun () -> 0)"
+  | TTerm -> pf ft "hash_t"
+  | (TKind | TSty | TData _) as t -> pf ft "hash_%s" (decl_of_ty t).d_name
+  | TTuple l ->
+      let xs = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) l in
+      pf ft "(fun (%s) -> %a)" (String.concat ", " xs)
+        (combine (fun ft (t, x) -> pf ft "%a %s" hash_fn t x))
+        (List.combine l xs)
+  | TOption t ->
+      pf ft "(function None -> 0 | Some x -> hash_combine 1 (%a x))" hash_fn t
+  | TList t ->
+      pf ft "(List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)" hash_fn
+        t
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -49,10 +90,7 @@ let rec pat ft (p : pat) =
   match p.p with
   | PAny -> pf ft "_"
   | PVar x -> pf ft "%s" x
-  | PLit x ->
-      let c = Option.get (find_constr (Option.get !lang.lit_node)) in
-      pf ft "({ Hc.node = { %skind = %s%s _; _ }; _ } as %s)" (term_path ())
-        (constr_path c) c.c_name x
+  | PLit x -> pf ft "({ kind = %s _; _ } as %s)" (Option.get !lang.lit_node) x
   | PAs (p', x) -> pf ft "(%a as %s)" pat p' x
   | POr (a, b) | PComm (a, b) -> pf ft "(%a | %a)" pat a pat b
   | PInt z -> pf ft "%s" (Z.to_string z)
@@ -65,17 +103,15 @@ let rec pat ft (p : pat) =
   | PCons (h, t) -> pf ft "(%a :: %a)" pat h pat t
   | PRecord fields ->
       pf ft "{ %a; _ }"
-        (list ~sep:"; " (fun ft (f, q) ->
-             pf ft "%s%s = %a" (module_of p.pty) f pat q))
+        (list ~sep:"; " (fun ft (f, q) -> pf ft "%s = %a" f pat q))
         fields
   | PConstr (c, args) ->
       let inner ft () =
         match args with
-        | [] -> pf ft "%s%s" (constr_path c) c.c_name
-        | _ -> pf ft "%s%s (%a)" (constr_path c) c.c_name (list pat) args
+        | [] -> pf ft "%s" c.c_name
+        | _ -> pf ft "%s (%a)" c.c_name (list pat) args
       in
-      if p.pty = TTerm then
-        pf ft "{ Hc.node = { %skind = %a; _ }; _ }" (term_path ()) inner ()
+      if p.pty = TTerm then pf ft "{ kind = %a; _ }" inner ()
       else pf ft "(%a)" inner ()
 
 (* ---------------------------------------------------------------- *)
@@ -126,8 +162,14 @@ let int_lit ft z =
   else if Z.fits_int z then pf ft "(Z.of_int (%s))" (Z.to_string z)
   else pf ft "(Z.of_string %S)" (Z.to_string z)
 
+(** The module of the primitives ([[@@@ocaml_prims]]). *)
+let prims_module () =
+  match !lang.ocaml_prims with
+  | Some m -> m
+  | None -> invalid_arg "Gen_ocaml: the language has no [@@@ocaml_prims]"
+
 type ctx = {
-  prims : string list;
+  prims : string list;  (** in the module of [[@@@ocaml_prims]] *)
   consts : string list;
   raw : string list;  (** literal binders that are not decoded *)
 }
@@ -140,74 +182,55 @@ let rec expr ctx ft (e : expr) =
   | EBool b -> pf ft "%b" b
   | EUnit -> pf ft "()"
   | EUnreachable -> pf ft "(assert false)"
-  | EConstr (c, []) -> pf ft "%s%s" (constr_path c) c.c_name
+  | EConstr (c, []) -> pf ft "%s" c.c_name
   | EConstr (c, args) ->
       let arg ft (a, e) =
         match a with
         | Small -> pf ft "(Z.to_int %a)" expr e
         | Arg _ -> expr ft e
       in
-      pf ft "(%s%s (%a))" (constr_path c) c.c_name (list arg)
-        (List.combine c.c_args args)
-  | ENode (k, t) -> pf ft "(P.node %a %a)" expr k expr t
-  | ECall ("equal", [ a; b ]) ->
-      pf ft "(Int.equal %a.Hc.tag %a.Hc.tag)" expr a expr b
-  | ECall ("type_of", [ a ]) -> pf ft "%a.Hc.node.%sty" expr a (term_path ())
+      pf ft "(%s (%a))" c.c_name (list arg) (List.combine c.c_args args)
+  | ENode (k, t) -> pf ft "(node %a %a)" expr k expr t
+  | ECall ("type_of", [ a ]) -> pf ft "%a.ty" expr a
   | ECall ("tag_le", [ a; b ]) ->
-      pf ft "(Int.compare %a.Hc.tag %a.Hc.tag <= 0)" expr a expr b
+      pf ft "(Int.compare %a.tag %a.tag <= 0)" expr a expr b
   | ECall (f, args)
     when List.mem_assoc f (raw_prims ())
          &&
          match List.rev args with
          | { e = EVar x; _ } :: _ -> List.mem x ctx.raw
          | _ -> false ->
-      pf ft "(P.%s%a)"
+      pf ft "(%s.%s%a)" (prims_module ())
         (List.assoc f (raw_prims ()))
         (fun ft -> List.iter (fun a -> pf ft " %a" expr a))
         args
   | ECall (f, []) ->
-      if List.mem f ctx.prims then pf ft "P.%s" f
+      if List.mem f ctx.prims then pf ft "%s.%s" (prims_module ()) f
       else if List.mem f ctx.consts then pf ft "%s" f
       else pf ft "(%s ())" f
   | ECall (f, args) ->
-      let f = if List.mem f ctx.prims then "P." ^ f else f in
+      let f = if List.mem f ctx.prims then prims_module () ^ "." ^ f else f in
       pf ft "(%s %a)" f (list ~sep:" " expr) args
   | ELocalCall (f, args) -> pf ft "(%s %a)" f (list ~sep:" " expr) args
   | EUnop (Neg, a) -> pf ft "(Z.neg %a)" expr a
   | EUnop (Not, a) -> pf ft "(not %a)" expr a
-  | EUnop (Lognot, a) -> pf ft "(Z.lognot %a)" expr a
-  | EBinop (Arith op, a, b) -> (
+  | EBinop (op, a, b) -> (
       let z name = pf ft "(Z.%s %a %a)" name expr a expr b in
-      let cmp c = pf ft "(P.zcompare %a %a %s 0)" expr a expr b c in
       match op with
       | Add -> z "add"
       | Sub -> z "sub"
       | Mul -> z "mul"
-      | Lt -> cmp "<"
-      | Le -> cmp "<="
-      | Gt -> cmp ">"
-      | Ge -> cmp ">="
+      | Lt -> z "lt"
+      | Le -> z "leq"
+      | Gt -> z "gt"
+      | Ge -> z "geq"
       | Eq | Ne ->
           let neg = if op = Ne then "not " else "" in
-          let eq =
-            match a.ety with
-            | TInt -> "P.zequal"
-            | TBool -> "Bool.equal"
-            | TSty -> "P.equal_ty"
-            | TData _ as t when Option.is_some (decl_of_ty t).d_equal ->
-                "P." ^ Option.get (decl_of_ty t).d_equal
-            | _ -> "Stdlib.( = )"
-          in
-          pf ft "(%s(%s %a %a))" neg eq expr a expr b
+          if a.ety = TTerm then
+            pf ft "(%sInt.equal %a.tag %a.tag)" neg expr a expr b
+          else pf ft "(%s(%a %a %a))" neg equal_fn a.ety expr a expr b
       | And -> pf ft "(%a && %a)" expr a expr b
       | Or -> pf ft "(%a || %a)" expr a expr b)
-  | EBinop (Bit op, a, b) -> (
-      match op with
-      | Land -> pf ft "(Z.logand %a %a)" expr a expr b
-      | Lor -> pf ft "(Z.logor %a %a)" expr a expr b
-      | Lxor -> pf ft "(Z.logxor %a %a)" expr a expr b
-      | Lsl -> pf ft "(Z.shift_left %a (Z.to_int %a))" expr a expr b
-      | Asr -> pf ft "(Z.shift_right %a (Z.to_int %a))" expr a expr b)
   | EIf (c, a, b) ->
       pf ft "@[<hv>(if %a@ then %a@ else %a)@]" expr c expr a expr b
   | ELet (p, rhs, body) ->
@@ -227,12 +250,14 @@ let rec expr ctx ft (e : expr) =
   | ENil -> pf ft "[]"
   | ECons (h, t) -> pf ft "(%a :: %a)" expr h expr t
   | ERecord fields ->
-      let m = module_of e.ety in
       pf ft "{ %a }"
-        (list ~sep:"; " (fun ft (f, e) -> pf ft "%s%s = %a" m f expr e))
+        (list ~sep:"; " (fun ft (f, e) -> pf ft "%s = %a" f expr e))
         fields
-  | EField (r, f) -> pf ft "%a.%s%s" expr r (module_of r.ety) f
-  | EAssert (c, body) -> pf ft "@[<v>(assert %a;@ %a)@]" expr c expr body
+  | EField (r, f) -> pf ft "%a.%s" expr r f
+  | EAssert (c, body) ->
+      (* the check of the sorts of a spec has a last case [_], which is unused
+         when [ty] has only the sorts that it matches *)
+      pf ft "@[<v>(assert (%a [@@warning \"-11\"]);@ %a)@]" expr c expr body
 
 (** Converts the binders of [p] that [e] uses. *)
 and small_lets e ft p =
@@ -240,7 +265,10 @@ and small_lets e ft p =
     (fun x -> pf ft "let %s = Z.of_int %s in@ " x x)
     (List.filter (fun x -> mentions x e) (small_binders p));
   List.iter
-    (fun x -> pf ft "let %s = P.%s %s in@ " x (Option.get (lit_fn "of_term")) x)
+    (fun x ->
+      pf ft "let %s = %s.%s %s in@ " x (prims_module ())
+        (Option.get (lit_fn "of_term"))
+        x)
     (List.filter (fun x -> mentions ~decoded:true x e) (Check.lit_binders p))
 
 (** Prints [e], in the scope of the binders of [p]. *)
@@ -375,57 +403,75 @@ let fn ctx ft (f : fn) =
   pf ft "%s%a : %a =@;<1 2>%a" f.name params f.params ocaml_ty f.ret (expr ctx)
     f.body
 
-(** The primitives that [expr] compiles inline, rather than calling them on [P].
-*)
-let inline_prims = [ "equal"; "type_of"; "tag_le" ]
+(** The primitives that [expr] compiles inline. *)
+let inline_prims = [ "type_of"; "tag_le" ]
 
-(** The functions of [P] that [expr] calls, other than the primitives, with
-    their types; those on the values of literals only if the language has them.
-*)
-let helpers (p : Syntax.program) =
+(** The functions of the module of the primitives that [expr] calls: the
+    primitives, and those of the literals of [[@raw]], with their types. *)
+let prim_fns (p : program) =
   let ty t = Fmt.str "%a" ocaml_ty t in
-  [
-    ("node", Fmt.str "%s -> %s -> %s" (ty TKind) (ty TSty) (ty TTerm));
-    ("zcompare", "Z.t -> Z.t -> int");
-    ("zequal", "Z.t -> Z.t -> bool");
-    ("equal_ty", Fmt.str "%s -> %s -> bool" (ty TSty) (ty TSty));
-  ]
-  @
-  if Option.is_none !lang.lit_node || !lang.lit_int then []
-  else
-    let v = lit_value_ty () in
-    Option.fold ~none:[]
-      ~some:(fun f -> [ (f, Fmt.str "%s -> %s -> bool" (ty v) (ty v)) ])
-      (decl_of_ty v).d_equal
-    @ List.map
-        (fun (f, raw) ->
-          (* the type of [f], on the literal rather than its value *)
-          match
-            List.find_map
-              (fun (q : prim) ->
-                if q.pname = f then Some (q.pargs, q.pret) else None)
-              p.Syntax.prims
-          with
-          | Some (args, ret) ->
-              let args = List.rev (TTerm :: List.tl (List.rev args)) in
-              (raw, String.concat " -> " (List.map ty args @ [ ty ret ]))
-          | None -> Fmt.failwith "[@raw]: unknown function %s" f)
-        (raw_prims ())
-
-(** Checks that [P] defines the primitives and helpers, with their types. *)
-let prim_sigs ft (p : program) =
-  pf ft "@[<v 2>module _ : sig";
-  List.iter (fun (f, t) -> pf ft "@ val %s : %s" f t) (helpers p);
-  List.iter
+  List.filter_map
     (fun q ->
-      if not (List.mem q.pname inline_prims) then (
-        pf ft "@ val %s : " q.pname;
-        List.iter (fun t -> pf ft "%a -> " ocaml_ty t) q.pargs;
-        ocaml_ty ft q.pret))
-    p.prims;
-  pf ft "@]@ end = P@ @ "
+      if List.mem q.pname inline_prims then None
+      else
+        Some (q.pname, String.concat " -> " (List.map ty (q.pargs @ [ q.pret ]))))
+    p.prims
+  @ List.map
+      (fun (f, raw) ->
+        (* the type of [f], on the literal rather than its value *)
+        match
+          List.find_map
+            (fun (q : prim) ->
+              if q.pname = f then Some (q.pargs, q.pret) else None)
+            p.prims
+        with
+        | Some (args, ret) ->
+            let args = List.rev (TTerm :: List.tl (List.rev args)) in
+            (raw, String.concat " -> " (List.map ty args @ [ ty ret ]))
+        | None -> Fmt.failwith "[@raw]: unknown function %s" f)
+      (raw_prims ())
+
+(** Checks that the language names the module of its primitives, if it has any.
+*)
+let check_prims (p : program) =
+  match (prim_fns p, !lang.ocaml_prims) with
+  | (f, _) :: _, None ->
+      let loc =
+        match List.find_opt (fun q -> q.pname = f) p.prims with
+        | Some q -> q.ploc
+        | None -> Location.none
+      in
+      raise
+        (Check.Error
+           ( loc,
+             Fmt.str
+               "%s is a primitive: [@@@@@@ocaml_prims \"M\"], in the \
+                declaration of the language, names the OCaml module that \
+                implements the primitives"
+               f ))
+  | _ -> ()
+
+(** The header of the generated files of rules: the warnings, and the types of
+    the language, opened from their module if they are not in scope. *)
+let header ~sources ft =
+  pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
+    (list Format.pp_print_string)
+    sources;
+  (* every warning but unused match cases, which Kanon prunes *)
+  pf ft "[@@@@@@warning \"-a+11\"]@ @ ";
+  Option.iter (pf ft "open %s@ @ ") !lang.ocaml_types
+
+(** Checks that the module of the primitives defines them, with their types. *)
+let prim_sigs ft (p : program) =
+  match prim_fns p with
+  | [] -> ()
+  | fns ->
+      pf ft "@[<v 2>module _ : sig";
+      List.iter (fun (f, t) -> pf ft "@ val %s : %s" f t) fns;
+      pf ft "@]@ end = %s@ @ " (prims_module ())
 
 let program ~sources ft (p : program) =
+  check_prims p;
   let groups = sccs p.fns in
   let consts =
     List.concat_map
@@ -435,12 +481,7 @@ let program ~sources ft (p : program) =
       groups
   in
   let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts; raw = [] } in
-  pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
-    (list Format.pp_print_string)
-    sources;
-  (* every warning but unused match cases, which Kanon prunes *)
-  pf ft "[@@@@@@warning \"-a+11\"]@ @ ";
-  pf ft "open P@ @ ";
+  header ~sources ft;
   prim_sigs ft p;
   List.iter
     (fun group ->
@@ -458,43 +499,147 @@ let program ~sources ft (p : program) =
   pf ft "@]@."
 
 (* ---------------------------------------------------------------- *)
-(* Checking the OCaml types *)
+(* The types *)
 
-(** Checks that the OCaml types of the language have its declared constructors
-    and record fields, with their declared arguments, and no others: it matches
-    every value of each type. It is included next to the output of {!program},
-    where the same types are in scope, and has no runtime cost. *)
-let lang_check ~sources ft =
+(** The constructors of the declared type [d]. *)
+let constrs_of (d : decl) =
+  List.filter (fun c -> decl_name c.c_res = Some d.d_name) !lang.constrs
+
+(** Checks that the abstract types have OCaml types ([[@ocaml]]); [t] and [ty]
+    may be empty instead. *)
+let check_abstract (d : decl) =
+  if
+    constrs_of d = []
+    && d.d_fields = []
+    && d.d_ocaml = None
+    && not (d.d_name = "kind" || d.d_name = "ty")
+  then
+    raise
+      (Check.Error
+         ( d.d_loc,
+           Fmt.str "type %s is abstract: [@ocaml \"M.t\"] gives its OCaml type"
+             d.d_name ))
+
+(** The OCaml definition of the declared type [d], after [type] or [and]: an
+    abstract type is its [[@ocaml]] type. *)
+let type_def ft (d : decl) =
   let arg ft = function Small -> pf ft "int" | Arg t -> ocaml_ty ft t in
-  let typed ft a = pf ft "(_ : %a)" arg a in
+  match (constrs_of d, d.d_fields, d.d_ocaml) with
+  | [], [], Some o -> pf ft "%s = %s" d.d_name o
+  | [], [], None -> pf ft "%s = |" d.d_name
+  | [], fields, _ ->
+      pf ft "%s = {" d.d_name;
+      List.iter (fun (f, t) -> pf ft "@ %s : %a;" f ocaml_ty t) fields;
+      pf ft "@;<1 -2>}"
+  | cs, _, _ ->
+      pf ft "%s =" d.d_name;
+      List.iter
+        (fun c ->
+          match c.c_args with
+          | [] -> pf ft "@ | %s" c.c_name
+          | args -> pf ft "@ | %s of %a" c.c_name (list ~sep:" * " arg) args)
+        cs
+
+(** The equality [equal_d] and the hash [hash_d] of the type [d], in a recursive
+    definition: structural, but of the tags of terms, and on abstract types,
+    [[@equal]] (or [Stdlib.( = )]) and [[@hash]] (or [Hashtbl.hash]). A
+    constructor is hashed by its index, combined with its arguments. *)
+let eq_hash_def ft (d : decl) =
+  let n = d.d_name in
+  (* the arguments of the constructor [c], as variables [x1], [x2], ... *)
+  let args x (c : constr) =
+    List.mapi (fun i a -> (a, Printf.sprintf "%s%d" x (i + 1))) c.c_args
+  in
+  let pat x (c : constr) =
+    match args x c with
+    | [] -> c.c_name
+    | [ (_, a) ] -> Printf.sprintf "%s %s" c.c_name a
+    | l ->
+        Printf.sprintf "%s (%s)" c.c_name (String.concat ", " (List.map snd l))
+  in
+  let equal ft = function
+    | Small, a, b -> pf ft "Int.equal %s %s" a b
+    | Arg t, a, b -> pf ft "%a %s %s" equal_fn t a b
+  in
+  let hash ft = function
+    | `Index i -> pf ft "%d" i
+    | `Arg (Small, x) -> pf ft "%s" x
+    | `Arg (Arg t, x) -> pf ft "%a %s" hash_fn t x
+  in
+  let conj ft =
+    pf ft "@[<hov>%a@]"
+      (Format.pp_print_list ~pp_sep:(fun ft () -> pf ft " &&@ ") equal)
+  in
+  match (constrs_of d, d.d_fields) with
+  | [], [] when d.d_ocaml = None ->
+      (* an empty type *)
+      pf ft "and equal_%s (_ : %s) (_ : %s) = true@ @ and hash_%s (_ : %s) = 0"
+        n n n n n
+  | [], [] ->
+      pf ft
+        "and equal_%s (a : %s) (b : %s) = %s a b@ @ and hash_%s (a : %s) = %s a"
+        n n n
+        (Option.value d.d_equal ~default:"Stdlib.( = )")
+        n n
+        (Option.value d.d_hash ~default:"Hashtbl.hash")
+  | [], fields ->
+      let fs x = List.map (fun (f, t) -> (Arg t, x ^ "." ^ f)) fields in
+      pf ft "@[<hv 2>and equal_%s (a : %s) (b : %s) =@ %a@]@ @ " n n n conj
+        (List.map2 (fun (t, a) (_, b) -> (t, a, b)) (fs "a") (fs "b"));
+      pf ft "@[<hv 2>and hash_%s (a : %s) =@ %a@]" n n (combine hash)
+        (List.map (fun a -> `Arg a) (fs "a"))
+  | cs, _ ->
+      pf ft "@[<v 2>and equal_%s (a : %s) (b : %s) =@ match (a, b) with" n n n;
+      List.iter
+        (fun c ->
+          pf ft "@ @[<hv 4>| %s, %s ->@ %a@]" (pat "a" c) (pat "b" c)
+            (fun ft -> function [] -> pf ft "true" | l -> conj ft l)
+            (List.map2
+               (fun (t, a) (_, b) -> (t, a, b))
+               (args "a" c) (args "b" c)))
+        cs;
+      if List.length cs > 1 then pf ft "@ | _ -> false";
+      pf ft "@]@ @ @[<v 2>and hash_%s (a : %s) =@ match a with" n n;
+      List.iteri
+        (fun i c ->
+          match args "a" c with
+          | [] -> pf ft "@ | %s -> %d" (pat "a" c) i
+          | l ->
+              pf ft "@ @[<hv 4>| %s ->@ %a@]" (pat "a" c) (combine hash)
+                (`Index i :: List.map (fun a -> `Arg a) l))
+        cs;
+      pf ft "@]"
+
+(** The types of the language, standalone: one recursive group, with terms
+    hash-consed records [{ kind; ty; tag }], where [kind] are the leaf nodes and
+    the operators of each arity; their equalities and hashes; and [node], the
+    hash-consed term of a kind and a type, in a table of ephemerons keyed on the
+    terms (which equalities and hashes ignore their tags). The tags of terms are
+    unique, and increase with their creation. The table is not safe across
+    domains (TODO). *)
+let types ~sources ft =
+  List.iter check_abstract !lang.decls;
   pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
     (list Format.pp_print_string)
     sources;
-  pf ft "@[<v 2>module _ = struct@ [@@@@@@warning \"-a@@8@@9\"]@ open P";
-  List.iter
-    (fun d ->
-      let t = TData d.d_name in
-      let m = module_of t in
-      let constrs =
-        List.filter (fun c -> decl_name c.c_res = Some d.d_name) !lang.constrs
-      in
-      pf ft "@ @[<v 2>let _ : %a -> unit =" ocaml_ty t;
-      match (constrs, d.d_fields) with
-      | [], [] -> pf ft " fun _ -> ()@]"
-      | [], fields ->
-          pf ft "@ fun { %a } -> ()@]"
-            (list ~sep:"; " (fun ft (f, t) ->
-                 pf ft "%s%s = %a" m f typed (Arg t)))
-            fields
-      | _ ->
-          pf ft " function";
-          List.iter
-            (fun c ->
-              match c.c_args with
-              | [] -> pf ft "@ | %s%s -> ()" m c.c_name
-              | [ a ] -> pf ft "@ | %s%s %a -> ()" m c.c_name typed a
-              | args -> pf ft "@ | %s%s (%a) -> ()" m c.c_name (list typed) args)
-            constrs;
-          pf ft "@]")
+  pf ft "[@@@@@@warning \"-a\"]@ @ ";
+  List.iteri
+    (fun i d ->
+      pf ft "@[<v 2>%s %a@]@ @ " (if i = 0 then "type" else "and") type_def d)
     !lang.decls;
-  pf ft "@]@ end@]@."
+  pf ft "@[<v 2>and t = {@ kind : kind;@ ty : ty;@ tag : int;@;<1 -2>}@]@ @ ";
+  pf ft "let hash_combine x y = (x * 65599) + y@ @ ";
+  pf ft "let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag@ @ ";
+  pf ft "and hash_t (a : t) = a.tag@ @ ";
+  List.iter (fun d -> pf ft "%a@ @ " eq_hash_def d) !lang.decls;
+  pf ft "(* Not safe across domains (TODO). *)@ ";
+  pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
+  pf ft "@[<v 2>let module H = Ephemeron.K1.Make (struct@ type nonrec t = t@ ";
+  pf ft "let equal a b = equal_kind a.kind b.kind && equal_ty a.ty b.ty@ ";
+  pf ft "let hash a = hash_combine (hash_kind a.kind) (hash_ty a.ty)@]@ ";
+  pf ft "end) in@ let table = H.create 1024 and tags = ref 0 in@ ";
+  pf ft "@[<v 2>fun kind ty ->@ let v = { kind; ty; tag = -1 } in@ ";
+  pf ft "@[<v>match H.find table v with@ | t -> t@ ";
+  pf ft "@[<v 2>| exception Not_found ->@ ";
+  pf ft "let t = { v with tag = !tags } in@ incr tags;@ H.add table t t;@ ";
+  pf ft "t@]@]@]@]@]@."

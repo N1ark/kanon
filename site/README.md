@@ -1,17 +1,19 @@
 # The Kanon site
 
-A tutorial of Kanon and a sandbox to try it, in the browser, published at
-<https://n1ark.github.io/kanon/>:
+A tutorial of Kanon, its reference and a sandbox to try it, in the browser,
+published at <https://n1ark.github.io/kanon/>:
 
 - `index.html`, the tutorial: a tiny language built step by step, with the
   OCaml and the Lean that Kanon generates from each step, computed in the
   page;
+- `reference.html`, the reference: the declarations, the attributes and the
+  operators;
 - `sandbox.html`, the sandbox: the files of a language in an editor with
   Kanon's language server (diagnostics, hovers, completion, definitions,
   references, rename, outline), and the output of every backend. The files are
   saved in the browser, and Share puts them in a link.
 
-Both run Kanon itself: its web runtime (`web/` in the repository: the checker,
+The tutorial and the sandbox run Kanon itself: its web runtime (`web/` in the repository: the checker,
 the generators and the language server, compiled with js_of_ocaml) in a Web
 Worker. Kanon is highlighted by its tree-sitter grammar (`tree-sitter-kanon/`)
 with the highlighting query of the Zed extension
@@ -69,7 +71,8 @@ CHROMIUM=path/to/chrome npm run shots -- OUT_DIR
 opens the built site in headless Chromium, checks that it works (no errors in
 the console, tree-sitter highlighting, generated code, diagnostics, hovers,
 completion, a definition in the built-in module, a shared link) and takes
-screenshots of the tutorial and of the sandbox, in light and dark.
+screenshots of the tutorial, the reference and the sandbox, in light and
+dark.
 
 ## Deployment
 

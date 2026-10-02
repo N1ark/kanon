@@ -12,7 +12,7 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
 - syntax highlighting: keywords, the names of rule functions, helpers and
   primitives where they are defined and called, rule names (`| lit: ...`),
   constructors, types, attributes (`[@comm]`, `[@@@lean_root "R"]`), the
-  operators on terms (`&&`, `land`, and the infix words of patterns such as
+  operators (`&&`, `≤`, and the infix words of patterns such as
   `l urem #n`), `#x` patterns, and nested comments;
 - the outline (`cmd-shift-o`, and the outline panel): the items of a file,
   with the rules of each rule function under it (`rule b_and` >
@@ -23,10 +23,10 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
 - auto-indentation: the cases of a rule under it, the body of a case or of a
   function on the next line, the lines of a node that do not fit on one;
 - text objects in vim mode: `af`/`if` for a rule function, a helper or a
-  rule, `ac`/`ic` for a type or a node, `gc` for a comment;
+  rule, `ac`/`ic` for a type, a node or a sort, `gc` for a comment;
 - snippets: `rule`, `case`, `casew`, `fn`, `extendrule`, `extendfn`, `prim`,
-  `oracle`, `node`, `type`, `typer`, `infix`, `prefix`, `constant`, `use`,
-  `match`, `let`, `if`, `section`.
+  `oracle`, `node`, `sort`, `type`, `typer`, `infix`, `prefix`, `constant`,
+  `use`, `match`, `let`, `if`, `section`.
 
 ## Installing
 
@@ -82,8 +82,8 @@ global `tasks.json`, from `zed: open tasks`):
     "tags": ["kanon"]
   },
   {
-    "label": "kanon: check $ZED_FILENAME",
-    "command": "kanon ocaml-check \"$ZED_FILE\"",
+    "label": "kanon: generate the OCaml types of $ZED_FILENAME",
+    "command": "kanon ocaml-types \"$ZED_FILE\" > \"$ZED_DIRNAME/types.gen.ml\"",
     "tags": ["kanon"]
   }
 ]

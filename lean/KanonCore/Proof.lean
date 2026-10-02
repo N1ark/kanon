@@ -24,11 +24,14 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
   what `simp_all` and `omega` can (`kanon_sem`, `kanon_close`);
 - `kanon_close_lemmas` closes a goal by a `kanon_close_lemma` lemma, which
   `kanon_rule_lift` and `kanon_sem` try last;
-- `kanon_congr` and `kanon_comm` (declared by `KanonCore.Tactics`) prove
-  refinements by congruence, with the `kanon_congr_lemma` and
-  `kanon_comm_lemma` lemmas, and the side goals left to `kanon_congr_side` and
-  `kanon_comm_side`, which the language may give, as it may give
-  `kanon_congr_pre`, which `kanon_congr` first applies to each refinement.
+- `kanon_congr` (declared by `KanonCore.Tactics`) proves refinements by
+  congruence, with the `kanon_congr_lemma` lemmas, and the side goals left to
+  `kanon_congr_side`, which the language may give, as it may give
+  `kanon_congr_pre`, which `kanon_congr` first applies to each refinement;
+- `kanon_comm` proves refinements up to the order of the operands of
+  commutative operators, by congruence and the `kanon_comm_lemma` lemmas (the
+  commutativity of the operators, `Op.comm.ok`, which the generated proofs
+  tag).
 -/
 
 namespace Kanon.Proof
@@ -274,9 +277,6 @@ lemma (e.g. rewriting the types of the refined terms in it), given by the
 language with `macro_rules`. -/
 syntax "kanon_congr_pre" : tactic
 
-/-- The side goals of `kanon_comm`, given by the language with `macro_rules`. -/
-syntax "kanon_comm_side" : tactic
-
 /-- Proves `Refines s s'`, where `s'` is `s` with some of its subterms replaced
 by terms that refine them (hypotheses of the context). -/
 macro_rules
@@ -292,16 +292,43 @@ macro_rules
                  | kanon_congr_side
                  | kanon_congr)))
 
+/-- `kanon_swap_lemmas tac`: proves `R s s'` by transitivity, from the first
+`kanon_comm_lemma` lemma `R s (op b a)` (for `s = op a b`) after which `tac`
+proves `R (op b a) s'`. -/
+elab "kanon_swap_lemmas " tac:tactic : tactic => do
+  let g :: rest ← getGoals | throwError "kanon_swap_lemmas: no goal"
+  for n in kanonLemmas (← getEnv) `kanon_comm_lemma do
+    let s ← saveState
+    try
+      setGoals [g]
+      evalTactic (← `(tactic| refine Kanon.Sem.Refines.trans ($(mkCIdent n) ..) ?_))
+      evalTactic tac
+      setGoals ((← getGoals) ++ rest)
+      return
+    catch _ => s.restore
+  throwError "kanon_swap_lemmas: no lemma applies"
+
+/-- Refinement up to commutativity. -/
+syntax "kanon_comm" : tactic
+
 /-- Proves `Refines s s'` for terms that only differ by the order of the
-operands of commutative operators. -/
+operands of commutative operators: by congruence (`kanon_congr_lemma`) and the
+commutativity of the operators (`kanon_comm_lemma`). -/
 macro_rules
   | `(tactic| kanon_comm) => `(tactic| first
       | exact Kanon.Sem.Refines.refl
-      | kanon_apply_lemmas [kanon_congr_lemma, kanon_comm_lemma]
+      | kanon_apply_lemmas [kanon_congr_lemma]
           (first
-            | kanon_comm_side
-            | kanon_comm
-            | (intro _; rfl)))
+            | (intro _; rfl)
+            | kanon_congr_side
+            | kanon_comm)
+      | kanon_swap_lemmas (first
+          | exact Kanon.Sem.Refines.refl
+          | kanon_apply_lemmas [kanon_congr_lemma]
+              (first
+                | (intro _; rfl)
+                | kanon_congr_side
+                | kanon_comm)))
 
 /-! ## Closing by lemmas -/
 
@@ -429,7 +456,7 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
   (try kanon_guards)
   (try kanon_split)
   (try subst_vars)
-  simp only [kanon_spec, kanon_body]
+  (try simp only [kanon_spec, kanon_body])
   (repeat' split)
   all_goals (try kanon_lift_body)
   all_goals (try simp only [kanon_spec, kanon_body])
