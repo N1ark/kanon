@@ -53,6 +53,15 @@ let op_char =
 rule token = parse
   | [' ' '\t' '\r']+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
+  | "(**)" { token lexbuf }
+  | "(**" {
+      let start = lexbuf.lex_start_p in
+      let buf = Buffer.create 64 in
+      doc start buf 0 lexbuf;
+      lexbuf.lex_start_p <- start;
+      match String.trim (Buffer.contents buf) with
+      | "" -> token lexbuf
+      | s -> DOC s }
   | "(*" { comment lexbuf.lex_start_p 0 lexbuf; token lexbuf }
   | ['0'-'9']+ as i { INT i }
   | '"' ([^ '"' '\\' '\n']* as s) '"' { STRING s }
@@ -104,3 +113,12 @@ and comment start depth = parse
   | '\n' { Lexing.new_line lexbuf; comment start depth lexbuf }
   | eof { raise (Error (start, "unterminated comment")) }
   | _ { comment start depth lexbuf }
+
+(* A doc comment [(** ... *)], whose text is added to [buf]; the comments in it
+   are part of the text *)
+and doc start buf depth = parse
+  | "*)" { if depth > 0 then (Buffer.add_string buf "*)"; doc start buf (depth - 1) lexbuf) }
+  | "(*" { Buffer.add_string buf "(*"; doc start buf (depth + 1) lexbuf }
+  | '\n' { Lexing.new_line lexbuf; Buffer.add_char buf '\n'; doc start buf depth lexbuf }
+  | eof { raise (Error (start, "unterminated comment")) }
+  | _ as c { Buffer.add_char buf c; doc start buf depth lexbuf }

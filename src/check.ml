@@ -1914,6 +1914,14 @@ let check_attrs allowed (attrs : attributes) =
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
+(** The doc comment among [attrs], which the parser adds as [[@ocaml.doc "..."]]
+    to a documented item, and the other attributes. *)
+let take_doc (attrs : attributes) =
+  let docs, others =
+    List.partition (fun (a : attribute) -> a.attr_name.txt = "ocaml.doc") attrs
+  in
+  (Option.map string_attr (List.nth_opt docs 0), others)
+
 (** The list sort [s list] of an operand of a typing, written [a list],
     [TBool list] or [(TBitVector n) list]: [s]. *)
 let list_sort (e : expression) =
@@ -2063,7 +2071,7 @@ let span_of (l : Location.t list) default =
     of the [[@comm]] attributes. *)
 let constructor ~comm_locs res (cd : constructor_declaration) =
   let name = cd.pcd_name.txt and loc = cd.pcd_loc in
-  let attrs = cd.pcd_attributes in
+  let c_doc, attrs = take_doc cd.pcd_attributes in
   (* the attributes of the literals before [notation] *)
   List.iter
     (fun (a : attribute) ->
@@ -2130,7 +2138,7 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
           l
     | Pcstr_record _ -> error loc "unsupported constructor"
   in
-  let c = { c_name = name; c_res = res; c_args = args } in
+  let c = { c_name = name; c_res = res; c_args = args; c_doc } in
   let l = !lang in
   let l = { l with constrs = l.constrs @ [ c ] } in
   let l =
@@ -2170,7 +2178,7 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
 
 (** Reads the declaration [e] of an operator on terms, whose attribute [a] is
     [[@infix "op"]] or [[@prefix "op"]], into the language. *)
-let operator ((e : expression), (a : attribute)) =
+let operator ((e : expression), (a : attribute), op_doc) =
   let loc = e.pexp_loc in
   let sym, sym_loc = string_attr_loc a in
   let sym, arity =
@@ -2237,7 +2245,17 @@ let operator ((e : expression), (a : attribute)) =
       operators =
         !lang.operators
         @ [
-            { sym; arity; node; params; smart; pre; on_value; op_loc = sym_loc };
+            {
+              sym;
+              arity;
+              node;
+              params;
+              smart;
+              pre;
+              on_value;
+              op_loc = sym_loc;
+              op_doc;
+            };
           ];
     }
 
@@ -2253,8 +2271,8 @@ let generated_type name =
           (String.sub name 2 (String.length name - 2)))
 
 (** A type of the language, without constructors yet. *)
-let new_decl ?(loc = Location.none) ?ocaml ?lean ?(eq = true) ?equal ?hash name
-    =
+let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
+    name =
   {
     d_name = name;
     d_ocaml = ocaml;
@@ -2264,6 +2282,7 @@ let new_decl ?(loc = Location.none) ?ocaml ?lean ?(eq = true) ?equal ?hash name
     d_hash = hash;
     d_fields = [];
     d_loc = loc;
+    d_doc = doc;
   }
 
 (** Reads the declaration of a language, which the rules are then checked
@@ -2277,28 +2296,33 @@ let language (str : structure) =
            attempt (fun () ->
                match si.pstr_desc with
                | Pstr_type (_, [ td ]) -> Either.Left td
-               | Pstr_eval (e, [ a ])
-                 when List.mem a.attr_name.txt
-                        [ "infix"; "prefix"; "constant"; "notation" ] ->
-                   Right (e, a)
+               | Pstr_eval (e, attrs) -> (
+                   match take_doc attrs with
+                   | doc, [ a ]
+                     when List.mem a.attr_name.txt
+                            [ "infix"; "prefix"; "constant"; "notation" ] ->
+                       Right (e, a, doc)
+                   | _ ->
+                       error si.pstr_loc
+                         "unsupported item in a language declaration")
                | Pstr_attribute a -> (
                    match (a.attr_name.txt, strings_attr a) with
                    | "lean_root", [ r ] ->
                        lang := { !lang with lean_root = r };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "lean_param", [ x; t ] ->
                        lang :=
                          {
                            !lang with
                            lean_params = !lang.lean_params @ [ (x, t) ];
                          };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_types", [ m ] ->
                        lang := { !lang with ocaml_types = Some m };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_prims", [ m ] ->
                        lang := { !lang with ocaml_prims = Some m };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
                          a.attr_name.txt)
@@ -2309,7 +2333,7 @@ let language (str : structure) =
   in
   let ops, constants =
     List.partition
-      (fun (_, (a : attribute)) ->
+      (fun (_, (a : attribute), _) ->
         List.mem a.attr_name.txt [ "infix"; "prefix" ])
       ops
   in
@@ -2361,9 +2385,8 @@ let language (str : structure) =
       (fun (td : type_declaration) ->
         attempt (fun () ->
             let name = td.ptype_name.txt and loc = td.ptype_name.loc in
-            check_attrs
-              [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ]
-              td.ptype_attributes;
+            let doc, tattrs = take_doc td.ptype_attributes in
+            check_attrs [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ] tattrs;
             (match ty_of_name name with
             | Some (TInt | TBool | TUnit) ->
                 error loc "%s is a built-in type" name
@@ -2388,7 +2411,7 @@ let language (str : structure) =
               Option.map string_attr (find_attr n td.ptype_attributes)
             in
             let d =
-              new_decl ~loc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
+              new_decl ~loc ?doc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
                 ~eq:(not (has_attr "noeq" td.ptype_attributes))
                 ?equal:(attr "equal") ?hash:(attr "hash") name
             in
@@ -2510,6 +2533,7 @@ let language (str : structure) =
                   c_name = c;
                   c_res = TKind;
                   c_args = Arg (TData op) :: operands;
+                  c_doc = None;
                 };
               ];
           node_kinds = !lang.node_kinds @ [ c ];
@@ -2524,11 +2548,11 @@ let language (str : structure) =
   (* then the notations of literals, and the operators on terms *)
   let notations, constants =
     List.partition
-      (fun (_, (a : attribute)) -> a.attr_name.txt = "notation")
+      (fun (_, (a : attribute), _) -> a.attr_name.txt = "notation")
       constants
   in
   List.iter
-    (fun ((e : expression), _) ->
+    (fun ((e : expression), _, _) ->
       ignore
         (attempt (fun () ->
              match e.pexp_desc with
@@ -2549,7 +2573,7 @@ let language (str : structure) =
   List.iter (fun op -> ignore (attempt (fun () -> operator op))) ops;
   (* the constants of the laws, functions of a term or not *)
   List.iter
-    (fun ((e : expression), (a : attribute)) ->
+    (fun ((e : expression), (a : attribute), doc) ->
       ignore
         (attempt (fun () ->
              match a.attr_name.txt with
@@ -2579,6 +2603,9 @@ let language (str : structure) =
                    {
                      !lang with
                      constants = !lang.constants @ [ (c, constant) ];
+                     constant_docs =
+                       !lang.constant_docs
+                       @ Option.to_list (Option.map (fun d -> (c, d)) doc);
                    }
              | _ -> ())))
     constants;
@@ -2726,6 +2753,7 @@ type raw_fn = {
   rname_loc : Location.t;  (** of the name of the function *)
   rparam_locs : Location.t list;  (** of the names of its parameters *)
   rattrs : attributes;
+  rdoc : string option;
 }
 
 (** The location of the attribute [name] of [r], or else of its name. *)
@@ -2769,7 +2797,7 @@ let raw_fn (vb : value_binding) =
     | Ppat_var { txt; _ } -> txt
     | _ -> error rname_loc "expected a function name"
   in
-  let rattrs = vb.pvb_attributes in
+  let rdoc, rattrs = take_doc vb.pvb_attributes in
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -2837,6 +2865,7 @@ let raw_fn (vb : value_binding) =
         rname_loc;
         rparam_locs;
         rattrs;
+        rdoc;
       }
   | Pexp_function _ ->
       error rname_loc "%s: the return type must be annotated" rname
@@ -2875,6 +2904,7 @@ let raw_fn (vb : value_binding) =
             rname_loc;
             rparam_locs;
             rattrs;
+            rdoc;
           }
       | _ ->
           error rname_loc "%s: constants must be annotated with their type"
@@ -3793,9 +3823,26 @@ let rec prune (e : Syntax.expr) : Syntax.expr =
 let parse ~file lexbuf : structure =
   Lexing.set_filename lexbuf file;
   let at p = { loc_start = p; loc_end = p; loc_ghost = false } in
-  try Kanon_parser.file Kanon_lexer.token lexbuf with
+  (* where the last token, and the one before it, are doc comments *)
+  let cur = ref None and prev = ref None in
+  let token lb =
+    let t = Kanon_lexer.token lb in
+    prev := !cur;
+    (cur := match t with Kanon_parser.DOC _ -> Some lb.lex_start_p | _ -> None);
+    t
+  in
+  try Kanon_parser.file token lexbuf with
   | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
-  | Kanon_parser.Error -> raise (Error (at lexbuf.lex_start_p, "syntax error"))
+  | Syntax.Misplaced_doc (loc, msg) -> raise (Error (loc, msg))
+  | Kanon_parser.Error -> (
+      match (!cur, !prev) with
+      | Some p, _ | None, Some p ->
+          raise
+            (Error
+               ( at p,
+                 "misplaced doc comment: it must come right before a fn, rule, \
+                  node, sort, type, prim, oracle, infix, prefix or constant" ))
+      | None, None -> raise (Error (at lexbuf.lex_start_p, "syntax error")))
 
 let parse_file file : structure =
   let ic = open_in_bin file in
@@ -3976,6 +4023,7 @@ let check_fn env0 globals r =
     cases = r.rcases;
     body = prune body;
     floc = r.rloc;
+    fdoc = r.rdoc;
   }
 
 (** The number of errors collected so far. *)
@@ -4019,6 +4067,7 @@ let program (str : structure) : program =
                          pret;
                          oracle = vd.pval_prim = [ "oracle" ];
                          ploc = vd.pval_name.loc;
+                         pdoc = fst (take_doc vd.pval_attributes);
                        },
                        vd.pval_name.loc )
                      :: prims,
