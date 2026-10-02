@@ -7,8 +7,8 @@ use "rules"
 type var [@ocaml "string"] [@lean "String"]
 
 node Var of var
-node Bool of bool : TBool [@literal bool]
-node Int of int : TInt [@literal int]
+node Bool of bool : TBool
+node Int of int : TInt
 node Not : TBool -> TBool [@invol] [@fold negb]
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
@@ -16,6 +16,9 @@ node Eq : a -> a -> TBool [@comm]
 
 sort TBool
 sort TInt
+
+notation Bool
+notation Int
 
 infix "&&" = And, and_
 infix "+" = Plus, plus
