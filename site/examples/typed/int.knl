@@ -1,0 +1,21 @@
+(* The int module, with ghost tags: what OCaml checks of a term. *)
+
+[@@@ghost "sint" "[ `NonZero | `Zero ]"]
+[@@@ghost "nonzero" "[ `NonZero ]"]
+
+(** The sort of integers. *)
+sort TInt [@ghost sint]
+
+(** An integer literal. *)
+node Int of int : TInt [@ctor mk_int]
+(** The sum of two integers. *)
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+(** The quotient: the divisor is known to be non-zero. *)
+node Div : TInt -> TInt -> TInt [@ghost "sint" "nonzero" "sint"]
+(** The order on integers. *)
+node Lt : TInt -> TInt -> TBool
+
+notation Int
+
+infix "+" = Plus, plus
+infix "lt" = Lt, int_lt

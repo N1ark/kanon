@@ -52,7 +52,7 @@
 <section class="pane" aria-label={title}>
   <header>
     <span class="title">{title}</span>
-    {#if backends.length <= 3}
+    {#if backends.length <= 4}
       <Segmented
         label="{title} backend"
         size="sm"

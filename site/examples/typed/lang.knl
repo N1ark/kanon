@@ -1,0 +1,6 @@
+(* The language of the modules step, with ghost tags: the bool module declares the tag sbool. *)
+
+[@@@ocaml_prims "Prims"]
+
+use builtin "bool"
+use "int"

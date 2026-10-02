@@ -68,6 +68,15 @@
         "int.knl": "../examples/ints/int.knl",
         "int.kn": "../examples/ints/int.kn"
       }
+    },
+    {
+      "id": "typed",
+      "title": "Tutorial 5: ghost tags",
+      "files": {
+        "lang.knl": "examples/typed/lang.knl",
+        "int.knl": "examples/typed/int.knl",
+        "int.kn": "examples/typed/int.kn"
+      }
     }
   ]
 }
