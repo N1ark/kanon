@@ -284,7 +284,8 @@ fn is_nat (v : t) : bool =
     module relative to the file, and <code>use +bool</code> the module of booleans built into
     <code>kanon</code>: boolean literals, <code>Not</code>, <code>And</code>, <code>Or</code>,
     equality (<code>Eq</code>), conditionals (<code>Ite</code>) and <code>Distinct</code>, with
-    their rules. The language adds its own nodes, here its variables.
+    their rules (all of it in the <a href="sandbox.html#example=builtin-bool">sandbox</a>). The
+    language adds its own nodes, here its variables.
   </p>
   <Code
     code={`[@@@ocaml_prims "Prims"]

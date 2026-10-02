@@ -5,7 +5,7 @@
 import manifest from "../examples/index.json";
 
 const sources = import.meta.glob(
-  ["../examples/*/*.kn", "../examples/*/*.knl", "../../examples/bool/lang.knl", "../../test/tiny.t/*.kn", "../../test/tiny.t/*.knl"],
+  ["../examples/*/*.kn", "../examples/*/*.knl", "../../examples/bool/lang.knl", "../../modules/*.kn", "../../modules/*.knl", "../../test/tiny.t/*.kn", "../../test/tiny.t/*.knl"],
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 
