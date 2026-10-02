@@ -48,7 +48,9 @@
       <code>int</code> (arbitrary precision), <code>bool</code>, <code>unit</code>, tuples,
       <code>option</code> and <code>list</code> are built in; <code>nat</code>, in the arguments
       of nodes and sorts, is an OCaml <code>int</code> (a width, an index) and a Kanon
-      <code>int</code>. <code>t</code>, the type of terms, and <code>ty</code>, the type of their
+      <code>int</code>; it is also accepted in the signatures of functions, rules and primitives, as a
+      synonym of <code>int</code> (<code>Z.t</code> in OCaml, not checked to be non-negative).
+      <code>t</code>, the type of terms, and <code>ty</code>, the type of their
       sorts, are generated from the nodes and the sorts, and cannot be declared.
     </dd>
 
