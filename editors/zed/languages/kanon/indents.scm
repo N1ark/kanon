@@ -8,6 +8,7 @@
   (extend_definition)
   (primitive_declaration)
   (node_declaration)
+  (sort_declaration)
   (type_definition)
   (operator_declaration)
   (constant_declaration)

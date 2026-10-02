@@ -5,6 +5,9 @@
  * the grammar cannot see the declarations of the other files; it is parsed as
  * an operator wherever an identifier cannot be (between two patterns, or after
  * an operand that is not a name), and as an argument otherwise.
+ *
+ * Symbolic operators are lexed as in OCaml: a sequence of the characters of
+ * OP_CHAR (maximal munch), whose first character gives its precedence.
  */
 
 /// <reference types="tree-sitter-cli/dsl" />
@@ -17,13 +20,15 @@ const PREC = {
   or: 4,
   and: 5,
   cmp: 6,
-  cons: 7,
-  add: 8,
-  mul: 9,
-  pow: 10,
-  unary: 11,
-  app: 12,
-  field: 13,
+  concat: 7,
+  cons: 8,
+  add: 9,
+  mul: 10,
+  pow: 11,
+  unary: 12,
+  app: 13,
+  prefix: 14,
+  field: 15,
 };
 
 // patterns: [p as x], [p | q], [p, q], [p [@a]], then the operators
@@ -34,14 +39,38 @@ const PAT = {
   attr: 4,
   or_op: 5,
   and_op: 6,
-  eq: 7,
-  cons: 8,
-  add: 9,
-  mul: 10,
-  pow: 11,
-  unary: 12,
-  app: 13,
+  cmp: 7,
+  concat: 8,
+  cons: 9,
+  add: 10,
+  mul: 11,
+  pow: 12,
+  unary: 13,
+  app: 14,
 };
+
+// A character of a symbolic operator: `#` (but not first) and the non-ASCII
+// characters too, so that `≤` is an operator.
+const OP_CHAR = '([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])';
+const op = (first) => new RegExp(first + OP_CHAR + '*');
+const op1 = (first) => new RegExp(first + OP_CHAR + '+');
+
+// The infix operators, from the lowest precedence to the highest, by their
+// first character, as in OCaml. The reserved `=`, `|`, `->`, `::` and `.` are
+// the literal tokens, which tree-sitter prefers to a regex of the same length.
+const INFIX = [
+  ['or', prec.right, ['||']],
+  ['and', prec.right, ['&&']],
+  ['cmp', prec.left, ['=', '!=', op('[<>$&]'), op1('='), op1('\\|'), op('[^\\x00-\\x7F]')]],
+  ['concat', prec.right, [op('[@^]')]],
+  ['cons', prec.right, ['::']],
+  ['add', prec.left, ['+', '-', op1('[+-]')]],
+  ['mul', prec.left, ['*', op('\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])'), op('[/%]')]],
+  ['pow', prec.right, [op('\\*\\*')]],
+];
+
+// [!x], [~x], [?x]: prefix operators of the highest precedence
+const PREFIX = op('[!~?]');
 
 const sep1 = (rule, sep) => seq(rule, repeat(seq(sep, rule)));
 
@@ -69,6 +98,7 @@ module.exports = grammar({
       $.rule_definition,
       $.extend_definition,
       $.node_declaration,
+      $.sort_declaration,
       $.type_definition,
       $.operator_declaration,
       $.constant_declaration,
@@ -136,6 +166,9 @@ module.exports = grammar({
 
     node_declaration: $ => seq('node', $.constructor_declaration),
 
+    // [sort TBitVector of nat [@get size]]
+    sort_declaration: $ => seq('sort', $.constructor_declaration),
+
     type_definition: $ => seq(
       'type',
       field('name', typeIdentifier($)),
@@ -193,13 +226,11 @@ module.exports = grammar({
       field('body', $._sequence_or_expression),
     ),
 
-    // [constant "0" (v) = bv_zero (size v)]
+    // [constant "0" (v) = bv_zero (size v)], [constant "true" = v_true]
     constant_declaration: $ => seq(
       'constant',
       field('literal', $.string),
-      '(',
-      field('parameter', $.identifier),
-      ')',
+      optional(seq('(', field('parameter', $.identifier), ')')),
       '=',
       field('body', $._sequence_or_expression),
     ),
@@ -357,35 +388,30 @@ module.exports = grammar({
       optional(seq(',', $._tuple_rest)),
     )),
 
-    binary_expression: $ => {
-      const table = [
-        [prec.right, PREC.or, '||'],
-        [prec.right, PREC.and, '&&'],
-        [prec.left, PREC.cmp, choice('=', '<>', '<', '<=', '>', '>=', '==')],
-        [prec.right, PREC.cons, '::'],
-        [prec.left, PREC.add, choice('+', '-', '++')],
-        [prec.left, PREC.mul, choice('*', 'land', 'lor', 'lxor')],
-        [prec.right, PREC.pow, choice('lsl', 'lsr', 'asr')],
-      ];
-      return choice(
-        ...table.map(([assoc, p, op]) => assoc(p, seq(
-          field('left', $._tuple_element),
-          field('operator', op),
-          field('right', $._tuple_element),
-        ))),
-        // [a urem b], an operator declared by [infix "urem"], after an
-        // operand that cannot be applied to it (see the header)
-        prec.left(PREC.mul, seq(
-          field('left', $._tuple_element),
-          field('operator', alias($.identifier, $.infix_word)),
-          field('right', $._tuple_element),
-        )),
-      );
-    },
+    binary_expression: $ => choice(
+      ...INFIX.map(([level, assoc, ops]) => assoc(PREC[level], seq(
+        field('left', $._tuple_element),
+        field('operator', choice(...ops.map(o => alias(o, $.operator)))),
+        field('right', $._tuple_element),
+      ))),
+      // [a urem b], an operator declared by [infix "urem"], after an
+      // operand that cannot be applied to it (see the header)
+      prec.left(PREC.cmp, seq(
+        field('left', $._tuple_element),
+        field('operator', alias($.identifier, $.infix_word)),
+        field('right', $._tuple_element),
+      )),
+    ),
 
     unary_expression: $ => prec(PREC.unary, seq(
-      field('operator', choice('-', '~')),
+      field('operator', alias('-', $.operator)),
       field('operand', $._tuple_element),
+    )),
+
+    // [~x], [!x]
+    prefix_expression: $ => prec(PREC.prefix, seq(
+      field('operator', alias(PREFIX, $.operator)),
+      field('operand', $._simple_expression),
     )),
 
     application_expression: $ => prec(PREC.app, seq(
@@ -422,6 +448,7 @@ module.exports = grammar({
       $.list_expression,
       $.record_expression,
       $.field_expression,
+      $.prefix_expression,
     ),
 
     parenthesized_expression: $ => seq('(', $._sequence_or_expression, ')'),
@@ -505,27 +532,31 @@ module.exports = grammar({
       $.attribute,
     )),
 
-    binary_pattern: $ => {
-      const table = [
-        [prec.right, PAT.or_op, '||'],
-        [prec.right, PAT.and_op, '&&'],
-        [prec.left, PAT.eq, '=='],
-        [prec.right, PAT.cons, '::'],
-        [prec.left, PAT.add, choice('+', '-', '++')],
-        [prec.left, PAT.mul, choice('*', 'land', 'lor', 'lxor', alias($.identifier, $.infix_word))],
-        [prec.right, PAT.pow, choice('lsl', 'lsr', 'asr')],
-      ];
-      return choice(...table.map(([assoc, p, op]) => assoc(p, seq(
+    // operators on terms, as in expressions, but for [=], which ends the
+    // pattern of a [let]
+    binary_pattern: $ => choice(
+      ...INFIX.map(([level, assoc, ops]) => assoc(PAT[level === 'or' ? 'or_op' : level === 'and' ? 'and_op' : level], seq(
         field('left', $._tuple_pattern_element),
-        field('operator', op),
+        field('operator', choice(...ops.filter(o => o !== '=').map(o => alias(o, $.operator)))),
         field('right', $._tuple_pattern_element),
-      ))));
-    },
+      ))),
+      prec.left(PAT.cmp, seq(
+        field('left', $._tuple_pattern_element),
+        field('operator', alias($.identifier, $.infix_word)),
+        field('right', $._tuple_pattern_element),
+      )),
+    ),
 
     unary_pattern: $ => prec(PAT.unary, seq(
-      field('operator', choice('-', '~', 'not')),
+      field('operator', choice(alias('-', $.operator), 'not')),
       field('operand', $._tuple_pattern_element),
     )),
+
+    // [~x], [!x]
+    prefix_pattern: $ => seq(
+      field('operator', alias(PREFIX, $.operator)),
+      field('operand', $._simple_pattern),
+    ),
 
     constructor_pattern: $ => prec(PAT.app, seq(
       field('constructor', $.constructor),
@@ -544,6 +575,7 @@ module.exports = grammar({
       $.typed_pattern,
       $.list_pattern,
       $.record_pattern,
+      $.prefix_pattern,
     ),
 
     // [#x], [#_]: an integer literal, binding its value

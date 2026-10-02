@@ -44,6 +44,11 @@
     "body": ["node ${1:Name} : ${2:TBool} -> ${3:TBool} -> ${0:TBool}"],
     "description": "A node, with its typing"
   },
+  "Sort": {
+    "prefix": "sort",
+    "body": ["sort ${0:TName}"],
+    "description": "A sort, a constructor of the types of terms"
+  },
   "Variant type": {
     "prefix": "type",
     "body": ["type ${1:name} =", "  | ${2:A}", "  | ${0:B}"],
@@ -66,8 +71,8 @@
   },
   "Constant": {
     "prefix": "constant",
-    "body": ["constant \"${1:0}\" (v) = ${0}"],
-    "description": "The term of a literal at the type of a term, for [@unit] and [@zero]"
+    "body": ["constant \"${1:0}\" = ${0}"],
+    "description": "The term of a literal, for the laws [@unit] and [@zero]"
   },
   "Use a module": {
     "prefix": "use",

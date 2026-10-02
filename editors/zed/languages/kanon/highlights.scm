@@ -48,11 +48,11 @@
 
 ((application_expression
   function: (identifier) @function)
-  (#not-any-of? @function "type_of" "equal"))
+  (#not-eq? @function "type_of"))
 
 ((application_expression
   function: (identifier) @function.builtin)
-  (#any-of? @function.builtin "type_of" "equal"))
+  (#eq? @function.builtin "type_of"))
 
 ; [infix "+" = Add, bv_add unchecked, lit_add]: the smart constructor and the
 ; primitive on values
@@ -92,7 +92,7 @@
   (_) @attribute)
 
 ; the unquoted arguments of attributes are mostly functions ([@fold lit_add],
-; [@to_term of_bool], [@raw width lit_width])
+; [@to_term lit], [@raw width lit_width])
 (attribute_argument
   (identifier) @function)
 
@@ -146,6 +146,7 @@
   "rule"
   "before"
   "node"
+  "sort"
   "type"
   "of"
   "infix"
@@ -173,33 +174,16 @@
 (unary_pattern
   "not" @keyword.operator)
 
-[
-  "land"
-  "lor"
-  "lxor"
-  "lsl"
-  "lsr"
-  "asr"
-] @keyword.operator
+; the operators of expressions and patterns, and an infix word ([a urem b])
+(operator) @operator
 
 (infix_word) @keyword.operator
 
+; [=] of declarations, [+] of [use +bool], [*] of types
 [
   "="
-  "<>"
-  "<"
-  "<="
-  ">"
-  ">="
-  "=="
-  "&&"
-  "||"
-  "::"
   "+"
-  "-"
   "*"
-  "++"
-  "~"
   "->"
 ] @operator
 

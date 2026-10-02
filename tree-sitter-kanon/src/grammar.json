@@ -39,6 +39,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "sort_declaration"
+        },
+        {
+          "type": "SYMBOL",
           "name": "type_definition"
         },
         {
@@ -412,6 +416,19 @@
         {
           "type": "STRING",
           "value": "node"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "constructor_declaration"
+        }
+      ]
+    },
+    "sort_declaration": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "sort"
         },
         {
           "type": "SYMBOL",
@@ -896,20 +913,33 @@
           }
         },
         {
-          "type": "STRING",
-          "value": "("
-        },
-        {
-          "type": "FIELD",
-          "name": "parameter",
-          "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": ")"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "("
+                },
+                {
+                  "type": "FIELD",
+                  "name": "parameter",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "identifier"
+                  }
+                },
+                {
+                  "type": "STRING",
+                  "value": ")"
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "STRING",
@@ -1736,8 +1766,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "||"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "||"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -1769,8 +1809,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "&&"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "&&"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -1805,32 +1855,58 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "="
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "="
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "<>"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "!="
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "<"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "<="
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": ">"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": ">="
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "=="
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -1864,8 +1940,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "::"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -1880,7 +1966,7 @@
           }
         },
         {
-          "type": "PREC_LEFT",
+          "type": "PREC_RIGHT",
           "value": 8,
           "content": {
             "type": "SEQ",
@@ -1900,16 +1986,13 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "+"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "-"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "++"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "::"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -1946,20 +2029,31 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "*"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "land"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "-"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "lor"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "lxor"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -1976,7 +2070,7 @@
           }
         },
         {
-          "type": "PREC_RIGHT",
+          "type": "PREC_LEFT",
           "value": 10,
           "content": {
             "type": "SEQ",
@@ -1996,16 +2090,74 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "lsl"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "lsr"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "asr"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "right",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_element"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 11,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "left",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_element"
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "operator",
+                "content": {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -2023,7 +2175,7 @@
         },
         {
           "type": "PREC_LEFT",
-          "value": 9,
+          "value": 6,
           "content": {
             "type": "SEQ",
             "members": [
@@ -2063,7 +2215,7 @@
     },
     "unary_expression": {
       "type": "PREC",
-      "value": 11,
+      "value": 12,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2071,17 +2223,13 @@
             "type": "FIELD",
             "name": "operator",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "-"
-                },
-                {
-                  "type": "STRING",
-                  "value": "~"
-                }
-              ]
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "-"
+              },
+              "named": true,
+              "value": "operator"
             }
           },
           {
@@ -2095,9 +2243,39 @@
         ]
       }
     },
+    "prefix_expression": {
+      "type": "PREC",
+      "value": 14,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "operator",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "PATTERN",
+                "value": "[!~?]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+              },
+              "named": true,
+              "value": "operator"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "operand",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_simple_expression"
+            }
+          }
+        ]
+      }
+    },
     "application_expression": {
       "type": "PREC",
-      "value": 12,
+      "value": 13,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2147,7 +2325,7 @@
     },
     "constructor_expression": {
       "type": "PREC",
-      "value": 12,
+      "value": 13,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2172,7 +2350,7 @@
     },
     "assert_expression": {
       "type": "PREC",
-      "value": 12,
+      "value": 13,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2246,6 +2424,10 @@
         {
           "type": "SYMBOL",
           "name": "field_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "prefix_expression"
         }
       ]
     },
@@ -2470,7 +2652,7 @@
     },
     "field_expression": {
       "type": "PREC",
-      "value": 13,
+      "value": 15,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2703,8 +2885,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "||"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "||"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -2736,8 +2928,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "&&"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "&&"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -2769,8 +2971,54 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "=="
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "!="
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -2802,8 +3050,18 @@
                 "type": "FIELD",
                 "name": "operator",
                 "content": {
-                  "type": "STRING",
-                  "value": "::"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
                 }
               },
               {
@@ -2818,7 +3076,7 @@
           }
         },
         {
-          "type": "PREC_LEFT",
+          "type": "PREC_RIGHT",
           "value": 9,
           "content": {
             "type": "SEQ",
@@ -2838,16 +3096,13 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "+"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "-"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "++"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "::"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -2884,29 +3139,31 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "*"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "land"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "lor"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "lxor"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
                       "type": "ALIAS",
                       "content": {
-                        "type": "SYMBOL",
-                        "name": "identifier"
+                        "type": "STRING",
+                        "value": "-"
                       },
                       "named": true,
-                      "value": "infix_word"
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
                 }
@@ -2923,7 +3180,7 @@
           }
         },
         {
-          "type": "PREC_RIGHT",
+          "type": "PREC_LEFT",
           "value": 11,
           "content": {
             "type": "SEQ",
@@ -2943,18 +3200,114 @@
                   "type": "CHOICE",
                   "members": [
                     {
-                      "type": "STRING",
-                      "value": "lsl"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "lsr"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     },
                     {
-                      "type": "STRING",
-                      "value": "asr"
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
                     }
                   ]
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "right",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_pattern_element"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 12,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "left",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_pattern_element"
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "operator",
+                "content": {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "right",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_pattern_element"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_LEFT",
+          "value": 7,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "left",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_tuple_pattern_element"
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "operator",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "identifier"
+                  },
+                  "named": true,
+                  "value": "infix_word"
                 }
               },
               {
@@ -2972,7 +3325,7 @@
     },
     "unary_pattern": {
       "type": "PREC",
-      "value": 12,
+      "value": 13,
       "content": {
         "type": "SEQ",
         "members": [
@@ -2983,12 +3336,13 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "STRING",
-                  "value": "-"
-                },
-                {
-                  "type": "STRING",
-                  "value": "~"
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "STRING",
+                    "value": "-"
+                  },
+                  "named": true,
+                  "value": "operator"
                 },
                 {
                   "type": "STRING",
@@ -3008,9 +3362,35 @@
         ]
       }
     },
+    "prefix_pattern": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "operator",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "PATTERN",
+              "value": "[!~?]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+            },
+            "named": true,
+            "value": "operator"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "operand",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_simple_pattern"
+          }
+        }
+      ]
+    },
     "constructor_pattern": {
       "type": "PREC",
-      "value": 13,
+      "value": 14,
       "content": {
         "type": "SEQ",
         "members": [
@@ -3079,6 +3459,10 @@
         {
           "type": "SYMBOL",
           "name": "record_pattern"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "prefix_pattern"
         }
       ]
     },
