@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` on a subsort names a predicate on terms, which the Lean statements of a rule function assume of its operands at a position of the subsort (in the statements of its rules and arms, in `Ops.Sound`, in its step and lifting lemmas), and which the rule function whose node returns the subsort must prove of what it returns (`f.post.main.Stmt`, by hand). `examples/division` is checked by CI.
+- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n` declares a sort of the arguments of its parent, which the typing of a node may use for an operand or its result (`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n`). A term of a subsort is accepted wherever its parent is expected. They are erased to their parent in the OCaml of the types, rules and tests, and trusted.
+- The `ocaml` backend generates a destructor `as_foo` and a test `is_foo` for every node and every sort (`as_foo : t -> (parameters, operands) option`, `as_tfoo : ty -> arguments option`), named after the constructor in lowercase. A function or a primitive with such a name is an error.
+- [Operators with a word suffix](README.md#operators-on-terms): a symbol directly followed by a word is one operator, such as `<u` or `<=s` (`infix "<u" = Ult, bv_ult`, `a <u b`, `a <=s b`), at the precedence of its symbol. The tree-sitter grammar reads them too.
+- [Parametrised abstract types](README.md#types): `type 'a iarray [@ocaml "Iarray.t"] [@equal "Iarray.equal"] [@hash "Iarray.hash"]` declares a host container usable at any type, `t` included (`node Array of t iarray`, `prim get : t iarray -> int -> t`, `(t, int) pair`). `[@equal]` and `[@hash]` take the equality and the hash of the arguments first, which Kanon passes, so that nodes are hash-consed on the elements. The Lean backends reject them.
+- The [`ocaml-typed` backend](README.md#typed-ocaml) generates the typed interface of a language, where a term is a `'a t` whose phantom parameter is a tag, a polymorphic variant that says what Kanon knows of it: a sort `TBitVector` has the tag type `tbitvector` in the module `Tag`, and a subsort refines its parent (`tnonzero` is within `tbitvector`), so that an operand of a subsort needs a term known to be of it, and an operand of a sort accepts the terms of its subsorts. The tag types are plain polymorphic variants, which a program may join into groups of tags. The signature `S` is organised like the language, one module per file, with a function for each sort, rule function and destructor, typed by the tags, and the escape hatches `cast`, `untyped` and `type_`. `Derived` implements it from the rules (the module named by [`[@@@ocaml_rules "M"]`](README.md#floating-attributes)), with the phantom types visible, which `S` hides; only the leaf nodes with `[@ctor f]` (the smart constructor of a node that no rule function is the spec of) are written by hand. Nothing is a functor.
+- [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
+- [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
+- `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
+- [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
+- [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+
+### Fixed
+
+- `kanon ocaml-tests` listed the single rule `main` for a rule function whose spec annotates the sort of an operand (`(v : TBv sz)`), and its `fired` did not bind the variables of the sorts: it lists the rules and binds them.
+- The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
+
+### Changed
+
+- Operators need spaces: an operator is surrounded by spaces (or brackets), and `x<y`, `x +y` or `f x+1` are errors, no longer `x < y`. A prefix operator (`-`, or a symbol that starts with `!`, `~` or `?`) is written right before its operand (`-x`, `x - -y`), and has no word suffix; `.`, `:` and `#` need no spaces. A symbol followed by a word is one operator whatever the declarations: the lexer no longer knows them (but for the words declared infix, such as `urem`).
+- `use +name` is a syntax error like any other, not a message: it is `use builtin "name"`.
+- A tuple of blanks (`_, _`) is a final catch-all case like `_`, for `extend fn`, `extend rule`, `default` and unreachable cases: the cases of `extend fn` were silently dropped after a final `| _, _ ->`.
+- An `extend` case that is not added, because an earlier case matches everything it does, is an error.
+- Unknown attributes on `fn`, `prim` and `rule` are errors.
+
 ## 0.2.0 (2026-10-02)
 
 ### Added

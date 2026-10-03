@@ -82,6 +82,35 @@ let keywords =
 
 let id x = if List.mem x keywords then "«" ^ x ^ "»" else x
 
+(** [text] without what would end or open a (nested) comment in Lean: [-/] and
+    [/-] get a space inside. *)
+let escape_comment text =
+  let replace sub by s =
+    let n = String.length sub in
+    let b = Buffer.create (String.length s) in
+    let rec go i =
+      if i < String.length s then
+        if i + n <= String.length s && String.sub s i n = sub then (
+          Buffer.add_string b by;
+          go (i + n))
+        else (
+          Buffer.add_char b s.[i];
+          go (i + 1))
+    in
+    go 0;
+    Buffer.contents b
+  in
+  text |> replace "-/" "- /" |> replace "/-" "/ -"
+
+(** The documentation comment of an item, if it has one. *)
+let doc ft = function
+  | None -> ()
+  | Some text ->
+      pf ft "%a@ "
+        (Gen_ocaml.doc_comment ~opening:"/--" ~closing:"-/"
+           ~escape:escape_comment)
+        text
+
 (* ---------------------------------------------------------------- *)
 (* Classification *)
 
@@ -91,6 +120,15 @@ type ctx = { prims : prim list; kinds : (string * kind) list; fns : fn list }
 let fn_kind ctx f = List.assoc f ctx.kinds
 let is_oracle ctx f = List.exists (fun p -> p.pname = f && p.oracle) ctx.prims
 let is_prim ctx f = List.exists (fun p -> p.pname = f) ctx.prims
+
+(** The program without its [[@no_lean]] functions and primitives, which Lean
+    does not see: nothing that it models calls them (see [Check.program]). *)
+let modelled (p : program) =
+  {
+    p with
+    prims = List.filter (fun (q : prim) -> not q.pno_lean) p.prims;
+    fns = List.filter (fun (f : fn) -> not f.no_lean) p.fns;
+  }
 
 let classify (p : program) =
   let is_oracle f = List.exists (fun q -> q.pname = f && q.oracle) p.prims in
@@ -159,6 +197,14 @@ let rec lean_ty ft = function
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
+  | TApp (n, _) ->
+      raise
+        (Check.Error
+           ( (decl_of_ty (TData n)).d_loc,
+             Fmt.str
+               "type %s is parametrised: parametrised abstract types are not \
+                supported in Lean"
+               n ))
 
 let lean_constr (c : constr) = Fmt.str "%a.%s" lean_ty c.c_res c.c_name
 
@@ -441,6 +487,49 @@ let args ft (f : fn) =
 let arrow ft (f : fn) =
   List.iter (fun (_, t) -> pf ft "%a → " lean_ty t) f.params;
   lean_ty ft f.ret
+
+(** The assumptions on the operands of the rule function [f]: from the subsorts
+    in the typing of the node of its spec, the operands whose subsort has a Lean
+    predicate [P], with [P], and whether the operand is a list. A rule function
+    is stated for the terms that satisfy them (see {!pre_prop}). *)
+let preconditions (f : fn) =
+  List.filter_map
+    (fun (x, (ss : subsort), is_list) ->
+      Option.map (fun p -> (x, p, is_list)) ss.ss_lean)
+    (fst (Check.fn_subsorts f))
+
+(** The Lean predicate that the result of the rule function [f] must satisfy:
+    the one of the subsort in the typing of the node of its spec, if it has one.
+*)
+let postcondition (f : fn) =
+  Option.bind (snd (Check.fn_subsorts f)) (fun (ss : subsort) -> ss.ss_lean)
+
+(** The name of the hypothesis that the operand [x] satisfies its predicate. *)
+let hyp_name x = "hs_" ^ x
+
+(** The statement of an assumption: [P x], where [text x] is how the statement
+    refers to the operand [x], and [P y] for every element [y] of a list. *)
+let pre_prop ~text (x, p, is_list) =
+  if is_list then Fmt.str "(∀ y ∈ %s, %s y)" (text x) p
+  else Fmt.str "%s %s" p (text x)
+
+(** The assumptions of [f] on its own parameters, each followed by an arrow. *)
+let pre_arrows ft (f : fn) =
+  List.iter (fun pre -> pf ft "%s → " (pre_prop ~text:id pre)) (preconditions f)
+
+(** The assumptions of [f] as the binders of hypotheses, on parameters whose
+    names are [rename]d, each after a space. *)
+let pre_binders ?(rename = Fun.id) ft (f : fn) =
+  List.iter
+    (fun ((x, _, _) as pre) ->
+      pf ft " (%s : %s)" (hyp_name x)
+        (pre_prop ~text:(fun x -> id (rename x)) pre))
+    (preconditions f)
+
+(** The names of the hypotheses of the assumptions of [f], each after a space.
+*)
+let pre_names ft (f : fn) =
+  List.iter (fun (x, _, _) -> pf ft " %s" (hyp_name x)) (preconditions f)
 
 (** The Lean function for one rule. *)
 let rule_def ctx ft (f : fn) (pre, scruts, grp) =
@@ -845,7 +934,7 @@ let rec decreasing (f : fn) (e : expr) =
   | _ -> None
 
 let fn_def ctx ft (f : fn) ~o ~kw ~recursive =
-  pf ft "@[<v 2>%s %s%s %a : %a :=@ %a@]@ " kw (id f.name)
+  pf ft "%a@[<v 2>%s %s%s %a : %a :=@ %a@]@ " doc f.fdoc kw (id f.name)
     (if o then " (O : Ops)" else "")
     params f lean_ty f.ret (expr ctx) f.body;
   (if recursive then
@@ -875,6 +964,7 @@ let defs ctx ft kind ~o =
 let rule_fns ctx = List.filter (fun f -> fn_kind ctx f.name = Rule) ctx.fns
 
 let model ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Signatures" ];
   (* oracles *)
@@ -884,7 +974,7 @@ let model ~sources ft (p : program) =
   List.iter
     (fun (q : prim) ->
       if q.oracle then (
-        pf ft "@ %s : " q.pname;
+        pf ft "@ %a%s : " doc q.pdoc q.pname;
         List.iter (fun t -> pf ft "%a → " lean_ty t) q.pargs;
         lean_ty ft q.pret))
     p.prims;
@@ -894,14 +984,16 @@ let model ~sources ft (p : program) =
   pf ft
     "/-- The rule functions, as used by the rules. -/@ @[<v 2>structure Ops \
      where@ orc : Oracle";
-  List.iter (fun f -> pf ft "@ %s : %a" f.name arrow f) (rule_fns ctx);
+  List.iter
+    (fun f -> pf ft "@ %a%s : %a" doc f.fdoc f.name arrow f)
+    (rule_fns ctx);
   pf ft "@]@ @ ";
   defs ctx ft OHelper ~o:true;
   (* specs *)
   List.iter
     (fun f ->
-      pf ft "@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " f.name
-        params f (expr ctx) (Option.get f.spec))
+      pf ft "%a@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " doc
+        f.fdoc f.name params f (expr ctx) (Option.get f.spec))
     (rule_fns ctx);
   (* rules and steps *)
   List.iter
@@ -1038,6 +1130,18 @@ let arm_stmt ctx ft f r arms i (a : arm) =
     pf ft "∀ %a,@ "
       (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %s)" x t))
       a.a_binders;
+  (* the assumptions on the operands, over the scrutinees *)
+  List.iter
+    (fun pre ->
+      pf ft "%s →@ "
+        (with_subst
+           (List.map (fun (x, (t, _)) -> (x, t)) a.a_subst)
+           (fun () ->
+             pre_prop
+               ~text:(fun x ->
+                 Fmt.str "%a" (expr ctx) { c.body with e = EVar x })
+               pre)))
+    (preconditions f);
   (* the [let]s before the match, over the scrutinees *)
   let lets =
     List.map
@@ -1065,6 +1169,7 @@ let arm_stmt ctx ft f r arms i (a : arm) =
     ()
 
 let statements ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Semantics" ];
   pf ft
@@ -1073,8 +1178,8 @@ let statements ~sources ft (p : program) =
     (sem_binders ()) (sem_args ());
   List.iter
     (fun f ->
-      pf ft "@ %s : ∀ %a, Refines%s (%s.spec %a) (O.%s %a)" f.name params f
-        (sem_args ()) f.name args f f.name args f)
+      pf ft "@ %s : ∀ %a, %aRefines%s (%s.spec %a) (O.%s %a)" f.name params f
+        pre_arrows f (sem_args ()) f.name args f f.name args f)
     (rule_fns ctx);
   pf ft "@]@ @ ";
   List.iter (comm_stmt ft) (comm_ops ());
@@ -1086,16 +1191,29 @@ let statements ~sources ft (p : program) =
           let n = id (rule_name f g) in
           pf ft
             "@[<v 2>def %s.r_%s.Stmt : Prop :=@ ∀ %s(O : Ops), O.Sound%s →@ ∀ \
-             %a (res : Term), %s.r_%s O %a = some res →@ Refines%s (%s.spec \
+             %a (res : Term), %a%s.r_%s O %a = some res →@ Refines%s (%s.spec \
              %a) res@]@ @ "
-            f.name n (sem_binders ()) (sem_args ()) params f f.name n args f
-            (sem_args ()) f.name args f)
+            f.name n (sem_binders ()) (sem_args ()) params f pre_arrows f f.name
+            n args f (sem_args ()) f.name args f)
         (rules f);
       if f.cases then
         List.iter
           (fun (r, arms) ->
             List.iteri (fun i a -> arm_stmt ctx ft f r arms i a) arms)
           (arms f))
+    (rule_fns ctx);
+  List.iter
+    (fun f ->
+      Option.iter
+        (fun p ->
+          pf ft
+            "/-- What `%s` returns, a rule or its spec, satisfies `%s`: to \
+             prove by hand, with `@@[kanon_arm]`. -/@ @[<v 2>def \
+             %s.post.main.Stmt : Prop :=@ ∀ %s(O : Ops), O.Sound%s →@ ∀ %a, \
+             %a%s (%s.step O %a)@]@ @ "
+            f.name p f.name (sem_binders ()) (sem_args ()) params f pre_arrows f
+            p f.name args f)
+        (postcondition f))
     (rule_fns ctx);
   pf ft "end %s@]@." (root ())
 
@@ -1122,6 +1240,7 @@ let rec calls (e : expr) =
     a call of the function on terms that refine others refines the spec on
     those. *)
 let lifts ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Lib.Lift" ];
   pf ft "namespace Lib@ @ variable %s{O : Ops}@ @ " (sem_implicits ());
@@ -1146,19 +1265,26 @@ let lifts ~sources ft (p : program) =
           if term (x, t) then
             pf ft "@ (h_%s : Refines%s %s %s')" x (sem_args ()) (id x) (id x))
         f.params;
+      (* the assumptions are on the arguments of the call *)
+      pre_binders
+        ~rename:(fun x ->
+          if term (x, List.assoc x f.params) then x ^ "'" else x)
+        ft f;
       pf ft " :@ Refines%s (%s.spec %s) (O.%s %s) :=@ " (sem_args ()) f.name
         (String.concat " " (List.map (fun (x, _) -> id x) f.params))
         f.name
         (String.concat " " (List.map prime f.params));
       if List.exists term f.params then
         pf ft
-          "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s)@]@ @ "
+          "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s%a)@]@ @ "
           (String.concat ", " ("kanon_spec" :: helpers))
           f.name
           (String.concat " " (List.map prime f.params))
+          pre_names f
       else
-        pf ft "hO.%s %s@]@ @ " f.name
-          (String.concat " " (List.map prime f.params)))
+        pf ft "hO.%s %s%a@]@ @ " f.name
+          (String.concat " " (List.map prime f.params))
+          pre_names f)
     (rule_fns ctx);
   pf ft "end Lib@ @ end %s@]@." (root ())
 
@@ -1224,7 +1350,12 @@ let cases_proofs ft (f : fn) =
     (fun (r, arms) ->
       List.iteri
         (fun i a ->
-          match derived_from f arms a with
+          (* the operands of a swapped arm are other terms than those of the arm
+             that it is derived from, which the assumptions are about *)
+          let derived =
+            if preconditions f = [] then derived_from f arms a else None
+          in
+          match derived with
           | _ when in_bool_module a.a_case.cloc ->
               (* proved once, by Kanon's library *)
               pf ft
@@ -1291,9 +1422,10 @@ let cases_proofs ft (f : fn) =
       (* the alternatives come out of [repeat' rcases] in order *)
       pf ft
         "@[<v 2>theorem %s.r_%s.proof : %s.r_%s.Stmt := by@ intro%s O hO %a \
-         res h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h with h \
-         | h@ %a@]@ @ "
-        f.name (id r) f.name (id r) (sem_args ()) args f f.name (id r)
+         res%a h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h with \
+         h | h@ %a@]@ @ "
+        f.name (id r) f.name (id r) (sem_args ()) args f pre_names f f.name
+        (id r)
         (Format.pp_print_list
            ~pp_sep:(fun ft () -> pf ft "@ ")
            (fun ft i ->
@@ -1303,6 +1435,7 @@ let cases_proofs ft (f : fn) =
     (arms f)
 
 let soundness ~sources ~proofs ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   let proofs =
     if List.exists (fun f -> f.cases) (rule_fns ctx) then
@@ -1325,19 +1458,28 @@ let soundness ~sources ~proofs ft (p : program) =
   List.iter (fun f -> if f.cases then cases_proofs ft f) (rule_fns ctx);
   List.iter
     (fun f ->
+      if postcondition f <> None then
+        pf ft
+          "theorem %s.post.main.ok : %s.post.main.Stmt := kanon_proof%% \
+           %s.post.main@ @ "
+          f.name f.name f.name)
+    (rule_fns ctx);
+  List.iter
+    (fun f ->
       pf ft
-        "@[<v 2>theorem %s.step_sound %s(O : Ops) (hO : O.Sound%s) %a :@ \
+        "@[<v 2>theorem %s.step_sound %s(O : Ops) (hO : O.Sound%s) %a%a :@ \
          Refines%s (%s.spec %a) (%s.step O %a) := by@ unfold %s.step@ "
-        f.name (sem_binders ()) (sem_args ()) params f (sem_args ()) f.name args
-        f f.name args f f.name;
+        f.name (sem_binders ()) (sem_args ()) params f
+        (pre_binders ?rename:None) f (sem_args ()) f.name args f f.name args f
+        f.name;
       List.iter
         (fun r ->
           let _, _, g = r in
           let n = id (rule_name f g) in
           pf ft
             "refine Refinement.firstSome_cons (fun res h => %s.r_%s.proof%s O \
-             hO %a res h) ?_@ "
-            f.name n (sem_args ()) args f)
+             hO %a res%a h) ?_@ "
+            f.name n (sem_args ()) args f pre_names f)
         (rules f);
       pf ft "exact Refinement.firstSome_nil@]@ @ ")
     (rule_fns ctx);
@@ -1348,7 +1490,9 @@ let soundness ~sources ~proofs ft (p : program) =
     \    { orc := h"
     (sem_binders ()) (sem_args ()) (sem_args ());
   List.iter
-    (fun f -> pf ft ",\n      %s := fun %a => Refinement.refl" f.name args f)
+    (fun f ->
+      pf ft ",\n      %s := fun %a%a => Refinement.refl" f.name args f pre_names
+        f)
     (rule_fns ctx);
   pf ft
     " }\n  | n + 1 =>\n    have hO := opsN_sound%s orc h n\n    { orc := hO.orc"
@@ -1379,13 +1523,14 @@ let components (d : decl) =
 
 let rec decls_of_ty = function
   | (TKind | TSty | TData _) as t -> [ decl_of_ty t ]
+  | TApp (_, l) as t -> decl_of_ty t :: List.concat_map decls_of_ty l
   | TTuple l -> List.concat_map decls_of_ty l
   | TOption t | TList t -> decls_of_ty t
   | TInt | TBool | TUnit | TTerm -> []
 
 let rec uses_term = function
   | TTerm -> true
-  | TTuple l -> List.exists uses_term l
+  | TTuple l | TApp (_, l) -> List.exists uses_term l
   | TOption t | TList t -> uses_term t
   | _ -> false
 
@@ -1414,12 +1559,13 @@ let reaches p (d : decl) =
 
 let lean_decl ft (d : decl) =
   let name = decl_lean_name d in
+  doc ft d.d_doc;
   (match d.d_fields with
   | [] ->
       pf ft "@[<v 2>inductive %s where" name;
       List.iter
         (fun c ->
-          pf ft "@ | %s" c.c_name;
+          pf ft "@ %a| %s" doc c.c_doc c.c_name;
           if c.c_args <> [] then
             pf ft " : %a%s"
               (list ~sep:"" (fun ft a -> pf ft "%a → " lean_ty (arg_ty a)))
@@ -1529,6 +1675,7 @@ let syntax ~sources ft =
 (** [Signatures.lean]: checks that [Prims.lean] defines the primitives (other
     than the oracles, which are fields of [Oracle]), with their types. *)
 let signatures ~sources ft (p : program) =
+  let p = modelled p in
   lean_header ~sources ft [ md "Prims" ];
   pf ft
     "/-! The primitives of the rules, with the types they are declared with. \
@@ -1696,6 +1843,7 @@ let typing_rhs ctx (ty : typing) =
     over the sorts of the operands and of the result; the operands of an n-ary
     operator ([OpN]) all have its first sort. *)
 let typing_file ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Prims" ];
   let types = uniq (List.map (fun t -> t.t_constr.c_res) p.typing) in

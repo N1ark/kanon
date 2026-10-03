@@ -75,6 +75,7 @@ let ty_of_name = function
   | "t" -> Some TTerm
   | "kind" -> None
   | s when Option.is_some (find_decl s) -> Some (ty_of_decl s)
+  | "nat" -> Some TInt
   | _ -> None
 
 let rec ty_of_core (ct : core_type) : Syntax.ty =
@@ -82,11 +83,30 @@ let rec ty_of_core (ct : core_type) : Syntax.ty =
   | Ptyp_constr ({ txt = Lident "kind"; loc }, [])
     when loc.loc_start.pos_fname = kanon_file ->
       TKind
+  | Ptyp_constr ({ txt = Lident s; loc }, [])
+    when match find_decl s with Some d -> d.d_arity > 0 | None -> false ->
+      error loc "type %s is parametrised: it expects %d argument%s" s
+        (Option.get (find_decl s)).d_arity
+        (if (Option.get (find_decl s)).d_arity = 1 then "" else "s")
   | Ptyp_constr ({ txt = Lident s; _ }, []) when Option.is_some (ty_of_name s)
     ->
       Option.get (ty_of_name s)
   | Ptyp_constr ({ txt = Lident "list"; _ }, [ t ]) -> TList (ty_of_core t)
   | Ptyp_constr ({ txt = Lident "option"; _ }, [ t ]) -> TOption (ty_of_core t)
+  | Ptyp_constr ({ txt = Lident s; loc }, (_ :: _ as args)) -> (
+      let n = List.length args in
+      match find_decl s with
+      | Some d when d.d_arity = n && s <> "list" && s <> "option" ->
+          TApp (s, List.map ty_of_core args)
+      | Some d when d.d_arity > 0 ->
+          error loc "type %s expects %d argument%s, given %d" s d.d_arity
+            (if d.d_arity = 1 then "" else "s")
+            n
+      | _ when s = "list" || s = "option" ->
+          error loc "type %s expects 1 argument, given %d" s n
+      | _ when Option.is_some (ty_of_name s) ->
+          error loc "type %s takes no argument" s
+      | _ -> error loc "unknown type constructor %s" s)
   | Ptyp_tuple l -> TTuple (List.map ty_of_core l)
   | _ -> error ct.ptyp_loc "unsupported type"
 
@@ -162,6 +182,13 @@ let rule_name_of_attrs (attrs : attributes) =
       else None)
     attrs
 
+(** The error of the constructor [name], which is not declared; a subsort is
+    only in the typing of a node. *)
+let unknown_constructor loc name =
+  if Option.is_some (find_subsort name) then
+    error loc "%s is a subsort: only the typing of a node can use it" name
+  else error loc "unknown constructor %s" name
+
 let constr_args ?(any = fun _ -> false) loc (c : constr) (arg : 'a option)
     (split : 'a -> 'a list option) =
   let n = List.length c.c_args in
@@ -197,6 +224,18 @@ let node_of_op (op : constr) =
           Some (kc, List.map arg_ty operands)
       | _ -> None)
     !lang.node_kinds
+
+(** Whether a pattern matches anything: [_], or a tuple of blanks, at any depth
+    (see {!Syntax.is_catch_all}, on converted patterns). *)
+let rec is_blank (p : pattern) =
+  match p.ppat_desc with
+  | Ppat_any -> true
+  | Ppat_tuple l -> List.for_all is_blank l
+  | _ -> false
+
+(** The cases that [extend] added, by location, and the function they extend,
+    which must not be left out as unreachable. *)
+let extension_cases : (Location.t * string) list ref = ref []
 
 let has_attr name (attrs : attributes) =
   List.exists (fun (a : attribute) -> a.attr_name.txt = name) attrs
@@ -497,7 +536,7 @@ and pat' ~sort (expected : Syntax.ty) (p : pattern) : Syntax.pat =
       | _ -> error loc ":: at type %a" pp_ty expected)
   | Ppat_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error cloc "unknown constructor %s" name
+      | None -> unknown_constructor cloc name
       | Some c ->
           (* kind constructors can be matched against terms *)
           let ok =
@@ -629,6 +668,7 @@ let bind_pat env ?sort t p =
 let rec eq_ty = function
   | TInt | TBool | TUnit | TTerm | TKind -> true
   | (TSty | TData _) as t -> (decl_of_ty t).d_eq
+  | TApp (_, l) as t -> (decl_of_ty t).d_eq && List.for_all eq_ty l
   | TTuple l -> List.for_all eq_ty l
   | TOption t | TList t -> eq_ty t
 
@@ -1131,11 +1171,36 @@ let node_term loc ~name ~build (params : Syntax.expr list)
     commutative operators with their operands in order (see [comm_fns]). *)
 let ordered = ref false
 
+let is_node_constr c =
+  match find_constr c with
+  | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
+  | None -> false
+
+(** The expression [s] of [(C x : s)], that the parser read as a type. *)
+let sortexpr_of (e : expression) =
+  List.find_map
+    (fun (a : attribute) ->
+      match a.attr_payload with
+      | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+        when a.attr_name.txt = "kanon.sortexpr" ->
+          Some s
+      | _ -> None)
+    e.pexp_attributes
+  |> Option.get
+
 let rec expr env ?expected (e : expression) : Syntax.expr =
   let loc = e.pexp_loc in
   let mk ety d =
     Option.iter (fun expected -> expect loc ~expected ety) expected;
     { e = d; ety; eloc = loc }
+  in
+  (* [(C x : e)] for an expression [e] of type [ty] that is not a sort
+     constructor applied to arguments: the sort is computed, and the typing of
+     [C], if it has one, is not checked against it *)
+  let computed_node k s =
+    let kind = expr env ~expected:TKind k in
+    let sort = expr env ~expected:TSty s in
+    mk TTerm (ENode (kind, sort))
   in
   (* an operator on terms, if one of its operands is a term *)
   let term_op op (args : Syntax.expr list) =
@@ -1241,7 +1306,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       else mk TTerm (node_term loc ~name ~build params operands).e
   | Pexp_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error cloc "unknown constructor %s" name
+      | None -> unknown_constructor cloc name
       | Some c -> (
           let args = constr_args loc c arg split_pexp in
           let args =
@@ -1434,6 +1499,28 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let c = expr env ~expected:TBool c in
       let body = expr env ?expected body in
       mk body.ety (EAssert (c, body))
+  | Pexp_constraint
+      (({ pexp_desc = Pexp_construct ({ txt = Lident c; _ }, _); _ } as k), ct)
+    when is_node_constr c
+         && List.exists
+              (fun (a : attribute) -> a.attr_name.txt = "kanon.sortexpr")
+              e.pexp_attributes
+         &&
+         (* [(C x : t)] with a type [t] and no variable of that name is a type
+            annotation *)
+         match sortexpr_of e with
+         | { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ } -> (
+             List.mem_assoc x env.vars
+             || List.mem_assoc x env.globals
+             || List.mem_assoc x !sort_vars
+             ||
+               try
+                 ignore (ty_of_core ct);
+                 false
+               with Error _ -> true)
+         | _ -> true ->
+      (* [(C x : s)] for a variable [s]: the node at the computed sort *)
+      computed_node k (sortexpr_of e)
   | Pexp_constraint (e, ct) ->
       let t = ty_of_core ct in
       Option.iter (fun expected -> expect loc ~expected t) expected;
@@ -1446,11 +1533,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             { pstr_desc = Pstr_eval (s, _); _ };
           ] ) -> (
       (* [(C args : S args)]: the node [C], built at the sort [S args] *)
-      let is_node c =
-        match find_constr c with
-        | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
-        | None -> false
-      in
+      let is_node = is_node_constr in
       match (k.pexp_desc, s.pexp_desc) with
       | ( Pexp_construct ({ txt = Lident c; _ }, _),
           Pexp_construct ({ txt = Lident h; _ }, sarg) )
@@ -1477,7 +1560,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           let sort = expr env ~expected:TSty s in
           mk TTerm (ENode (kind, sort))
       | Pexp_construct ({ txt = Lident c; _ }, _), _ when is_node c ->
-          error s.pexp_loc "expected a sort, C args"
+          computed_node k s
       | _ ->
           error loc
             "only the operands of a spec, the parameters of functions and \
@@ -1846,7 +1929,7 @@ let rec with_default (spec : expression) (e : expression) =
       { e with pexp_desc = Pexp_sequence (a, with_default spec b) }
   | Pexp_match (s, cases) -> (
       match List.rev cases with
-      | { pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } :: _ -> e
+      | { pc_lhs; pc_guard = None; _ } :: _ when is_blank pc_lhs -> e
       | _ ->
           let open Ast_builder.Default in
           let loc = { spec.pexp_loc with loc_ghost = true } in
@@ -1913,6 +1996,23 @@ let check_attrs allowed (attrs : attributes) =
 
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
+
+(** [[@no_lean]] is for [fn] and [prim] items only: [what] says what the item
+    is, and why it is modelled. *)
+let reject_no_lean what (attrs : attributes) =
+  Option.iter
+    (fun (a : attribute) ->
+      error a.attr_name.loc
+        "%s and cannot be [@no_lean]: only fn and prim items can be" what)
+    (find_attr "no_lean" attrs)
+
+(** The doc comment among [attrs], which the parser adds as [[@ocaml.doc "..."]]
+    to a documented item, and the other attributes. *)
+let take_doc (attrs : attributes) =
+  let docs, others =
+    List.partition (fun (a : attribute) -> a.attr_name.txt = "ocaml.doc") attrs
+  in
+  (Option.map string_attr (List.nth_opt docs 0), others)
 
 (** The list sort [s list] of an operand of a typing, written [a list],
     [TBool list] or [(TBitVector n) list]: [s]. *)
@@ -2058,12 +2158,157 @@ let span_of (l : Location.t list) default =
       let last = List.nth l (List.length l - 1) in
       { first with loc_end = last.loc_end }
 
-(** Reads the declaration of the constructor [cd] of a type whose constructors
-    have the type [res], into the language. [comm_locs] collects the locations
-    of the [[@comm]] attributes. *)
-let constructor ~comm_locs res (cd : constructor_declaration) =
+(** A sort of a typing, written as a subsort or not: the sort that its position
+    has, which is that of the parent, and the subsort. A subsort is the sort of
+    an operand or of the result only, not an argument of a sort. *)
+let erase_subsort (e : expression) =
+  let reject (e : expression) =
+    object
+      inherit Ast_traverse.iter as super
+
+      method! expression e =
+        (match e.pexp_desc with
+        | Pexp_construct ({ txt = Lident c; _ }, _)
+          when Option.is_some (find_subsort c) ->
+            error e.pexp_loc
+              "%s is a subsort: it is the sort of an operand or of a result, \
+               not an argument of a sort"
+              c
+        | _ -> ());
+        super#expression e
+    end
+    |> fun o -> o#expression e
+  in
+  match e.pexp_desc with
+  | Pexp_construct (({ txt = Lident c; _ } as l), arg) -> (
+      Option.iter reject arg;
+      match find_subsort c with
+      | Some ss ->
+          ( {
+              e with
+              pexp_desc =
+                Pexp_construct ({ l with txt = Lident ss.ss_parent }, arg);
+            },
+            Some c )
+      | None -> (e, None))
+  | _ ->
+      reject e;
+      (e, None)
+
+(** Declares the subsort [cd], whose parent sort is checked once the sorts are
+    declared (see {!check_subsort}), and is returned with the expression that
+    names it. *)
+let declare_subsort (cd : constructor_declaration) =
   let name = cd.pcd_name.txt and loc = cd.pcd_loc in
-  let attrs = cd.pcd_attributes in
+  let doc, attrs = take_doc cd.pcd_attributes in
+  List.iter
+    (fun n ->
+      Option.iter
+        (fun (a : attribute) ->
+          error a.attr_loc
+            "subsort %s: a subsort has no argument names nor condition: its \
+             arguments are those of its parent"
+            name)
+        (find_attr n attrs))
+    [ "params"; "when" ];
+  check_attrs [ "sorts"; "lean" ] attrs;
+  let parent =
+    match typing_sorts cd with
+    | Some ([ s ], false) -> s
+    | _ ->
+        error loc
+          "subsort %s: expected its parent sort: subsort %s of args : Parent \
+           args"
+          name name
+  in
+  let ss_parent =
+    match parent.pexp_desc with
+    | Pexp_construct ({ txt = Lident p; _ }, _) -> p
+    | _ -> error parent.pexp_loc "expected the parent sort of %s" name
+  in
+  let ss_args =
+    match cd.pcd_args with
+    | Pcstr_tuple l ->
+        List.map
+          (fun (ct : core_type) ->
+            match ct.ptyp_desc with
+            | Ptyp_constr ({ txt = Lident "nat"; _ }, []) -> Small
+            | _ -> Arg (ty_of_core ct))
+          l
+    | Pcstr_record _ -> error loc "unsupported constructor"
+  in
+  let ss =
+    {
+      ss_name = name;
+      ss_args;
+      ss_parent;
+      ss_lean = Option.map string_attr (find_attr "lean" attrs);
+      ss_doc = doc;
+      ss_loc = cd.pcd_name.loc;
+    }
+  in
+  lang := { !lang with subsorts = !lang.subsorts @ [ ss ] };
+  (ss, parent)
+
+(** Checks the subsort [ss], once the sorts are declared: it is not declared
+    twice, its parent is a sort, and it has the arguments of the parent, which
+    [parent], the expression that names it, applies to variables. *)
+let check_subsort ((ss : subsort), (parent : expression)) =
+  let loc = ss.ss_loc in
+  if Option.is_some (find_constr ss.ss_name) then
+    error loc "constructor %s is declared twice" ss.ss_name;
+  (match
+     List.filter (fun (s : subsort) -> s.ss_name = ss.ss_name) !lang.subsorts
+   with
+  | _ :: _ :: _ -> error loc "subsort %s is declared twice" ss.ss_name
+  | _ -> ());
+  match find_constr ss.ss_parent with
+  | Some ({ c_res = TSty; _ } as pc) ->
+      let pp_arg ft = function
+        | Small -> Fmt.string ft "nat"
+        | Arg t -> pp_ty ft t
+      in
+      let pp_args ft = function
+        | [] -> Fmt.string ft "none"
+        | l -> Fmt.(list ~sep:(any " * ") pp_arg) ft l
+      in
+      if pc.c_args <> ss.ss_args then
+        error loc "subsort %s: its arguments must be those of %s (%a)"
+          ss.ss_name ss.ss_parent pp_args pc.c_args;
+      let args =
+        match parent.pexp_desc with
+        | Pexp_construct (_, Some { pexp_desc = Pexp_tuple l; _ }) -> l
+        | Pexp_construct (_, Some a) -> [ a ]
+        | _ -> []
+      in
+      let vars =
+        List.filter_map
+          (fun (a : expression) ->
+            match a.pexp_desc with
+            | Pexp_ident { txt = Lident x; _ } when x <> "_" -> Some x
+            | _ -> None)
+          args
+      in
+      if
+        List.length vars <> List.length pc.c_args
+        || List.length args <> List.length vars
+        || List.length (List.sort_uniq compare vars) <> List.length vars
+      then
+        error parent.pexp_loc
+          "subsort %s: its parent %s must be applied to the arguments of the \
+           subsort, as distinct variables"
+          ss.ss_name ss.ss_parent
+  | Some _ -> error parent.pexp_loc "%s is not a sort" ss.ss_parent
+  | None -> (
+      match find_subsort ss.ss_parent with
+      | Some _ ->
+          error parent.pexp_loc
+            "%s is a subsort: the parent of a subsort is a sort" ss.ss_parent
+      | None -> error parent.pexp_loc "unknown sort %s" ss.ss_parent)
+
+let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
+  let name = cd.pcd_name.txt and loc = cd.pcd_loc in
+  let c_doc, attrs = take_doc cd.pcd_attributes in
   (* the attributes of the literals before [notation] *)
   List.iter
     (fun (a : attribute) ->
@@ -2074,7 +2319,16 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
            for a leaf node of one int or bool"
           a.attr_name.txt name)
     attrs;
-  check_attrs ([ "comm"; "params"; "sorts"; "when"; "get" ] @ law_attrs) attrs;
+  reject_no_lean
+    (match kind with
+    | Some `Sort -> "a sort is part of the Lean model"
+    | _ -> "a node is part of the Lean model")
+    attrs;
+  check_attrs
+    ([ "comm"; "params"; "sorts"; "when"; "get" ]
+    @ (match kind with Some `Node -> [ "ctor" ] | _ -> [])
+    @ law_attrs)
+    attrs;
   let payload n =
     Option.map
       (fun (a : attribute) ->
@@ -2096,6 +2350,7 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
   in
   (match typing_sorts cd with
   | Some (rt_sorts, rt_nary) ->
+      let rt_sorts, rt_subs = List.split (List.map erase_subsort rt_sorts) in
       lang :=
         {
           !lang with
@@ -2107,6 +2362,7 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
                     rt_params = items (payload "params");
                     rt_sorts;
                     rt_nary;
+                    rt_subs;
                     rt_when = payload "when";
                     rt_loc = attr_loc "sorts";
                   } );
@@ -2130,7 +2386,7 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
           l
     | Pcstr_record _ -> error loc "unsupported constructor"
   in
-  let c = { c_name = name; c_res = res; c_args = args } in
+  let c = { c_name = name; c_res = res; c_args = args; c_doc; c_loc = loc } in
   let l = !lang in
   let l = { l with constrs = l.constrs @ [ c ] } in
   let l =
@@ -2166,11 +2422,19 @@ let constructor ~comm_locs res (cd : constructor_declaration) =
         | _ -> error a.attr_loc "[@get f] applies to sorts with one argument")
     | None -> l
   in
+  let l =
+    match find_attr "ctor" attrs with
+    | None -> l
+    | Some a -> (
+        match strings_attr a with
+        | [ f ] -> { l with node_ctors = l.node_ctors @ [ (name, f) ] }
+        | _ -> error a.attr_loc "[@ctor f] expects the name of a function")
+  in
   lang := l
 
 (** Reads the declaration [e] of an operator on terms, whose attribute [a] is
     [[@infix "op"]] or [[@prefix "op"]], into the language. *)
-let operator ((e : expression), (a : attribute)) =
+let operator ((e : expression), (a : attribute), op_doc) =
   let loc = e.pexp_loc in
   let sym, sym_loc = string_attr_loc a in
   let sym, arity =
@@ -2237,7 +2501,17 @@ let operator ((e : expression), (a : attribute)) =
       operators =
         !lang.operators
         @ [
-            { sym; arity; node; params; smart; pre; on_value; op_loc = sym_loc };
+            {
+              sym;
+              arity;
+              node;
+              params;
+              smart;
+              pre;
+              on_value;
+              op_loc = sym_loc;
+              op_doc;
+            };
           ];
     }
 
@@ -2253,17 +2527,19 @@ let generated_type name =
           (String.sub name 2 (String.length name - 2)))
 
 (** A type of the language, without constructors yet. *)
-let new_decl ?(loc = Location.none) ?ocaml ?lean ?(eq = true) ?equal ?hash name
-    =
+let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(arity = 0) ?(eq = true)
+    ?equal ?hash name =
   {
     d_name = name;
     d_ocaml = ocaml;
     d_lean = lean;
+    d_arity = arity;
     d_eq = eq;
     d_equal = equal;
     d_hash = hash;
     d_fields = [];
     d_loc = loc;
+    d_doc = doc;
   }
 
 (** Reads the declaration of a language, which the rules are then checked
@@ -2277,28 +2553,36 @@ let language (str : structure) =
            attempt (fun () ->
                match si.pstr_desc with
                | Pstr_type (_, [ td ]) -> Either.Left td
-               | Pstr_eval (e, [ a ])
-                 when List.mem a.attr_name.txt
-                        [ "infix"; "prefix"; "constant"; "notation" ] ->
-                   Right (e, a)
+               | Pstr_eval (e, attrs) -> (
+                   match take_doc attrs with
+                   | doc, [ a ]
+                     when List.mem a.attr_name.txt
+                            [ "infix"; "prefix"; "constant"; "notation" ] ->
+                       Right (e, a, doc)
+                   | _ ->
+                       error si.pstr_loc
+                         "unsupported item in a language declaration")
                | Pstr_attribute a -> (
                    match (a.attr_name.txt, strings_attr a) with
                    | "lean_root", [ r ] ->
                        lang := { !lang with lean_root = r };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "lean_param", [ x; t ] ->
                        lang :=
                          {
                            !lang with
                            lean_params = !lang.lean_params @ [ (x, t) ];
                          };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_types", [ m ] ->
                        lang := { !lang with ocaml_types = Some m };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_prims", [ m ] ->
                        lang := { !lang with ocaml_prims = Some m };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a)
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "ocaml_rules", [ m ] ->
+                       lang := { !lang with ocaml_rules = Some m };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
                          a.attr_name.txt)
@@ -2309,7 +2593,7 @@ let language (str : structure) =
   in
   let ops, constants =
     List.partition
-      (fun (_, (a : attribute)) ->
+      (fun (_, (a : attribute), _) ->
         List.mem a.attr_name.txt [ "infix"; "prefix" ])
       ops
   in
@@ -2326,27 +2610,37 @@ let language (str : structure) =
           (attempt (fun () ->
                match td.ptype_kind with
                | Ptype_variant [ cd ] ->
-                   let sort = has_attr "sort" td.ptype_attributes in
+                   let kind =
+                     if has_attr "sort" td.ptype_attributes then `Sort
+                     else if has_attr "subsort" td.ptype_attributes then
+                       `Subsort
+                     else `Node
+                   in
                    if
                      List.exists
                        (fun (_, cd') -> cd'.pcd_name.txt = cd.pcd_name.txt)
                        nodes
                    then
                      error cd.pcd_name.loc "%s %s is declared twice"
-                       (if sort then "sort" else "node")
+                       (match kind with
+                       | `Sort -> "sort"
+                       | `Subsort -> "subsort"
+                       | `Node -> "node")
                        cd.pcd_name.txt;
-                   if sort then
+                   if kind = `Sort then
                      Option.iter
                        (fun (a : attribute) ->
                          error a.attr_loc "sort %s: sorts have no typing"
                            cd.pcd_name.txt)
                        (find_attr "sorts" cd.pcd_attributes);
-                   nodes @ [ (sort, cd) ]
+                   nodes @ [ (kind, cd) ]
                | _ -> error td.ptype_loc "expected a node")))
       [] nodes
   in
-  let sorts, nodes = List.partition fst nodes in
+  let sorts, nodes = List.partition (fun (k, _) -> k = `Sort) nodes in
   let sorts = List.map snd sorts in
+  let subsorts, nodes = List.partition (fun (k, _) -> k = `Subsort) nodes in
+  let subsorts = List.map snd subsorts in
   (* the nodes, with their numbers of operands *)
   let nodes =
     List.filter_map
@@ -2361,11 +2655,11 @@ let language (str : structure) =
       (fun (td : type_declaration) ->
         attempt (fun () ->
             let name = td.ptype_name.txt and loc = td.ptype_name.loc in
-            check_attrs
-              [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ]
-              td.ptype_attributes;
+            let doc, tattrs = take_doc td.ptype_attributes in
+            reject_no_lean "a type is part of the Lean model" tattrs;
+            check_attrs [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ] tattrs;
             (match ty_of_name name with
-            | Some (TInt | TBool | TUnit) ->
+            | Some (TInt | TBool | TUnit) when name <> "nat" ->
                 error loc "%s is a built-in type" name
             | _ -> ());
             if generated_type name then
@@ -2387,8 +2681,35 @@ let language (str : structure) =
             let attr n =
               Option.map string_attr (find_attr n td.ptype_attributes)
             in
+            let arity = List.length td.ptype_params in
+            if arity > 0 then (
+              if td.ptype_kind <> Ptype_abstract then
+                error loc "type %s: only abstract types have type parameters"
+                  name;
+              let vars =
+                List.map
+                  (fun ((ct : core_type), _) ->
+                    match ct.ptyp_desc with
+                    | Ptyp_var v -> v
+                    | _ -> error ct.ptyp_loc "expected a type parameter")
+                  td.ptype_params
+              in
+              if List.length (List.sort_uniq compare vars) <> arity then
+                error loc "type %s: type parameters must be distinct" name;
+              (* nodes are hash-consed: the host's equality and hash, which take
+                 those of the arguments, are needed *)
+              List.iter
+                (fun n ->
+                  if attr n = None then
+                    error loc
+                      "type %s is parametrised: [@%s \"M.%s\"] is required, a \
+                       function taking the %s of each argument first"
+                      name n n
+                      (if n = "equal" then "equality" else "hash"))
+                [ "equal"; "hash" ]);
             let d =
-              new_decl ~loc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
+              new_decl ~loc ?doc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
+                ~arity
                 ~eq:(not (has_attr "noeq" td.ptype_attributes))
                 ?equal:(attr "equal") ?hash:(attr "hash") name
             in
@@ -2468,10 +2789,14 @@ let language (str : structure) =
          | _ -> seen)
        [] decls);
   checkpoint ();
+  (* the subsorts, which the typings of the nodes mention *)
+  let subsorts =
+    List.filter_map (fun cd -> attempt (fun () -> declare_subsort cd)) subsorts
+  in
   (* the [[@comm]] attributes, for the check that their operators are binary *)
   let comm_locs = ref [] in
-  let constructor res cd =
-    ignore (attempt (fun () -> constructor ~comm_locs res cd))
+  let constructor ?kind res cd =
+    ignore (attempt (fun () -> constructor ~comm_locs ?kind res cd))
   in
   List.iter
     (fun (d, (td : type_declaration)) ->
@@ -2483,7 +2808,9 @@ let language (str : structure) =
     decls;
   (* the terms: the leaf nodes, then the operators of each arity, [Op2 of op2 *
      t * t], which their nodes stand for *)
-  List.iter (fun (k, cd) -> if k = Some 0 then constructor TKind cd) nodes;
+  List.iter
+    (fun (k, cd) -> if k = Some 0 then constructor ~kind:`Node TKind cd)
+    nodes;
   List.iter
     (fun k ->
       let op, c = op_type k in
@@ -2510,6 +2837,8 @@ let language (str : structure) =
                   c_name = c;
                   c_res = TKind;
                   c_args = Arg (TData op) :: operands;
+                  c_doc = None;
+                  c_loc = Location.none;
                 };
               ];
           node_kinds = !lang.node_kinds @ [ c ];
@@ -2517,18 +2846,19 @@ let language (str : structure) =
     arities;
   List.iter
     (fun (k, cd) ->
-      if k <> Some 0 then constructor (TData (fst (op_type k))) cd)
+      if k <> Some 0 then constructor ~kind:`Node (TData (fst (op_type k))) cd)
     nodes;
-  List.iter (constructor TSty) sorts;
+  List.iter (constructor ~kind:`Sort TSty) sorts;
+  List.iter (fun s -> ignore (attempt (fun () -> check_subsort s))) subsorts;
   checkpoint ();
   (* then the notations of literals, and the operators on terms *)
   let notations, constants =
     List.partition
-      (fun (_, (a : attribute)) -> a.attr_name.txt = "notation")
+      (fun (_, (a : attribute), _) -> a.attr_name.txt = "notation")
       constants
   in
   List.iter
-    (fun ((e : expression), _) ->
+    (fun ((e : expression), _, _) ->
       ignore
         (attempt (fun () ->
              match e.pexp_desc with
@@ -2549,7 +2879,7 @@ let language (str : structure) =
   List.iter (fun op -> ignore (attempt (fun () -> operator op))) ops;
   (* the constants of the laws, functions of a term or not *)
   List.iter
-    (fun ((e : expression), (a : attribute)) ->
+    (fun ((e : expression), (a : attribute), doc) ->
       ignore
         (attempt (fun () ->
              match a.attr_name.txt with
@@ -2579,6 +2909,9 @@ let language (str : structure) =
                    {
                      !lang with
                      constants = !lang.constants @ [ (c, constant) ];
+                     constant_docs =
+                       !lang.constant_docs
+                       @ Option.to_list (Option.map (fun d -> (c, d)) doc);
                    }
              | _ -> ())))
     constants;
@@ -2686,7 +3019,7 @@ let spec_params rname (spec : expression) =
       let c =
         match find_constr n with
         | Some c -> c
-        | None -> error cloc "unknown constructor %s" n
+        | None -> unknown_constructor cloc n
       in
       let tys =
         List.map arg_ty c.c_args
@@ -2726,6 +3059,7 @@ type raw_fn = {
   rname_loc : Location.t;  (** of the name of the function *)
   rparam_locs : Location.t list;  (** of the names of its parameters *)
   rattrs : attributes;
+  rdoc : string option;
 }
 
 (** The location of the attribute [name] of [r], or else of its name. *)
@@ -2769,7 +3103,11 @@ let raw_fn (vb : value_binding) =
     | Ppat_var { txt; _ } -> txt
     | _ -> error rname_loc "expected a function name"
   in
-  let rattrs = vb.pvb_attributes in
+  let rdoc, rattrs = take_doc vb.pvb_attributes in
+  if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
+    reject_no_lean "a rule is proved in Lean" rattrs;
+    check_attrs [ "spec"; "cases"; "untyped" ] rattrs)
+  else check_attrs [ "ty_only"; "no_lean"; "total" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -2837,6 +3175,7 @@ let raw_fn (vb : value_binding) =
         rname_loc;
         rparam_locs;
         rattrs;
+        rdoc;
       }
   | Pexp_function _ ->
       error rname_loc "%s: the return type must be annotated" rname
@@ -2875,6 +3214,7 @@ let raw_fn (vb : value_binding) =
             rname_loc;
             rparam_locs;
             rattrs;
+            rdoc;
           }
       | _ ->
           error rname_loc "%s: constants must be annotated with their type"
@@ -2948,12 +3288,13 @@ let case_rule_loc (c : Ppxlib.case) =
       parameters before the values of the literals have type [ty], the sorts
       [s1], [s2] of the literal operands, then the values of the literals, named
       after the first letter of their type ([i1], [i2] for [int]s, [i] for a
-      unary operator). [C] is the notation of the type of a value, at the sort
-      of its operand (see [resolve_notation]), or else the only leaf node of one
-      value of that type. [lift], a function or a node, makes a term of the
-      result; by default, the notation (or node) of its type at the sort of the
-      result of the node, and nothing for a term. A node is built at the sort of
-      its typing, or else at the sort of the spec;
+      unary operator), prefixed with [kanon__] if one of them is the name of a
+      parameter of the rule. [C] is the notation of the type of a value, at the
+      sort of its operand (see [resolve_notation]), or else the only leaf node
+      of one value of that type. [lift], a function or a node, makes a term of
+      the result; by default, the notation (or node) of its type at the sort of
+      the result of the node, and nothing for a term. A node is built at the
+      sort of its typing, or else at the sort of the spec;
     - [[@unit c]], for a literal [c]: [unit_c: x, c -> x] if [op] is commutative
       (it then also matches [c, x]), and otherwise [unit_c: _, c -> v1];
     - [[@zero c]], for a literal [c]: [zero_c: _, c -> c], where [c] stands for
@@ -3106,8 +3447,18 @@ let law_cases globals raws =
               match tys with
               | t :: _ ->
                   let x = String.sub (Fmt.str "%a" pp_ty t) 0 1 in
-                  if arity = 1 then [ x ]
-                  else List.init arity (fun i -> x ^ string_of_int (i + 1))
+                  let xs =
+                    if arity = 1 then [ x ]
+                    else List.init arity (fun i -> x ^ string_of_int (i + 1))
+                  in
+                  (* the literals must not capture a parameter of the node or of
+                     the rule *)
+                  let clash x =
+                    List.exists (fun p -> p = x || p = "lit_" ^ x) params
+                  in
+                  if List.exists clash xs then
+                    List.map (fun x -> "kanon__" ^ x) xs
+                  else xs
               | [] -> []
             in
             (* the terms of the literals, whose sorts [f] takes *)
@@ -3343,6 +3694,7 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
     t_vars = !vars;
     t_sorts = sorts;
     t_nary = rt.rt_nary;
+    t_subs = rt.rt_subs;
     t_when = cond;
   }
 
@@ -3373,7 +3725,11 @@ let operator_typing (t : typing) =
     position of [f]'s body, behind [let]s, sequences and the right operands of
     [||] and [&&]. *)
 let extend_rules (str : structure) =
+  extension_cases := [];
   let splice loc f before (ext : Ppxlib.case list) (cs : Ppxlib.case list) =
+    extension_cases :=
+      List.map (fun (c : Ppxlib.case) -> (c.pc_lhs.ppat_loc, f)) ext
+      @ !extension_cases;
     ignore
       (List.fold_left
          (fun names c ->
@@ -3397,8 +3753,8 @@ let extend_rules (str : structure) =
         | None -> error rloc "extend %s: %s has no rule %s" f f r)
     | None -> (
         match List.rev cs with
-        | ({ pc_lhs = { ppat_desc = Ppat_any; _ }; pc_guard = None; _ } as last)
-          :: rest ->
+        | ({ pc_lhs; pc_guard = None; _ } as last) :: rest when is_blank pc_lhs
+          ->
             List.rev rest @ ext @ [ last ]
         | _ -> cs @ ext)
   in
@@ -3725,6 +4081,7 @@ let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
   let all l m = List.length l = List.length m && List.for_all2 subsumes l m in
   match (p.p, q.p) with
   | (PAny | PVar _), _ -> true
+  | _ when is_catch_all p -> true
   | PAs (p, _), _ -> subsumes p q
   | _, PAs (q, _) -> subsumes p q
   | PBool a, PBool b -> a = b
@@ -3746,16 +4103,31 @@ let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
     with a guard (which includes the repeated variables and the integer literals
     of its pattern, see [linearize]) covers nothing. *)
 let prune_cases (cases : Syntax.case list) =
-  List.rev
-    (List.fold_left
-       (fun kept (c : Syntax.case) ->
-         if
-           List.exists
-             (fun (k : Syntax.case) -> k.guard = None && subsumes k.pat c.pat)
-             kept
-         then kept
-         else c :: kept)
-       [] cases)
+  let kept =
+    List.rev
+      (List.fold_left
+         (fun kept (c : Syntax.case) ->
+           if
+             List.exists
+               (fun (k : Syntax.case) -> k.guard = None && subsumes k.pat c.pat)
+               kept
+           then kept
+           else c :: kept)
+         [] cases)
+  in
+  (* a case added by [extend] is never left out without a word *)
+  List.iter
+    (fun (loc, f) ->
+      if
+        List.exists (fun (c : Syntax.case) -> c.cloc = loc) cases
+        && not (List.exists (fun (c : Syntax.case) -> c.cloc = loc) kept)
+      then
+        error loc
+          "extend %s: this case is unreachable (an earlier case of %s matches \
+           everything it does), so it was not added"
+          f f)
+    !extension_cases;
+  kept
 
 (** [e] without the cases that its matches can never take. *)
 let rec prune (e : Syntax.expr) : Syntax.expr =
@@ -3793,15 +4165,33 @@ let rec prune (e : Syntax.expr) : Syntax.expr =
 let parse ~file lexbuf : structure =
   Lexing.set_filename lexbuf file;
   let at p = { loc_start = p; loc_end = p; loc_ghost = false } in
-  try Kanon_parser.file Kanon_lexer.token lexbuf with
+  (* where the last token, and the one before it, are doc comments *)
+  let cur = ref None and prev = ref None in
+  let token lb =
+    let t = Kanon_lexer.token lb in
+    prev := !cur;
+    (cur := match t with Kanon_parser.DOC _ -> Some lb.lex_start_p | _ -> None);
+    t
+  in
+  try Kanon_parser.file token lexbuf with
   | Kanon_lexer.Error (p, msg) -> raise (Error (at p, msg))
-  | Kanon_parser.Error -> raise (Error (at lexbuf.lex_start_p, "syntax error"))
+  | Syntax.Misplaced_doc (loc, msg) -> raise (Error (loc, msg))
+  | Kanon_parser.Error -> (
+      match (!cur, !prev) with
+      | Some p, _ | None, Some p ->
+          raise
+            (Error
+               ( at p,
+                 "misplaced doc comment: it must come right before a fn, rule, \
+                  node, sort, subsort, type, prim, oracle, infix, prefix or \
+                  constant" ))
+      | None, None -> raise (Error (at lexbuf.lex_start_p, "syntax error")))
 
 let parse_file file : structure =
   let ic = open_in_bin file in
   Fun.protect
     ~finally:(fun () -> close_in ic)
-    (fun () -> parse ~file (Lexing.from_channel ic))
+    (fun () -> parse ~file (Lexing.from_string (In_channel.input_all ic)))
 
 (** Parses the contents [s] of the Kanon file [file]. *)
 let parse_string ~file s : structure = parse ~file (Lexing.from_string s)
@@ -3976,13 +4366,165 @@ let check_fn env0 globals r =
     cases = r.rcases;
     body = prune body;
     floc = r.rloc;
+    fdoc = r.rdoc;
+    no_lean = has_attr "no_lean" r.rattrs;
   }
+
+(** The outermost node of the spec of a rule function, with its parameters and
+    its operands: the operator, or the leaf. A spec that is not a node (a call
+    of a function) has none. *)
+let spec_head (f : fn) =
+  match Option.map (fun (e : expr) -> e.e) f.spec with
+  | Some
+      (ENode
+         ({ e = EConstr (_, { e = EConstr (o, pargs); _ } :: operands); _ }, _))
+    ->
+      Some (o, pargs, operands)
+  | Some (ENode ({ e = EConstr (k, pargs); _ }, _)) -> Some (k, pargs, [])
+  | _ -> None
+
+(** The index of [x] in [l], if [x] is one of its variables. *)
+let index_of_var x l =
+  let rec go i = function
+    | [] -> None
+    | ({ e = EVar y; _ } : expr) :: _ when y = x -> Some i
+    | _ :: rest -> go (i + 1) rest
+  in
+  go 0 l
+
+(** The subsorts of the operands of the rule function [f], by parameter (with
+    whether it is a list of operands), and of its result, from the typing of the
+    node that its spec builds from its parameters. *)
+let fn_subsorts (f : fn) =
+  match spec_head f with
+  | None -> ([], None)
+  | Some (c, _, operands) -> (
+      match List.assoc_opt c.c_name !node_typings with
+      | None -> ([], None)
+      | Some t ->
+          let subs = List.map (fun s -> Option.bind s find_subsort) t.t_subs in
+          let n = List.length subs - 1 in
+          let operand_subs =
+            if t.t_nary then
+              match (List.hd subs, operands) with
+              | Some ss, [ { e = EVar x; _ } ] -> [ (x, ss, true) ]
+              | _ -> []
+            else
+              List.concat
+                (List.mapi
+                   (fun i (o : expr) ->
+                     match (o.e, List.nth_opt subs i) with
+                     | EVar x, Some (Some ss)
+                       when i < n && List.mem_assoc x f.params ->
+                         [ (x, ss, false) ]
+                     | _ -> [])
+                   operands)
+          in
+          (operand_subs, List.nth subs n))
 
 (** The number of errors collected so far. *)
 let errors_so_far () = List.length (Option.value !collected ~default:[])
 
 (** The end of a phase that started with [n] errors: stops if it had errors. *)
 let checkpoint_since n = if errors_so_far () > n then raise Stop
+
+(** The nodes of the language, in the order of their declaration: the leaves,
+    then the operators. *)
+let all_nodes () =
+  List.filter_map
+    (fun (c : constr) ->
+      if
+        (c.c_res = TKind && not (List.mem c.c_name !lang.node_kinds))
+        || Option.is_some (node_of_op c)
+      then Some c.c_name
+      else None)
+    !lang.constrs
+
+(** The check of a [[@total]] function [f], once the cases of every [extend fn]
+    are in: its body ends in a match on its first term parameter, with no
+    catch-all case on it, and with a case for each node of the language. A node
+    is covered by a case without a guard whose pattern on the term is that node
+    (possibly in an or-pattern, or under [as]) with arguments that match
+    anything, and whose other patterns match anything. *)
+let check_total (f : fn) =
+  let x =
+    match List.find_opt (fun (_, t) -> t = TTerm) f.params with
+    | Some (x, _) -> x
+    | None -> error f.floc "fn %s is [@total]: it has no term parameter" f.name
+  in
+  let rec tail (e : Syntax.expr) =
+    match e.e with
+    | ELet (_, _, b) | EAssert (_, b) | EBinop ((And | Or), _, b) -> tail b
+    | EMatch (scruts, cases) -> (scruts, cases)
+    | _ ->
+        error f.floc "fn %s is [@total]: it must end with a match on %s" f.name
+          x
+  in
+  let scruts, cases = tail f.body in
+  let i =
+    match
+      List.find_index
+        (fun (s : Syntax.expr) -> match s.e with EVar y -> y = x | _ -> false)
+        scruts
+    with
+    | Some i -> i
+    | None -> error f.floc "fn %s is [@total]: it must match on %s" f.name x
+  in
+  let rec irrefutable (p : Syntax.pat) =
+    match p.p with
+    | PAny | PVar _ | PUnit -> true
+    | PAs (p, _) | PComm (p, _) -> irrefutable p
+    | POr (a, b) -> irrefutable a || irrefutable b
+    | PTuple l -> List.for_all irrefutable l
+    | PRecord l -> List.for_all (fun (_, p) -> irrefutable p) l
+    | _ -> false
+  in
+  let rec covers (p : Syntax.pat) =
+    match p.p with
+    | POr (a, b) -> covers a @ covers b
+    | PAs (p, _) | PComm (p, _) -> covers p
+    | PConstr (kc, { p = PConstr (op, params); _ } :: operands)
+      when List.mem kc.c_name !lang.node_kinds && Option.is_some (node_of_op op)
+      ->
+        if List.for_all irrefutable (params @ operands) then [ op.c_name ]
+        else []
+    | PConstr (c, args)
+      when c.c_res = TKind
+           && (not (List.mem c.c_name !lang.node_kinds))
+           && List.for_all irrefutable args ->
+        [ c.c_name ]
+    | _ -> []
+  in
+  let component (c : case) =
+    match c.pat.p with
+    | PTuple l when List.length scruts > 1 -> List.nth l i
+    | _ -> c.pat
+  in
+  let others (c : case) =
+    match c.pat.p with
+    | PTuple l when List.length scruts > 1 ->
+        List.for_all irrefutable (List.filteri (fun j _ -> j <> i) l)
+    | _ -> true
+  in
+  List.iter
+    (fun (c : case) ->
+      if irrefutable (component c) then
+        error c.cloc
+          "fn %s is [@total]: it cannot have a catch-all case, which would \
+           hide missing nodes: list the nodes"
+          f.name)
+    cases;
+  let covered =
+    List.concat_map
+      (fun (c : case) ->
+        if c.guard = None && others c then covers (component c) else [])
+      cases
+  in
+  match List.filter (fun n -> not (List.mem n covered)) (all_nodes ()) with
+  | [] -> ()
+  | missing ->
+      error f.floc "fn %s is [@total] but has no case for %s" f.name
+        (String.concat ", " missing)
 
 let program (str : structure) : program =
   let str = extend_rules (comm_fns () @ str) in
@@ -4019,6 +4561,16 @@ let program (str : structure) : program =
                          pret;
                          oracle = vd.pval_prim = [ "oracle" ];
                          ploc = vd.pval_name.loc;
+                         pdoc = fst (take_doc vd.pval_attributes);
+                         pno_lean =
+                           (let oracle = vd.pval_prim = [ "oracle" ] in
+                            let attrs = snd (take_doc vd.pval_attributes) in
+                            if oracle then
+                              reject_no_lean
+                                "an oracle is a parameter of the Lean model"
+                                attrs;
+                            check_attrs [ "no_lean" ] attrs;
+                            has_attr "no_lean" attrs);
                        },
                        vd.pval_name.loc )
                      :: prims,
@@ -4127,6 +4679,49 @@ let program (str : structure) : program =
               None)
       raws
   in
+  (* what Lean models does not call what it does not *)
+  let hidden =
+    List.filter_map
+      (fun (f : fn) -> if f.no_lean then Some f.name else None)
+      fns
+    @ List.filter_map
+        (fun (p : prim) -> if p.pno_lean then Some p.pname else None)
+        prims
+  in
+  List.iter
+    (fun (r : raw_fn) ->
+      if has_attr "total" r.rattrs then
+        match List.find_opt (fun (f : fn) -> f.name = r.rname) fns with
+        | Some f -> ignore (attempt (fun () -> check_total f))
+        | None -> ())
+    raws;
+  let check_calls what (e : Syntax.expr) =
+    ignore
+      (Syntax.fold_calls
+         (fun () g loc ->
+           if List.mem g hidden then
+             ignore
+               (attempt (fun () ->
+                    error loc "%s calls %s, which is [@no_lean]" what g)))
+         () e)
+  in
+  List.iter
+    (fun (f : fn) ->
+      if not f.no_lean then (
+        let what =
+          Printf.sprintf "%s %s"
+            (if Option.is_some f.spec then "rule" else "fn")
+            f.name
+        in
+        Option.iter (check_calls what) f.spec;
+        check_calls what f.body))
+    fns;
+  List.iter
+    (fun (_, (t : typing)) ->
+      let what = Printf.sprintf "the typing of %s" t.t_constr.c_name in
+      List.iter (check_calls what) t.t_sorts;
+      Option.iter (check_calls what) t.t_when)
+    typings;
   { prims; fns; typing = List.filter operator_typing (List.map snd typings) }
 
 (** The language before any declaration. *)

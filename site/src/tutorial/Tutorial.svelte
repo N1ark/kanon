@@ -56,21 +56,36 @@
   <Code
     code={`type var [@ocaml "string"] [@lean "String"]
 
+(** A variable. *)
 node Var of var
+(** A boolean literal. *)
 node Bool of bool : TBool
+(** An integer literal. *)
 node Int of int : TInt
+(** Negation. *)
 node Not : TBool -> TBool
+(** Conjunction. *)
 node And : TBool -> TBool -> TBool
+(** The sum of two integers. *)
 node Plus : TInt -> TInt -> TInt
+(** Equality of two terms of any sort. *)
 node Eq : a -> a -> TBool
 
+(** The sort of booleans. *)
 sort TBool
+(** The sort of integers. *)
 sort TInt
 
 notation Bool
 notation Int`}
   />
   <ul>
+    <li>
+      A documentation comment <code>(** … *)</code> right before a declaration documents it:
+      Kanon copies it to the generated OCaml (as <code>(** … *)</code>) and Lean (as
+      <code>/-- … -/</code>), next to the constructor or the function. A plain comment
+      <code>(* … *)</code> is ignored.
+    </li>
     <li>
       <code>Var</code>, <code>Bool</code> and <code>Int</code> have no operands: they are the
       leaves of terms. <code>Not</code>, <code>And</code>, <code>Plus</code> and <code>Eq</code> are
@@ -178,8 +193,12 @@ node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
     Operators give a syntax to nodes. <code>{`infix "op" = Node, f{:kanon}`}</code> declares what
     <code>a op b</code> builds and matches: in expressions, it calls the smart constructor
     <code>f</code>; in patterns, it matches the node. An operator is a word, or a sequence of
-    symbols such as <code>+</code>, <code>==</code> or <code>≤</code>, whose first character gives
-    its precedence, as in OCaml (see the <a href="reference.html#operators">reference</a>).
+    symbols such as <code>+</code>, <code>==</code> or <code>≤</code>, possibly followed by a word
+    (<code>&lt;u</code>), whose first character gives its precedence, as in OCaml (see the
+    <a href="reference.html#operators">reference</a>). Operators are surrounded by spaces:
+    <code>{`a <u b{:kanon}`}</code> and <code>{`x + y{:kanon}`}</code>, but <code>{`x+y{:kanon}`}</code>
+    is an error, not <code>{`x + y{:kanon}`}</code>. Only a prefix operator is written right before
+    its operand: <code>{`-x{:kanon}`}</code>, <code>{`~x{:kanon}`}</code>.
   </p>
   <Code
     code={`infix "&&" = And, and_
@@ -196,7 +215,10 @@ prefix "not" = Not, not_`}
     functions of the folds.
   </p>
   <Code
-    code={`fn negb (b : bool) : bool = not b
+    code={`(** Negation of a boolean. *)
+fn negb (b : bool) : bool = not b
+
+(** Sum of two integers. *)
 fn add (x y : int) : int = x + y
 
 rule not_ : Not v
@@ -221,13 +243,16 @@ rule plus : Plus (v1, v2)`}
     returns a term that must <em>refine</em> the raw term <code>e</code>, its spec. When the spec is
     a node over variables, they are the parameters of the function. Its cases match the operands of
     the spec (as a tuple when there are several), and each is a rule, named by the label before its
-    pattern; rules are tried in order. Unless its last case matches anything, a rule function ends
-    with the rule <code>default</code>, which builds its spec.
+    pattern; rules are tried in order. Unless its last case matches anything (<code>_</code>, or
+    <code>{`_, _{:kanon}`}</code> for two operands: the two are the same), a rule function ends with
+    the rule <code>default</code>, which builds its spec.
   </p>
   <Code
-    code={`rule plus : Plus (v1, v2) =
+    code={`(** Sum: adjacent literals are added. *)
+rule plus : Plus (v1, v2) =
   | assoc: (x + #a) + #b -> x + Int (a + b)
 
+(** Equality: literals are compared, and a negative literal differs from a natural number. *)
 rule eq : Eq (v1, v2) =
   | same: x == x -> Bool true
   | lits: Int x == Int y -> Bool (x = y)
@@ -270,9 +295,10 @@ rule eq : Eq (v1, v2) =
     parameter, so that the proofs may not rely on its behaviour (e.g. a hash-consing order).
   </p>
   <Code
-    code={`prim var_is_nat : var -> bool
+    code={`(** Whether a variable is surely a natural number. *)
+prim var_is_nat : var -> bool
 
-(* Whether a term is surely a natural number. *)
+(** Whether a term is surely a natural number. *)
 fn is_nat (v : t) : bool =
   match v with
   | Int n -> n >= 0
@@ -284,6 +310,20 @@ fn is_nat (v : t) : bool =
     In the Lean model, every rule is a function to <code>{`Option Term{:lean}`}</code>, and a rule
     function the first of its rules that applies:
   </p>
+  <p>
+    A helper or a primitive that the Lean model should not contain, such as a heuristic that only
+    the OCaml code uses, is marked <code>{`[@no_lean]{:kanon}`}</code>: it is generated in OCaml and
+    left out of every Lean file. A function that is modelled may not call it, so the proofs never
+    depend on it; it may call anything. Rules, sorts, nodes and oracles cannot be marked: they are
+    proved. Below, <code>cost</code> is in the OCaml and not in the Lean.
+  </p>
+  <Code
+    code={`(** A size estimate, for the OCaml code around the simplifier: not modelled in Lean. *)
+fn cost (v : t) : int [@no_lean] =
+  match v with
+  | l + r -> cost l + cost r + 1
+  | _ -> 1`}
+  />
   <Example id="rules" ocaml="ocaml" lean="lean-model" />
 
   <Heading level={2} id="modules">Modules</Heading>
@@ -314,9 +354,11 @@ node Var of var`}
   </p>
   <p>
     A module adds rules to the rule function of a module below it with
-    <code>extend rule f</code>: last, but before its final catch-all case, or before its rule
-    <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
-    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>.
+    <code>extend rule f</code>: last, but before its final catch-all case (<code>_</code>, or
+    <code>{`_, _{:kanon}`}</code>, a tuple of blanks, for the operands of a spec or a helper), or
+    before its rule <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
+    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>. A case that an
+    earlier case already matches is an error there, rather than left out.
   </p>
   <Code
     code={`extend rule sem_eq before same =
@@ -330,6 +372,98 @@ extend fn sure_neq =
     the files, at the precedence of <code>*</code>, and no longer a name.
   </p>
   <Example id="modules" ocaml="ocaml" lean="lean-soundness" />
+
+  <Heading level={2} id="typed">Subsorts</Heading>
+  <p>
+    The generated OCaml functions take and return terms of one type, <code>t</code>: nothing stops
+    <code>plus</code> from being applied to a boolean (the assertions on entry catch it at run
+    time). <code>ocaml-typed</code> generates a <em>typed interface</em> of the smart constructors
+    instead, where a term is a <code>'a t</code>: its parameter is a <em>tag</em>, a polymorphic
+    variant that says what Kanon knows of the term, and the OCaml compiler rejects the ill-kinded
+    calls. The tag of a term is that of its sort, which Kanon generates, and a
+    <em>subsort</em> refines it. The tag is a phantom type: it is only in the type, and a typed term
+    is the same value as the untyped one.
+  </p>
+  <Code
+    code={`sort TInt
+subsort TNonzero : TInt
+
+node Int of int : TInt [@ctor mk_int]
+node Div : TInt -> TNonzero -> TInt`}
+  />
+  <ul>
+    <li>
+      <code>{`subsort TNonzero : TInt{:kanon}`}</code> declares a sort of the terms of
+      <code>TInt</code> that satisfy more than that: here that they are not zero. A subsort has the
+      arguments of its parent, none here (<code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>
+      for a width). A node may use it in its typing: the divisor of <code>Div</code> is a
+      <code>TNonzero</code>. A term of a subsort is accepted wherever its parent is expected, and
+      not the reverse.
+    </li>
+    <li>
+      A subsort has no meaning in OCaml, where the types and the rules erase it to its parent: it
+      is trusted. Only the interface uses it, with the tags <code>tint</code> and
+      <code>tnonzero</code>, and Lean can give it a meaning (see the
+      <a href="reference.html#declarations">reference</a>).
+    </li>
+    <li>
+      A leaf, or a node without a rule function, has a function in the interface only with
+      <code>{`[@ctor f]{:kanon}`}</code>: <code>mk_int</code> builds an integer literal.
+    </li>
+  </ul>
+  <Example id="typed" ocaml="ocaml-typed" lean="lean-model" />
+  <p>
+    <code>[&lt; Tag.tint ] t</code>, as an operand, accepts any term whose tag is within
+    <code>tint</code>, which includes <code>tnonzero</code>, and <code>[&gt; Tag.tint ] t</code>, as
+    a result, is a term that may have any of them. The interface is organised like the language,
+    with a module for each file (<code>Bool</code> and <code>Int</code>). <code>S</code> is its
+    signature, and <code>Derived</code> implements it with the rules, which the language names with
+    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.plus{:ocaml}`}</code>.
+    What it cannot implement are the leaves with <code>{`[@ctor]{:kanon}`}</code>, which are written
+    by hand:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`module Typed : Lang_typed.S = struct
+  include Lang_typed.Derived
+
+  module Int = struct
+    include Lang_typed.Derived.Int
+
+    let mk_int z = Lang_types.node (Int z) TInt
+  end
+end`}
+  />
+  <p>
+    <code>S</code> hides that a typed term is an untyped one (<code>Derived</code> has
+    <code>{`type 'a t = raw{:ocaml}`}</code>, which would make every tag the same type), so that a
+    client of <code>Typed</code> cannot add an integer to a boolean:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`Typed.Int.plus (Typed.Int.mk_int Z.one) (Typed.Int.int_lt (Typed.Int.mk_int Z.one) (Typed.Int.mk_int Z.zero))`}
+  />
+  <Code
+    lang="text"
+    code={`Error: This expression has type [> Tag.tbool ] t
+       but an expression was expected of type [< Tag.tint ] t
+       …
+       The second variant type does not allow tag(s) \`TBool`}
+  />
+  <p>
+    The same goes for a divisor that is not known to be non-zero:
+    <code>{`Int.div (Int.mk_int Z.one) (Int.mk_int Z.one){:ocaml}`}</code> is rejected too, since the
+    result of <code>mk_int</code> is any <code>tint</code>. A caller that knows better says so with
+    <code>cast</code>, which changes the tag of a term and is the identity at run time: the subsort
+    is trusted, nothing proves it. <code>untyped</code> forgets the tag (to call a function of the
+    untyped rules) and <code>type_</code> trusts one, also at no cost; <code>type_type</code> and
+    <code>untype_type</code> do the same for the sorts <code>'a ty</code>.
+  </p>
+  <p>
+    The tags are plain polymorphic variant types in the module <code>Tag</code>, which a program
+    may join to make its own groups of tags:
+    <code>{`type scalar = [ Tag.tint | Tag.tbool ]{:ocaml}`}</code>.
+  </p>
 
   <Heading level={2} id="typings">Typings</Heading>
   <p>
@@ -394,6 +528,13 @@ node Fill of int : TArray n`}
       (the ppx <code>kanon.ppx_include_file</code> includes a file:
       <code>{`[%%include_file "rules.gen.ml"]{:ocaml}`}</code>), or in the module of
       <code>{`[@@@ocaml_types "M"]{:kanon}`}</code>, which they open;
+    </dd>
+    <dt><code>ocaml-typed</code></dt>
+    <dd>
+      the typed interface of the smart constructors, typed by the tags of the sorts and subsorts
+      (see <a href="#typed">Subsorts</a>): the tags in <code>Tag</code>, the signature
+      <code>S</code> with a module per file, and <code>Derived</code>, which implements it with
+      the rules (the module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>);
     </dd>
     <dt><code>ocaml-tests</code></dt>
     <dd>

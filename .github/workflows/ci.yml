@@ -81,6 +81,19 @@ jobs:
             exit 1
           fi
 
+      - name: Build the proofs of the division example
+        working-directory: examples/division/lean
+        run: lake build
+
+      - name: Check that no proof of the division example is missing
+        working-directory: examples/division/lean
+        run: |
+          lake env lean check_axioms.lean | tee axioms.txt
+          if grep -q sorryAx axioms.txt; then
+            echo "::error::Some rules of examples/division are not proved"
+            exit 1
+          fi
+
   editors:
     name: Check the tree-sitter grammar and the Zed extension
     runs-on: ubuntu-latest

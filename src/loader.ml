@@ -86,28 +86,6 @@ let uses (items : Ppxlib.structure) =
                 ] ),
             _ ) ->
           Left (m, si.pstr_loc)
-      | Pstr_extension
-          ( ( { txt = "kanon.use_plus"; _ },
-              PStr
-                [
-                  {
-                    pstr_desc =
-                      Pstr_eval
-                        ( {
-                            pexp_desc = Pexp_constant (Pconst_string (m, _, _));
-                            _;
-                          },
-                          _ );
-                    _;
-                  };
-                ] ),
-            _ ) ->
-          raise
-            (Check.Error
-               ( si.pstr_loc,
-                 Printf.sprintf
-                   "use +%s: a built-in module is used with use builtin %S" m m
-               ))
       | _ -> Right si)
     items
 

@@ -24,6 +24,10 @@ let is_word s =
   && (match s.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true | _ -> false) s
 
+(** Declares [op], if it is a word, as an operator that the lexer reads in the
+    rest of the files ([urem]): it is an identifier otherwise. *)
+let declare_word_op op = if is_word op then Hashtbl.replace Syntax.infix_words op ()
+
 (* [oploc] is the location of the operator, [loc] that of the expression *)
 let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
 
@@ -31,6 +35,28 @@ let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
 let econstr ?cloc loc c arg = exp loc (Pexp_construct (lid (Option.value cloc ~default:loc) c, arg))
 let pconstr ?cloc loc c arg =
   pat loc (Ppat_construct (lid (Option.value cloc ~default:loc) c, Option.map (fun p -> ([], p)) arg))
+(* The type that the expression [e] reads as, [int list] or [t], if any: a
+   constraint [(e : t)] is parsed as an expression, since [(C x : f y)] has an
+   expression for sort. *)
+let rec typ_of_expr (e : expression) =
+  let constr x t = typ e.pexp_loc (Ptyp_constr (lid e.pexp_loc x, t)) in
+  match e.pexp_desc with
+  | Pexp_ident { txt = Lident x; _ } -> Some (constr x [])
+  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident "*"; _ }; _ }, [ (_, a); (_, b) ]) -> (
+      match (typ_of_expr a, typ_of_expr b) with
+      | Some ({ ptyp_desc = Ptyp_tuple l; _ } as ta), Some tb when a.pexp_loc.loc_start = e.pexp_loc.loc_start ->
+          Some { ta with ptyp_desc = Ptyp_tuple (l @ [ tb ]); ptyp_loc = e.pexp_loc }
+      | Some ta, Some tb -> Some (typ e.pexp_loc (Ptyp_tuple [ ta; tb ]))
+      | _ -> None)
+  | Pexp_apply (f, args) ->
+      List.fold_left
+        (fun acc (_, (a : expression)) ->
+          match (acc, a.pexp_desc) with
+          | Some t, Pexp_ident { txt = Lident x; _ } -> Some (typ e.pexp_loc (Ptyp_constr (lid a.pexp_loc x, [ t ])))
+          | _ -> None)
+        (typ_of_expr f) args
+  | _ -> None
+
 let tuple_or_one mk = function [ x ] -> x | l -> mk l
 
 let attr loc name payload =
@@ -80,15 +106,14 @@ let binding loc ?(attrs = []) p params ret body =
 
 let item loc d = { pstr_desc = d; pstr_loc = loc }
 
-(* [use "m"], with the module at [mloc]; [kanon.use_plus] for the old
-   [use +m], which the loader rejects *)
-let use_item ?(ext = "kanon.use") loc mloc m =
-  item loc (Pstr_extension (({ txt = ext; loc }, PStr [ eval_item loc (string mloc m) ]), []))
+(* [use "m"], with the module at [mloc] *)
+let use_item loc mloc m =
+  item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string mloc m) ]), []))
 
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type; [sort C
    ...] is the same, marked [[@sort]] *)
-let node_decl ?(sort = false) loc c =
+let node_decl ?(sort = false) ?(subsort = false) loc c =
   {
     ptype_name = { txt = "node"; loc };
     ptype_params = [];
@@ -96,14 +121,38 @@ let node_decl ?(sort = false) loc c =
     ptype_kind = Ptype_variant [ c ];
     ptype_private = Public;
     ptype_manifest = None;
-    ptype_attributes = attr loc "node" [] :: (if sort then [ attr loc "sort" [] ] else []);
+    ptype_attributes =
+      attr loc "node" []
+      :: (if sort then [ attr loc "sort" [] ] else [])
+      @ (if subsort then [ attr loc "subsort" [] ] else []);
     ptype_loc = loc;
   }
 
-let prim loc (name, nloc) t kind =
+let prim loc (name, nloc) t attrs kind =
   item loc
     (Pstr_primitive
-       { pval_name = { txt = name; loc = nloc }; pval_type = t; pval_prim = [ kind ]; pval_attributes = []; pval_loc = loc })
+       { pval_name = { txt = name; loc = nloc }; pval_type = t; pval_prim = [ kind ]; pval_attributes = attrs; pval_loc = loc })
+
+(* the doc comment [d], at [dloc], of an item that it documents: an
+   [ocaml.doc] attribute of the item, or of the constructor of a node or a sort *)
+let with_doc d dloc (si : structure_item) =
+  let doc = attr dloc "ocaml.doc" [ eval_item dloc (string dloc d) ] in
+  let desc =
+    match si.pstr_desc with
+    | Pstr_value (r, [ vb ]) -> Pstr_value (r, [ { vb with pvb_attributes = vb.pvb_attributes @ [ doc ] } ])
+    | Pstr_primitive vd -> Pstr_primitive { vd with pval_attributes = vd.pval_attributes @ [ doc ] }
+    | Pstr_type (r, [ ({ ptype_kind = Ptype_variant [ cd ]; ptype_name = { txt = "node"; _ }; _ } as td) ])
+      when List.exists (fun (a : attribute) -> a.attr_name.txt = "node") td.ptype_attributes ->
+        let cd = { cd with pcd_attributes = cd.pcd_attributes @ [ doc ] } in
+        Pstr_type (r, [ { td with ptype_kind = Ptype_variant [ cd ] } ])
+    | Pstr_type (r, [ td ]) -> Pstr_type (r, [ { td with ptype_attributes = td.ptype_attributes @ [ doc ] } ])
+    | Pstr_eval (e, attrs) -> Pstr_eval (e, attrs @ [ doc ])
+    | _ -> assert false
+  in
+  { si with pstr_desc = desc }
+
+let misplaced loc what =
+  raise (Syntax.Misplaced_doc (loc, "a doc comment cannot document " ^ what))
 
 let rec elist loc = function
   | [] -> econstr loc "[]" None
@@ -130,14 +179,16 @@ let neg loc oploc (e : expression) =
   | _ -> apply loc (ident oploc "~-") [ e ]
 %}
 
-%token <string> LID UID INT STRING INFIXWORD
+%token <string> LID UID INT STRING INFIXWORD TYVAR
+(* the text of a doc comment [(** ... *)], which documents the item that follows *)
+%token <string> DOC
 (* the operators, by precedence (see the lexer) *)
 %token <string> CMPOP CONCATOP ADDOP MULOP POWOP PREFIXOP
 %token AS ASSERT BEFORE BUILTIN CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
 %token ORACLE PREFIX PRIM
-%token RULE SORT THEN TRUE TYPE USE WHEN WITH
+%token RULE SORT SUBSORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
-%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS STAR DOT
+%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS UMINUS STAR DOT
 %token HASH UNDERSCORE EOF
 
 (* the bodies of [let], [match] and [if] extend as far as possible *)
@@ -158,17 +209,48 @@ let neg loc oploc (e : expression) =
 %%
 
 file:
-  | items = list(item) EOF { items }
+  | items = items EOF { List.rev items }
+  | items = items d = DOC EOF { ignore items; raise (Syntax.Misplaced_doc (mkloc $loc(d), "this doc comment is not followed by an item to document")) }
 
+(* left-recursive, so that a doc comment can end the file *)
+items:
+  | { [] }
+  | l = items i = item { i :: l }
+
+(* a doc comment documents the item that follows it: [fn], [rule], [node],
+   [sort], [subsort], [type], [prim], [oracle], [infix], [prefix] and [constant] *)
 item:
+  | i = documented_item { i }
+  | d = DOC i = documented_item { with_doc d (mkloc $loc(d)) i }
+  | i = other_item { i }
+  | d = DOC other_item { misplaced (mkloc $loc(d)) "this item: only fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix and constant can have one" }
+
+other_item:
   (* [use builtin "m"] or [use "path"]: the module [m] built into kanon, which
      the loader names [+m], or the module whose files are [path.knl] and
      [path.kn] (see [Main]) *)
   | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
   | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
-  | USE PLUS m = LID { use_item ~ext:"kanon.use_plus" (mkloc $loc) (mkloc $loc(m)) m }
-  | PRIM x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "" }
-  | ORACLE x = LID COLON t = typ { prim (mkloc $loc) (x, mkloc $loc(x)) t "oracle" }
+  | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
+    { let loc = mkloc $loc in
+      (* the payloads are at the names of the function and of the rule *)
+      let attrs =
+        attr loc "extend" [ eval_item loc (string (mkloc $loc(x)) x) ]
+        :: Option.to_list (Option.map (fun (r, rloc) -> attr loc "before" [ eval_item loc (string (mkloc rloc) r) ]) before)
+        @ (if fn then [ attr loc "fn" [] ] else [])
+      in
+      item loc (Pstr_eval (exp loc (Pexp_function ([], None, Pfunction_cases (cs, loc, []))), attrs)) }
+  (* [notation C]: the constructor [C], with a [[@notation]] attribute *)
+  | NOTATION c = UID
+    { let loc = mkloc $loc in
+      item loc (Pstr_eval (econstr (mkloc $loc(c)) c None, [ attr loc "notation" [] ])) }
+  | LBRACKETATATAT a = LID ss = list(attr_string) RBRACKET
+    { let loc = mkloc $loc in
+      item loc (Pstr_attribute (named_attr loc (mkloc $loc(a)) a (strings loc ss))) }
+
+documented_item:
+  | PRIM x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "" }
+  | ORACLE x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "oracle" }
   | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc and xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps ret body ])) }
@@ -190,26 +272,17 @@ item:
       let t = typ tloc (Ptyp_constr (lid tloc "t", [])) in
       let xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps (Some t) body ])) }
-  | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
-    { let loc = mkloc $loc in
-      (* the payloads are at the names of the function and of the rule *)
-      let attrs =
-        attr loc "extend" [ eval_item loc (string (mkloc $loc(x)) x) ]
-        :: Option.to_list (Option.map (fun (r, rloc) -> attr loc "before" [ eval_item loc (string (mkloc rloc) r) ]) before)
-        @ (if fn then [ attr loc "fn" [] ] else [])
-      in
-      item loc (Pstr_eval (exp loc (Pexp_function ([], None, Pfunction_cases (cs, loc, []))), attrs)) }
   | NODE c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl loc c ])) }
-  (* [notation C]: the constructor [C], with a [[@notation]] attribute *)
-  | NOTATION c = UID
-    { let loc = mkloc $loc in
-      item loc (Pstr_eval (econstr (mkloc $loc(c)) c None, [ attr loc "notation" [] ])) }
   | SORT c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl ~sort:true loc c ])) }
-  | TYPE x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
+  (* [subsort C of args : parent]: the parent is the only sort of its typing *)
+  | SUBSORT c = constr_decl
+    { let loc = mkloc $loc in
+      item loc (Pstr_type (Recursive, [ node_decl ~subsort:true loc c ])) }
+  | TYPE ps = type_params x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
     { let loc = mkloc $loc in
       item loc
         (Pstr_type
@@ -217,7 +290,7 @@ item:
              [
                {
                  ptype_name = { txt = x; loc = mkloc $loc(x) };
-                 ptype_params = [];
+                 ptype_params = List.map (fun (v, l) -> (typ (mkloc l) (Ptyp_var v), (NoVariance, NoInjectivity))) ps;
                  ptype_cstrs = [];
                  ptype_kind = Option.value ~default:Ptype_abstract kind;
                  ptype_private = Public;
@@ -228,8 +301,7 @@ item:
              ] )) }
   | INFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
-      (* an infix word is an operator in the rest of the files *)
-      if is_word op then Hashtbl.replace Syntax.infix_words op ();
+      declare_word_op op;
       item loc (Pstr_eval (e, [ attr loc "infix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
@@ -248,9 +320,6 @@ item:
       in
       let c, cpos = c in
       item loc (Pstr_eval (f, [ attr loc "constant" [ eval_item loc (string (mkloc cpos) c) ] ])) }
-  | LBRACKETATATAT a = LID ss = list(attr_string) RBRACKET
-    { let loc = mkloc $loc in
-      item loc (Pstr_attribute (named_attr loc (mkloc $loc(a)) a (strings loc ss))) }
 
 (* ---------------------------------------------------------------- *)
 (* Declarations of the language *)
@@ -279,6 +348,15 @@ attr_arg:
   | i = INT { (i, $loc) }
   | TRUE { ("true", $loc) }
   | FALSE { ("false", $loc) }
+
+(* the parameters of an abstract type: [type 'a box], [type ('a, 'b) pair] *)
+type_params:
+  | { [] }
+  | v = TYVAR { [ (v, $loc(v)) ] }
+  | LPAREN vs = separated_nonempty_list(COMMA, tyvar) RPAREN { vs }
+
+tyvar:
+  | v = TYVAR { (v, $loc) }
 
 type_kind:
   | BAR? cs = separated_nonempty_list(BAR, constr_decl) { Ptype_variant cs }
@@ -366,6 +444,9 @@ typ_app:
   | x = LID { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc) x, [])) }
   | LPAREN t = typ RPAREN { t }
   | t = typ_app x = LID { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc(x)) x, [ t ])) }
+  (* [(t, int) pair]: a type with several arguments *)
+  | LPAREN t = typ COMMA ts = separated_nonempty_list(COMMA, typ) RPAREN x = LID
+    { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc(x)) x, t :: ts)) }
 
 (* ---------------------------------------------------------------- *)
 (* Expressions *)
@@ -489,7 +570,7 @@ pow_expr:
 
 unary_expr:
   | e = app_expr { e }
-  | op = MINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
+  | op = UMINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
 
 app_expr:
   | e = simple_expr { e }
@@ -506,12 +587,21 @@ simple_expr:
   | i = INT { exp (mkloc $loc) (Pexp_constant (Pconst_integer (i, None))) }
   | LPAREN RPAREN { econstr (mkloc $loc) "()" None }
   | LPAREN e = seq_expr RPAREN { e }
-  | LPAREN e = seq_expr COLON t = typ RPAREN { exp (mkloc $loc) (Pexp_constraint (e, t)) }
-  (* [(v : TBitVector n)], the sort of an operand of a spec *)
-  | LPAREN e = seq_expr COLON c = UID arg = option(simple_expr) RPAREN
+  (* [(e : a)]: either [e] of the type [a], or, when [a] is not a type, a term
+     of a sort: [(v : TBitVector n)] is the sort of an operand of a spec,
+     [(C x : S args)] or [(C x : f y)] the node [C] built at a sort *)
+  | LPAREN e = seq_expr COLON a = or_expr RPAREN
     { let loc = mkloc $loc in
-      let s = econstr ~cloc:(mkloc $loc(c)) (mkloc ($startpos(c), $endpos(arg))) c arg in
-      exp loc (Pexp_extension ({ txt = "kanon.sort"; loc }, PStr [ eval_item loc e; eval_item loc s ])) }
+      let sort () = exp loc (Pexp_extension ({ txt = "kanon.sort"; loc }, PStr [ eval_item loc e; eval_item loc a ])) in
+      match a.pexp_desc with
+      | Pexp_construct _ -> sort ()
+      | _ -> (
+          match typ_of_expr a with
+          | None -> sort ()
+          | Some t ->
+              (* [(C x : s)] is a type constraint, or a node at the sort [s]: [Check] decides *)
+              let attrs = match e.pexp_desc with Pexp_construct _ -> [ attr loc "kanon.sortexpr" [ eval_item loc a ] ] | _ -> [] in
+              { (exp loc (Pexp_constraint (e, t))) with pexp_attributes = attrs }) }
   | LBRACKET es = separated_list(SEMI, expr) RBRACKET { elist (mkloc $loc) es }
   | LBRACE fs = separated_nonempty_list(SEMI, field_expr) RBRACE { exp (mkloc $loc) (Pexp_record (fs, None)) }
   | e = simple_expr DOT f = LID { exp (mkloc $loc) (Pexp_field (e, lid (mkloc $loc(f)) f)) }
@@ -578,7 +668,7 @@ pow_pat:
 
 unary_pat:
   | p = app_pat { p }
-  | op = MINUS p = unary_pat
+  | op = UMINUS p = unary_pat
     { match p.ppat_desc with
       | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer ("-" ^ i, None)))
       | _ -> pnode (mkloc $loc) (mkloc $loc(op)) "~-" [ p ] }

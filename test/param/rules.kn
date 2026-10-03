@@ -1,0 +1,33 @@
+prim box_of_list : t list -> t box
+prim box_to_list : t box -> t list
+prim box_get : t box -> int -> t
+prim ints_of_list : int list -> int box
+prim pair_make : t -> int -> (t, int) pair
+
+fn mk_arr (l : t list) : t = Arr (box_of_list l)
+fn mk_ints (l : int list) : t = Ints (ints_of_list l)
+fn mk_pairs (a : t) (i : int) (o : t box option) : t = Pairs (pair_make a i, o)
+
+(* the operands of a node and its rebuilding, through the container *)
+fn operands (a : t) : t list =
+  match a with
+  | Arr b -> box_to_list b
+  | _ -> []
+
+fn rebuild (a : t) (l : t list) : t =
+  match a with
+  | Arr _ -> Arr (box_of_list l)
+  | _ -> a
+
+fn nth (a : t) (i : int) : t =
+  match a with
+  | Arr b -> box_get b i
+  | _ -> a
+
+fn same_box (a : t box) (b : t box) : bool = a = b
+fn boxes (a : t) : t box option =
+  match a with
+  | Arr b -> Some b
+  | _ -> None
+fn box_pair (b : t box) : t box * t box = (b, b)
+fn boxes_list (b : t box) : t box list = [ b; b ]

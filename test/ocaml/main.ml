@@ -43,3 +43,18 @@ let () =
   check "eq" (sem_eq a a == Prims.v_true);
   check "ite" (b_ite Prims.v_true a b == a);
   check "distinct" (b_distinct [ a; a ] == Prims.v_false)
+
+let () =
+  let open Hyg_types in
+  let open Hyg_rules in
+  let int n = node (Int (Z.of_int n)) TInt in
+  let v = function Int z -> Z.to_int z | _ -> failwith "not a literal" in
+  let value (t : t) = v t.kind in
+  (* i = 1, j = 2, i1 = 3, i2 = 4, b, z = 5, on the literals 6 and 7 *)
+  check "fold with parameters named like its literals"
+    (value
+       (mix (Z.of_int 1) (Z.of_int 2) (Z.of_int 3) (Z.of_int 4) true
+          (Z.of_int 5) (int 6) (int 7))
+    = 1 + 20 + 300 + 4000 + 50000 + 600000 + 7000000);
+  check "fold of a unary operator, parameter named i"
+    (value (neg (Z.of_int 3) (int 7)) = 21)

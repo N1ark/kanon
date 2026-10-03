@@ -46,6 +46,10 @@ sort TBitVector of nat [@get size]
 (*                      ^ attribute *)
 (*                           ^ function *)
 
+subsort TNonzero of nat : TBitVector n
+(* <- keyword *)
+(*      ^ constructor *)
+
 node Mul : TBitVector n -> TBitVector n -> TBitVector n [@fold z_mul Lit]
 (*                                                       ^ attribute *)
 (*                                                             ^ function *)
@@ -91,6 +95,11 @@ rule b_and : And (v1, v2) =
 (*            ^ number *)
 (*              ^ operator *)
 (*                 ^ operator *)
+(*                    ^ operator *)
+  | ult: x <u #y -> x <=s y
+(*  ^ label *)
+(*         ^ operator *)
+(*            ^ punctuation.special *)
 (*                    ^ operator *)
 
 extend rule b_and before not =

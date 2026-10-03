@@ -543,3 +543,73 @@ fn lit (n z : int) : t = (BitVec (wrap n z) : TBitVector n)
       (constructor_expression
         (constructor)
         (identifier)))))
+
+================================================================================
+Operators with a word suffix
+================================================================================
+
+fn f (a b : t) : t = a <u b && x <=s y + 1 /s 2
+rule ult : Ult (v1, v2) =
+  | lits: #x <u #y -> x <=s y
+  | neg: -x <u ~y -> x
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (binary_expression
+      (binary_expression
+        (identifier)
+        (operator)
+        (identifier))
+      (operator)
+      (binary_expression
+        (identifier)
+        (operator)
+        (binary_expression
+          (identifier)
+          (operator)
+          (binary_expression
+            (number)
+            (operator)
+            (number))))))
+  (rule_definition
+    (identifier)
+    (constructor_expression
+      (constructor)
+      (parenthesized_expression
+        (tuple_expression
+          (identifier)
+          (identifier))))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (literal_pattern
+            (identifier))
+          (operator)
+          (literal_pattern
+            (identifier)))
+        (binary_expression
+          (identifier)
+          (operator)
+          (identifier)))
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (unary_pattern
+            (operator)
+            (identifier))
+          (operator)
+          (prefix_pattern
+            (operator)
+            (identifier)))
+        (identifier)))))

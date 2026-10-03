@@ -1,0 +1,17 @@
+(* Nodes built at a computed sort: [(C x : e)] for an expression [e] of type
+   [ty], a variable, a function or a primitive. *)
+
+[@@@ocaml_types "Cs_types"]
+[@@@ocaml_prims "Cs_prims"]
+
+use "rules"
+
+type var [@ocaml "string"] [@lean "String"]
+sort TInt
+sort TTuple of ty list
+node Int of int : TInt
+notation Int
+node Var of var
+node Tuple of t list : TTuple tys
+node Field of int * t
+node Proj of int (i) : TTuple tys -> TInt

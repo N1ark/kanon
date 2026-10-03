@@ -1,0 +1,15 @@
+(* The language: Kanon's bool module, a module of integers with a division, and
+   variables. It shows a subsort: the divisor of a division is a TNonzero, whose
+   meaning in Lean is Nonzero, assumed by the rules of the division and proved by
+   the rule that returns a Sq1. A copy of examples/ints, which it extends. *)
+
+[@@@lean_root "DivisionExample"]
+[@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
+
+use builtin "bool"
+use "int"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

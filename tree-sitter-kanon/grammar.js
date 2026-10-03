@@ -7,7 +7,12 @@
  * an operand that is not a name), and as an argument otherwise.
  *
  * Symbolic operators are lexed as in OCaml: a sequence of the characters of
- * OP_CHAR (maximal munch), whose first character gives its precedence.
+ * OP_CHAR (maximal munch), whose first character gives its precedence, and
+ * that may be followed by a word (`<u`, `<=s`, `/s`), which is part of the
+ * operator, as in kanon. A prefix operator (`-x`, `~x`) is not: it is followed
+ * by its operand. Kanon requires spaces around operators; the grammar does not
+ * (it would have to look behind), so `x<y` is not an error here, but not
+ * read as `x < y` either: `<y` is an operator.
  */
 
 /// <reference types="tree-sitter-cli/dsl" />
@@ -52,8 +57,9 @@ const PAT = {
 // A character of a symbolic operator: `#` (but not first) and the non-ASCII
 // characters too, so that `≤` is an operator.
 const OP_CHAR = '([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])';
-const op = (first) => new RegExp(first + OP_CHAR + '*');
-const op1 = (first) => new RegExp(first + OP_CHAR + '+');
+const WORD = "([a-z][a-zA-Z0-9_']*)?";
+const op = (first) => new RegExp(first + OP_CHAR + '*' + WORD);
+const op1 = (first) => new RegExp(first + OP_CHAR + '+' + WORD);
 
 // The infix operators, from the lowest precedence to the highest, by their
 // first character, as in OCaml. The reserved `=`, `|`, `->`, `::` and `.` are
@@ -64,13 +70,13 @@ const INFIX = [
   ['cmp', prec.left, ['=', '!=', op('[<>$&]'), op1('='), op1('\\|'), op('[^\\x00-\\x7F]')]],
   ['concat', prec.right, [op('[@^]')]],
   ['cons', prec.right, ['::']],
-  ['add', prec.left, ['+', '-', op1('[+-]')]],
-  ['mul', prec.left, ['*', op('\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])'), op('[/%]')]],
+  ['add', prec.left, ['+', '-', new RegExp("\\+[a-z][a-zA-Z0-9_']*"), op1('[+-]')]],
+  ['mul', prec.left, ['*', new RegExp("\\*[a-z][a-zA-Z0-9_']*"), op('\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])'), op('[/%]')]],
   ['pow', prec.right, [op('\\*\\*')]],
 ];
 
 // [!x], [~x], [?x]: prefix operators of the highest precedence
-const PREFIX = op('[!~?]');
+const PREFIX = new RegExp('[!~?]' + OP_CHAR + '*');
 
 const sep1 = (rule, sep) => seq(rule, repeat(seq(sep, rule)));
 
@@ -88,6 +94,8 @@ module.exports = grammar({
 
   supertypes: $ => [$._item, $._expression, $._pattern, $._type],
 
+  conflicts: $ => [[$._type_application, $._simple_expression]],
+
   rules: {
     source_file: $ => repeat($._item),
 
@@ -99,6 +107,7 @@ module.exports = grammar({
       $.extend_definition,
       $.node_declaration,
       $.sort_declaration,
+      $.subsort_declaration,
       $.notation_declaration,
       $.type_definition,
       $.operator_declaration,
@@ -122,6 +131,7 @@ module.exports = grammar({
       field('name', $.identifier),
       ':',
       field('type', $._type),
+      repeat($.attribute),
     ),
 
     function_definition: $ => seq(
@@ -171,15 +181,27 @@ module.exports = grammar({
     // [sort TBitVector of nat [@get size]]
     sort_declaration: $ => seq('sort', $.constructor_declaration),
 
+    // [subsort TNonzero of nat : TBitVector n]: the parent is its only sort
+    subsort_declaration: $ => seq('subsort', $.constructor_declaration),
+
     // [notation BitVec]: the literal patterns of a leaf node
     notation_declaration: $ => seq('notation', field('node', $.constructor)),
 
     type_definition: $ => seq(
       'type',
+      optional(field('parameters', $.type_parameters)),
       field('name', typeIdentifier($)),
       repeat($.attribute),
       optional(seq('=', field('body', choice($.variant_declaration, $.record_declaration)))),
     ),
+
+    // ['a box], [('a, 'b) pair]: the parameters of an abstract type
+    type_parameters: $ => choice(
+      $.type_variable,
+      seq('(', sep1($.type_variable, ','), ')'),
+    ),
+
+    type_variable: $ => /'[a-z_][A-Za-z0-9_']*/,
 
     variant_declaration: $ => seq(
       optional('|'),
@@ -211,8 +233,11 @@ module.exports = grammar({
       $.list_sort,
     ),
 
-    // [a list], the sort of the operands of an n-ary node
-    list_sort: $ => prec(PREC.app + 1, seq(field('element', $.identifier), 'list')),
+    // [a list], [(TBitVector n) list]: the sort of the operands of an n-ary node
+    list_sort: $ => prec(PREC.app + 1, seq(
+      field('element', choice($.identifier, $.parenthesized_expression)),
+      'list',
+    )),
 
     record_declaration: $ => seq(
       '{',
@@ -316,11 +341,13 @@ module.exports = grammar({
       $.type_application,
     ),
 
-    // [t list], [(var * ty) list]
+    // [t list], [(var * ty) list], [(t, int) pair]
     type_application: $ => seq(
-      field('argument', $._type_application),
+      field('argument', choice($._type_application, $.type_arguments)),
       field('constructor', typeIdentifier($)),
     ),
+
+    type_arguments: $ => seq('(', $._type, repeat1(seq(',', $._type)), ')'),
 
     parenthesized_type: $ => seq('(', $._type, ')'),
 
@@ -463,12 +490,17 @@ module.exports = grammar({
 
     parenthesized_expression: $ => seq('(', $._sequence_or_expression, ')'),
 
-    // [(e : t)], or [(v : TBitVector n)], the sort of an operand of a spec
+    // [(e : t)], or [(v : TBitVector n)], the sort of an operand of a spec,
+    // or [(Field (i, v) : field_ty v i)], a node built at a computed sort
     typed_expression: $ => seq(
       '(',
       field('expression', $._sequence_or_expression),
       ':',
-      choice(field('type', $._type), field('sort', $._sort_annotation)),
+      choice(
+        field('type', $._type),
+        field('sort', $._sort_annotation),
+        field('computed_sort', choice($.application_expression, $.parenthesized_expression)),
+      ),
       ')',
     ),
 

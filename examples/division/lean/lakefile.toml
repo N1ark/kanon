@@ -1,0 +1,10 @@
+name = "division_example"
+defaultTargets = ["DivisionExample"]
+
+# Kanon's Lean library, from this repository.
+[[require]]
+name = "kanon"
+path = "../../../lean"
+
+[[lean_lib]]
+name = "DivisionExample"

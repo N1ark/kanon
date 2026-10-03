@@ -18,6 +18,12 @@ type ty =
   | TTuple of ty list
   | TOption of ty
   | TList of ty
+  | TApp of string * ty list
+      (** a parametrised abstract type of the language applied to its arguments
+          ([t box], [(t, int) pair]): at least one *)
+
+(** A doc comment where it cannot be attached: its location, and the message. *)
+exception Misplaced_doc of Location.t * string
 
 let rec pp_ty ft = function
   | TInt -> Fmt.string ft "int"
@@ -30,6 +36,8 @@ let rec pp_ty ft = function
   | TTuple l -> Fmt.(parens (list ~sep:(any " * ") pp_ty)) ft l
   | TOption t -> Fmt.pf ft "%a option" pp_ty t
   | TList t -> Fmt.pf ft "%a list" pp_ty t
+  | TApp (s, [ t ]) -> Fmt.pf ft "%a %s" pp_ty t s
+  | TApp (s, l) -> Fmt.pf ft "(%a) %s" Fmt.(list ~sep:(any ", ") pp_ty) l s
 
 (** An argument of a constructor. [Small] integers are OCaml [int]s (widths,
     indices), as opposed to [Z.t]s; in Kanon both have type [int]. *)
@@ -41,6 +49,12 @@ type constr = {
   c_name : string;  (** the Kanon (and OCaml and Lean) name *)
   c_res : ty;
   c_args : arg list;
+  c_doc : string option;
+      (** the doc comment of a node or a sort ([(** ... *)] before [node] or
+          [sort]) *)
+  c_loc : Location.t;
+      (** where it is declared, in the file of its module ({!Location.none} for
+          the kinds that Kanon generates) *)
 }
 
 (** A type of the language: generated ([kind], [ty] and the types of operators),
@@ -52,6 +66,8 @@ type decl = {
           record or a variant re-exports *)
   d_lean : string option;
       (** the Lean type, if it is not the Kanon name, CamelCased ([[@lean]]) *)
+  d_arity : int;
+      (** the number of type parameters of an abstract type: [type 'a box] *)
   d_eq : bool;
       (** whether [=] and [<>] are allowed at this type: not at an abstract type
           marked [[@noeq]] *)
@@ -63,6 +79,22 @@ type decl = {
           [Hashtbl.hash] ([[@hash]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
   d_loc : Location.t;  (** of its name *)
+  d_doc : string option;  (** the doc comment before [type] *)
+}
+
+(** A subsort, [subsort TNonzero of nat : TBitVector n]: a sort of the same
+    arguments as its parent, whose terms are known to satisfy a predicate that
+    only Lean gives a meaning to. It has no constructor in [ty]: a typing that
+    mentions it is the typing of its parent, and records the subsort. *)
+type subsort = {
+  ss_name : string;
+  ss_args : arg list;  (** those of its parent *)
+  ss_parent : string;  (** the parent sort *)
+  ss_lean : string option;
+      (** [[@lean "P"]]: the Lean predicate on terms, [P : Term -> Prop], that
+          the terms of the subsort satisfy *)
+  ss_doc : string option;
+  ss_loc : Location.t;  (** of its name *)
 }
 
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
@@ -80,10 +112,13 @@ type operator = {
   pre : Ppxlib.expression list;
   on_value : string option;
   op_loc : Location.t;  (** of its symbol, in its declaration *)
+  op_doc : string option;  (** the doc comment before [infix] or [prefix] *)
 }
 
-(** The words declared as infix operators ([infix "urem" = ...]), which the
-    lexer reads as operators, at the level of [*], from their declaration on. *)
+(** The operators declared with a word, which the lexer reads as operators from
+    their declaration on: a word, an infix operator at the level of [*]
+    ([infix "urem" = ...]), or a symbol followed by a word ([infix "<u" = ...],
+    [prefix "!u" = ...]), at the level of its symbol. *)
 let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),
@@ -94,6 +129,9 @@ type raw_typing = {
   rt_nary : bool;
       (** the only operand sort was [s list]: the operands are a list of terms
           of sort [s], the first of [rt_sorts] *)
+  rt_subs : string option list;
+      (** the subsort that each of [rt_sorts] was written as, which they have
+          the parent of *)
   rt_when : Ppxlib.expression option;
   rt_loc : Location.t;
 }
@@ -136,6 +174,9 @@ type lang = {
       (** [constant c (v) = e]: the term of the literal or the named constant
           [c] ([0], [true], [ones], ...), at the sort of the term [v] if there
           is one, for the laws [[@unit c]] and [[@zero c]] *)
+  constant_docs : (string * string) list;
+      (** the doc comments before [constant], by constant (only of those that
+          have one) *)
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
@@ -149,6 +190,13 @@ type lang = {
           open *)
   ocaml_prims : string option;
       (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
+  ocaml_rules : string option;
+      (** [[@@@ocaml_rules "M"]]: the OCaml module of the rules, which the
+          implementation of [ocaml-typed] is made of *)
+  subsorts : subsort list;
+  node_ctors : (string * string) list;
+      (** [[@ctor f]] on a node: the name of its smart constructor, if no rule
+          function is its spec *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
   laws : (string * law * Location.t * Location.t) list;
@@ -167,24 +215,29 @@ let lang =
       notations = [];
       sort_getters = [];
       constants = [];
+      constant_docs = [];
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
       ocaml_types = None;
       ocaml_prims = None;
+      ocaml_rules = None;
+      subsorts = [];
+      node_ctors = [];
       operators = [];
       raw_typing = [];
       laws = [];
     }
 
 let find_constr name = List.find_opt (fun c -> c.c_name = name) !lang.constrs
+let find_subsort name = List.find_opt (fun s -> s.ss_name = name) !lang.subsorts
 let find_decl name = List.find_opt (fun d -> d.d_name = name) !lang.decls
 
 (** The name of the declaration of a type of the language. *)
 let decl_name = function
   | TKind -> Some "kind"
   | TSty -> Some "ty"
-  | TData s -> Some s
+  | TData s | TApp (s, _) -> Some s
   | _ -> None
 
 let decl_of_ty t =
@@ -227,6 +280,14 @@ and pat_desc =
   | PNil
   | PCons of pat * pat
   | PRecord of (string * pat) list  (** partial records *)
+
+(** Whether [p] matches anything: [_], or a tuple of blanks, at any depth, which
+    is strictly equivalent. [x, _] and [_ as x] are not blank. *)
+let rec is_catch_all (p : pat) =
+  match p.p with
+  | PAny -> true
+  | PTuple l -> List.for_all is_catch_all l
+  | _ -> false
 
 type expr = { e : expr_desc; ety : ty; eloc : Location.t }
 
@@ -282,6 +343,10 @@ type fn = {
           proved per alternative *)
   body : expr;
   floc : Location.t;
+  fdoc : string option;  (** the doc comment before [fn] or [rule] *)
+  no_lean : bool;
+      (** [[@no_lean]]: a helper that is generated in OCaml but not modelled in
+          Lean *)
 }
 
 type prim = {
@@ -290,7 +355,31 @@ type prim = {
   pret : ty;
   oracle : bool;
   ploc : Location.t;  (** of its name *)
+  pdoc : string option;  (** the doc comment before [prim] or [oracle] *)
+  pno_lean : bool;  (** [[@no_lean]]: a primitive that Lean does not define *)
 }
+
+(** Folds [f] over the calls of global functions and primitives in [e], with
+    their locations, in the order they are met (a call before its arguments). *)
+let rec fold_calls f acc (e : expr) =
+  let go = fold_calls f in
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
+  | ECall (g, args) -> List.fold_left go (f acc g e.eloc) args
+  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
+  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
+      go (go acc a) b
+  | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
+  | EUnop (_, a) | ESome a | EField (a, _) -> go acc a
+  | EIf (a, b, c) -> go (go (go acc a) b) c
+  | ERecord l -> List.fold_left (fun acc (_, e) -> go acc e) acc l
+  | EMatch (scruts, cases) ->
+      let acc = List.fold_left go acc scruts in
+      List.fold_left
+        (fun acc (c : case) ->
+          let acc = Option.fold ~none:acc ~some:(go acc) c.guard in
+          go acc c.body)
+        acc cases
 
 (** The typing of a node: its operands, then its result, have the sorts
     [t_sorts] (terms of type [ty] over [t_vars], which are existentially
@@ -303,6 +392,9 @@ type typing = {
   t_sorts : expr list;
   t_nary : bool;
       (** the operands are a list, whose elements all have the first sort *)
+  t_subs : string option list;
+      (** the subsort that each of [t_sorts] was written as: the sort of that
+          position is then its parent *)
   t_when : expr option;
 }
 
