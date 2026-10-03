@@ -3102,7 +3102,7 @@ let raw_fn (vb : value_binding) =
   let rdoc, rattrs = take_doc vb.pvb_attributes in
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
-    check_attrs [ "spec"; "cases"; "ty_only"; "untyped" ] rattrs)
+    check_attrs [ "spec"; "cases"; "untyped" ] rattrs)
   else check_attrs [ "ty_only"; "no_lean"; "total" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with

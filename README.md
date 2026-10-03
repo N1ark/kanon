@@ -306,8 +306,9 @@ builds the node of its notation at the sort of the spec (`Bool false`,
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
   statements quantify over (e.g. a semantics of floats).
 
-`use`, `type`, `sort`, `of`, `node`, `notation`, `infix`, `prefix`,
-`constant`, `extend` and `before` are keywords.
+`use`, `builtin`, `type`, `sort`, `subsort`, `of`, `node`, `notation`, `infix`,
+`prefix`, `constant`, `prim`, `oracle`, `fn`, `rule`, `extend` and `before` are
+keywords.
 
 ## Functions
 

@@ -173,8 +173,8 @@
     operator is then not checked against it.
   </p>
   <p>
-    <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>,
-    <code>node</code>, <code>infix</code>, <code>prefix</code>, <code>constant</code>,
+    <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
+    <code>subsort</code>, <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>, <code>prefix</code>, <code>constant</code>,
     <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
@@ -374,7 +374,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <tbody>
       <tr>
         <td><code>{`[@ty_only]{:kanon}`}</code></td>
-        <td>a helper of one term, before its <code>=</code></td>
+        <td>a helper of one term (<code>fn</code>), before its <code>=</code></td>
         <td>
           The helper only reads the sort of the term (<code
             >fn size (v : t) : int [@ty_only] = width (type_of v)</code
@@ -384,17 +384,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
       <tr>
         <td><code>{`[@no_lean]{:kanon}`}</code></td>
-        <td>a <code>fn</code> or a <code>prim</code>, after its type</td>
-        <td>
-          Checked and generated in OCaml, but not in Lean: no definition, statement or lift. Rules
-          and the functions that Lean models may not call it; <code>[@no_lean]</code> functions may
-          call anything. Other attributes on <code>fn</code>, <code>prim</code> and
-          <code>rule</code> are errors.
-        </td>
-      </tr>
-      <tr>
-        <td><code>{`[@no_lean]{:kanon}`}</code></td>
-        <td>a helper, after its result type; a primitive, after its type</td>
+        <td>a <code>fn</code>, after its result type; a <code>prim</code>, after its type</td>
         <td>
           Generated in OCaml (by every OCaml backend), and left out of every Lean file. A function
           that is modelled in Lean (any other helper or rule function, or the typing of a node) may
@@ -406,7 +396,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
       <tr>
         <td><code>{`[@total]{:kanon}`}</code></td>
-        <td>a helper, after its result type</td>
+        <td>a <code>fn</code>, after its result type</td>
         <td>
           A per-node function: its body ends with a match on its first term parameter, which must
           have a case for every node of the language (leaf or operator). A catch-all case (<code
@@ -506,11 +496,13 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       <tr>
         <td><code>ocaml</code></td>
         <td>
-          The OCaml rule functions and helpers, then, for every node <code>Foo</code> and sort
-          <code>TFoo</code>, the destructors <code>as_foo</code> (its arguments in an option: the
-          parameters, then the operands) and <code>is_foo</code>, named after the constructor in
-          lowercase (<code>BvAdd</code> gives <code>as_bvadd</code>): a function or a primitive
-          cannot have such a name.
+          The OCaml rule functions and helpers, then the destructors and tests of the nodes and the
+          sorts. For a node <code>BvAdd</code>, <code>as_bvadd</code> returns its arguments in an
+          option (the parameters, then the operands) and <code>is_bvadd</code> tests it; for a sort
+          <code>TInt</code>, <code>as_tint</code> returns the arguments of the sort and
+          <code>is_tint</code> tests it. Their names are <code>as_</code> and <code>is_</code>
+          followed by the name of the constructor in lowercase, with no other change: a function or a
+          primitive cannot have such a name.
         </td>
       </tr>
       <tr>
