@@ -79,28 +79,6 @@ let val_ ft ~doc name args res =
        (fun ft pp -> pp ft))
     (args @ [ res ])
 
-(** The outermost node of the spec of a rule function, with its parameters and
-    its operands: the operator, or the leaf. A spec that is not a node (a call
-    of a function) has none. *)
-let spec_head (f : fn) =
-  match Option.map (fun (e : expr) -> e.e) f.spec with
-  | Some
-      (ENode
-         ({ e = EConstr (_, { e = EConstr (o, pargs); _ } :: operands); _ }, _))
-    ->
-      Some (o, pargs, operands)
-  | Some (ENode ({ e = EConstr (k, pargs); _ }, _)) -> Some (k, pargs, [])
-  | _ -> None
-
-(** The index of [x] in [l], if [x] is one of its variables. *)
-let index_of_var x l =
-  let rec go i = function
-    | [] -> None
-    | ({ e = EVar y; _ } : expr) :: _ when y = x -> Some i
-    | _ :: rest -> go (i + 1) rest
-  in
-  go 0 l
-
 let sort_val_name (c : constr) =
   let n = c.c_name in
   let n =
@@ -312,7 +290,7 @@ let program ~sources ft (p : program) =
     (fun (f : fn) ->
       if f.spec <> None then (
         emitted := f.name :: !emitted;
-        let head = spec_head f in
+        let head = Check.spec_head f in
         let is_operand (_, t) = t = TTerm || t = TList TTerm in
         let operand_params = List.filter is_operand f.params in
         let ops, res =
@@ -329,7 +307,7 @@ let program ~sources ft (p : program) =
               in
               ( List.map
                   (fun (x, _) ->
-                    match index_of_var x operands with
+                    match Check.index_of_var x operands with
                     | Some i -> op i
                     | None -> Unknown)
                   operand_params,
@@ -345,7 +323,7 @@ let program ~sources ft (p : program) =
           let small =
             match head with
             | Some (c, pargs, _) -> (
-                match index_of_var x pargs with
+                match Check.index_of_var x pargs with
                 | Some i -> List.nth_opt c.c_args i = Some Small
                 | None -> false)
             | None -> false

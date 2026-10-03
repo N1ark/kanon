@@ -4366,6 +4366,58 @@ let check_fn env0 globals r =
     no_lean = has_attr "no_lean" r.rattrs;
   }
 
+(** The outermost node of the spec of a rule function, with its parameters and
+    its operands: the operator, or the leaf. A spec that is not a node (a call
+    of a function) has none. *)
+let spec_head (f : fn) =
+  match Option.map (fun (e : expr) -> e.e) f.spec with
+  | Some
+      (ENode
+         ({ e = EConstr (_, { e = EConstr (o, pargs); _ } :: operands); _ }, _))
+    ->
+      Some (o, pargs, operands)
+  | Some (ENode ({ e = EConstr (k, pargs); _ }, _)) -> Some (k, pargs, [])
+  | _ -> None
+
+(** The index of [x] in [l], if [x] is one of its variables. *)
+let index_of_var x l =
+  let rec go i = function
+    | [] -> None
+    | ({ e = EVar y; _ } : expr) :: _ when y = x -> Some i
+    | _ :: rest -> go (i + 1) rest
+  in
+  go 0 l
+
+(** The subsorts of the operands of the rule function [f], by parameter (with
+    whether it is a list of operands), and of its result, from the typing of the
+    node that its spec builds from its parameters. *)
+let fn_subsorts (f : fn) =
+  match spec_head f with
+  | None -> ([], None)
+  | Some (c, _, operands) -> (
+      match List.assoc_opt c.c_name !node_typings with
+      | None -> ([], None)
+      | Some t ->
+          let subs = List.map (fun s -> Option.bind s find_subsort) t.t_subs in
+          let n = List.length subs - 1 in
+          let operand_subs =
+            if t.t_nary then
+              match (List.hd subs, operands) with
+              | Some ss, [ { e = EVar x; _ } ] -> [ (x, ss, true) ]
+              | _ -> []
+            else
+              List.concat
+                (List.mapi
+                   (fun i (o : expr) ->
+                     match (o.e, List.nth_opt subs i) with
+                     | EVar x, Some (Some ss)
+                       when i < n && List.mem_assoc x f.params ->
+                         [ (x, ss, false) ]
+                     | _ -> [])
+                   operands)
+          in
+          (operand_subs, List.nth subs n))
+
 (** The number of errors collected so far. *)
 let errors_so_far () = List.length (Option.value !collected ~default:[])
 

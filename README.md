@@ -169,9 +169,10 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
   wherever its parent is expected, and not the reverse. A subsort has no
   constructor of its own, and no meaning in OCaml: the generated types and rules
   erase it to its parent, so that the typing of `Div` is that of `TBitVector n ->
-  TBitVector n -> TBitVector n`. It is only trusted, apart from in Lean (see
-  [Proofs](#proofs)), and in `ocaml-typed`, which types terms by it (see [Typed
-  OCaml](#typed-ocaml)). A subsort is the sort of an operand or of a result
+  TBitVector n -> TBitVector n`. It is only trusted, apart from in
+  `ocaml-typed`, which types terms by it (see [Typed OCaml](#typed-ocaml)), and
+  in Lean, where `[@lean "P"]` names its predicate (see [Subsorts in
+  Lean](#subsorts-in-lean)). A subsort is the sort of an operand or of a result
   only: not an argument of a sort, nor an annotation `(v : TNonzero n)`, and its
   parent is a sort, not a subsort.
 - `notation C` gives literal patterns to the leaf `C` of one `bool` or `int`
@@ -647,6 +648,35 @@ The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
   its alternatives, and every function from its rules, up to `R.opsN_sound`:
   the whole simplifier is sound.
 
+### Subsorts in Lean
+
+A subsort is erased in the Lean types and typings, like in OCaml. It has a
+meaning in the statements if it names a predicate on terms with `[@lean "P"]`:
+`subsort TNonzero of nat : TBitVector n [@lean "Nonzero"]`. `R.P : Term -> Prop`
+is written by hand, in a module that `R.Statements` imports, `R.Semantics`
+(`def Nonzero (t : Term) : Prop := ∀ ρ z, eval ρ t = some (.int z) → z ≠ 0`).
+A subsort without `[@lean]` assumes and proves nothing.
+
+- A rule function whose spec is a node with an operand `v` at a subsort
+  position is stated for the terms that satisfy `P`: `Nonzero v →` before the
+  guard of its rules and arms, in `Ops.Sound`, in its step lemma and in its
+  lifting lemma, where it is on the arguments of the call (`lift_f` needs
+  `Nonzero v'`, which `kanon_lift` leaves to `assumption` or to the proof). The
+  elements of a list of operands each satisfy it. The arms that are derived from
+  another by commutativity are proved as the others, since their operands are
+  other terms than those of the arm that they come from.
+- A rule function whose node has a subsort for its result must prove that what
+  it returns, a rule or, when none fires, its spec, satisfies `P`:
+  `Statements.lean` states `f.post.main.Stmt` (`∀ O, O.Sound → ∀ args, hyps →
+  P (f.step O args)`), and `Soundness.lean` proves it with `kanon_proof%`,
+  which fails unless there is a hand-written proof (`@[kanon_arm] theorem ... :
+  f.post.main.Stmt`). The default tactic does not prove it.
+
+`examples/division/` is `examples/ints` with a division of a non-zero divisor and
+a `Sq1` that returns a non-zero: its `Semantics.lean` defines `Nonzero`, and
+`Proofs.lean` proves the arm `a / a = 1`, which needs it, and the post-condition
+of `sq1`.
+
 They build on Kanon's Lean library, `lean/` (the package `kanon`, library
 `KanonCore`, namespace `Kanon`, which they open), and on modules written by
 hand for the language: `R.Abstract` (the abstract types), `R.Prims` (the
@@ -795,6 +825,18 @@ others (the generator itself knows nothing of sorts).
 
   ```
   cd examples/bool/lean
+  lake build
+  lake env lean check_axioms.lean  # must not mention sorryAx
+  ```
+
+- `examples/division/` is `examples/ints` with a subsort: a division, whose divisor
+  is a `TNonzero` (its Lean predicate, `Nonzero`, is in `Semantics.lean`), and a
+  node that returns one. Its `Proofs.lean` has the hand-written proofs that the
+  subsort asks (see [Subsorts in Lean](#subsorts-in-lean)). It is built and
+  checked like the others:
+
+  ```
+  cd examples/division/lean
   lake build
   lake env lean check_axioms.lean  # must not mention sorryAx
   ```

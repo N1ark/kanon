@@ -4,6 +4,7 @@
 
 ### Added
 
+- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` on a subsort names a predicate on terms, which the Lean statements of a rule function assume of its operands at a position of the subsort (in the statements of its rules and arms, in `Ops.Sound`, in its step and lifting lemmas), and which the rule function whose node returns the subsort must prove of what it returns (`f.post.main.Stmt`, by hand). `examples/division` is checked by CI.
 - [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n` declares a sort of the arguments of its parent, which the typing of a node may use for an operand or its result (`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n`). A term of a subsort is accepted wherever its parent is expected. They are erased to their parent in the OCaml of the types, rules and tests, and trusted.
 - The `ocaml` backend generates a destructor `as_foo` and a test `is_foo` for every node and every sort (`as_foo : t -> (parameters, operands) option`, `as_tfoo : ty -> arguments option`), named after the constructor in lowercase. A function or a primitive with such a name is an error.
 - [Infix operators with a word suffix](README.md#operators): a declared operator may be a symbol followed by a word, such as `infix "<u" = Ult, bv_ult` (`a <u b`, `a <=s b`). The lexer reads it as one operator only once it is declared, at the precedence of its symbol; `a < u b` and `x<y` are unchanged.

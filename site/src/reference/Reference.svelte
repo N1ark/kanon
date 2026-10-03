@@ -66,8 +66,10 @@
       (<code>{`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n{:kanon}`}</code>): a term
       of a subsort is accepted wherever its parent is expected, and not the reverse. It has no
       constructor of its own and no meaning in OCaml, where the types and rules erase it to its
-      parent; it is only trusted. It is not an argument of a sort, nor an annotation
-      <code>(v : S n)</code>, and its parent is a sort, not a subsort.
+      parent; it is only trusted, but in <code>ocaml-typed</code>, where the tags of its terms refine
+      those of its parent, and in Lean, where <code>{`[@lean "P"]{:kanon}`}</code> gives it a
+      predicate. It is not an argument of a sort, nor an annotation <code>(v : S n)</code>, and its
+      parent is a sort, not a subsort.
     </dd>
 
     <dt><code>node C of a * b (x, y) : s1 -> s2 -> s when e attrs</code></dt>
@@ -242,7 +244,7 @@
     </tbody>
   </table>
 
-  <Heading level={3} id="on-sorts">On sorts</Heading>
+  <Heading level={3} id="on-sorts">On sorts and subsorts</Heading>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
@@ -253,6 +255,18 @@
           The helper <code>{`f : t -> int{:kanon}`}</code> reads that argument from the sort of a
           term (<code>{`sort TArray of nat [@get length]{:kanon}`}</code>): Kanon calls
           <code>{`f v{:kanon}`}</code> rather than matching the sort of <code>v</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@lean "P"]{:kanon}`}</code></td>
+        <td>a subsort</td>
+        <td>
+          The Lean predicate <code>{`P : Term → Prop{:lean}`}</code> that its terms satisfy, written
+          by hand in the semantics. The Lean statements of a rule function assume it of an operand
+          at a position of the subsort (<code>{`Nonzero v →{:lean}`}</code>), and the function must
+          prove that what it returns, when its node has the subsort for its result, satisfies it
+          (<code>f.post.main.Stmt</code>, proved by hand with <code>{`@[kanon_arm]{:lean}`}</code>).
+          Without it, Lean ignores the subsort.
         </td>
       </tr>
     </tbody>
