@@ -156,9 +156,9 @@
     (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way.
   </p>
   <p>
-    <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>,
-    <code>node</code>, <code>infix</code>, <code>prefix</code>, <code>constant</code>,
-    <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
+    <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
+    <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>,
+    <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
   </p>
@@ -337,7 +337,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <tbody>
       <tr>
         <td><code>{`[@ty_only]{:kanon}`}</code></td>
-        <td>a helper of one term, before its <code>=</code></td>
+        <td>a helper of one term (<code>fn</code>), before its <code>=</code></td>
         <td>
           The helper only reads the sort of the term (<code
             >fn size (v : t) : int [@ty_only] = width (type_of v)</code
