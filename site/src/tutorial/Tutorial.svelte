@@ -56,21 +56,36 @@
   <Code
     code={`type var [@ocaml "string"] [@lean "String"]
 
+(** A variable. *)
 node Var of var
+(** A boolean literal. *)
 node Bool of bool : TBool
+(** An integer literal. *)
 node Int of int : TInt
+(** Negation. *)
 node Not : TBool -> TBool
+(** Conjunction. *)
 node And : TBool -> TBool -> TBool
+(** The sum of two integers. *)
 node Plus : TInt -> TInt -> TInt
+(** Equality of two terms of any sort. *)
 node Eq : a -> a -> TBool
 
+(** The sort of booleans. *)
 sort TBool
+(** The sort of integers. *)
 sort TInt
 
 notation Bool
 notation Int`}
   />
   <ul>
+    <li>
+      A documentation comment <code>(** … *)</code> right before a declaration documents it:
+      Kanon copies it to the generated OCaml (as <code>(** … *)</code>) and Lean (as
+      <code>/-- … -/</code>), next to the constructor or the function. A plain comment
+      <code>(* … *)</code> is ignored.
+    </li>
     <li>
       <code>Var</code>, <code>Bool</code> and <code>Int</code> have no operands: they are the
       leaves of terms. <code>Not</code>, <code>And</code>, <code>Plus</code> and <code>Eq</code> are
@@ -196,7 +211,10 @@ prefix "not" = Not, not_`}
     functions of the folds.
   </p>
   <Code
-    code={`fn negb (b : bool) : bool = not b
+    code={`(** Negation of a boolean. *)
+fn negb (b : bool) : bool = not b
+
+(** Sum of two integers. *)
 fn add (x y : int) : int = x + y
 
 rule not_ : Not v
@@ -221,13 +239,16 @@ rule plus : Plus (v1, v2)`}
     returns a term that must <em>refine</em> the raw term <code>e</code>, its spec. When the spec is
     a node over variables, they are the parameters of the function. Its cases match the operands of
     the spec (as a tuple when there are several), and each is a rule, named by the label before its
-    pattern; rules are tried in order. Unless its last case matches anything, a rule function ends
-    with the rule <code>default</code>, which builds its spec.
+    pattern; rules are tried in order. Unless its last case matches anything (<code>_</code>, or
+    <code>{`_, _{:kanon}`}</code> for two operands: the two are the same), a rule function ends with
+    the rule <code>default</code>, which builds its spec.
   </p>
   <Code
-    code={`rule plus : Plus (v1, v2) =
+    code={`(** Sum: adjacent literals are added. *)
+rule plus : Plus (v1, v2) =
   | assoc: (x + #a) + #b -> x + Int (a + b)
 
+(** Equality: literals are compared, and a negative literal differs from a natural number. *)
 rule eq : Eq (v1, v2) =
   | same: x == x -> Bool true
   | lits: Int x == Int y -> Bool (x = y)
@@ -270,9 +291,10 @@ rule eq : Eq (v1, v2) =
     parameter, so that the proofs may not rely on its behaviour (e.g. a hash-consing order).
   </p>
   <Code
-    code={`prim var_is_nat : var -> bool
+    code={`(** Whether a variable is surely a natural number. *)
+prim var_is_nat : var -> bool
 
-(* Whether a term is surely a natural number. *)
+(** Whether a term is surely a natural number. *)
 fn is_nat (v : t) : bool =
   match v with
   | Int n -> n >= 0
@@ -284,6 +306,20 @@ fn is_nat (v : t) : bool =
     In the Lean model, every rule is a function to <code>{`Option Term{:lean}`}</code>, and a rule
     function the first of its rules that applies:
   </p>
+  <p>
+    A helper or a primitive that the Lean model should not contain, such as a heuristic that only
+    the OCaml code uses, is marked <code>{`[@no_lean]{:kanon}`}</code>: it is generated in OCaml and
+    left out of every Lean file. A function that is modelled may not call it, so the proofs never
+    depend on it; it may call anything. Rules, sorts, nodes and oracles cannot be marked: they are
+    proved. Below, <code>cost</code> is in the OCaml and not in the Lean.
+  </p>
+  <Code
+    code={`(** A size estimate, for the OCaml code around the simplifier: not modelled in Lean. *)
+fn cost (v : t) : int [@no_lean] =
+  match v with
+  | l + r -> cost l + cost r + 1
+  | _ -> 1`}
+  />
   <Example id="rules" ocaml="ocaml" lean="lean-model" />
 
   <Heading level={2} id="modules">Modules</Heading>
@@ -314,9 +350,11 @@ node Var of var`}
   </p>
   <p>
     A module adds rules to the rule function of a module below it with
-    <code>extend rule f</code>: last, but before its final catch-all case, or before its rule
-    <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
-    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>.
+    <code>extend rule f</code>: last, but before its final catch-all case (<code>_</code>, or
+    <code>{`_, _{:kanon}`}</code>, a tuple of blanks, for the operands of a spec or a helper), or
+    before its rule <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
+    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>. A case that an
+    earlier case already matches is an error there, rather than left out.
   </p>
   <Code
     code={`extend rule sem_eq before same =

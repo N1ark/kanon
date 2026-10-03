@@ -6,15 +6,24 @@ use "rules"
 
 type var [@ocaml "string"] [@lean "String"]
 
+(** A variable. *)
 node Var of var
+(** A boolean literal. *)
 node Bool of bool : TBool
+(** An integer literal. *)
 node Int of int : TInt
+(** Negation. *)
 node Not : TBool -> TBool [@invol] [@fold negb]
+(** Conjunction. *)
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
+(** The sum of two integers. *)
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+(** Equality of two terms of any sort. *)
 node Eq : a -> a -> TBool [@comm]
 
+(** The sort of booleans. *)
 sort TBool
+(** The sort of integers. *)
 sort TInt
 
 notation Bool

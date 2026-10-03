@@ -1,4 +1,7 @@
+(** Negation of a boolean. *)
 fn negb (b : bool) : bool = not b
+
+(** Sum of two integers. *)
 fn add (x y : int) : int = x + y
 
 rule not_ : Not v

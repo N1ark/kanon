@@ -28,7 +28,10 @@
     A documentation comment <code>(** … *)</code> right before a <code>type</code>,
     <code>sort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code> or
     <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
-    and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored.
+    and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored. A
+    documentation comment is also accepted before <code>infix</code>, <code>prefix</code> and
+    <code>constant</code>, but nothing is generated from it there; anywhere else (before a
+    <code>notation</code>, a floating attribute, a case, or at the end of a file) it is an error.
   </p>
   <dl>
     <dt><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
@@ -105,7 +108,8 @@
       A primitive, implemented by hand in OCaml (in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
       define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
-      not rely on its behaviour (e.g. a hash-consing order).
+      not rely on its behaviour (e.g. a hash-consing order). <code>{`[@no_lean]{:kanon}`}</code>
+      after the type leaves a primitive out of Lean (see <a href="#on-functions">below</a>).
     </dd>
 
     <dt><code>fn f (x : a) (y z : b) (v : S args) : c attrs = e</code></dt>
@@ -128,7 +132,10 @@
     <dt><code>{`extend rule f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn f = | p -> e | …{:kanon}`}</code></dt>
     <dd>
       Adds rules to the rule function <code>f</code> of a module below, last but before its final
-      catch-all case, or before its rule <code>r</code>; or cases to its helper <code>f</code>.
+      catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
+      <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
+      rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
+      error.
     </dd>
   </dl>
   <p>
@@ -339,8 +346,20 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@no_lean]{:kanon}`}</code></td>
+        <td>a <code>fn</code>, after its result type; a <code>prim</code>, after its type</td>
+        <td>
+          Generated in OCaml (by every OCaml backend), and left out of every Lean file. A function
+          that is modelled in Lean (any other helper or rule function, or the typing of a node) may
+          not call it; a <code>{`[@no_lean]{:kanon}`}</code> helper may call anything, and the cases
+          that <code>extend fn</code> adds to it are not modelled either. It cannot mark a rule
+          function, an oracle, a sort, a node or a type, which are proved or modelled.
+          <code>{`[@ty_only]{:kanon}`}</code> combines with it.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@total]{:kanon}`}</code></td>
-        <td>a helper, after its result type</td>
+        <td>a <code>fn</code>, after its result type</td>
         <td>
           A per-node function: its body ends with a match on its first term parameter, which must
           have a case for every node of the language (leaf or operator). A catch-all case (<code
@@ -405,6 +424,29 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           quantify over (e.g. a semantics of floats).
         </td>
       </tr>
+    </tbody>
+  </table>
+
+  <Heading level={2} id="backends">Backends</Heading>
+  <p>
+    <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
+    <code>.knl</code> file, and writes the generated code on standard output.
+  </p>
+  <table>
+    <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
+    <tbody>
+      <tr><td><code>ocaml-types</code></td><td>The OCaml types of the language and its hash-consed terms.</td></tr>
+      <tr><td><code>ocaml</code></td><td>The OCaml rule functions and helpers.</td></tr>
+      <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>
+      <tr>
+        <td>
+          <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
+          <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
+          <code>lean-lifts</code>, <code>lean-soundness</code>
+        </td>
+        <td>The Lean files of the model and its proofs (see the <a href="proving.html">guide</a>).</td>
+      </tr>
+      <tr><td><code>lean-all</code></td><td>Each Lean file, as <code>F.lean.gen</code>, in the current directory.</td></tr>
     </tbody>
   </table>
 

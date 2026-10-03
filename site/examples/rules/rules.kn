@@ -1,11 +1,11 @@
-(* Primitives: implemented by hand, in OCaml (in the module Prims) and in Lean. *)
+(** Whether a variable is surely a natural number. *)
 prim var_is_nat : var -> bool
 
 (* Helpers *)
 fn negb (b : bool) : bool = not b
 fn add (x y : int) : int = x + y
 
-(* Whether a term is surely a natural number. *)
+(** Whether a term is surely a natural number. *)
 fn is_nat (v : t) : bool =
   match v with
   | Int n -> n >= 0
@@ -13,17 +13,26 @@ fn is_nat (v : t) : bool =
   | l + r -> is_nat l && is_nat r
   | _ -> false
 
+(** A size estimate, for the OCaml code around the simplifier: not modelled in Lean. *)
+fn cost (v : t) : int [@no_lean] =
+  match v with
+  | l + r -> cost l + cost r + 1
+  | _ -> 1
+
 (* Rule functions: the rules derived from the laws of their spec come first,
    then these. *)
 
 rule not_ : Not v
 
+(** Conjunction. *)
 rule and_ : And (v1, v2) =
   | not_: x && not x -> Bool false
 
+(** Sum: adjacent literals are added. *)
 rule plus : Plus (v1, v2) =
   | assoc: (x + #a) + #b -> x + Int (a + b)
 
+(** Equality: literals are compared, and a negative literal differs from a natural number. *)
 rule eq : Eq (v1, v2) =
   | same: x == x -> Bool true
   | lits: Int x == Int y -> Bool (x = y)
