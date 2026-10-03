@@ -195,6 +195,14 @@
         </td>
       </tr>
       <tr>
+        <td><code>{`type 'a box [@ocaml "Box.t"] [@equal "Box.equal"] [@hash "Box.hash"]{:kanon}`}</code></td>
+        <td>
+          A parametrised abstract type, applied where types are written (<code>t box</code>,
+          <code>(t, int) pair</code>). The host functions take the equality (the hash) of each
+          argument first. Not supported in Lean.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@noeq]{:kanon}`}</code></td>
         <td>
           On an abstract type: <code>=</code> and <code>&lt;&gt;</code> are not allowed at this type

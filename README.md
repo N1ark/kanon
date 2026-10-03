@@ -119,6 +119,24 @@ and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
   `M.equal : a -> a -> bool` that decides `=` (`Stdlib.( = )` by default), and
   `[@hash "M.hash"]` the function `M.hash : a -> int` that hashes its values
   for hash-consing (`Hashtbl.hash` by default).
+- An abstract type may be parametrised, to hold terms or any other type through
+  the host:
+  `type 'a iarray [@ocaml "Iarray.t"] [@equal "Iarray.equal"] [@hash "Iarray.hash"]`
+  (or `type ('a, 'b) pair ...`), applied to types where types
+  are written (`node Array of t iarray`, `fn f (a : t iarray) : int`,
+  `prim get : t iarray -> int -> t`, `(t, int) pair`). `[@ocaml]` is the OCaml
+  type constructor, applied to the arguments (`t Iarray.t`), and `[@equal]` and
+  `[@hash]` are required: they take the equality (the hash) of each argument
+  first, in order of the parameters, and Kanon passes those of the arguments
+  (`Iarray.equal : ('a -> 'a -> bool) -> 'a Iarray.t -> 'a Iarray.t -> bool`,
+  `Iarray.hash : ('a -> int) -> 'a Iarray.t -> int`), the tags for `t`, so that
+  nodes are hash-consed on the elements. Each application is a distinct type
+  of the language, the language stays first-order, and the values flow through
+  variables, calls, nodes, tuples, options and lists, but a pattern on one is
+  a variable or a wildcard, and all operations on it are primitives. Only
+  abstract types have parameters, an argument count other than the arity is an
+  error, and the Lean backends reject a language that uses one (a parametrised
+  abstract type has no Lean definition); `ocaml-tests` does not generate them.
 - A `nat` argument of a node or a sort is an OCaml `int` (a width, an index),
   and an `int` in Kanon. `nat` is also accepted in the signatures of functions,
   rules, primitives and in record fields, as a synonym of `int` (`Z.t` in OCaml,

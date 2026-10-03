@@ -4,6 +4,7 @@
 
 ### Added
 
+- [Parametrised abstract types](README.md#types): `type 'a iarray [@ocaml "Iarray.t"] [@equal "Iarray.equal"] [@hash "Iarray.hash"]` declares a host container usable at any type, `t` included (`node Array of t iarray`, `prim get : t iarray -> int -> t`, `(t, int) pair`). `[@equal]` and `[@hash]` take the equality and the hash of the arguments first, which Kanon passes, so that nodes are hash-consed on the elements. The Lean backends reject them.
 - The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`. `[@ghost t1 ... tn]` after the spec of a rule function sets its tags, and rule functions whose spec is not a single node get a `val` too.
 - [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
 - [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
