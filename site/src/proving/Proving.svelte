@@ -147,6 +147,12 @@
       soundness of a rule function follows from that of its rules;
     </li>
     <li>
+      <code>arrayLength</code>, <code>arrayGet</code> and <code>arraySet</code>
+      (<code>KanonCore.Array</code>), with which the model uses the arrays of the language (Lean's
+      <code>Array</code>), and their lemmas: the length of a set, reading after a set, setting twice,
+      the conversions to and from lists;
+    </li>
+    <li>
       the attributes <code>kanon_spec</code> (the specs <code>f.spec</code>, which the tactics
       unfold), <code>{`kanon_tactic "tac"{:lean}`}</code> (on <code>f.spec</code>: the tactic that
       proves the arms of <code>f</code>) and <code>kanon_arm</code> (on a theorem: the hand-written

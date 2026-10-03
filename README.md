@@ -97,7 +97,8 @@ type checked = { signed : bool; unsigned : bool }
 
 A type is abstract, a variant or a record: the types of the arguments of nodes
 and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
-`unit`, tuples, `option` and `list` are built in. `t`, the type of terms, and
+`unit`, tuples, `option`, `list` and `array` (see [Arrays](#arrays)) are built
+in. `t`, the type of terms, and
 `ty`, the type of their sorts, are generated from the nodes and the sorts (see
 [below](#modules-nodes-and-sorts)), and cannot be declared.
 
@@ -123,6 +124,49 @@ and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
   `Int` in Lean): it is not checked to be non-negative, and a node that
   receives one converts it to an `int`. A type declared `nat` is used instead.
 - Identifiers may have primes after their first character (`l'`, `x''`).
+
+### Arrays
+
+`t array` is the type of immutable arrays of `t`: a type of its own, not a list
+with other names. It is the standard `Iarray.t` of OCaml and `Array t` in Lean.
+
+```ocaml
+node Vec of int array : TVec
+
+fn swap (a : int array) (i j : int) : int array =
+  array_set (array_set a i (array_get a j)) j (array_get a i)
+
+fn pair (x : int) : int array = [| x; x + 1 |]
+```
+
+| | |
+|---|---|
+| `[| a; b |]`, `[||]` | the array of these elements (`[||]` needs its type to be known: a result, a parameter, ...) |
+| `array_length a : int` | the number of elements |
+| `array_get a i : t` | the element at the index `i`, which must be in bounds |
+| `array_set a i x : t array` | a copy of `a` where the element at `i`, in bounds, is `x`: `a` itself is not changed |
+| `array_of_list l : t array`, `array_to_list a : t list` | the conversions between lists and arrays |
+| `a = b`, `a <> b` | structural: the same length and equal elements (as `=` at the type of the elements). A node with an array argument is hash-consed on it |
+
+The functions are built in, and their names cannot be declared again. There is
+nothing else: no cons, concatenation, array pattern or `a.(i)`, since an array
+is read and updated by index and neither is a list (convert it with
+`array_to_list`, and write the recursion on the list); no in-place update, which
+an immutable array does not have; and no `map` or `fold`, which Kanon has not for
+lists either.
+
+An index out of bounds is a precondition that Kanon does not check: OCaml's
+`Iarray.get` raises `Invalid_argument` (so does `array_set`), and Lean's
+operations (`arrayGet` and `arraySet` of `KanonCore.Array`) are total, with
+`default` and the array itself, so that nothing may be relied on there. A rule
+that reads an array tests the index first (`when 0 <= k && k < array_length a`,
+see `examples/arrays/vec.kn`). An index is an `int` (`Z.t` in OCaml: one that
+does not fit an OCaml `int` raises).
+
+The generated OCaml uses `Iarray`, of the standard library since OCaml 5.4, and
+needs nothing else: `ocaml-types` generates the equality and the hash of the
+types that hold an array, with `Iarray.equal` and `Iarray.fold_left`. A rule
+function takes terms, so `ocaml-tests` has no array to draw.
 
 ### Modules, nodes and sorts
 
@@ -479,9 +523,9 @@ where `kind` has the leaves and the `Op1`, `Op2`, ... of the operators (see
 the kind and the sort of the term, gives the term already built, or the new
 one, with the next tag. `equal_x` and `hash_x` compare and hash the values of
 each type: structurally, terms by their tags, and the abstract types with
-their `[@equal]` and `[@hash]`. It only needs Zarith (`int` is `Z.t`). The
-table is not safe to use from several OCaml 5 domains at once: a known
-limitation.
+their `[@equal]` and `[@hash]`. It only needs Zarith (`int` is `Z.t`), and the
+standard `Iarray` (OCaml 5.4) if the language has arrays. The table is not safe
+to use from several OCaml 5 domains at once: a known limitation.
 
 `kanon ocaml lang.knl` generates the rule functions and helpers, which need
 those types in scope: included next to them (`[%%include_file]`, see
@@ -508,6 +552,9 @@ The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
 - `Signatures.lean` checks that `R.Prims` defines the primitives, at their
   types.
 - `Model.lean` is a Lean model of the rule functions, over the primitives.
+  Its arrays are Lean's `Array`, and their operations (`arrayLength`,
+  `arrayGet`, `arraySet`) are defined, with their lemmas (reading after a set,
+  lengths, the conversions to and from lists), in `KanonCore.Array`.
 - `Statements.lean` states that every alternative of every rule is sound: its
   result *refines* its spec (the raw term it simplifies), and that the
   operands of every commutative operator commute (`Op2.Plus.comm.Stmt`:
@@ -650,6 +697,11 @@ others (the generator itself knows nothing of sorts).
   its rule functions with `extend rule`, and literals to its helper `sure_neq`
   with `extend fn`. It is the bool module of soteria's
   `Bv_values` and `Tiny_values`.
+- `examples/arrays/` is a small language of integers and arrays of integers
+  (`Vec of int array`, `Len`, `Get`, `Set`), which shows the [arrays](#arrays):
+  its OCaml is compiled and run by the tests (`test/ocaml`), and its Lean model
+  (`lean/`, `lake build`) has no proofs, only the generated files, which `dune
+  test` checks are up to date.
 - `examples/bool/` is a complete example language, made of the bool module
   alone, to start from: `lang.knl` adds its variables to the module, and
   `lean/` is the Lean proof of its rules (the package

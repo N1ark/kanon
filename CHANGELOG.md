@@ -11,6 +11,8 @@
 - [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
 - `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
 
+- [Arrays](README.md#arrays): `t array` is an immutable array, with the literal `[| a; b |]` and the functions `array_length`, `array_get`, `array_set` (a copy), `array_of_list` and `array_to_list`, and structural equality. OCaml compiles them to the standard `Iarray` (OCaml 5.4, with the equality and hash generated, no hand-written glue), and Lean to `Array`, with the operations and lemmas of `KanonCore.Array`. There is no cons, concatenation or array pattern. `examples/arrays` shows them, and the language server hovers and completes them.
+
 ### Fixed
 
 - The hover of the language server on a function or a node showed the second star of its documentation comment `(** ... *)` as text.
