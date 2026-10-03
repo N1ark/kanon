@@ -314,3 +314,22 @@ created on disk is then found.
   {"jsonrpc":"2.0","id":1,"result":null}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/more.kn","diagnostics":[]}}
   {"jsonrpc":"2.0","id":2,"result":null}
+
+A subsort has a hover, a definition and an outline entry, like a sort:
+
+  $ mkdir sub
+  $ printf 'sort TBitVector of nat\nsubsort TNonzero of nat : TBitVector n\nnode Div : TBitVector n -> TNonzero n -> TBitVector n\n' > sub/sub.knl
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/sub","capabilities":{}}}'
+  >   msg '{"jsonrpc":"2.0","method":"initialized","params":{}}'
+  >   msg "$(open sub/sub.knl 'sort TBitVector of nat\nsubsort TNonzero of nat : TBitVector n\nnode Div : TBitVector n -> TNonzero n -> TBitVector n\n')"
+  >   msg "$(at 1 hover sub/sub.knl 2 29)"
+  >   msg "$(at 2 definition sub/sub.knl 2 29)"
+  >   msg '{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } | kanon lsp |
+  >   sed -e 's/Content-Length: [0-9]*\r$//' -e '/^\r*$/d' -e "s|$PWD|ROOT|g" |
+  >   grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nsubsort TNonzero of nat : TBitVector n\n```\n\n*sub.knl*"},"range":{"start":{"line":2,"character":27},"end":{"line":2,"character":35}}}}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/sub/sub.knl","range":{"start":{"line":1,"character":8},"end":{"line":1,"character":16}}}]}
+  {"jsonrpc":"2.0","id":3,"result":null}
