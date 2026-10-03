@@ -471,6 +471,105 @@ let check_prims (p : program) =
                f ))
   | _ -> ()
 
+(** The nodes and the sorts of the language, whose destructors [as_foo] and
+    [is_foo] the backend generates: the leaves and operators that the user
+    declared, and the sorts (and not the kinds built by Kanon, nor the
+    constructors of the other types). *)
+let destructed () =
+  List.filter
+    (fun (c : constr) ->
+      c.c_res = TSty
+      || (c.c_res = TKind && not (List.mem c.c_name !lang.node_kinds))
+      || Option.is_some (Check.node_of_op c))
+    !lang.constrs
+
+(** The suffix of the destructors of the node or sort [c]: its name in
+    lowercase. *)
+let destructor_suffix (c : constr) = String.lowercase_ascii c.c_name
+
+(** Checks that the destructors [as_x] and [is_x] of the nodes and sorts do not
+    have the name of another destructor, of a function or of a primitive. *)
+let check_destructors (p : program) =
+  let taken = Hashtbl.create 16 in
+  let take what loc name =
+    match Hashtbl.find_opt taken name with
+    | Some other ->
+        raise
+          (Check.Error
+             ( loc,
+               Fmt.str "%s is the destructor of %s, which is also %s" name what
+                 other ))
+    | None -> Hashtbl.replace taken name what
+  in
+  let sorted = destructed () in
+  List.iter
+    (fun (c : constr) ->
+      List.iter
+        (fun prefix ->
+          take c.c_name Location.none (prefix ^ destructor_suffix c))
+        [ "as_"; "is_" ])
+    sorted;
+  let clash loc name what =
+    match Hashtbl.find_opt taken name with
+    | Some of_ ->
+        raise
+          (Check.Error
+             ( loc,
+               Fmt.str "%s is the destructor of %s: rename the %s" name of_ what
+             ))
+    | None -> ()
+  in
+  List.iter (fun (f : fn) -> clash f.floc f.name "function") p.fns;
+  List.iter (fun (q : prim) -> clash q.ploc q.pname "primitive") p.prims
+
+(** The destructors of [c]: [as_foo], which is the arguments of [c] (its
+    parameters, then its operands, as in a pattern) in an option, and [is_foo].
+*)
+let destructor ft (c : constr) =
+  let suffix = destructor_suffix c in
+  let vars k x = List.init k (fun i -> Fmt.str "%s%d" x (i + 1)) in
+  let tuple = function
+    | [] -> "()"
+    | [ x ] -> x
+    | l -> "(" ^ String.concat ", " l ^ ")"
+  in
+  let params = vars (List.length c.c_args) "p" in
+  (* the operands of an operator, and the type of the scrutinee *)
+  let operands, ty =
+    match (c.c_res, Check.node_of_op c) with
+    | TSty, _ -> ([], "ty")
+    | _, Some (kc, operands) ->
+        ( (match kc.c_args with
+          | [ _; Arg (TList _) ] -> [ "xs" ]
+          | _ -> vars (List.length operands) "x"),
+          "t" )
+    | _, None -> ([], "t")
+  in
+  (* the pattern of [c], whose variables are [names] or blanks *)
+  let pat ~blank =
+    let name x = if blank then "_" else x in
+    let ctor =
+      match params with
+      | [] -> c.c_name
+      | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " (List.map name l))
+    in
+    match (c.c_res, Check.node_of_op c) with
+    | TSty, _ -> ctor
+    | _, Some (kc, _) ->
+        Fmt.str "{ kind = %s (%s); _ }" kc.c_name
+          (String.concat ", " (ctor :: List.map name operands))
+    | _, None -> Fmt.str "{ kind = %s; _ }" ctor
+  in
+  pf ft
+    "@[<hv 2>let as_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> Some \
+     %s | _ -> None@]@ @ "
+    suffix ty (pat ~blank:false)
+    (tuple (params @ operands));
+  pf ft
+    "@[<hv 2>let is_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> true \
+     | _ -> false@]@ @ "
+    suffix ty (pat ~blank:true)
+
 (** The header of the generated files of rules: the warnings, and the types of
     the language, opened from their module if they are not in scope. *)
 let header ~sources ft =
@@ -509,6 +608,7 @@ let program ~sources ft (p : program) =
       groups
   in
   let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts } in
+  check_destructors p;
   header ~sources ft;
   prim_sigs ft p;
   List.iter
@@ -526,6 +626,7 @@ let program ~sources ft (p : program) =
             (fn ctx) f)
         group)
     groups;
+  List.iter (destructor ft) (destructed ());
   pf ft "@]@."
 
 (* ---------------------------------------------------------------- *)
