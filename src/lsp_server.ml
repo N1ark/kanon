@@ -137,7 +137,8 @@ let operator_token_at ~words s o =
     in
     match tok with
     | PLUS -> infix "+"
-    | MINUS -> if after_operand then infix "-" else prefix "~-"
+    | MINUS -> infix "-"
+    | UMINUS -> prefix "~-"
     | STAR -> infix "*"
     | ANDAND -> infix "&&"
     | BARBAR -> infix "||"

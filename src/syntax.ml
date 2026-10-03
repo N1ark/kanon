@@ -90,8 +90,10 @@ type operator = {
   op_doc : string option;  (** the doc comment before [infix] or [prefix] *)
 }
 
-(** The words declared as infix operators ([infix "urem" = ...]), which the
-    lexer reads as operators, at the level of [*], from their declaration on. *)
+(** The operators declared with a word, which the lexer reads as operators from
+    their declaration on: a word, an infix operator at the level of [*]
+    ([infix "urem" = ...]), or a symbol followed by a word ([infix "<u" = ...],
+    [prefix "!u" = ...]), at the level of its symbol. *)
 let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),

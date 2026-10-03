@@ -24,6 +24,10 @@ let is_word s =
   && (match s.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true | _ -> false) s
 
+(** Declares [op], if it is a word, as an operator that the lexer reads in the
+    rest of the files ([urem]): it is an identifier otherwise. *)
+let declare_word_op op = if is_word op then Hashtbl.replace Syntax.infix_words op ()
+
 (* [oploc] is the location of the operator, [loc] that of the expression *)
 let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
 
@@ -80,10 +84,9 @@ let binding loc ?(attrs = []) p params ret body =
 
 let item loc d = { pstr_desc = d; pstr_loc = loc }
 
-(* [use "m"], with the module at [mloc]; [kanon.use_plus] for the old
-   [use +m], which the loader rejects *)
-let use_item ?(ext = "kanon.use") loc mloc m =
-  item loc (Pstr_extension (({ txt = ext; loc }, PStr [ eval_item loc (string mloc m) ]), []))
+(* [use "m"], with the module at [mloc] *)
+let use_item loc mloc m =
+  item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string mloc m) ]), []))
 
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type; [sort C
@@ -160,7 +163,7 @@ let neg loc oploc (e : expression) =
 %token ORACLE PREFIX PRIM
 %token RULE SORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
-%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS STAR DOT
+%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS UMINUS STAR DOT
 %token HASH UNDERSCORE EOF
 
 (* the bodies of [let], [match] and [if] extend as far as possible *)
@@ -203,7 +206,6 @@ other_item:
      [path.kn] (see [Main]) *)
   | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
   | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
-  | USE PLUS m = LID { use_item ~ext:"kanon.use_plus" (mkloc $loc) (mkloc $loc(m)) m }
   | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
     { let loc = mkloc $loc in
       (* the payloads are at the names of the function and of the rule *)
@@ -270,8 +272,7 @@ documented_item:
              ] )) }
   | INFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
-      (* an infix word is an operator in the rest of the files *)
-      if is_word op then Hashtbl.replace Syntax.infix_words op ();
+      declare_word_op op;
       item loc (Pstr_eval (e, [ attr loc "infix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
@@ -528,7 +529,7 @@ pow_expr:
 
 unary_expr:
   | e = app_expr { e }
-  | op = MINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
+  | op = UMINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
 
 app_expr:
   | e = simple_expr { e }
@@ -617,7 +618,7 @@ pow_pat:
 
 unary_pat:
   | p = app_pat { p }
-  | op = MINUS p = unary_pat
+  | op = UMINUS p = unary_pat
     { match p.ppat_desc with
       | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer ("-" ^ i, None)))
       | _ -> pnode (mkloc $loc) (mkloc $loc(op)) "~-" [ p ] }
