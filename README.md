@@ -35,9 +35,9 @@ the modules it uses, and writes on standard output:
   file that only needs Zarith (and only the `.knl` files, see [OCaml](#ocaml));
 - `ocaml`: the OCaml implementation of the rule functions and helpers, which
   needs the types in scope;
-- `ocaml-typed`: the OCaml interface of the smart constructors, where terms
-  are typed by the tags of their sorts and subsorts (see [Typed
-  OCaml](#typed-ocaml));
+- `ocaml-typed`: the typed interface of the smart constructors, where terms
+  are typed by the tags of their sorts and subsorts, and its implementation
+  from the rules (see [Typed OCaml](#typed-ocaml));
 - `ocaml-tests`: the differential tests (see [Tests](#tests));
 - `lean-types`, `lean-syntax`, `lean-signatures`, `lean-typing`, `lean-model`,
   `lean-statements`, `lean-lifts`, `lean-soundness`: the generated Lean files
