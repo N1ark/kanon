@@ -76,6 +76,13 @@ OCaml: the standard `Iarray`, with nothing else than the generated code.
   
   
 
+The typed interface has the array type, and the destructor of a node that holds
+one:
+
+  $ sed 's|^\[@@@ocaml_prims "Prims"\]|&\n[@@@ocaml_rules "Rules"]|' lang.knl > typed.knl
+  $ kanon ocaml-typed typed.knl | grep -n 'Iarray'
+  42:    val as_vec : _ t -> (Z.t Iarray.t) option
+
 The types define the structural equality and hash of a node with an array
 argument.
 
