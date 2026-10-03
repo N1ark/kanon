@@ -2804,6 +2804,20 @@
     "type": "typed_expression",
     "named": true,
     "fields": {
+      "computed_sort": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "application_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          }
+        ]
+      },
       "expression": {
         "multiple": false,
         "required": true,
