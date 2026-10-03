@@ -28,6 +28,7 @@ let keywords =
     ("prim", PRIM);
     ("rule", RULE);
     ("sort", SORT);
+    ("subsort", SUBSORT);
     ("then", THEN);
     ("true", TRUE);
     ("type", TYPE);

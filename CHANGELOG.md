@@ -4,6 +4,7 @@
 
 ### Added
 
+- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n` declares a sort of the arguments of its parent, which the typing of a node may use for an operand or its result (`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n`). A term of a subsort is accepted wherever its parent is expected. They are erased to their parent in the OCaml of the types, rules and tests, and trusted.
 - The `ocaml` backend generates a destructor `as_foo` and a test `is_foo` for every node and every sort (`as_foo : t -> (parameters, operands) option`, `as_tfoo : ty -> arguments option`), named after the constructor in lowercase. A function or a primitive with such a name is an error.
 - [Infix operators with a word suffix](README.md#operators): a declared operator may be a symbol followed by a word, such as `infix "<u" = Ult, bv_ult` (`a <u b`, `a <=s b`). The lexer reads it as one operator only once it is declared, at the precedence of its symbol; `a < u b` and `x<y` are unchanged.
 - [Parametrised abstract types](README.md#types): `type 'a iarray [@ocaml "Iarray.t"] [@equal "Iarray.equal"] [@hash "Iarray.hash"]` declares a host container usable at any type, `t` included (`node Array of t iarray`, `prim get : t iarray -> int -> t`, `(t, int) pair`). `[@equal]` and `[@hash]` take the equality and the hash of the arguments first, which Kanon passes, so that nodes are hash-consed on the elements. The Lean backends reject them.

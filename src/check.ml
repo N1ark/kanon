@@ -182,6 +182,13 @@ let rule_name_of_attrs (attrs : attributes) =
       else None)
     attrs
 
+(** The error of the constructor [name], which is not declared; a subsort is
+    only in the typing of a node. *)
+let unknown_constructor loc name =
+  if Option.is_some (find_subsort name) then
+    error loc "%s is a subsort: only the typing of a node can use it" name
+  else error loc "unknown constructor %s" name
+
 let constr_args ?(any = fun _ -> false) loc (c : constr) (arg : 'a option)
     (split : 'a -> 'a list option) =
   let n = List.length c.c_args in
@@ -529,7 +536,7 @@ and pat' ~sort (expected : Syntax.ty) (p : pattern) : Syntax.pat =
       | _ -> error loc ":: at type %a" pp_ty expected)
   | Ppat_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error cloc "unknown constructor %s" name
+      | None -> unknown_constructor cloc name
       | Some c ->
           (* kind constructors can be matched against terms *)
           let ok =
@@ -1299,7 +1306,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       else mk TTerm (node_term loc ~name ~build params operands).e
   | Pexp_construct ({ txt = Lident name; loc = cloc }, arg) -> (
       match find_constr name with
-      | None -> error cloc "unknown constructor %s" name
+      | None -> unknown_constructor cloc name
       | Some c -> (
           let args = constr_args loc c arg split_pexp in
           let args =
@@ -2168,6 +2175,154 @@ let ghost_tag_known t =
 (** Reads the declaration of the constructor [cd] of a type whose constructors
     have the type [res], into the language. [comm_locs] collects the locations
     of the [[@comm]] attributes. *)
+(** A sort of a typing, written as a subsort or not: the sort that its position
+    has, which is that of the parent, and the subsort. A subsort is the sort of
+    an operand or of the result only, not an argument of a sort. *)
+let erase_subsort (e : expression) =
+  let reject (e : expression) =
+    object
+      inherit Ast_traverse.iter as super
+
+      method! expression e =
+        (match e.pexp_desc with
+        | Pexp_construct ({ txt = Lident c; _ }, _)
+          when Option.is_some (find_subsort c) ->
+            error e.pexp_loc
+              "%s is a subsort: it is the sort of an operand or of a result, \
+               not an argument of a sort"
+              c
+        | _ -> ());
+        super#expression e
+    end
+    |> fun o -> o#expression e
+  in
+  match e.pexp_desc with
+  | Pexp_construct (({ txt = Lident c; _ } as l), arg) -> (
+      Option.iter reject arg;
+      match find_subsort c with
+      | Some ss ->
+          ( {
+              e with
+              pexp_desc =
+                Pexp_construct ({ l with txt = Lident ss.ss_parent }, arg);
+            },
+            Some c )
+      | None -> (e, None))
+  | _ ->
+      reject e;
+      (e, None)
+
+(** Declares the subsort [cd], whose parent sort is checked once the sorts are
+    declared (see {!check_subsort}), and is returned with the expression that
+    names it. *)
+let declare_subsort (cd : constructor_declaration) =
+  let name = cd.pcd_name.txt and loc = cd.pcd_loc in
+  let doc, attrs = take_doc cd.pcd_attributes in
+  List.iter
+    (fun n ->
+      Option.iter
+        (fun (a : attribute) ->
+          error a.attr_loc
+            "subsort %s: a subsort has no argument names nor condition: its \
+             arguments are those of its parent"
+            name)
+        (find_attr n attrs))
+    [ "params"; "when" ];
+  check_attrs [ "sorts"; "lean" ] attrs;
+  let parent =
+    match typing_sorts cd with
+    | Some ([ s ], false) -> s
+    | _ ->
+        error loc "subsort %s: expected its parent sort: subsort %s of args : \
+                   Parent args"
+          name name
+  in
+  let ss_parent =
+    match parent.pexp_desc with
+    | Pexp_construct ({ txt = Lident p; _ }, _) -> p
+    | _ -> error parent.pexp_loc "expected the parent sort of %s" name
+  in
+  let ss_args =
+    match cd.pcd_args with
+    | Pcstr_tuple l ->
+        List.map
+          (fun (ct : core_type) ->
+            match ct.ptyp_desc with
+            | Ptyp_constr ({ txt = Lident "nat"; _ }, []) -> Small
+            | _ -> Arg (ty_of_core ct))
+          l
+    | Pcstr_record _ -> error loc "unsupported constructor"
+  in
+  let ss =
+    {
+      ss_name = name;
+      ss_args;
+      ss_parent;
+      ss_lean = Option.map string_attr (find_attr "lean" attrs);
+      ss_doc = doc;
+      ss_loc = cd.pcd_name.loc;
+    }
+  in
+  lang := { !lang with subsorts = !lang.subsorts @ [ ss ] };
+  (ss, parent)
+
+(** Checks the subsort [ss], once the sorts are declared: it is not declared
+    twice, its parent is a sort, and it has the arguments of the parent, which
+    [parent], the expression that names it, applies to variables. *)
+let check_subsort ((ss : subsort), (parent : expression)) =
+  let loc = ss.ss_loc in
+  if Option.is_some (find_constr ss.ss_name) then
+    error loc "constructor %s is declared twice" ss.ss_name;
+  (match
+     List.filter (fun (s : subsort) -> s.ss_name = ss.ss_name) !lang.subsorts
+   with
+  | _ :: _ :: _ -> error loc "subsort %s is declared twice" ss.ss_name
+  | _ -> ());
+  match find_constr ss.ss_parent with
+  | Some ({ c_res = TSty; _ } as pc) ->
+      let pp_arg ft = function
+        | Small -> Fmt.string ft "nat"
+        | Arg t -> pp_ty ft t
+      in
+      let pp_args ft = function
+        | [] -> Fmt.string ft "none"
+        | l -> Fmt.(list ~sep:(any " * ") pp_arg) ft l
+      in
+      if pc.c_args <> ss.ss_args then
+        error loc "subsort %s: its arguments must be those of %s (%a)"
+          ss.ss_name ss.ss_parent pp_args pc.c_args;
+      let args =
+        match parent.pexp_desc with
+        | Pexp_construct (_, Some { pexp_desc = Pexp_tuple l; _ }) -> l
+        | Pexp_construct (_, Some a) -> [ a ]
+        | _ -> []
+      in
+      let vars =
+        List.filter_map
+          (fun (a : expression) ->
+            match a.pexp_desc with
+            | Pexp_ident { txt = Lident x; _ } when x <> "_" -> Some x
+            | _ -> None)
+          args
+      in
+      if
+        List.length vars <> List.length pc.c_args
+        || List.length args <> List.length vars
+        || List.length (List.sort_uniq compare vars) <> List.length vars
+      then
+        error parent.pexp_loc
+          "subsort %s: its parent %s must be applied to the arguments of the \
+           subsort, as distinct variables"
+          ss.ss_name ss.ss_parent
+  | Some _ -> error parent.pexp_loc "%s is not a sort" ss.ss_parent
+  | None -> (
+      match find_subsort ss.ss_parent with
+      | Some _ ->
+          error parent.pexp_loc "%s is a subsort: the parent of a subsort is a \
+                                 sort"
+            ss.ss_parent
+      | None -> error parent.pexp_loc "unknown sort %s" ss.ss_parent)
+
 let constructor ~comm_locs ?ghost res (cd : constructor_declaration) =
   let name = cd.pcd_name.txt and loc = cd.pcd_loc in
   let c_doc, attrs = take_doc cd.pcd_attributes in
@@ -2215,6 +2370,7 @@ let constructor ~comm_locs ?ghost res (cd : constructor_declaration) =
   in
   (match typing_sorts cd with
   | Some (rt_sorts, rt_nary) ->
+      let rt_sorts, rt_subs = List.split (List.map erase_subsort rt_sorts) in
       lang :=
         {
           !lang with
@@ -2226,6 +2382,7 @@ let constructor ~comm_locs ?ghost res (cd : constructor_declaration) =
                     rt_params = items (payload "params");
                     rt_sorts;
                     rt_nary;
+                    rt_subs;
                     rt_when = payload "when";
                     rt_loc = attr_loc "sorts";
                   } );
@@ -2536,27 +2693,37 @@ let language (str : structure) =
           (attempt (fun () ->
                match td.ptype_kind with
                | Ptype_variant [ cd ] ->
-                   let sort = has_attr "sort" td.ptype_attributes in
+                   let kind =
+                     if has_attr "sort" td.ptype_attributes then `Sort
+                     else if has_attr "subsort" td.ptype_attributes then
+                       `Subsort
+                     else `Node
+                   in
                    if
                      List.exists
                        (fun (_, cd') -> cd'.pcd_name.txt = cd.pcd_name.txt)
                        nodes
                    then
                      error cd.pcd_name.loc "%s %s is declared twice"
-                       (if sort then "sort" else "node")
+                       (match kind with
+                       | `Sort -> "sort"
+                       | `Subsort -> "subsort"
+                       | `Node -> "node")
                        cd.pcd_name.txt;
-                   if sort then
+                   if kind = `Sort then
                      Option.iter
                        (fun (a : attribute) ->
                          error a.attr_loc "sort %s: sorts have no typing"
                            cd.pcd_name.txt)
                        (find_attr "sorts" cd.pcd_attributes);
-                   nodes @ [ (sort, cd) ]
+                   nodes @ [ (kind, cd) ]
                | _ -> error td.ptype_loc "expected a node")))
       [] nodes
   in
-  let sorts, nodes = List.partition fst nodes in
+  let sorts, nodes = List.partition (fun (k, _) -> k = `Sort) nodes in
   let sorts = List.map snd sorts in
+  let subsorts, nodes = List.partition (fun (k, _) -> k = `Subsort) nodes in
+  let subsorts = List.map snd subsorts in
   (* the nodes, with their numbers of operands *)
   let nodes =
     List.filter_map
@@ -2705,6 +2872,12 @@ let language (str : structure) =
          | _ -> seen)
        [] decls);
   checkpoint ();
+  (* the subsorts, which the typings of the nodes mention *)
+  let subsorts =
+    List.filter_map
+      (fun cd -> attempt (fun () -> declare_subsort cd))
+      subsorts
+  in
   (* the [[@comm]] attributes, for the check that their operators are binary *)
   let comm_locs = ref [] in
   let constructor ?ghost res cd =
@@ -2761,6 +2934,7 @@ let language (str : structure) =
         constructor ~ghost:(`Node k) (TData (fst (op_type k))) cd)
     nodes;
   List.iter (constructor ~ghost:`Sort TSty) sorts;
+  List.iter (fun s -> ignore (attempt (fun () -> check_subsort s))) subsorts;
   checkpoint ();
   (* then the notations of literals, and the operators on terms *)
   let notations, constants =
@@ -2930,7 +3104,7 @@ let spec_params rname (spec : expression) =
       let c =
         match find_constr n with
         | Some c -> c
-        | None -> error cloc "unknown constructor %s" n
+        | None -> unknown_constructor cloc n
       in
       let tys =
         List.map arg_ty c.c_args
@@ -3605,6 +3779,7 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
     t_vars = !vars;
     t_sorts = sorts;
     t_nary = rt.rt_nary;
+    t_subs = rt.rt_subs;
     t_when = cond;
   }
 
@@ -4093,7 +4268,8 @@ let parse ~file lexbuf : structure =
             (Error
                ( at p,
                  "misplaced doc comment: it must come right before a fn, rule, \
-                  node, sort, type, prim, oracle, infix, prefix or constant" ))
+                  node, sort, subsort, type, prim, oracle, infix, prefix or \
+                  constant" ))
       | None, None -> raise (Error (at lexbuf.lex_start_p, "syntax error")))
 
 let parse_file file : structure =

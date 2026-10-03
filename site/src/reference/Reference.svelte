@@ -18,7 +18,7 @@
   <Heading level={2} id="declarations">Declarations</Heading>
   <p>
     A language is declared in <code>.knl</code> files, with <code>use</code>, <code>type</code>,
-    <code>sort</code>, <code>node</code>, <code>notation</code>, <code>infix</code>,
+    <code>sort</code>, <code>subsort</code>, <code>node</code>, <code>notation</code>, <code>infix</code>,
     <code>prefix</code> and <code>constant</code> items and floating attributes; its rules are in
     <code>.kn</code> files, with <code>prim</code>, <code>oracle</code>, <code>fn</code>,
     <code>rule</code> and <code>extend</code> items. A module <code>path</code> is the pair
@@ -26,8 +26,8 @@
   </p>
   <p>
     A documentation comment <code>(** … *)</code> right before a <code>type</code>,
-    <code>sort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code> or
-    <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
+    <code>sort</code>, <code>subsort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>,
+    <code>fn</code> or <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
     and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored. A
     documentation comment is also accepted before <code>infix</code>, <code>prefix</code> and
     <code>constant</code>, but nothing is generated from it there; anywhere else (before a
@@ -56,6 +56,19 @@
 
     <dt><code>sort S attrs</code>, <code>sort S of a * b attrs</code></dt>
     <dd>A sort, the type of a term: a constructor of <code>ty</code>.</dd>
+
+    <dt><code>{`subsort S of a * b : P x y attrs{:kanon}`}</code></dt>
+    <dd>
+      A subsort <code>S</code> of the sort <code>P</code>, such as
+      <code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>. It has the arguments of its
+      parent (the same number, of the same types), which the parent applies, as distinct variables.
+      A node may use it in its typing, for an operand or its result
+      (<code>{`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n{:kanon}`}</code>): a term
+      of a subsort is accepted wherever its parent is expected, and not the reverse. It has no
+      constructor of its own and no meaning in OCaml, where the types and rules erase it to its
+      parent; it is only trusted. It is not an argument of a sort, nor an annotation
+      <code>(v : S n)</code>, and its parent is a sort, not a subsort.
+    </dd>
 
     <dt><code>node C of a * b (x, y) : s1 -> s2 -> s when e attrs</code></dt>
     <dd>

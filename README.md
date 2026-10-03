@@ -159,6 +159,20 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
 - `sort S ...` declares a sort, a constructor of `ty`
   (`sort TBitVector of nat [@get size]`). Sorts and nodes are constructors:
   their names differ.
+- `subsort S of a * b : P x y` declares a subsort `S` of the sort `P`, such as
+  `subsort TNonzero of nat : TBitVector n`: it has the arguments of its parent
+  (the same number, of the same types) and applies it to them, as distinct
+  variables (`TBitVector n`). A node may use it in its typing, to say what it
+  needs of an operand or what it gives as its result (`node Div of bool :
+  TBitVector n -> TNonzero n -> TBitVector n`): a term of a subsort is accepted
+  wherever its parent is expected, and not the reverse. A subsort has no
+  constructor of its own, and no meaning in OCaml: the generated types and rules
+  erase it to its parent, so that the typing of `Div` is that of `TBitVector n ->
+  TBitVector n -> TBitVector n`. It is only trusted, apart from in Lean (see
+  [Proofs](#proofs)), and in `ocaml-typed`, which types terms by it (see [Typed
+  OCaml](#typed-ocaml)). A subsort is the sort of an operand or of a result
+  only: not an argument of a sort, nor an annotation `(v : TNonzero n)`, and its
+  parent is a sort, not a subsort.
 - `notation C` gives literal patterns to the leaf `C` of one `bool` or `int`
   (see [Patterns](#patterns)).
 - `extend rule f = | r: p -> e ...`, in the rules of a module, adds rules to the
