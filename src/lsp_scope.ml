@@ -305,9 +305,26 @@ let analyze ctx (str : structure) : occ list =
         List.iter (fun (_, e) -> expr env e) fs;
         Option.iter (expr env) w
     | Pexp_field (e, _) -> expr env e
-    | Pexp_constraint (e, t) ->
-        expr env e;
-        typ t
+    | Pexp_constraint (k, t) -> (
+        expr env k;
+        (* [(C x : s)] builds [C] at the sort [s], unless [s] is a type: the
+           parser kept the expression that it read as the type [t] *)
+        let sortexpr =
+          List.find_map
+            (fun (a : attribute) ->
+              match a.attr_payload with
+              | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+                when a.attr_name.txt = "kanon.sortexpr" ->
+                  Some s
+              | _ -> None)
+            e.pexp_attributes
+        in
+        match sortexpr with
+        | Some { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ }
+          when lookup env x = None && not (ctx.is_global x) ->
+            typ t
+        | Some s -> expr env s
+        | None -> typ t)
     | Pexp_assert e -> expr env e
     | Pexp_function (params, _, body) -> (
         let ps = fn_params (Param "") params in

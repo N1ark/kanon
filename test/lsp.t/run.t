@@ -356,3 +356,39 @@ tell where an operator is not surrounded by spaces.
   {"jsonrpc":"2.0","id":5,"result":{"contents":{"kind":"markdown","value":"```kanon\nfn below (a b : t) : t\n```\n\nStrictly below.\n\n*ops.kn*"},"range":{"start":{"line":1,"character":3},"end":{"line":1,"character":8}}}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/suf/ops.kn","diagnostics":[{"range":{"start":{"line":1,"character":26},"end":{"line":1,"character":27}},"severity":1,"source":"kanon","message":"the operator < must be surrounded by spaces"}]}}
   {"jsonrpc":"2.0","id":6,"result":null}
+
+A node built at a computed sort: the names of the sort are resolved like the
+others, with the hover and the definition of a function and of a parameter, and
+a sort that is not a ty is reported where it is.
+
+  $ mkdir cs
+  $ cat > cs/lang.knl <<'KN'
+  > sort TInt
+  > node Int of int : TInt
+  > node Field of int * t
+  > KN
+  $ cat > cs/rules.kn <<'KN'
+  > (** The sort of the field [i] of [v]. *)
+  > fn field_ty (v : t) (i : int) : ty = TInt
+  > fn mk (i : int) (v : t) (s : ty) : t = (Field (i, v) : field_ty v i)
+  > fn mk_in (i : int) (v : t) (s : ty) : t = (Field (i, v) : s)
+  > KN
+  $ initcs='{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/cs","capabilities":{}}}'
+  $ {
+  >   msg "$initcs"
+  >   msg "$(open cs/rules.kn "$(sed 's/$/\\n/' cs/rules.kn | tr -d '\n')")"
+  >   msg "$(at 1 hover cs/rules.kn 2 57)"
+  >   msg "$(at 2 definition cs/rules.kn 2 57)"
+  >   msg "$(at 3 definition cs/rules.kn 2 66)"
+  >   msg "$(at 4 definition cs/rules.kn 3 58)"
+  >   msg "$(change cs/rules.kn "$(sed -e 's/: s)/: i)/' -e 's/$/\\n/' cs/rules.kn | tr -d '\n')")"
+  >   msg '{"jsonrpc":"2.0","id":5,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } > input
+  $ lsp | grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nfn field_ty (v : t) (i : int) : ty\n```\n\nThe sort of the field [i] of [v].\n\n*rules.kn*"},"range":{"start":{"line":2,"character":55},"end":{"line":2,"character":63}}}}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/cs/rules.kn","range":{"start":{"line":1,"character":3},"end":{"line":1,"character":11}}}]}
+  {"jsonrpc":"2.0","id":3,"result":[{"uri":"file://ROOT/cs/rules.kn","range":{"start":{"line":2,"character":7},"end":{"line":2,"character":8}}}]}
+  {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/cs/rules.kn","range":{"start":{"line":3,"character":28},"end":{"line":3,"character":29}}}]}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/cs/rules.kn","diagnostics":[{"range":{"start":{"line":3,"character":58},"end":{"line":3,"character":59}},"severity":1,"source":"kanon","message":"type mismatch: expected ty, got int"}]}}
+  {"jsonrpc":"2.0","id":5,"result":null}
