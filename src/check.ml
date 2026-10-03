@@ -2367,7 +2367,11 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | Some `Sort -> "a sort is part of the Lean model"
     | _ -> "a node is part of the Lean model")
     attrs;
-  check_attrs ([ "comm"; "params"; "sorts"; "when"; "get" ] @ law_attrs) attrs;
+  check_attrs
+    ([ "comm"; "params"; "sorts"; "when"; "get" ]
+    @ (match kind with Some `Node -> [ "ctor" ] | _ -> [])
+    @ law_attrs)
+    attrs;
   let payload n =
     Option.map
       (fun (a : attribute) ->
@@ -2425,7 +2429,7 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
           l
     | Pcstr_record _ -> error loc "unsupported constructor"
   in
-  let c = { c_name = name; c_res = res; c_args = args; c_doc } in
+  let c = { c_name = name; c_res = res; c_args = args; c_doc; c_loc = loc } in
   let l = !lang in
   let l = { l with constrs = l.constrs @ [ c ] } in
   let l =
@@ -2460,6 +2464,14 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
             { l with sort_getters = l.sort_getters @ [ (name, f) ] }
         | _ -> error a.attr_loc "[@get f] applies to sorts with one argument")
     | None -> l
+  in
+  let l =
+    match find_attr "ctor" attrs with
+    | None -> l
+    | Some a -> (
+        match strings_attr a with
+        | [ f ] -> { l with node_ctors = l.node_ctors @ [ (name, f) ] }
+        | _ -> error a.attr_loc "[@ctor f] expects the name of a function")
   in
   lang := l
 
@@ -2609,6 +2621,9 @@ let language (str : structure) =
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_prims", [ m ] ->
                        lang := { !lang with ocaml_prims = Some m };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "ocaml_rules", [ m ] ->
+                       lang := { !lang with ocaml_rules = Some m };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
@@ -2838,6 +2853,7 @@ let language (str : structure) =
                   c_res = TKind;
                   c_args = Arg (TData op) :: operands;
                   c_doc = None;
+                  c_loc = Location.none;
                 };
               ];
           node_kinds = !lang.node_kinds @ [ c ];
