@@ -1,0 +1,28 @@
+(* The rules of the vec module. *)
+
+fn in_bounds (a : int array) (i : int) : bool = 0 <= i && i < array_length a
+
+rule len : Len v =
+  | lit: Vec a -> Int (array_length a)
+
+rule get : Get (v, i) =
+  | lit: Vec a, #k when in_bounds a k -> Int (array_get a k)
+  | set_same: Set (_, j, x), k when j = k -> x
+
+rule set : Set (v, i, x) =
+  | lit: Vec a, #k, #y when in_bounds a k -> Vec (array_set a k y)
+
+(* arrays are compared structurally *)
+extend rule sem_eq before same =
+  | vecs: Vec a == Vec b -> of_bool (a = b)
+
+extend fn sure_neq =
+  | Vec a, Vec b -> not (a = b)
+
+(* the conversions between lists and arrays *)
+fn vec_of_list (l : int list) : t = Vec (array_of_list l)
+
+fn elements (v : t) : int list =
+  match v with
+  | Vec a -> array_to_list a
+  | _ -> []
