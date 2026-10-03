@@ -62,7 +62,8 @@
         <td>
           The types of the language: <code>Kind</code>, with the leaves and <code>Op1</code>,
           <code>Op2</code>, … of the operators, the sorts <code>Ty</code>, the terms
-          <code>{`Term.mk kind ty{:lean}`}</code>, and which operators commute.
+          <code>{`Term.mk kind ty{:lean}`}</code>, and which operators commute, with the documentation
+          comments of the nodes and the sorts.
         </td>
       </tr>
       <tr>
@@ -79,7 +80,11 @@
           The model of the rule functions: each rule a function to
           <code>{`Option Term{:lean}`}</code>, each rule function the first of its rules that
           applies (<code>firstSome</code>), and <code>Ops</code>, the rule functions, over the
-          oracles (<code>Oracle</code>).
+          oracles (<code>Oracle</code>). The documentation comments of the helpers, the oracles and
+          the rule functions are carried to it as <code>/-- … -/</code>.
+          A helper or a primitive marked <code>{`[@no_lean]{:kanon}`}</code> is not in it (nor in
+          any other generated file): it is OCaml only, and no modelled function may call it, so the
+          proofs never depend on it.
         </td>
       </tr>
       <tr>

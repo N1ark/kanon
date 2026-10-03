@@ -82,6 +82,35 @@ let keywords =
 
 let id x = if List.mem x keywords then "«" ^ x ^ "»" else x
 
+(** [text] without what would end or open a (nested) comment in Lean: [-/] and
+    [/-] get a space inside. *)
+let escape_comment text =
+  let replace sub by s =
+    let n = String.length sub in
+    let b = Buffer.create (String.length s) in
+    let rec go i =
+      if i < String.length s then
+        if i + n <= String.length s && String.sub s i n = sub then (
+          Buffer.add_string b by;
+          go (i + n))
+        else (
+          Buffer.add_char b s.[i];
+          go (i + 1))
+    in
+    go 0;
+    Buffer.contents b
+  in
+  text |> replace "-/" "- /" |> replace "/-" "/ -"
+
+(** The documentation comment of an item, if it has one. *)
+let doc ft = function
+  | None -> ()
+  | Some text ->
+      pf ft "%a@ "
+        (Gen_ocaml.doc_comment ~opening:"/--" ~closing:"-/"
+           ~escape:escape_comment)
+        text
+
 (* ---------------------------------------------------------------- *)
 (* Classification *)
 
@@ -91,6 +120,15 @@ type ctx = { prims : prim list; kinds : (string * kind) list; fns : fn list }
 let fn_kind ctx f = List.assoc f ctx.kinds
 let is_oracle ctx f = List.exists (fun p -> p.pname = f && p.oracle) ctx.prims
 let is_prim ctx f = List.exists (fun p -> p.pname = f) ctx.prims
+
+(** The program without its [[@no_lean]] functions and primitives, which Lean
+    does not see: nothing that it models calls them (see [Check.program]). *)
+let modelled (p : program) =
+  {
+    p with
+    prims = List.filter (fun (q : prim) -> not q.pno_lean) p.prims;
+    fns = List.filter (fun (f : fn) -> not f.no_lean) p.fns;
+  }
 
 let classify (p : program) =
   let is_oracle f = List.exists (fun q -> q.pname = f && q.oracle) p.prims in
@@ -845,7 +883,7 @@ let rec decreasing (f : fn) (e : expr) =
   | _ -> None
 
 let fn_def ctx ft (f : fn) ~o ~kw ~recursive =
-  pf ft "@[<v 2>%s %s%s %a : %a :=@ %a@]@ " kw (id f.name)
+  pf ft "%a@[<v 2>%s %s%s %a : %a :=@ %a@]@ " doc f.fdoc kw (id f.name)
     (if o then " (O : Ops)" else "")
     params f lean_ty f.ret (expr ctx) f.body;
   (if recursive then
@@ -875,6 +913,7 @@ let defs ctx ft kind ~o =
 let rule_fns ctx = List.filter (fun f -> fn_kind ctx f.name = Rule) ctx.fns
 
 let model ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Signatures" ];
   (* oracles *)
@@ -884,7 +923,7 @@ let model ~sources ft (p : program) =
   List.iter
     (fun (q : prim) ->
       if q.oracle then (
-        pf ft "@ %s : " q.pname;
+        pf ft "@ %a%s : " doc q.pdoc q.pname;
         List.iter (fun t -> pf ft "%a → " lean_ty t) q.pargs;
         lean_ty ft q.pret))
     p.prims;
@@ -894,14 +933,16 @@ let model ~sources ft (p : program) =
   pf ft
     "/-- The rule functions, as used by the rules. -/@ @[<v 2>structure Ops \
      where@ orc : Oracle";
-  List.iter (fun f -> pf ft "@ %s : %a" f.name arrow f) (rule_fns ctx);
+  List.iter
+    (fun f -> pf ft "@ %a%s : %a" doc f.fdoc f.name arrow f)
+    (rule_fns ctx);
   pf ft "@]@ @ ";
   defs ctx ft OHelper ~o:true;
   (* specs *)
   List.iter
     (fun f ->
-      pf ft "@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " f.name
-        params f (expr ctx) (Option.get f.spec))
+      pf ft "%a@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " doc
+        f.fdoc f.name params f (expr ctx) (Option.get f.spec))
     (rule_fns ctx);
   (* rules and steps *)
   List.iter
@@ -1065,6 +1106,7 @@ let arm_stmt ctx ft f r arms i (a : arm) =
     ()
 
 let statements ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Semantics" ];
   pf ft
@@ -1122,6 +1164,7 @@ let rec calls (e : expr) =
     a call of the function on terms that refine others refines the spec on
     those. *)
 let lifts ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Lib.Lift" ];
   pf ft "namespace Lib@ @ variable %s{O : Ops}@ @ " (sem_implicits ());
@@ -1303,6 +1346,7 @@ let cases_proofs ft (f : fn) =
     (arms f)
 
 let soundness ~sources ~proofs ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   let proofs =
     if List.exists (fun f -> f.cases) (rule_fns ctx) then
@@ -1414,12 +1458,13 @@ let reaches p (d : decl) =
 
 let lean_decl ft (d : decl) =
   let name = decl_lean_name d in
+  doc ft d.d_doc;
   (match d.d_fields with
   | [] ->
       pf ft "@[<v 2>inductive %s where" name;
       List.iter
         (fun c ->
-          pf ft "@ | %s" c.c_name;
+          pf ft "@ %a| %s" doc c.c_doc c.c_name;
           if c.c_args <> [] then
             pf ft " : %a%s"
               (list ~sep:"" (fun ft a -> pf ft "%a → " lean_ty (arg_ty a)))
@@ -1529,6 +1574,7 @@ let syntax ~sources ft =
 (** [Signatures.lean]: checks that [Prims.lean] defines the primitives (other
     than the oracles, which are fields of [Oracle]), with their types. *)
 let signatures ~sources ft (p : program) =
+  let p = modelled p in
   lean_header ~sources ft [ md "Prims" ];
   pf ft
     "/-! The primitives of the rules, with the types they are declared with. \
@@ -1696,6 +1742,7 @@ let typing_rhs ctx (ty : typing) =
     over the sorts of the operands and of the result; the operands of an n-ary
     operator ([OpN]) all have its first sort. *)
 let typing_file ~sources ft (p : program) =
+  let p = modelled p in
   let ctx = classify p in
   header ~sources ft [ md "Prims" ];
   let types = uniq (List.map (fun t -> t.t_constr.c_res) p.typing) in

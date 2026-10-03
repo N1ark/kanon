@@ -1,0 +1,8 @@
+fn mix_lits (i j i1 i2 : int) (b : bool) (z x y : int) : int =
+  if b then i + 10 * j + 100 * i1 + 1000 * i2 + 10000 * z + 100000 * x + 1000000 * y
+  else 0
+
+fn neg_lit (i x : int) : int = i * x
+
+rule mix : Mix (i, j, i1, i2, b, z, v1, v2)
+rule neg : Neg (i, v)

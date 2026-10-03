@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
+- [Operators with a word suffix](README.md#operators-on-terms): a symbol directly followed by a word is one operator, such as `<u` or `<=s` (`infix "<u" = Ult, bv_ult`, `a <u b`, `a <=s b`), at the precedence of its symbol. The tree-sitter grammar reads them too.
+- [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
+- [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+- `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
+
+### Fixed
+
+- The hover of the language server on a function or a node showed the second star of its documentation comment `(** ... *)` as text.
+- `kanon ocaml-tests` listed the single rule `main` for a rule function whose spec annotates the sort of an operand (`(v : TBv sz)`), and its `fired` did not bind the variables of the sorts: it lists the rules and binds them.
+- The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
+
+### Changed
+
+- `[@ty_only]` on a rule is an error: it only means something on a helper (`fn`).
+- Operators need spaces: an operator is surrounded by spaces (or brackets), and `x<y`, `x +y` or `f x+1` are errors, no longer `x < y`. A prefix operator (`-`, or a symbol that starts with `!`, `~` or `?`) is written right before its operand (`-x`, `x - -y`), and has no word suffix; `.`, `:` and `#` need no spaces. A symbol followed by a word is one operator whatever the declarations: the lexer no longer knows them (but for the words declared infix, such as `urem`).
+- `use +name` is a syntax error like any other, not a message: it is `use builtin "name"`.
+- A tuple of blanks (`_, _`) is a final catch-all case like `_`, for `extend fn`, `extend rule`, `default` and unreachable cases: the cases of `extend fn` were silently dropped after a final `| _, _ ->`.
+- An `extend` case that is not added, because an earlier case matches everything it does, is an error.
+- Unknown attributes on `fn`, `prim` and `rule` are errors.
+
 ## 0.2.0 (2026-10-02)
 
 ### Added

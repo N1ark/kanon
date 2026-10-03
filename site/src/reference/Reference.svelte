@@ -24,6 +24,15 @@
     <code>rule</code> and <code>extend</code> items. A module <code>path</code> is the pair
     <code>path.knl</code> and <code>path.kn</code>, either of which may be missing.
   </p>
+  <p>
+    A documentation comment <code>(** … *)</code> right before a <code>type</code>,
+    <code>sort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code> or
+    <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
+    and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored. A
+    documentation comment is also accepted before <code>infix</code>, <code>prefix</code> and
+    <code>constant</code>, but nothing is generated from it there; anywhere else (before a
+    <code>notation</code>, a floating attribute, a case, or at the end of a file) it is an error.
+  </p>
   <dl>
     <dt><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
     <dd>
@@ -39,7 +48,9 @@
       <code>int</code> (arbitrary precision), <code>bool</code>, <code>unit</code>, tuples,
       <code>option</code> and <code>list</code> are built in; <code>nat</code>, in the arguments
       of nodes and sorts, is an OCaml <code>int</code> (a width, an index) and a Kanon
-      <code>int</code>. <code>t</code>, the type of terms, and <code>ty</code>, the type of their
+      <code>int</code>; it is also accepted in the signatures of functions, rules and primitives, as a
+      synonym of <code>int</code> (<code>Z.t</code> in OCaml, not checked to be non-negative).
+      <code>t</code>, the type of terms, and <code>ty</code>, the type of their
       sorts, are generated from the nodes and the sorts, and cannot be declared.
     </dd>
 
@@ -97,7 +108,8 @@
       A primitive, implemented by hand in OCaml (in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
       define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
-      not rely on its behaviour (e.g. a hash-consing order).
+      not rely on its behaviour (e.g. a hash-consing order). <code>{`[@no_lean]{:kanon}`}</code>
+      after the type leaves a primitive out of Lean (see <a href="#on-functions">below</a>).
     </dd>
 
     <dt><code>fn f (x : a) (y z : b) (v : S args) : c attrs = e</code></dt>
@@ -120,7 +132,10 @@
     <dt><code>{`extend rule f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn f = | p -> e | …{:kanon}`}</code></dt>
     <dd>
       Adds rules to the rule function <code>f</code> of a module below, last but before its final
-      catch-all case, or before its rule <code>r</code>; or cases to its helper <code>f</code>.
+      catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
+      <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
+      rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
+      error.
     </dd>
   </dl>
   <p>
@@ -141,9 +156,9 @@
     (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way.
   </p>
   <p>
-    <code>use</code>, <code>type</code>, <code>sort</code>, <code>notation</code>, <code>of</code>,
-    <code>node</code>, <code>infix</code>, <code>prefix</code>, <code>constant</code>,
-    <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
+    <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
+    <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>,
+    <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
   </p>
@@ -322,12 +337,40 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <tbody>
       <tr>
         <td><code>{`[@ty_only]{:kanon}`}</code></td>
-        <td>a helper of one term, before its <code>=</code></td>
+        <td>a helper of one term (<code>fn</code>), before its <code>=</code></td>
         <td>
           The helper only reads the sort of the term (<code
             >fn size (v : t) : int [@ty_only] = width (type_of v)</code
           >), so that it may be applied to the operands of a commutative spec, as
           <code>type_of</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@no_lean]{:kanon}`}</code></td>
+        <td>a <code>fn</code>, after its result type; a <code>prim</code>, after its type</td>
+        <td>
+          Generated in OCaml (by every OCaml backend), and left out of every Lean file. A function
+          that is modelled in Lean (any other helper or rule function, or the typing of a node) may
+          not call it; a <code>{`[@no_lean]{:kanon}`}</code> helper may call anything, and the cases
+          that <code>extend fn</code> adds to it are not modelled either. It cannot mark a rule
+          function, an oracle, a sort, a node or a type, which are proved or modelled.
+          <code>{`[@ty_only]{:kanon}`}</code> combines with it.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@total]{:kanon}`}</code></td>
+        <td>a <code>fn</code>, after its result type</td>
+        <td>
+          A per-node function: its body ends with a match on its first term parameter, which must
+          have a case for every node of the language (leaf or operator). A catch-all case (<code
+            >_</code
+          >, a variable, even guarded) is an error, and so is a missing node, listed with all the
+          others. The check runs on the final language, after the cases of every <code
+            >extend fn</code
+          > are added (which append their cases): a module that adds nodes extends the function. A
+          case covers a node if it has no guard, and its patterns on the node's arguments and on the
+          other scrutinees match anything (<code>Int _</code> does, <code>Int 0</code> does not).
+          Combines with <code>{`[@no_lean]{:kanon}`}</code>.
         </td>
       </tr>
       <tr>
@@ -384,6 +427,29 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     </tbody>
   </table>
 
+  <Heading level={2} id="backends">Backends</Heading>
+  <p>
+    <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
+    <code>.knl</code> file, and writes the generated code on standard output.
+  </p>
+  <table>
+    <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
+    <tbody>
+      <tr><td><code>ocaml-types</code></td><td>The OCaml types of the language and its hash-consed terms.</td></tr>
+      <tr><td><code>ocaml</code></td><td>The OCaml rule functions and helpers.</td></tr>
+      <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>
+      <tr>
+        <td>
+          <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
+          <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
+          <code>lean-lifts</code>, <code>lean-soundness</code>
+        </td>
+        <td>The Lean files of the model and its proofs (see the <a href="proving.html">guide</a>).</td>
+      </tr>
+      <tr><td><code>lean-all</code></td><td>Each Lean file, as <code>F.lean.gen</code>, in the current directory.</td></tr>
+    </tbody>
+  </table>
+
   <Heading level={2} id="bitvectors">Example: bit-vectors</Heading>
   <p>
     The literals of bit-vectors carry their unsigned integer, and their width is in their sort.
@@ -417,10 +483,31 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
     An operator is a word (a lowercase name, such as <code>urem</code>) or a sequence of the symbols
     <code>! $ % &amp; * + - . / : &lt; = &gt; ? @ ^ | ~</code>, of <code>#</code> after the first
     character, and of non-ASCII characters (<code>≤</code>, <code>⊕</code>). Symbols are read as in
-    OCaml, as many as possible: <code>{`a+-b{:kanon}`}</code> is the operator <code>+-</code>. The
+    OCaml, as many as possible: <code>{`a +- b{:kanon}`}</code> is the operator <code>+-</code>. The
     reserved <code>=</code>, <code>|</code>, <code>-&gt;</code>, <code>&lt;-</code>, <code>:</code>,
     <code>::</code>, <code>;</code> and <code>.</code> cannot be declared, nor
     <code>&lt;&gt;</code>, which is built in at every type.
+  </p>
+  <p>
+    A symbol directly followed by a word is one operator: <code>&lt;u</code>,
+    <code>&lt;=s</code> (a lowercase letter, then letters, digits, <code>_</code> and
+    <code>'</code>), whatever the declarations: <code>{`a <u b{:kanon}`}</code> is the operator
+    <code>&lt;u</code>, whereas <code>{`a < u b{:kanon}`}</code> is <code>&lt;</code> applied to
+    <code>{`u b{:kanon}`}</code>. Its precedence is that of its symbol. An operator that the
+    language does not declare is an error.
+  </p>
+  <p>
+    Operators are surrounded by spaces: <code>{`x < y{:kanon}`}</code>,
+    <code>{`a <u b{:kanon}`}</code>, <code>{`(x + y){:kanon}`}</code>, and not
+    <code>{`x<y{:kanon}`}</code>, <code>{`x +y{:kanon}`}</code> or
+    <code>{`f x+1{:kanon}`}</code>, which are errors: <code>{`x<y{:kanon}`}</code> is not
+    <code>{`x < y{:kanon}`}</code>. A prefix operator is the exception: it is written right before
+    its operand, after a space or an opening bracket (<code>{`-x{:kanon}`}</code>,
+    <code>{`~(a + b){:kanon}`}</code>, <code>{`x - -y{:kanon}`}</code>); <code>{`- x{:kanon}`}</code>
+    and <code>{`a -x{:kanon}`}</code> are errors, and a prefix operator has no word suffix
+    (<code>{`-x{:kanon}`}</code> is <code>-</code> and <code>x</code>). The dot, the colon and the
+    hash (<code>{`r.f{:kanon}`}</code>, <code>{`(x : t){:kanon}`}</code>,
+    <code>{`#x{:kanon}`}</code>) are not operators and need no spaces.
   </p>
 
   <Heading level={3} id="precedence">Precedence</Heading>

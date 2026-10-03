@@ -1,0 +1,13 @@
+(* The literals of a [@fold] law do not capture the parameters of the node,
+   named like them: i, j, i1, i2, b, z. *)
+
+[@@@ocaml_types "Hyg_types"]
+[@@@ocaml_prims "Hyg_prims"]
+
+use "rules"
+
+node Int of int : TInt
+notation Int
+node Mix of int * int * int * int * bool * int (i, j, i1, i2, b, z) : TInt -> TInt -> TInt [@fold mix_lits]
+node Neg of int (i) : TInt -> TInt [@fold neg_lit]
+sort TInt

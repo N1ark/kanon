@@ -75,6 +75,17 @@ A language is declared in `.knl` files, by `use`, `type`, `sort`, `node`,
 [reference](https://n1ark.github.io/kanon/reference.html) lists them, with
 every attribute.
 
+### Documentation comments
+
+A comment `(** ... *)` right before a `type`, `sort`, `node`, `prim`, `oracle`,
+`fn` or `rule` documents it: the generated OCaml carries it as `(** ... *)` and
+the generated Lean as `/-- ... -/`. A plain comment `(* ... *)` is ignored.
+
+```ocaml
+(** The sum of two integers. *)
+node Add : TInt -> TInt -> TInt
+```
+
 ### Types
 
 ```ocaml
@@ -107,7 +118,11 @@ and of the helpers. `int` (arbitrary precision, `Z.t` in OCaml), `bool`,
   `[@hash "M.hash"]` the function `M.hash : a -> int` that hashes its values
   for hash-consing (`Hashtbl.hash` by default).
 - A `nat` argument of a node or a sort is an OCaml `int` (a width, an index),
-  and an `int` in Kanon.
+  and an `int` in Kanon. `nat` is also accepted in the signatures of functions,
+  rules, primitives and in record fields, as a synonym of `int` (`Z.t` in OCaml,
+  `Int` in Lean): it is not checked to be non-negative, and a node that
+  receives one converts it to an `int`. A type declared `nat` is used instead.
+- Identifiers may have primes after their first character (`l'`, `x''`).
 
 ### Modules, nodes and sorts
 
@@ -133,7 +148,12 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
   order of the rules independent of the modules they are written in.
 - `extend fn f = | p -> e ...` adds cases to the helper `f` in the same way.
   The cases go into the match that ends `f`, behind `let`s and the right
-  operands of `||` and `&&`.
+  operands of `||` and `&&`. The final catch-all case is `_`, or a tuple of
+  blanks, which is strictly equivalent (`_, _`, `_, _, _`, `(_, _), _`): the
+  cases are added before it, however it is written. `x, _` and `_ as x` are not
+  blanks. A case that is not added, because an earlier case already matches
+  everything it does, is an error. An `extend` of a `[@no_lean]` function adds
+  cases that Lean does not model either.
 
 Kanon generates the terms from the nodes, in the order of the modules. Their
 kinds are the leaves, then, for each arity used, the operators of that arity,
@@ -187,8 +207,19 @@ An operator is a word (`urem`) or, as in OCaml, a sequence of the symbols
 `! $ % & * + - . / : < = > ? @ ^ | ~`, of `#` after the first, and of
 non-ASCII characters (`≤`, `⊕`), read as long as possible. The reserved `=`,
 `|`, `->`, `<-`, `:`, `::`, `;` and `.` cannot be declared, nor `<>`, built in
-at every type. Its first character gives its precedence, as in OCaml; from the
-lowest:
+at every type. A symbol directly followed by a word (`<u`, `<=s`: a lowercase
+letter, then letters, digits, `_` and `'`) is one operator, whatever the
+declarations: `a <u b` is the operator `<u`, whereas `a < u b` is `<` applied to
+`u b`. The operators of a language are those it declares (and the built-in
+ones): using another one is an error.
+
+Operators are surrounded by spaces: `x < y`, `a <u b`, `(x + y)`, and not
+`x<y`, `x +y` or `f x+1`, which are errors, not `x < y`. A prefix operator is
+the exception: it is written right before its operand, after a space or an
+opening bracket (`-x`, `~(a + b)`, `x - -y`); `- x` and `a -x` are errors, and a
+prefix operator has no word suffix (`-x` is `-` and `x`). The dot, the colon and
+the hash (`r.f`, `(x : t)`, `#x`) are not operators and need no spaces. The first
+character of an operator gives its precedence, as in OCaml; from the lowest:
 
 - `||` (right), `&&` (right);
 - `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=` and the operators that
@@ -236,8 +267,8 @@ builds the node of its notation at the sort of the spec (`Bool false`,
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
   statements quantify over (e.g. a semantics of floats).
 
-`use`, `type`, `sort`, `of`, `node`, `notation`, `infix`, `prefix`,
-`constant`, `extend` and `before` are keywords.
+`use`, `builtin`, `type`, `sort`, `of`, `node`, `notation`, `infix`, `prefix`,
+`constant`, `prim`, `oracle`, `fn`, `rule`, `extend` and `before` are keywords.
 
 ## Functions
 
@@ -266,14 +297,41 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
-  [Rules](#rules)). A parameter of type `t` may be annotated with its sort
-  instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
+  [Rules](#rules)). `[@no_lean]` (after the result type) leaves it out of the
+  Lean model: it is checked and generated in OCaml as usual, but has no `def` in
+  `Model.lean`, and no statement, lift or soundness entry, so it is for
+  analysis and infrastructure code that is not a simplification rule (see
+  [Proofs](#proofs)). A function or rule that Lean models may not call a
+  `[@no_lean]` function or primitive (`rule bv_add calls f, which is
+  [@no_lean]`), but a `[@no_lean]` function may call anything. Only `fn` and
+  `prim` can be `[@no_lean]`: not rules, oracles, sorts, nodes or types.
+  `[@total]` (on a `fn` only, and it combines with `[@no_lean]`) makes the
+  function a per-node function that must have a case for every node of the
+  language, leaf or operator, so that a node added without a case is an error
+  and not a silent fall through (`fn operands (v : t) : t list [@total] = match
+  v with | Int _ -> [] | a + b -> [a; b] | ...`). The check runs once, on the
+  final language, after all the modules are loaded and the cases of every
+  `extend fn` are added, so a module that adds nodes, even one used after the
+  function, satisfies it with an `extend fn`, which appends its cases to the
+  match (a `[@total]` function has no final catch-all case to go before). The
+  function matches on its first parameter of type `t` (its body ends with a
+  match on it, behind `let`s, possibly among other scrutinees). A node is
+  covered by a case without a guard whose pattern on the term is the node, alone
+  or in an or-pattern, with arguments and operands that match anything (`Int _`
+  does, `Int 0` and `Sub (a, 0)` do not), and whose other patterns match
+  anything. A case that matches any term (`_`, a variable, with or without a
+  guard) is an error, since it would hide the missing nodes. The error lists all
+  the missing nodes, leaves first and then operators, in the order of their
+  declaration, at the function. Other attributes on `fn`, `prim` and `rule` are
+  errors (a rule has `[@untyped]`). A parameter of type `t` may be annotated with
+  its sort instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
   bound in the body, the generated OCaml asserts the sort on entry, and the
   literals of patterns on `v` resolve with it (see [Patterns](#patterns)).
 - `prim f : a -> b` declares a primitive, implemented by hand in OCaml, in the
   module of `[@@@ocaml_prims]` (see [OCaml](#ocaml)), and in Lean (the
   generated OCaml and `Signatures.lean` check that both define it, at this
-  type); `oracle f : a -> b` declares one that the Lean model takes as a
+  type), unless it is marked `[@no_lean]` after its type
+  (`prim hash : t -> int [@no_lean]`), which Lean does not define or check; `oracle f : a -> b` declares one that the Lean model takes as a
   parameter, so that the proofs may not rely on its behaviour (e.g. a
   hash-consing order).
 - `type_of v` is the sort of the term `v` (`v.ty` in OCaml).
@@ -564,7 +622,11 @@ evaluation and their refinement, for any language.
 
 `kanon ocaml-tests` generates, for every rule function, its spec, a call to it
 and the name of the rule that fires, from random arguments, to be compared by
-evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`).
+evaluation (soteria's `soteria/tests/bv_rules/` does so for `Bv_values`). Every
+rule function is listed with its rules, including one whose spec annotates the
+sort of an operand (`(v : TBv sz)`): the generated test checks the sorts first,
+and fails an assertion on operands of the wrong sort, so that the harness draws
+others (the generator itself knows nothing of sorts).
 
 ## Modules and examples
 

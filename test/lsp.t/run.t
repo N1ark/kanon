@@ -314,3 +314,45 @@ created on disk is then found.
   {"jsonrpc":"2.0","id":1,"result":null}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/more.kn","diagnostics":[]}}
   {"jsonrpc":"2.0","id":2,"result":null}
+
+An operator with a word suffix is one operator, with the hover and the
+definition of its declaration, in a pattern and in an expression; a doc comment
+is the documentation of the hover of what it documents, and the diagnostics
+tell where an operator is not surrounded by spaces.
+
+  $ mkdir suf
+  $ cat > suf/lang.knl <<'KN'
+  > use builtin "bool"
+  > use "ops"
+  > KN
+  $ cat > suf/ops.knl <<'KN'
+  > node Ult : TBool -> TBool -> TBool
+  > infix "<u" = Ult, b_ult
+  > KN
+  $ cat > suf/ops.kn <<'KN'
+  > (** Strictly below. *)
+  > fn below (a b : t) : t = a <u b
+  > rule b_ult : Ult (v1, v2) =
+  >   | same: p <u p -> v_false
+  > KN
+  $ initsuf='{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/suf","capabilities":{}}}'
+  $ {
+  >   msg "$initsuf"
+  >   msg "$(open suf/ops.kn "$(sed 's/$/\\n/' suf/ops.kn | tr -d '\n')")"
+  >   msg "$(at 1 hover suf/ops.kn 1 28)"
+  >   msg "$(at 2 definition suf/ops.kn 1 27)"
+  >   msg "$(at 3 hover suf/ops.kn 3 12)"
+  >   msg "$(at 4 definition suf/ops.kn 3 13)"
+  >   msg "$(at 5 hover suf/ops.kn 1 4)"
+  >   msg "$(change suf/ops.kn "$(sed -e 's/a <u b/a<u b/' -e 's/$/\\n/' suf/ops.kn | tr -d '\n')")"
+  >   msg '{"jsonrpc":"2.0","id":6,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } > input
+  $ lsp | grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"<u\" = Ult, b_ult\n```\n\n`a <u b` is `b_ult a b` on terms; in patterns, it matches the node `Ult`.\n\n*ops.knl*"},"range":{"start":{"line":1,"character":27},"end":{"line":1,"character":29}}}}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":1,"character":7},"end":{"line":1,"character":9}}}]}
+  {"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"<u\" = Ult, b_ult\n```\n\nIn this pattern, `a <u b` matches the node `Ult`.\n\n*ops.knl*"},"range":{"start":{"line":3,"character":12},"end":{"line":3,"character":14}}}}
+  {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":1,"character":7},"end":{"line":1,"character":9}}}]}
+  {"jsonrpc":"2.0","id":5,"result":{"contents":{"kind":"markdown","value":"```kanon\nfn below (a b : t) : t\n```\n\nStrictly below.\n\n*ops.kn*"},"range":{"start":{"line":1,"character":3},"end":{"line":1,"character":8}}}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/suf/ops.kn","diagnostics":[{"range":{"start":{"line":1,"character":26},"end":{"line":1,"character":27}},"severity":1,"source":"kanon","message":"the operator < must be surrounded by spaces"}]}}
+  {"jsonrpc":"2.0","id":6,"result":null}

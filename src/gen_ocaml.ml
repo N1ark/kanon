@@ -27,6 +27,86 @@ let rec ocaml_ty ft = function
 let list ?(sep = ", ") pp ft l =
   Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
 
+(** The lines of [text], as a documentation comment: [(** ... *)] in OCaml,
+    [/-- ... -/] in Lean ([opening] and [closing]), where [escape] makes the
+    text safe to put in a comment. The lines are aligned in a box. *)
+let doc_comment ~opening ~closing ~escape ft text =
+  pf ft "@[<v>%s %a %s@]" opening
+    (Format.pp_print_list
+       ~pp_sep:(fun ft () -> pf ft "@ ")
+       Format.pp_print_string)
+    (String.split_on_char '\n' (escape text))
+    closing
+
+(** [text] without what would end or open a comment, or start a string, in an
+    OCaml comment: the closing and opening delimiters get a space inside, an
+    unbalanced double quote becomes a character literal, and a quoted string
+    opening (a brace, an identifier, a bar) gets a space after the brace. *)
+let escape_ocaml_comment text =
+  let n = String.length text in
+  let b = Buffer.create n in
+  let at i = if i < n then text.[i] else '\000' in
+  let rec close j =
+    if j >= n then None
+    else if text.[j] = '\\' then close (j + 2)
+    else if text.[j] = '"' then Some j
+    else close (j + 1)
+  in
+  let rec go instr i stop =
+    if i < stop then
+      match text.[i] with
+      | '*' when at (i + 1) = ')' ->
+          Buffer.add_string b "* )";
+          go instr (i + 2) stop
+      | '(' when at (i + 1) = '*' ->
+          Buffer.add_string b "( *";
+          go instr (i + 2) stop
+      | '\'' when at (i + 1) = '"' && at (i + 2) = '\'' ->
+          Buffer.add_string b "'\"'";
+          go instr (i + 3) stop
+      | '\\' when instr && (at (i + 1) = '"' || at (i + 1) = '\\') ->
+          Buffer.add_char b '\\';
+          Buffer.add_char b (at (i + 1));
+          go instr (i + 2) stop
+      | '"' -> (
+          match close (i + 1) with
+          | Some j when j < stop ->
+              Buffer.add_char b '"';
+              go true (i + 1) j;
+              Buffer.add_char b '"';
+              go instr (j + 1) stop
+          | _ ->
+              Buffer.add_string b "'\"'";
+              go instr (i + 1) stop)
+      | '{' ->
+          Buffer.add_char b '{';
+          let rec id j =
+            if j < n && (('a' <= text.[j] && text.[j] <= 'z') || text.[j] = '_')
+            then id (j + 1)
+            else j
+          in
+          if at (id (i + 1)) = '|' then Buffer.add_char b ' ';
+          go instr (i + 1) stop
+      | c ->
+          Buffer.add_char b c;
+          go instr (i + 1) stop
+  in
+  go false 0 n;
+  Buffer.contents b
+
+let ocaml_doc ft text =
+  doc_comment ~opening:"(**" ~closing:"*)" ~escape:escape_ocaml_comment ft text
+
+(** The documentation comment before an item, if it has one, and a line break.
+*)
+let doc ft = function None -> () | Some text -> pf ft "%a@ " ocaml_doc text
+
+(** The documentation comment after an item, if it has one: OCaml attaches the
+    comments of constructors and of signature items that way. *)
+let doc_after ft = function
+  | None -> ()
+  | Some text -> pf ft " %a" ocaml_doc text
+
 (** The equality at type [t], as an OCaml function: on terms, of their tags; on
     the declared types, the generated [equal_d] (see {!types}). *)
 let rec equal_fn ft = function
@@ -247,25 +327,7 @@ and case ctx ft (c : case) =
 (* ---------------------------------------------------------------- *)
 (* Call graph *)
 
-let rec calls acc (e : expr) =
-  let go = calls in
-  match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
-  | ECall (f, args) -> List.fold_left go (f :: acc) args
-  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
-  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
-      go (go acc a) b
-  | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
-  | EUnop (_, a) | ESome a | EField (a, _) -> go acc a
-  | EIf (a, b, c) -> go (go (go acc a) b) c
-  | ERecord l -> List.fold_left (fun acc (_, e) -> go acc e) acc l
-  | EMatch (scruts, cases) ->
-      let acc = List.fold_left go acc scruts in
-      List.fold_left
-        (fun acc (c : case) ->
-          let acc = Option.fold ~none:acc ~some:(go acc) c.guard in
-          go acc c.body)
-        acc cases
+let calls acc e = fold_calls (fun acc g _ -> g :: acc) acc e
 
 (** Strongly connected components of the call graph, callees first (Tarjan). *)
 let sccs (fns : fn list) : fn list list =
@@ -359,21 +421,24 @@ let fn ctx ft (f : fn) =
 let inline_prims = [ "type_of"; "tag_le" ]
 
 (** The primitives that [expr] calls in the module of the primitives, with their
-    types. *)
+    types and docs. *)
 let prim_fns (p : program) =
   let ty t = Fmt.str "%a" ocaml_ty t in
   List.filter_map
     (fun q ->
       if List.mem q.pname inline_prims then None
       else
-        Some (q.pname, String.concat " -> " (List.map ty (q.pargs @ [ q.pret ]))))
+        Some
+          ( q.pname,
+            String.concat " -> " (List.map ty (q.pargs @ [ q.pret ])),
+            q.pdoc ))
     p.prims
 
 (** Checks that the language names the module of its primitives, if it has any.
 *)
 let check_prims (p : program) =
   match (prim_fns p, !lang.ocaml_prims) with
-  | (f, _) :: _, None ->
+  | (f, _, _) :: _, None ->
       let loc =
         match List.find_opt (fun q -> q.pname = f) p.prims with
         | Some q -> q.ploc
@@ -405,7 +470,15 @@ let prim_sigs ft (p : program) =
   | [] -> ()
   | fns ->
       pf ft "@[<v 2>module _ : sig";
-      List.iter (fun (f, t) -> pf ft "@ val %s : %s" f t) fns;
+      (* a comment between two items would be ambiguous: documented items are
+         set apart by blank lines *)
+      ignore
+        (List.fold_left
+           (fun prev (f, t, d) ->
+             if prev || d <> None then pf ft "@ ";
+             pf ft "@ %aval %s : %s" doc d f t;
+             d <> None)
+           false fns);
       pf ft "@]@ end = %s@ @ " (prims_module ())
 
 let program ~sources ft (p : program) =
@@ -431,7 +504,9 @@ let program ~sources ft (p : program) =
       in
       List.iteri
         (fun i f ->
-          pf ft "@[<hv 2>%s %a@]@ @ " (if i = 0 then kw else "and") (fn ctx) f)
+          pf ft "%a@[<hv 2>%s %a@]@ @ " doc f.fdoc
+            (if i = 0 then kw else "and")
+            (fn ctx) f)
         group)
     groups;
   pf ft "@]@."
@@ -476,8 +551,10 @@ let type_def ft (d : decl) =
       List.iter
         (fun c ->
           match c.c_args with
-          | [] -> pf ft "@ | %s" c.c_name
-          | args -> pf ft "@ | %s of %a" c.c_name (list ~sep:" * " arg) args)
+          | [] -> pf ft "@ | %s%a" c.c_name doc_after c.c_doc
+          | args ->
+              pf ft "@ | %s of %a%a" c.c_name (list ~sep:" * " arg) args
+                doc_after c.c_doc)
         cs
 
 (** The equality [equal_d] and the hash [hash_d] of the type [d], in a recursive
@@ -565,7 +642,9 @@ let types ~sources ft =
   pf ft "[@@@@@@warning \"-a\"]@ @ ";
   List.iteri
     (fun i d ->
-      pf ft "@[<v 2>%s %a@]@ @ " (if i = 0 then "type" else "and") type_def d)
+      pf ft "%a@[<v 2>%s %a@]@ @ " doc d.d_doc
+        (if i = 0 then "type" else "and")
+        type_def d)
     !lang.decls;
   pf ft "@[<v 2>and t = {@ kind : kind;@ ty : ty;@ tag : int;@;<1 -2>}@]@ @ ";
   pf ft "let hash_combine x y = (x * 65599) + y@ @ ";

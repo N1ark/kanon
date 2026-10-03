@@ -1,0 +1,12 @@
+prim size_of_ty : ty -> int
+fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
+
+fn clamp (n m : nat) : nat = if n < m then n else m
+
+rule bv_ext : Ext (from', to', (v' : TBv sz')) =
+  | full: _ when from' = 0 && to' = sz' - 1 -> v'
+  | neg: Neg x' -> bv_ext from' to' x'
+
+rule bv_ext_plain : Ext (from', to', v') =
+  | full: _ when from' = 0 && to' = size v' - 1 -> v'
+  | neg: Neg x' -> bv_ext_plain from' to' x'

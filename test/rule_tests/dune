@@ -1,0 +1,33 @@
+; The differential tests of the rules (kanon ocaml-tests) compile and run, for a
+; rule whose spec annotates the sort of an operand, with names that have primes,
+; and for nat in signatures.
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   rt_types.ml
+   (run %{bin:kanon} ocaml-types lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   rt_rules.ml
+   (run %{bin:kanon} ocaml lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   rt_tests.ml
+   (progn
+    (echo "open Rt_rules\n")
+    (run %{bin:kanon} ocaml-tests lang.knl)))))
+
+(test
+ (name main)
+ (libraries zarith))

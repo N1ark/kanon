@@ -7,7 +7,12 @@
  * an operand that is not a name), and as an argument otherwise.
  *
  * Symbolic operators are lexed as in OCaml: a sequence of the characters of
- * OP_CHAR (maximal munch), whose first character gives its precedence.
+ * OP_CHAR (maximal munch), whose first character gives its precedence, and
+ * that may be followed by a word (`<u`, `<=s`, `/s`), which is part of the
+ * operator, as in kanon. A prefix operator (`-x`, `~x`) is not: it is followed
+ * by its operand. Kanon requires spaces around operators; the grammar does not
+ * (it would have to look behind), so `x<y` is not an error here, but not
+ * read as `x < y` either: `<y` is an operator.
  */
 
 /// <reference types="tree-sitter-cli/dsl" />
@@ -52,8 +57,9 @@ const PAT = {
 // A character of a symbolic operator: `#` (but not first) and the non-ASCII
 // characters too, so that `≤` is an operator.
 const OP_CHAR = '([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])';
-const op = (first) => new RegExp(first + OP_CHAR + '*');
-const op1 = (first) => new RegExp(first + OP_CHAR + '+');
+const WORD = "([a-z][a-zA-Z0-9_']*)?";
+const op = (first) => new RegExp(first + OP_CHAR + '*' + WORD);
+const op1 = (first) => new RegExp(first + OP_CHAR + '+' + WORD);
 
 // The infix operators, from the lowest precedence to the highest, by their
 // first character, as in OCaml. The reserved `=`, `|`, `->`, `::` and `.` are
@@ -64,13 +70,13 @@ const INFIX = [
   ['cmp', prec.left, ['=', '!=', op('[<>$&]'), op1('='), op1('\\|'), op('[^\\x00-\\x7F]')]],
   ['concat', prec.right, [op('[@^]')]],
   ['cons', prec.right, ['::']],
-  ['add', prec.left, ['+', '-', op1('[+-]')]],
-  ['mul', prec.left, ['*', op('\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])'), op('[/%]')]],
+  ['add', prec.left, ['+', '-', new RegExp("\\+[a-z][a-zA-Z0-9_']*"), op1('[+-]')]],
+  ['mul', prec.left, ['*', new RegExp("\\*[a-z][a-zA-Z0-9_']*"), op('\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])'), op('[/%]')]],
   ['pow', prec.right, [op('\\*\\*')]],
 ];
 
 // [!x], [~x], [?x]: prefix operators of the highest precedence
-const PREFIX = op('[!~?]');
+const PREFIX = new RegExp('[!~?]' + OP_CHAR + '*');
 
 const sep1 = (rule, sep) => seq(rule, repeat(seq(sep, rule)));
 
@@ -122,6 +128,7 @@ module.exports = grammar({
       field('name', $.identifier),
       ':',
       field('type', $._type),
+      repeat($.attribute),
     ),
 
     function_definition: $ => seq(

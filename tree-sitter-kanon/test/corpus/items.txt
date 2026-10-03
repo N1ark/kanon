@@ -395,3 +395,21 @@ notation BitVec
     (constructor))
   (notation_declaration
     (constructor)))
+
+================================================================================
+Primitives with attributes
+================================================================================
+
+prim cost : t -> int [@no_lean]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (primitive_declaration
+    (identifier)
+    (function_type
+      (type_identifier)
+      (type_identifier))
+    (attribute
+      (attribute_name
+        (identifier)))))

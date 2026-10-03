@@ -29,13 +29,9 @@ bool.knl and bool.kn.
     val v_false : t
   end = Prims
 
-An unknown built-in module, and the former syntax `use +name`:
+An unknown built-in module:
 
   $ echo 'use builtin "int"' > int.kn
   $ kanon ocaml ../../examples/bool/lang.knl int.kn
   kanon: use builtin "int": kanon has no built-in module int (it has "bool")
-  [1]
-  $ echo 'use +bool' > old.kn
-  $ kanon ocaml ../../examples/bool/lang.knl old.kn
-  old.kn:1:0: use +bool: a built-in module is used with use builtin "bool"
   [1]

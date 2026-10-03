@@ -19,6 +19,9 @@ type ty =
   | TOption of ty
   | TList of ty
 
+(** A doc comment where it cannot be attached: its location, and the message. *)
+exception Misplaced_doc of Location.t * string
+
 let rec pp_ty ft = function
   | TInt -> Fmt.string ft "int"
   | TBool -> Fmt.string ft "bool"
@@ -41,6 +44,9 @@ type constr = {
   c_name : string;  (** the Kanon (and OCaml and Lean) name *)
   c_res : ty;
   c_args : arg list;
+  c_doc : string option;
+      (** the doc comment of a node or a sort ([(** ... *)] before [node] or
+          [sort]) *)
 }
 
 (** A type of the language: generated ([kind], [ty] and the types of operators),
@@ -63,6 +69,7 @@ type decl = {
           [Hashtbl.hash] ([[@hash]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
   d_loc : Location.t;  (** of its name *)
+  d_doc : string option;  (** the doc comment before [type] *)
 }
 
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
@@ -80,10 +87,13 @@ type operator = {
   pre : Ppxlib.expression list;
   on_value : string option;
   op_loc : Location.t;  (** of its symbol, in its declaration *)
+  op_doc : string option;  (** the doc comment before [infix] or [prefix] *)
 }
 
-(** The words declared as infix operators ([infix "urem" = ...]), which the
-    lexer reads as operators, at the level of [*], from their declaration on. *)
+(** The operators declared with a word, which the lexer reads as operators from
+    their declaration on: a word, an infix operator at the level of [*]
+    ([infix "urem" = ...]), or a symbol followed by a word ([infix "<u" = ...],
+    [prefix "!u" = ...]), at the level of its symbol. *)
 let infix_words : (string, unit) Hashtbl.t = Hashtbl.create 8
 
 (** The typing of an operator [C], as declared ([C (x, y) : s1 -> s2 when e]),
@@ -136,6 +146,9 @@ type lang = {
       (** [constant c (v) = e]: the term of the literal or the named constant
           [c] ([0], [true], [ones], ...), at the sort of the term [v] if there
           is one, for the laws [[@unit c]] and [[@zero c]] *)
+  constant_docs : (string * string) list;
+      (** the doc comments before [constant], by constant (only of those that
+          have one) *)
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
@@ -167,6 +180,7 @@ let lang =
       notations = [];
       sort_getters = [];
       constants = [];
+      constant_docs = [];
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
@@ -228,6 +242,14 @@ and pat_desc =
   | PCons of pat * pat
   | PRecord of (string * pat) list  (** partial records *)
 
+(** Whether [p] matches anything: [_], or a tuple of blanks, at any depth, which
+    is strictly equivalent. [x, _] and [_ as x] are not blank. *)
+let rec is_catch_all (p : pat) =
+  match p.p with
+  | PAny -> true
+  | PTuple l -> List.for_all is_catch_all l
+  | _ -> false
+
 type expr = { e : expr_desc; ety : ty; eloc : Location.t }
 
 and expr_desc =
@@ -282,6 +304,10 @@ type fn = {
           proved per alternative *)
   body : expr;
   floc : Location.t;
+  fdoc : string option;  (** the doc comment before [fn] or [rule] *)
+  no_lean : bool;
+      (** [[@no_lean]]: a helper that is generated in OCaml but not modelled in
+          Lean *)
 }
 
 type prim = {
@@ -290,7 +316,31 @@ type prim = {
   pret : ty;
   oracle : bool;
   ploc : Location.t;  (** of its name *)
+  pdoc : string option;  (** the doc comment before [prim] or [oracle] *)
+  pno_lean : bool;  (** [[@no_lean]]: a primitive that Lean does not define *)
 }
+
+(** Folds [f] over the calls of global functions and primitives in [e], with
+    their locations, in the order they are met (a call before its arguments). *)
+let rec fold_calls f acc (e : expr) =
+  let go = fold_calls f in
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
+  | ECall (g, args) -> List.fold_left go (f acc g e.eloc) args
+  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
+  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
+      go (go acc a) b
+  | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
+  | EUnop (_, a) | ESome a | EField (a, _) -> go acc a
+  | EIf (a, b, c) -> go (go (go acc a) b) c
+  | ERecord l -> List.fold_left (fun acc (_, e) -> go acc e) acc l
+  | EMatch (scruts, cases) ->
+      let acc = List.fold_left go acc scruts in
+      List.fold_left
+        (fun acc (c : case) ->
+          let acc = Option.fold ~none:acc ~some:(go acc) c.guard in
+          go acc c.body)
+        acc cases
 
 (** The typing of a node: its operands, then its result, have the sorts
     [t_sorts] (terms of type [ty] over [t_vars], which are existentially
