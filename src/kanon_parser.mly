@@ -113,7 +113,7 @@ let use_item loc mloc m =
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type; [sort C
    ...] is the same, marked [[@sort]] *)
-let node_decl ?(sort = false) loc c =
+let node_decl ?(sort = false) ?(subsort = false) loc c =
   {
     ptype_name = { txt = "node"; loc };
     ptype_params = [];
@@ -121,7 +121,10 @@ let node_decl ?(sort = false) loc c =
     ptype_kind = Ptype_variant [ c ];
     ptype_private = Public;
     ptype_manifest = None;
-    ptype_attributes = attr loc "node" [] :: (if sort then [ attr loc "sort" [] ] else []);
+    ptype_attributes =
+      attr loc "node" []
+      :: (if sort then [ attr loc "sort" [] ] else [])
+      @ (if subsort then [ attr loc "subsort" [] ] else []);
     ptype_loc = loc;
   }
 
@@ -183,7 +186,7 @@ let neg loc oploc (e : expression) =
 %token <string> CMPOP CONCATOP ADDOP MULOP POWOP PREFIXOP
 %token AS ASSERT BEFORE BUILTIN CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
 %token ORACLE PREFIX PRIM
-%token RULE SORT THEN TRUE TYPE USE WHEN WITH
+%token RULE SORT SUBSORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETBAR BARRBRACKET LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS UMINUS STAR DOT
 %token HASH UNDERSCORE EOF
@@ -215,12 +218,12 @@ items:
   | l = items i = item { i :: l }
 
 (* a doc comment documents the item that follows it: [fn], [rule], [node],
-   [sort], [type], [prim], [oracle], [infix], [prefix] and [constant] *)
+   [sort], [subsort], [type], [prim], [oracle], [infix], [prefix] and [constant] *)
 item:
   | i = documented_item { i }
   | d = DOC i = documented_item { with_doc d (mkloc $loc(d)) i }
   | i = other_item { i }
-  | d = DOC other_item { misplaced (mkloc $loc(d)) "this item: only fn, rule, node, sort, type, prim, oracle, infix, prefix and constant can have one" }
+  | d = DOC other_item { misplaced (mkloc $loc(d)) "this item: only fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix and constant can have one" }
 
 other_item:
   (* [use builtin "m"] or [use "path"]: the module [m] built into kanon, which
@@ -275,6 +278,10 @@ documented_item:
   | SORT c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl ~sort:true loc c ])) }
+  (* [subsort C of args : parent]: the parent is the only sort of its typing *)
+  | SUBSORT c = constr_decl
+    { let loc = mkloc $loc in
+      item loc (Pstr_type (Recursive, [ node_decl ~subsort:true loc c ])) }
   | TYPE x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
     { let loc = mkloc $loc in
       item loc

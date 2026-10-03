@@ -1,0 +1,7 @@
+sort TBitVector of nat [@get size]
+subsort TNonzero of nat : TBitVector n
+subsort TZero of nat : TBitVector n
+
+node BitVec of int * nat (v, n) : TBitVector n
+node Zero of nat (n) : TZero n
+node Div of bool : TBitVector n -> TNonzero n -> TBitVector n

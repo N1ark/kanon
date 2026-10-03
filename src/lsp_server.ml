@@ -1528,9 +1528,9 @@ let document_highlight params : Yojson.Safe.t =
 
 let keywords =
   String.split_on_char ' '
-    "rule fn prim oracle extend before node sort notation type of infix prefix \
-     constant use builtin let in match with if then else when as assert not \
-     true false"
+    "rule fn prim oracle extend before node sort subsort notation type of \
+     infix prefix constant use builtin let in match with if then else when as \
+     assert not true false"
 
 (** What [t] is, to rename it, or why it cannot be renamed. *)
 let renamable lang (t : Lsp_scope.target) =

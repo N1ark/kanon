@@ -141,9 +141,9 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   === oracle o : int -> int [@no_lean]
   bad.kn:1:24: an oracle is a parameter of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === sort TFoo [@no_lean]
-  bad.knl:7:12: a sort or a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  bad.knl:7:12: a sort is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === node Foo : TInt [@no_lean]
-  bad.knl:7:18: a sort or a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  bad.knl:7:18: a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === type foo [@no_lean]
   bad.knl:7:11: a type is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === fn f (x : int) : int [@ocaml_only] = x

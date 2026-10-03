@@ -75,6 +75,21 @@ type decl = {
   d_doc : string option;  (** the doc comment before [type] *)
 }
 
+(** A subsort, [subsort TNonzero of nat : TBitVector n]: a sort of the same
+    arguments as its parent, whose terms are known to satisfy a predicate that
+    only Lean gives a meaning to. It has no constructor in [ty]: a typing that
+    mentions it is the typing of its parent, and records the subsort. *)
+type subsort = {
+  ss_name : string;
+  ss_args : arg list;  (** those of its parent *)
+  ss_parent : string;  (** the parent sort *)
+  ss_lean : string option;
+      (** [[@lean "P"]]: the Lean predicate on terms, [P : Term -> Prop], that
+          the terms of the subsort satisfy *)
+  ss_doc : string option;
+  ss_loc : Location.t;  (** of its name *)
+}
+
 (** An operator on terms, e.g. [+]: in expressions it calls its smart
     constructor [smart], with the leading arguments [pre]; in patterns it
     matches its [node], with the parameters [params] (any parameters if there
@@ -107,6 +122,9 @@ type raw_typing = {
   rt_nary : bool;
       (** the only operand sort was [s list]: the operands are a list of terms
           of sort [s], the first of [rt_sorts] *)
+  rt_subs : string option list;
+      (** the subsort that each of [rt_sorts] was written as, which they have
+          the parent of *)
   rt_when : Ppxlib.expression option;
   rt_loc : Location.t;
 }
@@ -135,6 +153,7 @@ type lang = {
           either order: in [[@cases]] functions, [[@comm]] may only swap theirs,
           and the swapped alternative is proved from the other by commutativity
       *)
+  subsorts : subsort list;
   node_kinds : string list;
       (** the kind constructors of the operators of each arity, whose first
           argument is an operator, which then stands for the node:
@@ -179,6 +198,7 @@ let lang =
       decls = [];
       constrs = [];
       commutative = [];
+      subsorts = [];
       node_kinds = [];
       notations = [];
       sort_getters = [];
@@ -195,6 +215,7 @@ let lang =
     }
 
 let find_constr name = List.find_opt (fun c -> c.c_name = name) !lang.constrs
+let find_subsort name = List.find_opt (fun s -> s.ss_name = name) !lang.subsorts
 let find_decl name = List.find_opt (fun d -> d.d_name = name) !lang.decls
 
 (** The name of the declaration of a type of the language. *)
@@ -358,6 +379,9 @@ type typing = {
   t_sorts : expr list;
   t_nary : bool;
       (** the operands are a list, whose elements all have the first sort *)
+  t_subs : string option list;
+      (** the subsort that each of [t_sorts] was written as: the sort of that
+          position is then its parent *)
   t_when : expr option;
 }
 
