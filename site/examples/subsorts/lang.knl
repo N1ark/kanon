@@ -1,7 +1,5 @@
-(* The language of the modules step, with a subsort: the divisor of a division is not zero. *)
+(* A language with a subsort: the divisor of a division is not zero. *)
 
-[@@@ocaml_prims "Prims"]
 [@@@ocaml_rules "Rules"]
 
-use builtin "bool"
 use "int"

@@ -761,10 +761,10 @@ function `g` with an operand at a subsort assumes `P` of its argument, which
 `P v'` that it leaves are for the hand-written proof of the rule (`Proofs.lean`)
 to prove, from what that rule knows of `v'`.
 
-`examples/division/` is `examples/ints` with a division of a non-zero divisor and
-a `Sq1` that returns a non-zero: its `Semantics.lean` defines `Nonzero`, and
-`Proofs.lean` proves the arm `a / a = 1`, which needs it, and the post-condition
-of `sq1`.
+`examples/division/` is a small language of integers (no booleans) with a division
+of a non-zero divisor and a `Sq1` that returns a non-zero: its `Semantics.lean`
+defines `Nonzero`, and `Proofs.lean` proves the arm `a / a = 1`, which needs it,
+and the post-condition of `sq1`.
 
 They build on Kanon's Lean library, `lean/` (the package `kanon`, library
 `KanonCore`, namespace `Kanon`, which they open), and on modules written by
@@ -923,8 +923,8 @@ others (the generator itself knows nothing of sorts).
   lake env lean check_axioms.lean  # must not mention sorryAx
   ```
 
-- `examples/division/` is `examples/ints` with a subsort: a division, whose divisor
-  is a `TNonzero` (its Lean predicate, `Nonzero`, is in `Semantics.lean`), and a
+- `examples/division/` is a language of integers, with no booleans, and a subsort: a
+  division, whose divisor is a `TNonzero` (its Lean predicate, `Nonzero`, is in `Semantics.lean`), and a
   node that returns one. Its `Proofs.lean` has the hand-written proofs that the
   subsort asks (see [Subsorts in Lean](#subsorts-in-lean)). It is built and
   checked like the others:

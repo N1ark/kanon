@@ -454,7 +454,7 @@ node Div : TInt -> TNonzero -> TInt`}
     <code>[&lt; Tag.tint ] t</code>, as an operand, accepts any term whose tag is within
     <code>tint</code>, which includes <code>tnonzero</code>, and <code>[&gt; Tag.tint ] t</code>, as
     a result, is a term that may have any of them. The interface is organised like the language,
-    with a module for each file (<code>Bool</code> and <code>Int</code>). <code>S</code> is its
+    with a module for each file (here <code>Int</code>, the only one that has rules). <code>S</code> is its
     signature, and <code>Derived</code> implements it with the rules, which the language names with
     <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.plus{:ocaml}`}</code>.
     What it cannot implement are the leaves with <code>{`[@ctor]{:kanon}`}</code>, which are written

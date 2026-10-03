@@ -4,6 +4,8 @@
 sort TInt
 (** The integers that are not zero. *)
 subsort TNonzero : TInt
+(** The sort of the results of a comparison. *)
+sort TBool
 
 (** An integer literal. *)
 node Int of int : TInt [@ctor mk_int]
@@ -11,6 +13,7 @@ node Int of int : TInt [@ctor mk_int]
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
 (** The quotient: the divisor is known to be non-zero. *)
 node Div : TInt -> TNonzero -> TInt
+
 (** The order on integers. *)
 node Lt : TInt -> TInt -> TBool
 

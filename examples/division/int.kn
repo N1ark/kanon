@@ -6,15 +6,3 @@ rule int_div : Div (v1, v2) =
   | self: x / y when x = y -> Int 1
 
 rule sq1 : Sq1 v
-
-rule int_lt : Lt (v1, v2) =
-  | lits: #x lt #y -> of_bool (x < y)
-  | same: x lt x -> v_false
-
-(* The rules of the bool module, extended to integers *)
-
-extend rule sem_eq before same =
-  | ints: Int x == Int y -> of_bool (x = y)
-
-extend fn sure_neq =
-  | Int x, Int y -> not (x = y)

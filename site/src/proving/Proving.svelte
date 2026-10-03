@@ -401,8 +401,8 @@ lake env lean check_axioms.lean
     A subsort with a Lean predicate (<code>{`subsort TNonzero : TInt [@lean "Nonzero"]{:kanon}`}</code>)
     asks two things of you.
     <a href="{REPO}/examples/division"><code>examples/division</code></a> is
-    <code>examples/ints</code> with a division whose divisor is a <code>TNonzero</code>, and a
-    node <code>Sq1</code> that returns one.
+    a language of integers, with no booleans, that has a division whose divisor is a
+    <code>TNonzero</code>, and a node <code>Sq1</code> that returns one.
   </p>
   <ul>
     <li>

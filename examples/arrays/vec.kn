@@ -13,11 +13,7 @@ rule set : Set (v, i, x) =
   | lit: Vec a, #k, #y when in_bounds a k -> Vec (array_set a k y)
 
 (* arrays are compared structurally *)
-extend rule sem_eq before same =
-  | vecs: Vec a == Vec b -> of_bool (a = b)
-
-extend fn sure_neq =
-  | Vec a, Vec b -> not (a = b)
+fn same_vec (a b : int array) : bool = a = b
 
 (* the conversions between lists and arrays *)
 fn vec_of_list (l : int list) : t = Vec (array_of_list l)

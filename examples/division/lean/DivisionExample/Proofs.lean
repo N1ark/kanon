@@ -25,7 +25,7 @@ open Kanon
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v _ _ e => ?_)
   · -- typing: `b + a` is well-typed, of the type `t`, when `a + b` is
     simp only [sem, Term.WT, Op2.WT] at w ⊢
-    exact ⟨⟨⟨w.1.2.1, w.1.1, w.1.2.2⟩, w.2.2, w.2.1⟩, rfl⟩
+    exact ⟨⟨⟨w.1.2.1, w.1.1, w.1.2.2⟩, w.2.2, w.2.1⟩, trivial⟩
   · -- values: the sum of two integers commutes, and is otherwise poison
     simp only [sem, ev, evOp2] at e ⊢
     unfold addV at e ⊢

@@ -2,7 +2,5 @@ fn add (x y : int) : int = x + y
 
 rule plus : Plus (v1, v2)
 rule div : Div (v1, v2)
+rule int_lt : Lt (v1, v2)
 
-rule int_lt : Lt (v1, v2) =
-  | lits: #x lt #y -> of_bool (x < y)
-  | same: x lt x -> v_false
