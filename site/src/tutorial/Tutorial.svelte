@@ -374,6 +374,51 @@ extend fn sure_neq =
   </p>
   <Example id="modules" ocaml="ocaml" lean="lean-soundness" />
 
+  <Heading level={2} id="subsorts">Subsorts</Heading>
+  <p>
+    A sort says what kind a term is; a <em>subsort</em> says more about the terms of a sort: that
+    the divisor of a division is not zero, for instance. Kanon only trusts it: it has no meaning
+    of its own, and the generated OCaml erases it to its parent, but Lean can give it one, and its
+    statements and proofs then assume and prove it.
+  </p>
+  <Code
+    code={`sort TInt
+subsort TNonzero : TInt [@lean "Nonzero"]
+
+node Div : TInt -> TNonzero -> TInt
+node Sq1 : TInt -> TNonzero`}
+  />
+  <ul>
+    <li>
+      <code>{`subsort TNonzero : TInt{:kanon}`}</code> declares a sort of the terms of
+      <code>TInt</code> that satisfy more than that. A subsort has the arguments of its parent,
+      which it applies to variables (<code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>
+      for a width), and no constructor of its own.
+    </li>
+    <li>
+      A node may use it in its typing, as an operand (the divisor of <code>Div</code>) or as its
+      result (<code>Sq1</code>). A term of a subsort is accepted wherever its parent is expected,
+      and not the reverse. The OCaml is that of <code>TInt -> TInt -> TInt</code>.
+    </li>
+    <li>
+      <code>{`[@lean "Nonzero"]{:kanon}`}</code> names the Lean predicate
+      <code>{`Nonzero : Term → Prop{:lean}`}</code>, which you write in the semantics of the
+      language. Without it, Lean erases the subsort too.
+    </li>
+  </ul>
+  <Example id="subsorts" ocaml="ocaml" lean="lean-statements" />
+  <p>
+    In the statements, the rule function <code>int_div</code> is stated for a divisor that
+    satisfies <code>Nonzero</code>: <code>{`Nonzero v2 →{:lean}`}</code> comes before its guards, in
+    <code>Ops.Sound</code> and in the lemmas that follow from it. The function
+    <code>sq1</code>, whose node returns a <code>TNonzero</code>, has to prove the other way
+    round: <code>sq1.post.main.Stmt</code> says that what it returns, a rule or its spec,
+    satisfies <code>Nonzero</code>. Kanon does not prove it, and the build of the Lean files fails
+    until you do (see the <a href="proving.html">guide to proofs</a>). Only rules have these
+    assumptions and obligations, since the parameters and results of a <code>fn</code> have no
+    sorts.
+  </p>
+
   <Heading level={2} id="typings">Typings</Heading>
   <p>
     Sorts may have arguments, and the typing of a node may name its arguments and constrain them
