@@ -1,18 +1,20 @@
-(** The [ocaml-typed] backend: the OCaml interface of the smart constructors of
-    a language, where terms are typed by ghost tags: [module type S] has
+(** The [ocaml-typed] backend: the typed interface of the smart constructors of
+    a language. A term [ 'a t ] has a phantom parameter, a polymorphic variant
+    (a tag) that says what is known of the term: [module type S] has
     [[< tag ] t] operands and [[> tag ] t] results. The tag of a term is that of
     its sort, which Kanon generates (see {!tag_types}): the tag of a subsort is
-    a refinement of the tag of its parent. [Ghost] implements the phantom types
-    of [S]: its escape hatches are the identity. The rest of [S] is the rules,
-    and the leaf nodes and sorts, whose implementation is written by hand. The
-    refinements are trusted: nothing proves them. *)
+    a refinement of the tag of its parent. [S] is organised like the language,
+    one module per Kanon module (per file). [Derived] is the implementation of
+    [S]: the rules, whose types are those of [S] but for the phantom parameter,
+    which [S] hides; what it does not have are the leaf nodes ([[@ctor]]),
+    written by hand. The refinements are trusted: nothing proves them. *)
 
 open Syntax
 
 let pf = Format.fprintf
 let list = Gen_ocaml.list
 
-(** The ghost tag of a term (or of a sort): the tag type of its sort or of its
+(** The tag of a term (or of a sort): the tag type of its sort or of its
     subsort, a sort variable, or none that Kanon knows, for which any term does.
 *)
 type tag = Tag of string | Var of string | Unknown
@@ -31,10 +33,10 @@ let tag_of_sort vars (s : expr) sub =
   | None, EConstr (c, _) -> Tag (tag_name c.c_name)
   | None, _ -> Unknown
 
-(** The type of a term with the tag [tag]: [[< tag ] t] for an operand, and
-    [[> tag ] t] for a result, over the type [t] ([ty] for a sort). *)
+(** The type of a term with the tag [tag]: [[< Tag.tag ] t] for an operand, and
+    [[> Tag.tag ] t] for a result, over the type [t] ([ty] for a sort). *)
 let term ~operand ~t ft = function
-  | Tag s -> pf ft "[%s %s ] %s" (if operand then "<" else ">") s t
+  | Tag s -> pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") s t
   | Var x -> pf ft "'%s %s" x t
   | Unknown -> pf ft "_ %s" t
 
@@ -61,23 +63,24 @@ let node_tags (typing : typing option) =
       let ops = List.filteri (fun i _ -> i < List.length tags - 1) tags in
       (ops, List.nth tags (List.length tags - 1))
 
-(** The parameters of a node, as plain arguments. *)
+(** The argument of a constructor of the types, as the destructors return it: a
+    [nat] is an [int]. *)
 let arg_ty ft = function Small -> pf ft "int" | Arg t -> value_ty ft t
 
-(** One declaration [val name : args -> res], preceded by its doc. *)
-let last_doc = ref false
+(** An item of the interface: [val name : sig_], or [let name = impl] in its
+    implementation, which the leaf nodes (written by hand) do not have. *)
+type item = {
+  name : string;
+  doc : string option;
+  sig_ : Format.formatter -> unit;
+  impl : (Format.formatter -> unit) option;
+}
 
-let val_ ft ~doc name args res =
-  (* a comment between two items would be ambiguous: documented items are set
-     apart by blank lines *)
-  pf ft "@ ";
-  if doc <> None || !last_doc then pf ft "@ ";
-  last_doc := doc <> None;
-  pf ft "%a@[<hov 2>val %s :@ %a@]" Gen_ocaml.doc doc name
-    (Format.pp_print_list
-       ~pp_sep:(fun ft () -> pf ft " ->@ ")
-       (fun ft pp -> pp ft))
-    (args @ [ res ])
+let arrow args res ft =
+  Format.pp_print_list
+    ~pp_sep:(fun ft () -> pf ft " ->@ ")
+    (fun ft pp -> pp ft)
+    ft (args @ [ res ])
 
 let sort_val_name (c : constr) =
   let n = c.c_name in
@@ -92,21 +95,42 @@ let sort_val_name (c : constr) =
   in
   "t_" ^ String.lowercase_ascii n
 
-(** The [val] of the sort [c], which makes the sorts of its terms: its arguments
-    are plain, or sorts of any tag. *)
-let sort_val ft (c : constr) =
+(** The item of the sort [c], which makes the sorts of its terms: its arguments
+    are those of its constructor, or sorts of any tag. *)
+let sort_item (c : constr) =
   let args =
     List.map
       (fun a ft -> match a with Arg TSty -> pf ft "_ ty" | a -> arg_ty ft a)
       c.c_args
   in
-  val_ ft ~doc:c.c_doc (sort_val_name c) args (fun ft ->
-      term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)))
+  let vars = List.mapi (fun i _ -> Fmt.str "a%d" (i + 1)) c.c_args in
+  let ctor =
+    match vars with
+    | [] -> c.c_name
+    | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
+  in
+  {
+    name = sort_val_name c;
+    doc = c.c_doc;
+    sig_ =
+      arrow args (fun ft ->
+          term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)));
+    impl =
+      Some
+        (fun ft ->
+          if vars = [] then pf ft "%s" ctor
+          else
+            pf ft "@[<hov 2>fun %s->@ %s@]"
+              (String.concat "" (List.map (fun x -> x ^ " ") vars))
+              ctor);
+  }
 
-(** The [val] of a smart constructor: the leading parameters, then the operands.
+(** The item of a smart constructor: the leading parameters, then the operands.
     [params] are the types of its parameters, and [operands] the kinds of its
-    operands: [`One] for a term, [`List] for the list of an n-ary node. *)
-let smart ft ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
+    operands: [`One] for a term, [`List] for the list of an n-ary node. It is
+    the rule function [name] if [impl]. *)
+let smart ~doc ~name ~impl params ~(operands : [ `One | `List ] list) (ops, res)
+    =
   let ops_tags = ref ops in
   let next () =
     match !ops_tags with
@@ -127,8 +151,13 @@ let smart ft ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
         | `List -> pf ft "%a list" (term ~operand:true ~t:"t") tag)
       operands
   in
-  val_ ft ~doc name (params @ operands) (fun ft ->
-      term ~operand:false ~t:"t" ft res)
+  {
+    name;
+    doc;
+    sig_ =
+      arrow (params @ operands) (fun ft -> term ~operand:false ~t:"t" ft res);
+    impl = (if impl then Some (fun ft -> pf ft "Kanon_rules.%s" name) else None);
+  }
 
 (** The tag types of the sorts, in the module [Tag]: one for each subsort, the
     variant of its name, and one for each sort, the variant of its name and the
@@ -168,10 +197,10 @@ let tag_types () =
         ])
     sorts
 
-(** The destructors of the node or sort [c] in the signature: the arguments of
-    the terms that [c] builds (see {!Gen_ocaml.destructor}), where its operands
-    have the tags of its typing, and the test. *)
-let destructor ft (c : constr) typing =
+(** The destructors of the node or sort [c]: the arguments of the terms that [c]
+    builds (see {!Gen_ocaml.destructor}), where its operands have the tags of
+    its typing, and the test. *)
+let destructor_items (c : constr) typing =
   let suffix = Gen_ocaml.destructor_suffix c in
   let ty = if c.c_res = TSty then "ty" else "t" in
   let params = List.map (fun a ft -> arg_ty ft a) c.c_args in
@@ -203,88 +232,69 @@ let destructor ft (c : constr) typing =
             l
   in
   let input ft = pf ft "_ %s" ty in
-  val_ ft ~doc:None ("as_" ^ suffix) [ input ] (fun ft ->
-      pf ft "%t option" tuple);
-  val_ ft ~doc:None ("is_" ^ suffix) [ input ] (fun ft -> pf ft "bool")
+  let rules name ft = pf ft "Kanon_rules.%s" name in
+  [
+    {
+      name = "as_" ^ suffix;
+      doc = None;
+      sig_ = arrow [ input ] (fun ft -> pf ft "%t option" tuple);
+      impl = Some (rules ("as_" ^ suffix));
+    };
+    {
+      name = "is_" ^ suffix;
+      doc = None;
+      sig_ = arrow [ input ] (fun ft -> pf ft "bool");
+      impl = Some (rules ("is_" ^ suffix));
+    };
+  ]
 
-(** The implementation of the phantom types of [S], and of what follows from
-    them: the terms and sorts are those of the language, whatever their tags, so
-    that the escape hatches are the identity (and need no [Obj.magic]: the types
-    are equal, and [S] hides it). The sorts are made by their constructors. *)
-let ghost ft () =
-  pf ft "@ @ %a@ " Gen_ocaml.ocaml_doc
-    "The phantom types of [S], over the types of the language, with the escape \
-     hatches, which are the identity, and the sorts: [module Typed : S = \
-     struct include Ghost include Rules ... end] only needs what is not \
-     generated, such as the leaf nodes.";
-  pf ft "@[<v 2>module Ghost = struct";
-  pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";
-  pf ft "type nonrec 'a ty = raw_ty@ @ ";
-  pf ft "let untyped : 'a t -> raw = Fun.id@ ";
-  pf ft "let type_ : raw -> 'a t = Fun.id@ ";
-  pf ft "let cast : 'a t -> 'b t = Fun.id@ ";
-  pf ft "let untype_type : 'a ty -> raw_ty = Fun.id@ ";
-  pf ft "let type_type : raw_ty -> 'a ty = Fun.id";
+(** The OCaml name of the Kanon module of the file of [loc]: the name of the
+    file, capitalised, without its extension ([bitvec.kn] and [bitvec.knl] are
+    [Bitvec]; [use builtin "bool"] is [Bool]). *)
+let module_of (loc : Location.t) =
+  let file = loc.loc_start.pos_fname in
+  let stem = Filename.remove_extension (Filename.basename file) in
+  let stem =
+    if String.starts_with ~prefix:"+" stem then
+      String.sub stem 1 (String.length stem - 1)
+    else stem
+  in
+  let valid =
+    stem <> ""
+    && (match stem.[0] with 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false)
+    && String.for_all
+         (function
+           | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true
+           | _ -> false)
+         stem
+  in
+  if not valid then
+    raise
+      (Check.Error
+         ( loc,
+           Fmt.str "%s: the name of a file of a module is an OCaml module name"
+             file ));
+  let m = String.capitalize_ascii stem in
+  if List.mem m [ "Tag"; "S"; "Derived"; "Kanon_rules" ] then
+    raise
+      (Check.Error
+         (loc, Fmt.str "the module %s has the name of a module of ocaml-typed" m));
+  m
+
+(** The items of the typed interface, by Kanon module, in order: for each
+    module, its sorts, its smart constructors, and its destructors. *)
+let modules (p : program) =
+  let node_typing (c : constr) = List.assoc_opt c.c_name !Check.node_typings in
+  let mods : (string * item list ref) list ref = ref [] in
+  let add m it =
+    match List.assoc_opt m !mods with
+    | Some l -> l := !l @ [ it ]
+    | None -> mods := !mods @ [ (m, ref [ it ]) ]
+  in
   List.iter
     (fun (c : constr) ->
-      if c.c_res = TSty then
-        let vars = List.mapi (fun i _ -> Fmt.str "a%d" (i + 1)) c.c_args in
-        let ctor =
-          match vars with
-          | [] -> c.c_name
-          | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
-        in
-        pf ft "@ let %s %s= %s" (sort_val_name c)
-          (String.concat "" (List.map (fun x -> x ^ " ") vars))
-          ctor)
+      if c.c_res = TSty then add (module_of c.c_loc) (sort_item c))
     !lang.constrs;
-  pf ft "@]@ end"
-
-let program ~sources ft (p : program) =
-  Gen_ocaml.check_destructors p;
-  let tags = tag_types () in
-  let node_typing (c : constr) = List.assoc_opt c.c_name !Check.node_typings in
-  pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
-    (list Format.pp_print_string)
-    sources;
-  Option.iter (pf ft "open %s@ @ ") !lang.ocaml_types;
-  pf ft
-    "(** The ghost tag types of the sorts: a sort that has subsorts has their \
-     variants too, which a term of the sort may be. *)@ ";
-  pf ft "@[<v 2>module Tag = struct";
-  List.iter
-    (fun (n, variants) ->
-      pf ft "@ type %s = [ %s ]" n (String.concat " | " variants))
-    tags;
-  pf ft "@]@ end@ @ ";
-  pf ft "@[<v 2>module type S = sig@ open Tag";
-  let item text = pf ft "@ @ %s" text in
-  item "(** {2 Types} *)";
-  item
-    "(** The untyped terms and sorts, of the types of the language. *)\n\
-    \  type raw = t\n\
-    \  type raw_ty = ty";
-  item
-    "(** A sort of terms, phantom-typed by the tag of its terms. *)\n\
-    \  type +'a ty";
-  item "(** A term, phantom-typed by its tag. *)\n  type +'a t";
-  item "(** {2 Escape hatches} *)";
-  item "(** Forgets the tag of a term. *)\n  val untyped : 'a t -> raw";
-  item
-    "(** Trusts the tag of a term: its type is not checked. *)\n\
-    \  val type_ : raw -> 'a t";
-  item "(** Changes the tag of a term: unchecked. *)\n  val cast : 'a t -> 'b t";
-  item "(** Forgets the tag of a sort. *)\n  val untype_type : 'a ty -> raw_ty";
-  item
-    "(** Trusts the tag of a sort: unchecked. *)\n\
-    \  val type_type : raw_ty -> 'a ty";
-  item "(** {2 Sorts} *)";
-  last_doc := true;
-  List.iter
-    (fun (c : constr) -> if c.c_res = TSty then sort_val ft c)
-    !lang.constrs;
-  item "(** {2 Smart constructors} *)";
-  last_doc := true;
   let emitted = ref [] in
   List.iter
     (fun (f : fn) ->
@@ -318,20 +328,13 @@ let program ~sources ft (p : program) =
             (fun (_, t) -> if t = TTerm then `One else `List)
             operand_params
         in
-        (* a [nat] parameter of the node is an [int], and an [int] a [Z.t] *)
-        let param (x, t) =
-          let small =
-            match head with
-            | Some (c, pargs, _) -> (
-                match Check.index_of_var x pargs with
-                | Some i -> List.nth_opt c.c_args i = Some Small
-                | None -> false)
-            | None -> false
-          in
-          if small then fun ft -> arg_ty ft Small else fun ft -> value_ty ft t
-        in
+        (* the parameters have the types that the rule function declares *)
         let params =
-          List.map param (List.filter (fun p -> not (is_operand p)) f.params)
+          List.filter_map
+            (fun (_, t) ->
+              if t = TTerm || t = TList TTerm then None
+              else Some (fun ft -> value_ty ft t))
+            f.params
         in
         let doc =
           (* the doc of the node, if the rule is its smart constructor *)
@@ -342,7 +345,8 @@ let program ~sources ft (p : program) =
               c.c_doc
           | doc, _ -> doc
         in
-        smart ft ~doc ~name:f.name params ~operands (ops, res)))
+        add (module_of f.floc)
+          (smart ~doc ~name:f.name ~impl:true params ~operands (ops, res))))
     p.fns;
   List.iter
     (fun (node, name) ->
@@ -356,12 +360,121 @@ let program ~sources ft (p : program) =
             | Some t -> List.init (List.length t.t_sorts - 1) (fun _ -> `One)
             | None -> []
           in
-          smart ft ~doc:c.c_doc ~name params ~operands (node_tags typing)
+          add (module_of c.c_loc)
+            (smart ~doc:c.c_doc ~name ~impl:false params ~operands
+               (node_tags typing))
       | _ -> ())
     !lang.node_ctors;
-  item "(** {2 Destructors} *)";
-  last_doc := true;
-  List.iter (fun c -> destructor ft c (node_typing c)) (Gen_ocaml.destructed ());
-  pf ft "@]@ end";
-  ghost ft ();
+  List.iter
+    (fun (c : constr) ->
+      List.iter (add (module_of c.c_loc)) (destructor_items c (node_typing c)))
+    (Gen_ocaml.destructed ());
+  List.map (fun (m, l) -> (m, !l)) !mods
+
+(** Prints [items], one per line, with a blank line around those that are
+    documented (a comment between two items would be ambiguous). *)
+let print_items ft ~(print : Format.formatter -> item -> unit) items =
+  let prev_doc = ref false in
+  List.iteri
+    (fun i it ->
+      pf ft "@ ";
+      if i > 0 && (it.doc <> None || !prev_doc) then pf ft "@ ";
+      prev_doc := it.doc <> None;
+      print ft it)
+    items
+
+let print_sig ft it =
+  pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc it.name it.sig_
+
+let print_impl ft it =
+  match it.impl with
+  | Some impl ->
+      pf ft "%a@[<hov 2>let %s =@ %t@]" Gen_ocaml.doc it.doc it.name impl
+  | None -> ()
+
+(** The signature [S] and the module [Derived]. *)
+let interface ft mods =
+  let mod_doc m =
+    Fmt.str "The Kanon module %s." (String.uncapitalize_ascii m)
+  in
+  pf ft "%a@ " Gen_ocaml.ocaml_doc
+    "The typed interface of the language, organised like it: a module per \
+     Kanon module (per file). A term of type [_ t] has a phantom parameter, \
+     one of the tags of [Tag], that says what Kanon knows of the term, and the \
+     smart constructors check it at compile time. The tag is not data: a term \
+     is the same value as its untyped term, [raw].";
+  pf ft "@[<v 2>module type S = sig";
+  pf ft "@ %a@ type raw = t@ type raw_ty = ty@ " Gen_ocaml.ocaml_doc
+    "The terms and sorts of the types of the language, without tag.";
+  pf ft "@ %a@ type +'a t@ @ %a@ type +'a ty@ " Gen_ocaml.ocaml_doc
+    "A term, whose phantom parameter is its tag." Gen_ocaml.ocaml_doc
+    "A sort of terms of the tag [ 'a ].";
+  pf ft "@ %a@ val untyped : 'a t -> raw" Gen_ocaml.ocaml_doc
+    "Forgets the tag of a term: the same value.";
+  pf ft "@ @ %a@ val type_ : raw -> 'a t" Gen_ocaml.ocaml_doc
+    "Trusts the tag of a term: unchecked.";
+  pf ft "@ @ %a@ val cast : 'a t -> 'b t" Gen_ocaml.ocaml_doc
+    "Changes the tag of a term: unchecked.";
+  pf ft "@ @ %a@ val untype_type : 'a ty -> raw_ty" Gen_ocaml.ocaml_doc
+    "Forgets the tag of a sort.";
+  pf ft "@ @ %a@ val type_type : raw_ty -> 'a ty" Gen_ocaml.ocaml_doc
+    "Trusts the tag of a sort: unchecked.";
+  List.iter
+    (fun (m, items) ->
+      pf ft "@ @ %a@ @[<v 2>module %s : sig" Gen_ocaml.ocaml_doc (mod_doc m) m;
+      print_items ft ~print:print_sig items;
+      pf ft "@]@ end")
+    mods;
+  pf ft "@]@ end@ @ ";
+  pf ft "%a@ " Gen_ocaml.ocaml_doc
+    "The implementation of [S], from the rules, with the types of [S] visible: \
+     [type 'a t = raw]. [S] hides it, since a visible equality would make \
+     every tag the same type. What it does not define are the leaf nodes, \
+     written by hand: [module Typed : S = struct include Derived ... end].";
+  pf ft "@[<v 2>module Derived = struct";
+  pf ft "@ module Kanon_rules = %s" (Option.get !lang.ocaml_rules);
+  pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";
+  pf ft "type nonrec 'a ty = raw_ty@ @ ";
+  pf ft "let[@inline] untyped (x : 'a t) : raw = x@ ";
+  pf ft "let[@inline] type_ (x : raw) : 'a t = x@ ";
+  pf ft "let[@inline] cast (x : 'a t) : 'b t = x@ ";
+  pf ft "let[@inline] untype_type (x : 'a ty) : raw_ty = x@ ";
+  pf ft "let[@inline] type_type (x : raw_ty) : 'a ty = x";
+  List.iter
+    (fun (m, items) ->
+      pf ft "@ @ @[<v 2>module %s = struct" m;
+      print_items ft ~print:print_impl
+        (List.filter (fun it -> it.impl <> None) items);
+      pf ft "@]@ end")
+    mods;
+  pf ft "@]@ end"
+
+let program ~sources ft (p : program) =
+  Gen_ocaml.check_destructors p;
+  if !lang.ocaml_rules = None then
+    raise
+      (Check.Error
+         ( Location.none,
+           "ocaml-typed: [@@@ocaml_rules \"M\"], in the declaration of the \
+            language, names the OCaml module of the rules (the output of kanon \
+            ocaml), which the implementation is made of" ));
+  let tags = tag_types () in
+  let mods = modules p in
+  pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
+    (list Format.pp_print_string)
+    sources;
+  Option.iter (pf ft "open %s@ @ ") !lang.ocaml_types;
+  pf ft
+    "(** The tags of the terms, one polymorphic variant type per sort and per \
+     subsort, with the sort in lowercase as its name. A sort that has subsorts \
+     has their variants too, which a term of the sort may be. The types may be \
+     joined, in a group of tags of the user: [type scalar = [ Tag.tbitvec | \
+     Tag.tfloat ]]. *)@ ";
+  pf ft "@[<v 2>module Tag = struct";
+  List.iter
+    (fun (n, variants) ->
+      pf ft "@ type %s = [ %s ]" n (String.concat " | " variants))
+    tags;
+  pf ft "@]@ end@ @ ";
+  interface ft mods;
   pf ft "@]@."

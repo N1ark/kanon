@@ -5,6 +5,7 @@ through. It applies once the language is complete, after the cases of every
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
+  > [@@@ocaml_rules "Rules"]
   > sort TInt
   > type var [@ocaml "string"] [@lean "String"]
   > node Int of int : TInt

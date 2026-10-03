@@ -4,9 +4,9 @@
     - [ocaml-types]: the OCaml types of the language, standalone (which do not
       need the rules);
     - [ocaml]: their OCaml implementation, where these types are in scope;
-    - [ocaml-typed]: the OCaml interface of their smart constructors, where
-      terms are typed by the ghost tags of their sorts and subsorts (see
-      {!Gen_typed}), and the implementation of its phantom types;
+    - [ocaml-typed]: the typed interface of their smart constructors, where
+      terms are typed by the tags of their sorts and subsorts (see
+      {!Gen_typed}), and its implementation from the rules;
     - [ocaml-tests]: the OCaml differential tests of their rule functions;
     - [lean-types], [lean-syntax]: the Lean definitions of the types of the
       language (which do not need the rules);

@@ -3,5 +3,3 @@ prim one : int -> t
 
 rule bv_div : Div (signed, v1, v2) =
   | same: x, y when x = y -> one (size x)
-rule bv_ult : Ult (v1, v2) =
-  | irrefl: x, y when x = y -> one 0

@@ -5,6 +5,7 @@
 
 [@@@ocaml_types "Tiny_types"]
 [@@@ocaml_prims "Tiny_prims"]
+[@@@ocaml_rules "Tiny_rules"]
 
 use "rules"
 

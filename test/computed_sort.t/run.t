@@ -4,6 +4,7 @@ to arguments, `(Tuple vs : TTuple (types_of vs))`, or any expression of type
 
   $ cat > lang.knl <<'EOF'
   > [@@@ocaml_prims "Prims"]
+  > [@@@ocaml_rules "Rules"]
   > use "rules"
   > type var [@ocaml "string"] [@lean "String"]
   > sort TInt
@@ -63,7 +64,7 @@ The ocaml-typed backend types a rule by the typing of its node, not by the sort
 that its body builds: `proj` returns a `tint`.
 
   $ kanon ocaml-typed lang.knl | grep -n 'val proj'
-  48:  val proj : Z.t -> [< ttuple ] t -> [> tint ] t
+  58:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
 
 The sort of a node is a `ty`: anything else is an error at the sort.
 

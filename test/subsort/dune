@@ -1,7 +1,7 @@
 ; Subsorts are erased to their parent in the OCaml of the rules: the generated
 ; code compiles and runs on the terms of TBitVector. The typed interface is
-; implemented with its generated phantom types, and its escape hatches are the
-; identity (see ../subsort.t and ../typed_compile.t for what it rejects).
+; implemented by the generated Derived and the leaf nodes, written by hand (see
+; ../subsort.t and ../typed_compile.t for what it rejects).
 
 (rule
  (deps

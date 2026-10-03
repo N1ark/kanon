@@ -6,6 +6,7 @@
 
 [@@@lean_root "BoolExample"]
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use builtin "bool"
 

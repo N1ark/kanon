@@ -1,18 +1,10 @@
 (* The bit-vectors of a symbolic execution engine, where a divisor is known to
-   be non-zero. The subsorts are erased in OCaml: the terms are those of
-   TBitVector (see ../subsort.t for the typed interface). *)
+   be non-zero, in two modules. The subsorts are erased in OCaml: the terms are
+   those of TBitVector (see ../typed_compile.t for the typed interface). *)
 
 [@@@ocaml_types "Sub_types"]
 [@@@ocaml_prims "Sub_prims"]
+[@@@ocaml_rules "Sub_rules"]
 
-use "rules"
-
-sort TBitVector of nat [@get size]
-subsort TNonzero of nat : TBitVector n
-subsort TZero of nat : TBitVector n
-sort TBool
-
-node BitVec of int * nat (v, n) : TBitVector n [@ctor mk_bv]
-node Zero of nat (n) : TZero n [@ctor mk_zero]
-node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
-node Ult : TBitVector n -> TBitVector n -> TBool
+use "bitvec"
+use "cmp"
