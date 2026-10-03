@@ -339,6 +339,22 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@total]{:kanon}`}</code></td>
+        <td>a helper, after its result type</td>
+        <td>
+          A per-node function: its body ends with a match on its first term parameter, which must
+          have a case for every node of the language (leaf or operator). A catch-all case (<code
+            >_</code
+          >, a variable, even guarded) is an error, and so is a missing node, listed with all the
+          others. The check runs on the final language, after the cases of every <code
+            >extend fn</code
+          > are added (which append their cases): a module that adds nodes extends the function. A
+          case covers a node if it has no guard, and its patterns on the node's arguments and on the
+          other scrutinees match anything (<code>Int _</code> does, <code>Int 0</code> does not).
+          Combines with <code>{`[@no_lean]{:kanon}`}</code>.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@untyped]{:kanon}`}</code></td>
         <td>a rule function, after its spec</td>
         <td>
