@@ -184,7 +184,7 @@ let neg loc oploc (e : expression) =
 %token AS ASSERT BEFORE BUILTIN CONSTANT ELSE EXTEND FALSE FN IF IN INFIX LET MATCH NODE NOT NOTATION OF
 %token ORACLE PREFIX PRIM
 %token RULE SORT THEN TRUE TYPE USE WHEN WITH
-%token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
+%token LBRACKETBAR BARRBRACKET LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS UMINUS STAR DOT
 %token HASH UNDERSCORE EOF
 
@@ -584,6 +584,7 @@ simple_expr:
               let attrs = match e.pexp_desc with Pexp_construct _ -> [ attr loc "kanon.sortexpr" [ eval_item loc a ] ] | _ -> [] in
               { (exp loc (Pexp_constraint (e, t))) with pexp_attributes = attrs }) }
   | LBRACKET es = separated_list(SEMI, expr) RBRACKET { elist (mkloc $loc) es }
+  | LBRACKETBAR es = separated_list(SEMI, expr) BARRBRACKET { exp (mkloc $loc) (Pexp_array es) }
   | LBRACE fs = separated_nonempty_list(SEMI, field_expr) RBRACE { exp (mkloc $loc) (Pexp_record (fs, None)) }
   | e = simple_expr DOT f = LID { exp (mkloc $loc) (Pexp_field (e, lid (mkloc $loc(f)) f)) }
   | op = PREFIXOP e = simple_expr %prec below_DOT { apply (mkloc $loc) (ident (mkloc $loc(op)) op) [ e ] }

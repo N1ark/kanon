@@ -23,6 +23,7 @@ let rec ocaml_ty ft = function
         l
   | TOption t -> pf ft "(%a option)" ocaml_ty t
   | TList t -> pf ft "(%a list)" ocaml_ty t
+  | TArray t -> pf ft "(%a Iarray.t)" ocaml_ty t
 
 let list ?(sep = ", ") pp ft l =
   Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
@@ -125,6 +126,7 @@ let rec equal_fn ft = function
         (List.combine l (List.combine (xs "a") (xs "b")))
   | TOption t -> pf ft "(Option.equal %a)" equal_fn t
   | TList t -> pf ft "(List.equal %a)" equal_fn t
+  | TArray t -> pf ft "(Iarray.equal %a)" equal_fn t
 
 (** [hash_combine (... (hash_combine h1 h2) ...) hn], for the hashes [l],
     printed by [pp]. *)
@@ -156,6 +158,9 @@ let rec hash_fn ft = function
   | TList t ->
       pf ft "(List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)" hash_fn
         t
+  | TArray t ->
+      pf ft "(Iarray.fold_left (fun acc x -> hash_combine acc (%a x)) 0)"
+        hash_fn t
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -202,7 +207,7 @@ let rec mentions x (e : expr) =
   match e.e with
   | EVar y -> x = y
   | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
-  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
       List.exists go l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
       go a || go b
@@ -253,6 +258,18 @@ let rec expr ctx ft (e : expr) =
       pf ft "(%s (%a))" c.c_name (list arg) (List.combine c.c_args args)
   | ENode (k, t) -> pf ft "(node %a %a)" expr k expr t
   | ECall ("type_of", [ a ]) -> pf ft "%a.ty" expr a
+  | EArray l -> pf ft "([|%a|] : _ Iarray.t)" (list ~sep:"; " expr) l
+  | ECall ("array_length", [ a ]) ->
+      pf ft "(Z.of_int (Iarray.length %a))" expr a
+  | ECall ("array_get", [ a; i ]) ->
+      pf ft "(Iarray.get %a (Z.to_int %a))" expr a expr i
+  | ECall ("array_set", [ a; i; v ]) ->
+      pf ft
+        "@[<v>(let a = %a and i = Z.to_int %a and v = %a in@ let c = \
+         Iarray.to_array a in@ c.(i) <- v;@ Iarray.of_array c)@]"
+        expr a expr i expr v
+  | ECall ("array_of_list", [ l ]) -> pf ft "(Iarray.of_list %a)" expr l
+  | ECall ("array_to_list", [ a ]) -> pf ft "(Iarray.to_list %a)" expr a
   | ECall ("tag_le", [ a; b ]) ->
       pf ft "(Int.compare %a.tag %a.tag <= 0)" expr a expr b
   | ECall (f, []) ->
@@ -383,7 +400,7 @@ let rec weight (e : expr) =
   | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable
   | EConstr (_, []) ->
       1
-  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
       List.fold_left (fun n e -> n + weight e) 1 l
   | ENode (a, b)
   | EBinop (_, a, b)

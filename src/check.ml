@@ -88,6 +88,7 @@ let rec ty_of_core (ct : core_type) : Syntax.ty =
       Option.get (ty_of_name s)
   | Ptyp_constr ({ txt = Lident "list"; _ }, [ t ]) -> TList (ty_of_core t)
   | Ptyp_constr ({ txt = Lident "option"; _ }, [ t ]) -> TOption (ty_of_core t)
+  | Ptyp_constr ({ txt = Lident "array"; _ }, [ t ]) -> TArray (ty_of_core t)
   | Ptyp_tuple l -> TTuple (List.map ty_of_core l)
   | _ -> error ct.ptyp_loc "unsupported type"
 
@@ -99,11 +100,15 @@ let rec arrow_of_core (ct : core_type) =
       (ty_of_core a :: args, ret)
   | _ -> ([], ty_of_core ct)
 
+(** The functions on arrays, which are built in: their types are polymorphic. *)
+let array_builtins =
+  [ "array_length"; "array_get"; "array_set"; "array_of_list"; "array_to_list" ]
+
 let rec ty_equal a b =
   match (a, b) with
   | TTuple l1, TTuple l2 ->
       List.length l1 = List.length l2 && List.for_all2 ty_equal l1 l2
-  | TOption a, TOption b | TList a, TList b -> ty_equal a b
+  | TOption a, TOption b | TList a, TList b | TArray a, TArray b -> ty_equal a b
   | _ -> a = b
 
 (** The fields of a record type, with their types. *)
@@ -643,7 +648,7 @@ let rec eq_ty = function
   | TInt | TBool | TUnit | TTerm | TKind -> true
   | (TSty | TData _) as t -> (decl_of_ty t).d_eq
   | TTuple l -> List.for_all eq_ty l
-  | TOption t | TList t -> eq_ty t
+  | TOption t | TList t | TArray t -> eq_ty t
 
 (* ---------------------------------------------------------------- *)
 (* Desugaring of patterns
@@ -1232,6 +1237,64 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       match expected with
       | Some (TList _ as t) -> mk t ENil
       | _ -> error loc "cannot infer the type of []")
+  | Pexp_array es -> (
+      let inner = match expected with Some (TArray t) -> Some t | _ -> None in
+      match es with
+      | [] -> (
+          match expected with
+          | Some (TArray _ as t) -> mk t (EArray [])
+          | _ -> error loc "cannot infer the type of [||]")
+      | h :: tl ->
+          let h = expr env ?expected:inner h in
+          let tl = List.map (expr env ~expected:h.ety) tl in
+          mk (TArray h.ety) (EArray (h :: tl)))
+  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident f; _ }; _ }, args)
+    when List.mem f array_builtins -> (
+      let args =
+        List.map
+          (function
+            | Nolabel, a -> a
+            | _, (a : expression) ->
+                error a.pexp_loc "labelled arguments are not supported")
+          args
+      in
+      let arity = match f with "array_set" -> 3 | "array_get" -> 2 | _ -> 1 in
+      if List.length args <> arity then
+        error loc "%s expects %d arguments, got %d" f arity (List.length args);
+      let array_of (a : Syntax.expr) =
+        match a.ety with
+        | TArray t -> t
+        | t -> error a.eloc "type mismatch: expected an array, got %a" pp_ty t
+      in
+      let idx i = expr env ~expected:TInt i in
+      match (f, args) with
+      | "array_of_list", [ l ] ->
+          let inner =
+            match expected with Some (TArray t) -> Some (TList t) | _ -> None
+          in
+          let l = expr env ?expected:inner l in
+          let t =
+            match l.ety with
+            | TList t -> t
+            | t -> error l.eloc "type mismatch: expected a list, got %a" pp_ty t
+          in
+          mk (TArray t) (ECall (f, [ l ]))
+      | "array_to_list", [ a ] ->
+          let a = expr env a in
+          mk (TList (array_of a)) (ECall (f, [ a ]))
+      | "array_length", [ a ] ->
+          let a = expr env a in
+          ignore (array_of a);
+          mk TInt (ECall (f, [ a ]))
+      | "array_get", [ a; i ] ->
+          let a = expr env a in
+          mk (array_of a) (ECall (f, [ a; idx i ]))
+      | "array_set", [ a; i; v ] ->
+          let a = expr env a in
+          let i = idx i in
+          let v = expr env ~expected:(array_of a) v in
+          mk a.ety (ECall (f, [ a; i; v ]))
+      | _ -> assert false)
   | Pexp_construct
       ({ txt = Lident "::"; _ }, Some { pexp_desc = Pexp_tuple [ h; tl ]; _ })
     ->
@@ -3915,6 +3978,7 @@ let rec prune (e : Syntax.expr) : Syntax.expr =
     | ETuple l -> ETuple (List.map go l)
     | ESome a -> ESome (go a)
     | ECons (a, b) -> ECons (go a, go b)
+    | EArray l -> EArray (List.map go l)
     | ERecord l -> ERecord (List.map (fun (f, e) -> (f, go e)) l)
     | EField (a, f) -> EField (go a, f)
     | EAssert (a, b) -> EAssert (go a, go b)
@@ -4023,7 +4087,7 @@ let rec uses x (e : Syntax.expr) =
   match e.e with
   | EVar y -> x = y
   | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
-  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
       List.exists go l
   | ENode (a, b)
   | EBinop (_, a, b)
@@ -4316,6 +4380,11 @@ let program (str : structure) : program =
         compare
           (List.find_index (fun (m, _) -> m = a) defs)
           (List.find_index (fun (m, _) -> m = b) defs)));
+  List.iter
+    (fun (n, loc) ->
+      if List.mem n array_builtins then
+        ignore (attempt (fun () -> error loc "%s is built in" n)))
+    defs;
   let prims = List.map fst prims in
   checkpoint_since start;
   lang :=

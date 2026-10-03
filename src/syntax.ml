@@ -18,6 +18,8 @@ type ty =
   | TTuple of ty list
   | TOption of ty
   | TList of ty
+  | TArray of ty
+      (** immutable arrays, [t array]: [Iarray.t] in OCaml, [Array] in Lean *)
 
 (** A doc comment where it cannot be attached: its location, and the message. *)
 exception Misplaced_doc of Location.t * string
@@ -33,6 +35,7 @@ let rec pp_ty ft = function
   | TTuple l -> Fmt.(parens (list ~sep:(any " * ") pp_ty)) ft l
   | TOption t -> Fmt.pf ft "%a option" pp_ty t
   | TList t -> Fmt.pf ft "%a list" pp_ty t
+  | TArray t -> Fmt.pf ft "%a array" pp_ty t
 
 (** An argument of a constructor. [Small] integers are OCaml [int]s (widths,
     indices), as opposed to [Z.t]s; in Kanon both have type [int]. *)
@@ -274,6 +277,7 @@ and expr_desc =
   | ENone
   | ENil
   | ECons of expr * expr
+  | EArray of expr list  (** [[| a; b |]] *)
   | ERecord of (string * expr) list
   | EField of expr * string
   | EAssert of expr * expr
@@ -327,7 +331,8 @@ let rec fold_calls f acc (e : expr) =
   match e.e with
   | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> acc
   | ECall (g, args) -> List.fold_left go (f acc g e.eloc) args
-  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.fold_left go acc l
+  | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
+      List.fold_left go acc l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
       go (go acc a) b
   | ELet (_, a, b) | ELetFun (_, _, a, b) -> go (go acc a) b
