@@ -43,7 +43,7 @@
     {
       "id": "blank",
       "title": "Blank language",
-      "description": "lang.knl and rules.kn, on top of the bool module",
+      "description": "lang.knl and rules.kn: a small language to start from",
       "template": true,
       "files": {
         "lang.knl": "examples/blank/lang.knl",

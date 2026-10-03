@@ -1,14 +1,17 @@
-(* A new language, on top of Kanon's bool module: declare its nodes here, and
-   write its rules in rules.kn. *)
+(* A new language: declare its nodes here, and write its rules in rules.kn.
+   [use builtin "bool"] adds Kanon's bool module. *)
 
-[@@@ocaml_prims "Prims"]
 [@@@ocaml_rules "Rules"]
 
-use builtin "bool"
 use "rules"
 
 type var [@ocaml "string"] [@lean "Int"]
 
 node Var of var
+node Int of int : TInt
+node Plus : TInt -> TInt -> TInt [@comm]
+sort TInt
 
-node Xor : TBool -> TBool -> TBool [@comm] [@unit false]
+notation Int
+
+infix "+" = Plus, plus
