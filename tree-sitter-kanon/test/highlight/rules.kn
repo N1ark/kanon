@@ -1,4 +1,4 @@
-use builtin "bool"
+use builtin "lib"
 (* <- keyword *)
 (*  ^ keyword *)
 (*          ^ string.special.symbol *)
