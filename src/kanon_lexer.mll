@@ -35,6 +35,23 @@ let keywords =
     ("when", WHEN);
     ("with", WITH);
   ]
+
+(* Reads the lexeme again, with another rule. *)
+let rewind (lexbuf : Lexing.lexbuf) =
+  lexbuf.lex_curr_pos <- lexbuf.lex_start_pos;
+  lexbuf.lex_curr_p <- lexbuf.lex_start_p
+
+(* The token of a declared operator that has a word suffix, [<u]: the level of
+   an operator is given by its symbol, as for an operator without a suffix. *)
+let word_op s =
+  match s.[0] with
+  | '=' | '<' | '>' | '|' | '&' | '$' | '\128' .. '\255' -> Some (CMPOP s)
+  | '@' | '^' -> Some (CONCATOP s)
+  | '+' | '-' -> Some (ADDOP s)
+  | '*' when String.length s > 1 && s.[1] = '*' -> Some (POWOP s)
+  | '*' | '/' | '%' -> Some (MULOP s)
+  | '!' | '~' | '?' -> Some (PREFIXOP s)
+  | _ -> None
 }
 
 let ident_char = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
@@ -49,6 +66,7 @@ let utf8 = ['\128'-'\255']
 let op_char =
   ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<' '=' '>' '?' '@' '^' '|' '~' '#']
   | utf8
+
 
 rule token = parse
   | [' ' '\t' '\r']+ { token lexbuf }
@@ -71,9 +89,34 @@ rule token = parse
       | Some k -> k
       | None -> if Hashtbl.mem Syntax.infix_words s then INFIXWORD s else LID s }
   | uid as s { UID s }
+  | op_char+ ['a'-'z'] ident_char* {
+      let s = Lexing.lexeme lexbuf in
+      match if Hashtbl.mem Syntax.infix_words s then word_op s else None with
+      | Some t -> t
+      | None ->
+          (* not a declared operator: the symbol alone, then the word *)
+          rewind lexbuf;
+          symbol lexbuf }
+  | op_char { rewind lexbuf; symbol lexbuf }
   | '\'' (lid as s) { TYVAR s }
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }
+  | '(' { LPAREN }
+  | ')' { RPAREN }
+  | '[' { LBRACKET }
+  | ']' { RBRACKET }
+  | '{' { LBRACE }
+  | '}' { RBRACE }
+  | ',' { COMMA }
+  | ';' { SEMI }
+  | eof { EOF }
+  | _ as c { raise (Error (lexbuf.lex_start_p, Printf.sprintf "unexpected character %C" c)) }
+
+(* The symbolic operators, as long as possible *)
+and symbol = parse
+  | ':' { COLON }
+  | '.' { DOT }
+  | '#' { HASH }
   | "::" { COLONCOLON }
   | "->" { ARROW }
   | "<-" { raise (Error (lexbuf.lex_start_p, "<- is reserved")) }
@@ -92,18 +135,6 @@ rule token = parse
   | "**" op_char* as s { POWOP s }
   | ['*' '/' '%'] op_char* as s { MULOP s }
   | ['!' '~' '?'] op_char* as s { PREFIXOP s }
-  | '(' { LPAREN }
-  | ')' { RPAREN }
-  | '[' { LBRACKET }
-  | ']' { RBRACKET }
-  | '{' { LBRACE }
-  | '}' { RBRACE }
-  | ',' { COMMA }
-  | ';' { SEMI }
-  | ':' { COLON }
-  | '.' { DOT }
-  | '#' { HASH }
-  | eof { EOF }
   | _ as c { raise (Error (lexbuf.lex_start_p, Printf.sprintf "unexpected character %C" c)) }
 
 (* [start] is the start of the outermost comment, where an unterminated

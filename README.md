@@ -230,8 +230,12 @@ An operator is a word (`urem`) or, as in OCaml, a sequence of the symbols
 `! $ % & * + - . / : < = > ? @ ^ | ~`, of `#` after the first, and of
 non-ASCII characters (`≤`, `⊕`), read as long as possible. The reserved `=`,
 `|`, `->`, `<-`, `:`, `::`, `;` and `.` cannot be declared, nor `<>`, built in
-at every type. Its first character gives its precedence, as in OCaml; from the
-lowest:
+at every type. A symbol may be followed by a word, with no space (`<u`,
+`<=s`: a lowercase letter, then letters, digits, `_` and `'`): it is one
+operator only if it is declared (`infix "<u" = ...`, then `a <u b`), in the rest
+of the files, and is otherwise read as the symbol, then the word (`a < u b`
+stays an application, and `x<y` is unchanged unless `<y` is declared). Its first
+character gives its precedence, as in OCaml; from the lowest:
 
 - `||` (right), `&&` (right);
 - `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=` and the operators that

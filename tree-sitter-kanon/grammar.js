@@ -7,7 +7,11 @@
  * an operand that is not a name), and as an argument otherwise.
  *
  * Symbolic operators are lexed as in OCaml: a sequence of the characters of
- * OP_CHAR (maximal munch), whose first character gives its precedence.
+ * OP_CHAR (maximal munch), whose first character gives its precedence. An
+ * operator that Kanon reads with a word suffix (`infix "<u"`, `a <u b`) is, to
+ * the grammar, the symbol followed by an identifier, for the same reason: it
+ * parses as `a < u b` in an expression (an application), and is not parsed in
+ * a pattern, which has no applications.
  */
 
 /// <reference types="tree-sitter-cli/dsl" />

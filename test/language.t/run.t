@@ -107,6 +107,69 @@ k < (1 lsl (n - 1)).
   
   
 
+A symbolic operator may end with a word, if it is declared: <u is an operator
+(at the level of <), distinct from < and from the application of u: a <u b is
+not a < u b, and x<y is not changed by the declaration. The prefix operators
+and the patterns have them too, and a symbol that is not declared with its word
+is read as the symbol, then the word.
+
+  $ cat > suffix.knl <<'KN'
+  > node Ult : TInt -> TInt -> TBool
+  > node Ule : TInt -> TInt -> TBool
+  > node Pu : TInt -> TInt
+  > infix "<u" = Ult, ult, z_ult
+  > infix "<=u" = Ule, ule
+  > prefix "!u" = Pu, pu
+  > KN
+  $ cat > suffix.kn <<'KN'
+  > prim z_ult : int -> int -> bool
+  > rule ult : Ult (v1, v2) =
+  >   | same: a <u b when false -> a <=u b
+  > rule ule : Ule (v1, v2)
+  > rule pu : Pu v
+  > fn u (x : int) : int = x
+  > fn lt_t (a b : t) : t = a <u b
+  > fn lt_z (x y : int) : bool = x <u y
+  > fn lt_app (x y : int) : bool = x < u y
+  > fn lt_tight (x y : int) : bool = x<u y
+  > fn lt_plain (x y : int) : bool = x<y
+  > fn prefixed (a b : t) : t = !u a <=u b
+  > KN
+  $ kanon ocaml ops.knl suffix.knl ops.kn suffix.kn | sed -n '/ lt_t (a/,$p'
+  let[@inline] lt_t (a : t) (b : t) : t = (ult a b)
+  
+  let[@inline] lt_z (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+  
+  let[@inline] lt_app (x : Z.t) (y : Z.t) : bool = (Z.lt x (u y))
+  
+  let[@inline] lt_tight (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+  
+  let[@inline] lt_plain (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
+  
+  let[@inline] prefixed (a : t) (b : t) : t = (ule (pu a) b)
+  
+  
+
+A symbol that does not start an operator cannot have a suffix:
+
+  $ cat > badsuffix.knl <<'KN'
+  > infix ".u" = Le, le
+  > KN
+  $ kanon ocaml ops.knl badsuffix.knl ops.kn
+  badsuffix.knl:1:7: .u is not an infix operator, nor a word
+  [1]
+
+A suffix that is not declared is not read as part of the symbol:
+
+  $ cat > nosuffix.kn <<'KN'
+  > fn u (x : int) : int = x
+  > fn lt_u (x y : int) : bool = x <u y
+  > KN
+  $ kanon ocaml ops.knl ops.kn nosuffix.kn | sed -n '/ lt_u/,$p'
+  let[@inline] lt_u (x : Z.t) (y : Z.t) : bool = (Z.lt x (u y))
+  
+  
+
 The laws of integer literals, written with the notation Int: the results of
 [@fold] are lifted by the notation of their type (Int, for add_z), or by the
 function or node given after it (Int, of_bool).

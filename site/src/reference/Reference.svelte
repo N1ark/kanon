@@ -571,6 +571,16 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
     <code>::</code>, <code>;</code> and <code>.</code> cannot be declared, nor
     <code>&lt;&gt;</code>, which is built in at every type.
   </p>
+  <p>
+    A symbol may be followed by a word, with no space: <code>&lt;u</code>, <code>&lt;=s</code>
+    (a lowercase letter, then letters, digits, <code>_</code> and <code>'</code>). It is one
+    operator only if it is declared, in the rest of the files, and is otherwise read as the symbol,
+    then the word: after <code>{`infix "<u" = ...{:kanon}`}</code>, <code>{`a <u b{:kanon}`}</code>
+    is the operator, <code>{`a < u b{:kanon}`}</code> is still <code>&lt;</code> applied to
+    <code>{`u b{:kanon}`}</code>, and <code>{`x<y{:kanon}`}</code> is not changed (but
+    <code>{`x<u{:kanon}`}</code> is now <code>x</code> and the operator). Its precedence is that of
+    its symbol, and it may be a prefix operator (<code>{`prefix "!u"{:kanon}`}</code>).
+  </p>
 
   <Heading level={3} id="precedence">Precedence</Heading>
   <p>

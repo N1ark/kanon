@@ -24,6 +24,23 @@ let is_word s =
   && (match s.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true | _ -> false) s
 
+(** The length of the symbol at the start of [s]: its characters that are
+    operator characters (see the lexer). *)
+let symbol_length s =
+  let n = String.length s in
+  let rec go i =
+    if i < n && (match s.[i] with '!' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '^' | '|' | '~' | '#' | '\128' .. '\255' -> true | _ -> false) then go (i + 1) else i
+  in
+  go 0
+
+(** Declares [op], if it has a word, as an operator that the lexer reads in the
+    rest of the files: a word
+    ([urem], for an infix operator) or a symbol followed by a word ([<u]). *)
+let declare_word_op ~infix op =
+  let k = symbol_length op in
+  if is_word (String.sub op k (String.length op - k)) && (infix || k > 0) then
+    Hashtbl.replace Syntax.infix_words op ()
+
 (* [oploc] is the location of the operator, [loc] that of the expression *)
 let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
 
@@ -292,11 +309,11 @@ documented_item:
              ] )) }
   | INFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
-      (* an infix word is an operator in the rest of the files *)
-      if is_word op then Hashtbl.replace Syntax.infix_words op ();
+      declare_word_op ~infix:true op;
       item loc (Pstr_eval (e, [ attr loc "infix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
+      declare_word_op ~infix:false op;
       item loc (Pstr_eval (e, [ attr loc "prefix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   (* [constant c (v) = e], a function of [v], or [constant c = e], where [c] is
      a literal or a name (or a string, as before) *)

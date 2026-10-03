@@ -4,6 +4,7 @@
 
 ### Added
 
+- [Infix operators with a word suffix](README.md#operators): a declared operator may be a symbol followed by a word, such as `infix "<u" = Ult, bv_ult` (`a <u b`, `a <=s b`). The lexer reads it as one operator only once it is declared, at the precedence of its symbol; `a < u b` and `x<y` are unchanged.
 - [Parametrised abstract types](README.md#types): `type 'a iarray [@ocaml "Iarray.t"] [@equal "Iarray.equal"] [@hash "Iarray.hash"]` declares a host container usable at any type, `t` included (`node Array of t iarray`, `prim get : t iarray -> int -> t`, `(t, int) pair`). `[@equal]` and `[@hash]` take the equality and the hash of the arguments first, which Kanon passes, so that nodes are hash-consed on the elements. The Lean backends reject them.
 - The [`ocaml-typed` backend](README.md#typed-ocaml) generates an OCaml interface of the smart constructors, typed by ghost tags (`[@@@ghost]`, `[@ghost]`, `[@ctor]`). The bool module declares `sbool`. `[@ghost t1 ... tn]` after the spec of a rule function sets its tags, and rule functions whose spec is not a single node get a `val` too.
 - [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
