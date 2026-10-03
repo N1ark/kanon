@@ -444,7 +444,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>
           The interface has a function <code>f</code> that builds the node: leaves, and nodes
           without a rule function, have none otherwise. The parameters of the node are its leading
-          arguments.
+          arguments, and they have the types of the arguments of its constructor (a
+          <code>nat</code> is an <code>int</code>). It has no implementation in
+          <code>Derived</code>: it is written by hand.
         </td>
       </tr>
     </tbody>
@@ -468,6 +470,14 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>
           The OCaml module of the types (the output of <code>ocaml-types</code>), which the
           generated rules open. Without it, they must be included where the types are in scope.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@@@ocaml_rules "M"]{:kanon}`}</code></td>
+        <td>
+          The OCaml module of the rules (the output of <code>ocaml</code>), which the
+          implementation of <code>ocaml-typed</code> is made of (<code>M.f</code>). Required by
+          <code>ocaml-typed</code>.
         </td>
       </tr>
       <tr>
@@ -508,9 +518,20 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       <tr>
         <td><code>ocaml-typed</code></td>
         <td>
-          The OCaml interface of the smart constructors, <code>module type S</code>, typed by the tags
-          of the sorts and subsorts, and <code>Ghost</code>, which implements its phantom types and
-          escape hatches. The rules implement the rest of <code>S</code>, but for the leaf nodes.
+          The typed interface of the smart constructors, where a term <code>'a t</code> has a
+          phantom parameter, a tag, that says what Kanon knows of it: the module
+          <code>Tag</code>, with a polymorphic variant type per sort and subsort (they may be
+          joined into groups of tags: <code>{`[ Tag.tbitvec | Tag.tfloat ]{:ocaml}`}</code>);
+          the signature <code>S</code>, with the types <code>'a t</code> and <code>'a ty</code>,
+          the escape hatches <code>untyped</code>, <code>type_</code> and <code>cast</code> (and
+          <code>untype_type</code>, <code>type_type</code> on sorts), and a module per Kanon module
+          (per file: <code>bitvec.kn</code> and <code>bitvec.knl</code> give <code>Bitvec</code>)
+          that has a function for each sort, rule function and destructor declared in it, typed by
+          the tags; and <code>Derived</code>, the implementation of <code>S</code> from the rules
+          (module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>), with <code>{`type 'a t = raw{:ocaml}`}</code>
+          visible, which <code>S</code> hides: the leaf nodes with <code>{`[@ctor]{:kanon}`}</code> are
+          not implemented. The parameters of a rule function have the types that it declares, as in
+          <code>ocaml</code> (a <code>nat</code> is a <code>Z.t</code>).
         </td>
       </tr>
       <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>

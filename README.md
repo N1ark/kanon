@@ -297,6 +297,8 @@ builds the node of its notation at the sort of the spec (`Bool false`,
 
 ### Floating attributes
 
+- `[@@@ocaml_rules "M"]`: the OCaml module of the rules (the output of `kanon
+  ocaml`), required by `ocaml-typed` (see [Typed OCaml](#typed-ocaml)).
 - `[@@@ocaml_prims "M"]`: the OCaml module of the primitives (see
   [OCaml](#ocaml)), required when the language has primitives.
 - `[@@@ocaml_types "M"]`: the OCaml module of the types, which the generated
@@ -543,11 +545,14 @@ nor may two constructors that differ only by their case: these are errors.
 
 ## Typed OCaml
 
-`kanon ocaml-typed lang.knl rules.kn` generates an OCaml interface, `module
-type S`, of the smart constructors, where a term `'a t` is typed by a ghost
-tag `'a`, a polymorphic variant that says what Kanon knows of it, and the
-module `Ghost`, which implements its phantom types. The tags come from the
-sorts, and the subsorts refine them.
+`kanon ocaml-typed lang.knl rules.kn` generates the typed interface of the
+language. The terms of the generated OCaml are all of one type, `t`: nothing
+stops `bv_add` from being applied to a boolean, but for the assertions on its
+entry. In the typed interface a term is a `'a t`, where `'a` is a *tag*, a
+polymorphic variant that says what Kanon knows of the term, and OCaml rejects
+the ill-kinded calls. The tag is a phantom type: it is only in the type, and a
+typed term is the same value as the untyped one, at no cost. The tags come from
+the sorts, and the subsorts refine them.
 
 ```ocaml
 sort TBitVec of nat
@@ -556,7 +561,8 @@ node Add of checked (c) : TBitVec n -> TBitVec n -> TBitVec n
 node Div : TBitVec n -> TNonzero n -> TBitVec n
 ```
 
-gives, for the rule functions `bv_add` and `bv_div` of `Add` and `Div`:
+gives, for the rule functions `bv_add` and `bv_div` of `Add` and `Div`, in a
+file `bitvec.knl` and `bitvec.kn`:
 
 ```ocaml
 module Tag : sig
@@ -564,17 +570,28 @@ module Tag : sig
   type tbitvec = [ `TBitVec | tnonzero ]
 end
 
-val t_bitvec : int -> [> tbitvec ] ty
-val bv_add : checked -> [< tbitvec ] t -> [< tbitvec ] t -> [> tbitvec ] t
-val bv_div : [< tbitvec ] t -> [< tnonzero ] t -> [> tbitvec ] t
+module type S = sig
+  type +'a t
+  (* ... *)
+  module Bitvec : sig
+    val t_bitvec : int -> [> Tag.tbitvec ] ty
+    val bv_add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
+    val bv_div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
+  end
+end
 ```
+
+What is generated, in the file, for the language (nothing is a functor):
 
 - `Tag` has a tag type per sort and per subsort: the lowercase name of its
   constructor, the variant of that name (`` `TNonzero ``), and for a sort, the
-  tag types of its subsorts too (`tbitvec`). So an operand `[< tbitvec ] t`
-  accepts any bit-vector, including a non-zero one (`[> tnonzero ] t`), and an
-  operand `[< tnonzero ] t` only one that is known to be non-zero. Two sorts or
-  subsorts that differ by their case have the same tag type: an error.
+  tag types of its subsorts too (`tbitvec`). So an operand `[< Tag.tbitvec ] t`
+  accepts any bit-vector, including a non-zero one (`[> Tag.tnonzero ] t`), and
+  an operand `[< Tag.tnonzero ] t` only one that is known to be non-zero. Two
+  sorts or subsorts that differ by their case have the same tag type: an error.
+  The tag types are plain polymorphic variant types, so that a program may
+  join them to make groups of tags of its own: `type scalar = [ Tag.tbitvec |
+  Tag.tfloat ]`, and `([< scalar ] as 'a) t` for a function over them.
 - A term has the tag that its typing gives: a result is `[> tag ] t` (the
   result of `bv_add` is a `tbitvec`, which is not known to be non-zero), and an
   operand `[< tag ] t`. A subsort is trusted: nothing proves it, and `cast`
@@ -582,51 +599,73 @@ val bv_div : [< tbitvec ] t -> [< tnonzero ] t -> [> tbitvec ] t
   other values of a sort, are erased: Kanon does not check them. A sort
   variable (`Eq`, `Ite`, `Distinct`) is shared by the operands and the result,
   as `'a t`. A node without a typing has any tag, `_ t`.
-- A `val t_s` per sort (not subsort), which takes the arguments of the sort
-  (the widths are `int`s); a `val` per rule function, named after it, for the
-  node that is its spec, and per node with `[@ctor f]` (the leaves, and the
-  nodes that have no rule function). Other nodes have none. The parameters of
-  the node are plain leading arguments, then come the operands, and the result.
-  Types of the language are those of `ocaml-types`, opened from
-  `[@@@ocaml_types]`, or else in scope. The docs of the rule function or the
-  node are carried onto the `val`.
-- The destructors of the `ocaml` backend (see [OCaml](#ocaml)) have a `val`
-  too: `as_foo : _ t -> (args) option`, whose operands are `[> tag ] t` (the
-  tags of the typing of `Foo`), and `is_foo : _ t -> bool`, for every node, and
-  `as_tfoo`, `is_tfoo` for every sort (not subsort), on `_ ty`.
-- A parameter of a node that is a `nat` is an `int`, like the arguments of a
-  sort, and an `int` is a `Z.t`. A sort that is a parameter (`ty`) is a `raw_ty`,
-  since its tag is not known, and a term that is a parameter and not an operand
-  (the body of `Exists of (var * ty) list * t`) is `_ t`: any tag. An `Exists`
-  node is therefore `val mk_exists : (var * raw_ty) list -> _ t -> [> tbool ] t`.
-- A rule function has a `val` whatever its spec. When the spec is a node over
-  the parameters of the function, it is typed as the node. Otherwise it is typed
-  by the outermost node of the spec: the result has its tag, a parameter that
-  is one of its operands has the tag of that operand, and any other parameter
-  has any tag, `_ t`; a spec that is not a node (a call of a function) has any
-  tag everywhere. For instance `rule bv_to_bool (v : t) : Not (Eq (v, bv_zero
-  (size v)))` is `_ t -> [> tbool ] t`, and `rule bv_lt_zero (v : t) : Lt (true,
-  v, bv_zero (size v))` is `[< tbitvec ] t -> [> tbool ] t`.
-- `S` has `type raw = t` and `type raw_ty = ty`, the terms and sorts of the
-  language, and the escape hatches: `untyped : 'a t -> raw`, `type_ : raw -> 'a
-  t`, `cast : 'a t -> 'b t`, `untype_type` and `type_type` on sorts. `Ghost`
-  defines them, with the phantom types `type 'a t = raw` and `type 'a ty =
-  raw_ty`, where the escape hatches are `Fun.id`: the types are equal in
-  `Ghost`, which `S` hides, so that nothing needs `Obj.magic`, and nothing is
-  done at run time. It also defines the `t_s` of the sorts. The rules, in the
-  same type, are the smart constructors of `S` too, so that all that is left to
-  write by hand is what is not generated, the leaf nodes with `[@ctor]`:
+- `module type S`, the signature, with the types of the language and, for
+  `'a t` and the sorts `'a ty`, the escape hatches: `untyped : 'a t -> raw`
+  forgets the tag (`raw` is the term `t` of the types of the language), `type_
+  : raw -> 'a t` trusts one and `cast : 'a t -> 'b t` changes it, and
+  `untype_type` and `type_type` do the same for the sorts. They are the
+  identity at run time. Then a module per Kanon module (see below), with:
+  - a `val t_s` per sort (not subsort), which makes the sorts of its terms from
+    its arguments, which are those of its constructor (a `nat` is an `int`);
+  - a `val` per rule function, named after it, for the node that is its spec,
+    and per node with `[@ctor f]` (the leaves, and the nodes that have no rule
+    function). Other nodes have none. The parameters of a rule function have
+    the types that it declares, which are those of the generated rules (a `nat`
+    or an `int` is a `Z.t`), then come the operands, and the result. The
+    parameters of a `[@ctor]` are the arguments of the constructor of the node
+    (a `nat` is an `int`, an `int` a `Z.t`). Types of the language are those of
+    `ocaml-types`, opened from `[@@@ocaml_types]`, or else in scope. The docs of
+    the rule function or the node are carried onto the `val`;
+  - the destructors of the `ocaml` backend (see [OCaml](#ocaml)):
+    `as_foo : _ t -> (args) option`, whose operands are `[> tag ] t` (the tags
+    of the typing of `Foo`), and `is_foo : _ t -> bool`, for every node, and
+    `as_tfoo`, `is_tfoo` for every sort (not subsort), on `_ ty`.
+- A sort that is a parameter (`ty`) is a `raw_ty`, since its tag is not known,
+  and a term that is a parameter and not an operand (the body of `Exists of
+  (var * ty) list * t`) is `_ t`: any tag. A rule function has a `val` whatever
+  its spec. When the spec is a node over the parameters of the function, it is
+  typed as the node. Otherwise it is typed by the outermost node of the spec:
+  the result has its tag, a parameter that is one of its operands has the tag
+  of that operand, and any other parameter has any tag, `_ t`; a spec that is
+  not a node (a call of a function) has any tag everywhere. For instance `rule
+  bv_to_bool (v : t) : Not (Eq (v, bv_zero (size v)))` is `_ t -> [> tbool ]
+  t`.
+- `module Derived`, the implementation of `S`: the rules, `let bv_add =
+  Kanon_rules.bv_add`, where `Kanon_rules` is the module that names
+  `[@@@ocaml_rules "Lang_rules"]` (required: the output of `kanon ocaml`), and
+  the sorts, destructors and escape hatches. In `Derived`, `type 'a t = raw` is
+  visible, so that the rules have the types of `S`; `S` hides it, since a
+  visible equality would make every tag the same type, and OCaml would accept
+  the division by a bit-vector that is not known to be non-zero. There is no
+  functor, so that the escape hatches, which are `let[@inline] f x = x`, are
+  known functions to the compiler.
 
-  ```ocaml
-  module Typed : Lang_typed.S = struct
-    include Lang_typed.Ghost
-    include Lang_rules
+The module of a `val` is that of the Kanon module of its declaration: the file
+of the rule function, the sort or the node, without its extension and with a
+capital (`bitvec.kn` and `bitvec.knl` are `Bitvec`, `use builtin "bool"` is
+`Bool`), in `S` and in `Derived`. A module that declares none of them has no
+module in the interface. `Tag`, `S`, `Derived` and `Kanon_rules` are the names
+of generated modules: a file may not have them. The tags, which are not tied
+to a module, are all in `Tag`.
+
+What is left to write by hand are the leaf nodes with `[@ctor]`, which
+`Derived` has no implementation of, and the other layers on top of it (labelled
+arguments, a nesting of its own, groups of tags):
+
+```ocaml
+module Typed : Lang_typed.S = struct
+  include Lang_typed.Derived
+
+  module Bitvec = struct
+    include Lang_typed.Derived.Bitvec
+
     let mk_bv v n = Lang_types.node (BitVec (v, n)) (TBitVec n)
   end
-  ```
-- Not generated: the constraints that bound a variable to a group of tags
-  (`([< any ] as 'a) t`, for `compare`), labelled or optional arguments, and
-  helpers that are not rule functions.
+end
+```
+
+OCaml checks the result against the interface `S`, whose types are abstract
+(`type +'a t`).
 
 ## Proofs
 
