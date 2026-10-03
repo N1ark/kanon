@@ -27,6 +27,9 @@
 (sort_declaration
   (constructor_declaration) @class.inside) @class.around
 
+(subsort_declaration
+  (constructor_declaration) @class.inside) @class.around
+
 (comment) @comment.inside
 
 (comment)+ @comment.around

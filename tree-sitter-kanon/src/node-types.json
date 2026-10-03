@@ -130,6 +130,10 @@
         "named": true
       },
       {
+        "type": "subsort_declaration",
+        "named": true
+      },
+      {
         "type": "type_definition",
         "named": true
       },
@@ -2546,6 +2550,21 @@
     }
   },
   {
+    "type": "subsort_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "constructor_declaration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "tuple_expression",
     "named": true,
     "fields": {},
@@ -3362,6 +3381,10 @@
   {
     "type": "string_content",
     "named": true
+  },
+  {
+    "type": "subsort",
+    "named": false
   },
   {
     "type": "then",

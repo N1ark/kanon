@@ -158,6 +158,7 @@
   "before"
   "node"
   "sort"
+  "subsort"
   "notation"
   "type"
   "of"

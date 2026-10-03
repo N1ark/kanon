@@ -275,6 +275,60 @@ node Concat : (TBitVector n) list -> TBitVector n
           (identifier))))))
 
 ================================================================================
+Subsorts
+================================================================================
+
+sort TBitVector of nat
+subsort TNonzero of nat : TBitVector n
+(** The zero. *)
+subsort TZero of nat : TBitVector n [@lean "IsZero"]
+node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (sort_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)))
+  (subsort_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier)))))
+  (comment)
+  (subsort_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier)))
+      (attribute
+        (attribute_name
+          (identifier))
+        (string
+          (string_content)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier))
+        (constructor_expression
+          (constructor)
+          (identifier))
+        (constructor_expression
+          (constructor)
+          (identifier))))))
+
+================================================================================
 Operators and constants
 ================================================================================
 

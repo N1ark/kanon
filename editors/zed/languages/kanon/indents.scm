@@ -9,6 +9,7 @@
   (primitive_declaration)
   (node_declaration)
   (sort_declaration)
+  (subsort_declaration)
   (type_definition)
   (operator_declaration)
   (constant_declaration)
