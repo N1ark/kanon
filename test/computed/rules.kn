@@ -1,0 +1,25 @@
+prim var_ty : var -> ty
+
+fn nth_ty (tys : ty list) (i : int) : ty =
+  match tys with
+  | [] -> TInt
+  | t :: r -> if i = 0 then t else nth_ty r (i - 1)
+
+fn types_of (vs : t list) : ty list =
+  match vs with
+  | [] -> []
+  | v :: r -> type_of v :: types_of r
+
+fn field_ty (v : t) (i : int) : ty =
+  match type_of v with
+  | TTuple tys -> nth_ty tys i
+  | _ -> TInt
+
+fn mk_tuple (vs : t list) : t = (Tuple vs : TTuple (types_of vs))
+fn mk_var (x : var) (s : ty) : t = (Var x : s)
+fn mk_var_of (x : var) : t = (Var x : var_ty x)
+fn mk_field (i : int) (v : t) : t = (Field (i, v) : field_ty v i)
+fn mk_field_in (i : int) (v : t) : t = (Field (i, v) : (nth_ty (types_of [v]) i))
+
+rule proj : Proj (i, v) =
+  | any: _ -> (Proj (i, v) : field_ty v i)

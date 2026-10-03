@@ -35,6 +35,28 @@ let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
 let econstr ?cloc loc c arg = exp loc (Pexp_construct (lid (Option.value cloc ~default:loc) c, arg))
 let pconstr ?cloc loc c arg =
   pat loc (Ppat_construct (lid (Option.value cloc ~default:loc) c, Option.map (fun p -> ([], p)) arg))
+(* The type that the expression [e] reads as, [int list] or [t], if any: a
+   constraint [(e : t)] is parsed as an expression, since [(C x : f y)] has an
+   expression for sort. *)
+let rec typ_of_expr (e : expression) =
+  let constr x t = typ e.pexp_loc (Ptyp_constr (lid e.pexp_loc x, t)) in
+  match e.pexp_desc with
+  | Pexp_ident { txt = Lident x; _ } -> Some (constr x [])
+  | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident "*"; _ }; _ }, [ (_, a); (_, b) ]) -> (
+      match (typ_of_expr a, typ_of_expr b) with
+      | Some ({ ptyp_desc = Ptyp_tuple l; _ } as ta), Some tb when a.pexp_loc.loc_start = e.pexp_loc.loc_start ->
+          Some { ta with ptyp_desc = Ptyp_tuple (l @ [ tb ]); ptyp_loc = e.pexp_loc }
+      | Some ta, Some tb -> Some (typ e.pexp_loc (Ptyp_tuple [ ta; tb ]))
+      | _ -> None)
+  | Pexp_apply (f, args) ->
+      List.fold_left
+        (fun acc (_, (a : expression)) ->
+          match (acc, a.pexp_desc) with
+          | Some t, Pexp_ident { txt = Lident x; _ } -> Some (typ e.pexp_loc (Ptyp_constr (lid a.pexp_loc x, [ t ])))
+          | _ -> None)
+        (typ_of_expr f) args
+  | _ -> None
+
 let tuple_or_one mk = function [ x ] -> x | l -> mk l
 
 let attr loc name payload =
@@ -546,12 +568,21 @@ simple_expr:
   | i = INT { exp (mkloc $loc) (Pexp_constant (Pconst_integer (i, None))) }
   | LPAREN RPAREN { econstr (mkloc $loc) "()" None }
   | LPAREN e = seq_expr RPAREN { e }
-  | LPAREN e = seq_expr COLON t = typ RPAREN { exp (mkloc $loc) (Pexp_constraint (e, t)) }
-  (* [(v : TBitVector n)], the sort of an operand of a spec *)
-  | LPAREN e = seq_expr COLON c = UID arg = option(simple_expr) RPAREN
+  (* [(e : a)]: either [e] of the type [a], or, when [a] is not a type, a term
+     of a sort: [(v : TBitVector n)] is the sort of an operand of a spec,
+     [(C x : S args)] or [(C x : f y)] the node [C] built at a sort *)
+  | LPAREN e = seq_expr COLON a = or_expr RPAREN
     { let loc = mkloc $loc in
-      let s = econstr ~cloc:(mkloc $loc(c)) (mkloc ($startpos(c), $endpos(arg))) c arg in
-      exp loc (Pexp_extension ({ txt = "kanon.sort"; loc }, PStr [ eval_item loc e; eval_item loc s ])) }
+      let sort () = exp loc (Pexp_extension ({ txt = "kanon.sort"; loc }, PStr [ eval_item loc e; eval_item loc a ])) in
+      match a.pexp_desc with
+      | Pexp_construct _ -> sort ()
+      | _ -> (
+          match typ_of_expr a with
+          | None -> sort ()
+          | Some t ->
+              (* [(C x : s)] is a type constraint, or a node at the sort [s]: [Check] decides *)
+              let attrs = match e.pexp_desc with Pexp_construct _ -> [ attr loc "kanon.sortexpr" [ eval_item loc a ] ] | _ -> [] in
+              { (exp loc (Pexp_constraint (e, t))) with pexp_attributes = attrs }) }
   | LBRACKET es = separated_list(SEMI, expr) RBRACKET { elist (mkloc $loc) es }
   | LBRACE fs = separated_nonempty_list(SEMI, field_expr) RBRACE { exp (mkloc $loc) (Pexp_record (fs, None)) }
   | e = simple_expr DOT f = LID { exp (mkloc $loc) (Pexp_field (e, lid (mkloc $loc(f)) f)) }

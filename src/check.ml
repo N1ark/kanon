@@ -1144,11 +1144,36 @@ let node_term loc ~name ~build (params : Syntax.expr list)
     commutative operators with their operands in order (see [comm_fns]). *)
 let ordered = ref false
 
+let is_node_constr c =
+  match find_constr c with
+  | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
+  | None -> false
+
+(** The expression [s] of [(C x : s)], that the parser read as a type. *)
+let sortexpr_of (e : expression) =
+  List.find_map
+    (fun (a : attribute) ->
+      match a.attr_payload with
+      | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+        when a.attr_name.txt = "kanon.sortexpr" ->
+          Some s
+      | _ -> None)
+    e.pexp_attributes
+  |> Option.get
+
 let rec expr env ?expected (e : expression) : Syntax.expr =
   let loc = e.pexp_loc in
   let mk ety d =
     Option.iter (fun expected -> expect loc ~expected ety) expected;
     { e = d; ety; eloc = loc }
+  in
+  (* [(C x : e)] for an expression [e] of type [ty] that is not a sort
+     constructor applied to arguments: the sort is computed, and the typing of
+     [C], if it has one, is not checked against it *)
+  let computed_node k s =
+    let kind = expr env ~expected:TKind k in
+    let sort = expr env ~expected:TSty s in
+    mk TTerm (ENode (kind, sort))
   in
   (* an operator on terms, if one of its operands is a term *)
   let term_op op (args : Syntax.expr list) =
@@ -1447,6 +1472,28 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       let c = expr env ~expected:TBool c in
       let body = expr env ?expected body in
       mk body.ety (EAssert (c, body))
+  | Pexp_constraint
+      (({ pexp_desc = Pexp_construct ({ txt = Lident c; _ }, _); _ } as k), ct)
+    when is_node_constr c
+         && List.exists
+              (fun (a : attribute) -> a.attr_name.txt = "kanon.sortexpr")
+              e.pexp_attributes
+         &&
+         (* [(C x : t)] with a type [t] and no variable of that name is a type
+            annotation *)
+         match sortexpr_of e with
+         | { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ } -> (
+             List.mem_assoc x env.vars
+             || List.mem_assoc x env.globals
+             || List.mem_assoc x !sort_vars
+             ||
+               try
+                 ignore (ty_of_core ct);
+                 false
+               with Error _ -> true)
+         | _ -> true ->
+      (* [(C x : s)] for a variable [s]: the node at the computed sort *)
+      computed_node k (sortexpr_of e)
   | Pexp_constraint (e, ct) ->
       let t = ty_of_core ct in
       Option.iter (fun expected -> expect loc ~expected t) expected;
@@ -1459,11 +1506,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             { pstr_desc = Pstr_eval (s, _); _ };
           ] ) -> (
       (* [(C args : S args)]: the node [C], built at the sort [S args] *)
-      let is_node c =
-        match find_constr c with
-        | Some c -> c.c_res = TKind || Option.is_some (node_of_op c)
-        | None -> false
-      in
+      let is_node = is_node_constr in
       match (k.pexp_desc, s.pexp_desc) with
       | ( Pexp_construct ({ txt = Lident c; _ }, _),
           Pexp_construct ({ txt = Lident h; _ }, sarg) )
@@ -1490,7 +1533,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           let sort = expr env ~expected:TSty s in
           mk TTerm (ENode (kind, sort))
       | Pexp_construct ({ txt = Lident c; _ }, _), _ when is_node c ->
-          error s.pexp_loc "expected a sort, C args"
+          computed_node k s
       | _ ->
           error loc
             "only the operands of a spec, the parameters of functions and \
