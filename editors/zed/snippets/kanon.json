@@ -49,6 +49,11 @@
     "body": ["sort ${0:TName}"],
     "description": "A sort, a constructor of the types of terms"
   },
+  "Subsort": {
+    "prefix": "subsort",
+    "body": ["subsort ${1:TName} of nat : ${0:TParent} n"],
+    "description": "A subsort of a sort, of the same arguments"
+  },
   "Notation": {
     "prefix": "notation",
     "body": ["notation ${0:Node}"],
