@@ -42,17 +42,42 @@ let rewind (lexbuf : Lexing.lexbuf) =
   lexbuf.lex_curr_pos <- lexbuf.lex_start_pos;
   lexbuf.lex_curr_p <- lexbuf.lex_start_p
 
-(* The token of a declared operator that has a word suffix, [<u]: the level of
-   an operator is given by its symbol, as for an operator without a suffix. *)
+(* The token of an operator with a word suffix, [<u]: the level of an operator
+   is given by its symbol, as for an operator without a suffix. *)
 let word_op s =
   match s.[0] with
-  | '=' | '<' | '>' | '|' | '&' | '$' | '\128' .. '\255' -> Some (CMPOP s)
+  | '=' | '<' | '>' | '|' | '&' | '$' | '!' | '\128' .. '\255' -> Some (CMPOP s)
   | '@' | '^' -> Some (CONCATOP s)
   | '+' | '-' -> Some (ADDOP s)
   | '*' when String.length s > 1 && s.[1] = '*' -> Some (POWOP s)
   | '*' | '/' | '%' -> Some (MULOP s)
-  | '!' | '~' | '?' -> Some (PREFIXOP s)
   | _ -> None
+
+let is_op_char = function
+  | '!' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '=' | '>'
+  | '?' | '@' | '^' | '|' | '~' | '#' | '\128' .. '\255' -> true
+  | _ -> false
+
+(* The length of the symbol at the start of [s] *)
+let symbol_length s =
+  let rec go i = if i < String.length s && is_op_char s.[i] then go (i + 1) else i in
+  go 0
+
+(* Whether the lexeme starts after nothing, a space or an opening bracket *)
+let left_ok (lexbuf : Lexing.lexbuf) =
+  let i = lexbuf.lex_start_pos in
+  i = 0
+  || match Bytes.get lexbuf.lex_buffer (i - 1) with
+     | ' ' | '\t' | '\r' | '\n' | '(' | '[' | '{' | ',' | ';' -> true
+     | _ -> false
+
+(* Whether the lexeme is followed by nothing, a space or a closing bracket *)
+let right_ok (lexbuf : Lexing.lexbuf) =
+  let i = lexbuf.lex_curr_pos in
+  i >= lexbuf.lex_buffer_len
+  || match Bytes.get lexbuf.lex_buffer i with
+     | ' ' | '\t' | '\r' | '\n' | ')' | ']' | '}' | ',' | ';' -> true
+     | _ -> false
 }
 
 let ident_char = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
@@ -90,15 +115,11 @@ rule token = parse
       | Some k -> k
       | None -> if Hashtbl.mem Syntax.infix_words s then INFIXWORD s else LID s }
   | uid as s { UID s }
-  | op_char+ ['a'-'z'] ident_char* {
+  | op_char+ (['a'-'z'] ident_char*)? {
       let s = Lexing.lexeme lexbuf in
-      match if Hashtbl.mem Syntax.infix_words s then word_op s else None with
-      | Some t -> t
-      | None ->
-          (* not a declared operator: the symbol alone, then the word *)
-          rewind lexbuf;
-          symbol lexbuf }
-  | op_char { rewind lexbuf; symbol lexbuf }
+      let left = left_ok lexbuf in
+      rewind lexbuf;
+      operator s left lexbuf }
   | '\'' (lid as s) { TYVAR s }
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }
@@ -112,6 +133,38 @@ rule token = parse
   | ';' { SEMI }
   | eof { EOF }
   | _ as c { raise (Error (lexbuf.lex_start_p, Printf.sprintf "unexpected character %C" c)) }
+
+(* The operator [s], a symbol and the word that directly follows it, if any,
+   which is [left] if what precedes it is a space or an opening bracket. It is
+   surrounded by spaces (or brackets), but for a prefix operator, [-] or one
+   that starts with [!], [~] or [?], which is directly followed by its operand,
+   and for [.], [#] and [:], which are not operators. Otherwise [x<y] is not
+   [x < y]: it is an error. *)
+and operator s left = parse
+  | "" {
+      let start = lexbuf.lex_start_p in
+      let k = symbol_length s in
+      let bad () =
+        raise (Error (start, Printf.sprintf "the operator %s must be surrounded by spaces" (String.sub s 0 k)))
+      in
+      let t = symbol lexbuf in
+      match t with
+      | COLON | DOT | HASH -> t
+      | MINUS | PREFIXOP _ ->
+          if not left then bad ()
+          else if right_ok lexbuf then t
+          else if t = MINUS then UMINUS
+          else t
+      | _ ->
+          if k < String.length s then (
+            let w = String.length s - k in
+            lexbuf.lex_curr_pos <- lexbuf.lex_curr_pos + w;
+            lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_cnum = lexbuf.lex_curr_p.pos_cnum + w };
+            match word_op s with
+            | Some t when left && right_ok lexbuf -> t
+            | _ -> bad ())
+          else if left && right_ok lexbuf then t
+          else bad () }
 
 (* The symbolic operators, as long as possible *)
 and symbol = parse

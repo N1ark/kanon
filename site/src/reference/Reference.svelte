@@ -567,20 +567,31 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
     An operator is a word (a lowercase name, such as <code>urem</code>) or a sequence of the symbols
     <code>! $ % &amp; * + - . / : &lt; = &gt; ? @ ^ | ~</code>, of <code>#</code> after the first
     character, and of non-ASCII characters (<code>≤</code>, <code>⊕</code>). Symbols are read as in
-    OCaml, as many as possible: <code>{`a+-b{:kanon}`}</code> is the operator <code>+-</code>. The
+    OCaml, as many as possible: <code>{`a +- b{:kanon}`}</code> is the operator <code>+-</code>. The
     reserved <code>=</code>, <code>|</code>, <code>-&gt;</code>, <code>&lt;-</code>, <code>:</code>,
     <code>::</code>, <code>;</code> and <code>.</code> cannot be declared, nor
     <code>&lt;&gt;</code>, which is built in at every type.
   </p>
   <p>
-    A symbol may be followed by a word, with no space: <code>&lt;u</code>, <code>&lt;=s</code>
-    (a lowercase letter, then letters, digits, <code>_</code> and <code>'</code>). It is one
-    operator only if it is declared, in the rest of the files, and is otherwise read as the symbol,
-    then the word: after <code>{`infix "<u" = ...{:kanon}`}</code>, <code>{`a <u b{:kanon}`}</code>
-    is the operator, <code>{`a < u b{:kanon}`}</code> is still <code>&lt;</code> applied to
-    <code>{`u b{:kanon}`}</code>, and <code>{`x<y{:kanon}`}</code> is not changed (but
-    <code>{`x<u{:kanon}`}</code> is now <code>x</code> and the operator). Its precedence is that of
-    its symbol, and it may be a prefix operator (<code>{`prefix "!u"{:kanon}`}</code>).
+    A symbol directly followed by a word is one operator: <code>&lt;u</code>,
+    <code>&lt;=s</code> (a lowercase letter, then letters, digits, <code>_</code> and
+    <code>'</code>), whatever the declarations: <code>{`a <u b{:kanon}`}</code> is the operator
+    <code>&lt;u</code>, whereas <code>{`a < u b{:kanon}`}</code> is <code>&lt;</code> applied to
+    <code>{`u b{:kanon}`}</code>. Its precedence is that of its symbol. An operator that the
+    language does not declare is an error.
+  </p>
+  <p>
+    Operators are surrounded by spaces: <code>{`x < y{:kanon}`}</code>,
+    <code>{`a <u b{:kanon}`}</code>, <code>{`(x + y){:kanon}`}</code>, and not
+    <code>{`x<y{:kanon}`}</code>, <code>{`x +y{:kanon}`}</code> or
+    <code>{`f x+1{:kanon}`}</code>, which are errors: <code>{`x<y{:kanon}`}</code> is not
+    <code>{`x < y{:kanon}`}</code>. A prefix operator is the exception: it is written right before
+    its operand, after a space or an opening bracket (<code>{`-x{:kanon}`}</code>,
+    <code>{`~(a + b){:kanon}`}</code>, <code>{`x - -y{:kanon}`}</code>); <code>{`- x{:kanon}`}</code>
+    and <code>{`a -x{:kanon}`}</code> are errors, and a prefix operator has no word suffix
+    (<code>{`-x{:kanon}`}</code> is <code>-</code> and <code>x</code>). The dot, the colon and the
+    hash (<code>{`r.f{:kanon}`}</code>, <code>{`(x : t){:kanon}`}</code>,
+    <code>{`#x{:kanon}`}</code>) are not operators and need no spaces.
   </p>
 
   <Heading level={3} id="precedence">Precedence</Heading>

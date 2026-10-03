@@ -246,12 +246,19 @@ An operator is a word (`urem`) or, as in OCaml, a sequence of the symbols
 `! $ % & * + - . / : < = > ? @ ^ | ~`, of `#` after the first, and of
 non-ASCII characters (`≤`, `⊕`), read as long as possible. The reserved `=`,
 `|`, `->`, `<-`, `:`, `::`, `;` and `.` cannot be declared, nor `<>`, built in
-at every type. A symbol may be followed by a word, with no space (`<u`,
-`<=s`: a lowercase letter, then letters, digits, `_` and `'`): it is one
-operator only if it is declared (`infix "<u" = ...`, then `a <u b`), in the rest
-of the files, and is otherwise read as the symbol, then the word (`a < u b`
-stays an application, and `x<y` is unchanged unless `<y` is declared). Its first
-character gives its precedence, as in OCaml; from the lowest:
+at every type. A symbol directly followed by a word (`<u`, `<=s`: a lowercase
+letter, then letters, digits, `_` and `'`) is one operator, whatever the
+declarations: `a <u b` is the operator `<u`, whereas `a < u b` is `<` applied to
+`u b`. The operators of a language are those it declares (and the built-in
+ones): using another one is an error.
+
+Operators are surrounded by spaces: `x < y`, `a <u b`, `(x + y)`, and not
+`x<y`, `x +y` or `f x+1`, which are errors, not `x < y`. A prefix operator is
+the exception: it is written right before its operand, after a space or an
+opening bracket (`-x`, `~(a + b)`, `x - -y`); `- x` and `a -x` are errors, and a
+prefix operator has no word suffix (`-x` is `-` and `x`). The dot, the colon and
+the hash (`r.f`, `(x : t)`, `#x`) are not operators and need no spaces. The first
+character of an operator gives its precedence, as in OCaml; from the lowest:
 
 - `||` (right), `&&` (right);
 - `=...`, `<...`, `>...`, `|...`, `&...`, `$...`, `!=` and the operators that

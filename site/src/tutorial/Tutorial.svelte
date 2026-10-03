@@ -193,8 +193,12 @@ node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
     Operators give a syntax to nodes. <code>{`infix "op" = Node, f{:kanon}`}</code> declares what
     <code>a op b</code> builds and matches: in expressions, it calls the smart constructor
     <code>f</code>; in patterns, it matches the node. An operator is a word, or a sequence of
-    symbols such as <code>+</code>, <code>==</code> or <code>≤</code>, whose first character gives
-    its precedence, as in OCaml (see the <a href="reference.html#operators">reference</a>).
+    symbols such as <code>+</code>, <code>==</code> or <code>≤</code>, possibly followed by a word
+    (<code>&lt;u</code>), whose first character gives its precedence, as in OCaml (see the
+    <a href="reference.html#operators">reference</a>). Operators are surrounded by spaces:
+    <code>{`a <u b{:kanon}`}</code> and <code>{`x + y{:kanon}`}</code>, but <code>{`x+y{:kanon}`}</code>
+    is an error, not <code>{`x + y{:kanon}`}</code>. Only a prefix operator is written right before
+    its operand: <code>{`-x{:kanon}`}</code>, <code>{`~x{:kanon}`}</code>.
   </p>
   <Code
     code={`infix "&&" = And, and_

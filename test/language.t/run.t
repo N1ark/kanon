@@ -243,125 +243,89 @@ k < (1 lsl (n - 1)).
   
   
 
-A symbolic operator may end with a word, if it is declared: <u is an operator
-(at the level of <), distinct from < and from the application of u: a <u b is
-not a < u b, and x<y is not changed by the declaration. The prefix operators
-and the patterns have them too, and a symbol that is not declared with its word
-is read as the symbol, then the word.
+An operator is surrounded by spaces (or brackets). A symbolic operator may end
+with a word, as <u, which is an operator at the level of <, distinct from < and
+from the application of u: a <u b is not a < u b. The lexer reads it as one
+operator wherever it is written with spaces, whatever the declarations of the
+language.
 
   $ cat > suffix.knl <<'KN'
   > node Ult : TInt -> TInt -> TBool
   > node Ule : TInt -> TInt -> TBool
-  > node Pu : TInt -> TInt
   > infix "<u" = Ult, ult, z_ult
   > infix "<=u" = Ule, ule
-  > prefix "!u" = Pu, pu
   > KN
   $ cat > suffix.kn <<'KN'
   > prim z_ult : int -> int -> bool
   > rule ult : Ult (v1, v2) =
   >   | same: a <u b when false -> a <=u b
   > rule ule : Ule (v1, v2)
-  > rule pu : Pu v
   > fn u (x : int) : int = x
   > fn lt_t (a b : t) : t = a <u b
   > fn lt_z (x y : int) : bool = x <u y
   > fn lt_app (x y : int) : bool = x < u y
-  > fn lt_tight (x y : int) : bool = x<u y
-  > fn lt_plain (x y : int) : bool = x<y
-  > fn prefixed (a b : t) : t = !u a <=u b
+  > fn lt_plain (x y : int) : bool = x < y
+  > fn lt_paren (x y : int) : bool = (x <u y)
+  > fn prefixed (a b : t) : t = ~a <=u b
   > KN
-  $ kanon ocaml ops.knl suffix.knl ops.kn suffix.kn | sed -n '/ lt_t (a/,$p'
+  $ kanon ocaml ops.knl suffix.knl ops.kn suffix.kn | sed -n '/ lt_t (a/,/^let as_int/p'
   let[@inline] lt_t (a : t) (b : t) : t = (ult a b)
   
   let[@inline] lt_z (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
   
   let[@inline] lt_app (x : Z.t) (y : Z.t) : bool = (Z.lt x (u y))
   
-  let[@inline] lt_tight (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
-  
   let[@inline] lt_plain (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
   
-  let[@inline] prefixed (a : t) (b : t) : t = (ule (pu a) b)
+  let[@inline] lt_paren (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+  
+  let[@inline] prefixed (a : t) (b : t) : t = (ule (neg a) b)
   
   let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+
+An operator that is not surrounded by spaces is an error, but for a prefix
+operator (- or a symbol that starts with !, ~ or ?), which is directly followed
+by its operand, and for the dot, the colon and the hash of a pattern: x<y is
+not x < y.
+
+  $ for e in 'x<y' 'x <y' 'x< y' 'x<u y' 'x <u(y)' 'x+y' 'x -y' 'f(x)+y' 'x- y' 'x*.y'; do
+  >   printf 'fn bad (x y : int) : bool = %s\n' "$e" > unspaced.kn
+  >   kanon ocaml ops.knl suffix.knl ops.kn suffix.kn unspaced.kn 2>&1 | grep -v "^let\|^  \|^$"
+  > done
+  unspaced.kn:1:29: the operator < must be surrounded by spaces
+  unspaced.kn:2:0: syntax error
+  unspaced.kn:1:29: the operator < must be surrounded by spaces
+  unspaced.kn:1:29: the operator < must be surrounded by spaces
+  unspaced.kn:1:30: the operator < must be surrounded by spaces
+  unspaced.kn:1:29: the operator + must be surrounded by spaces
+  unspaced.kn:1:30: syntax error
+  unspaced.kn:1:32: the operator + must be surrounded by spaces
+  unspaced.kn:1:29: the operator - must be surrounded by spaces
+  unspaced.kn:1:29: the operator *. must be surrounded by spaces
+
+A prefix operator is directly followed by its operand, and the infix - has
+spaces: x - -y.
+
+  $ cat > prefix.kn <<'KN'
+  > fn p (x y : int) : int = x - -y - (-x) - -(y)
+  > fn q (a : t) : t = ~a
+  > KN
+  $ kanon ocaml ops.knl ops.kn prefix.kn | sed -n '/let\[@inline\] p /,/^let as_int/p'
+  let[@inline] p (x : Z.t) (y : Z.t) : Z.t =
+      (Z.sub (Z.sub (Z.sub x (Z.neg y)) (Z.neg x)) (Z.neg y))
   
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  let[@inline] q (a : t) : t = (neg a)
   
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_ult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Ult, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_ult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Ult, _, _); _ } -> true | _ -> false
-  
-  let as_ule (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Ule, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_ule (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Ule, _, _); _ } -> true | _ -> false
-  
-  let as_pu (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Pu, x1); _ } -> Some x1 | _ -> None
-  
-  let is_pu (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Pu, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  
+  let as_int (t : t) =
+
+A suffix is not an operator that was declared, and an operator that is not
+declared is an error:
+
+  $ cat > nosuffix.kn <<'KN'
+  > fn lt_v (x y : int) : bool = x <v y
+  > KN
+  $ kanon ocaml ops.knl ops.kn nosuffix.kn | sed -n '/ lt_v/,$p'
+  nosuffix.kn:1:29: <v is not defined on int, int
 
 A symbol that does not start an operator cannot have a suffix:
 
@@ -371,76 +335,6 @@ A symbol that does not start an operator cannot have a suffix:
   $ kanon ocaml ops.knl badsuffix.knl ops.kn
   badsuffix.knl:1:7: .u is not an infix operator, nor a word
   [1]
-
-A suffix that is not declared is not read as part of the symbol:
-
-  $ cat > nosuffix.kn <<'KN'
-  > fn u (x : int) : int = x
-  > fn lt_u (x y : int) : bool = x <u y
-  > KN
-  $ kanon ocaml ops.knl ops.kn nosuffix.kn | sed -n '/ lt_u/,$p'
-  let[@inline] lt_u (x : Z.t) (y : Z.t) : bool = (Z.lt x (u y))
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  
 
 The laws of integer literals, written with the notation Int: the results of
 [@fold] are lifted by the notation of their type (Int, for add_z), or by the

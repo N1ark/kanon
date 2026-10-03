@@ -24,22 +24,9 @@ let is_word s =
   && (match s.[0] with 'a' .. 'z' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true | _ -> false) s
 
-(** The length of the symbol at the start of [s]: its characters that are
-    operator characters (see the lexer). *)
-let symbol_length s =
-  let n = String.length s in
-  let rec go i =
-    if i < n && (match s.[i] with '!' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '^' | '|' | '~' | '#' | '\128' .. '\255' -> true | _ -> false) then go (i + 1) else i
-  in
-  go 0
-
-(** Declares [op], if it has a word, as an operator that the lexer reads in the
-    rest of the files: a word
-    ([urem], for an infix operator) or a symbol followed by a word ([<u]). *)
-let declare_word_op ~infix op =
-  let k = symbol_length op in
-  if is_word (String.sub op k (String.length op - k)) && (infix || k > 0) then
-    Hashtbl.replace Syntax.infix_words op ()
+(** Declares [op], if it is a word, as an operator that the lexer reads in the
+    rest of the files ([urem]): it is an identifier otherwise. *)
+let declare_word_op op = if is_word op then Hashtbl.replace Syntax.infix_words op ()
 
 (* [oploc] is the location of the operator, [loc] that of the expression *)
 let binop loc oploc op a b = apply loc (ident oploc op) [ a; b ]
@@ -119,10 +106,9 @@ let binding loc ?(attrs = []) p params ret body =
 
 let item loc d = { pstr_desc = d; pstr_loc = loc }
 
-(* [use "m"], with the module at [mloc]; [kanon.use_plus] for the old
-   [use +m], which the loader rejects *)
-let use_item ?(ext = "kanon.use") loc mloc m =
-  item loc (Pstr_extension (({ txt = ext; loc }, PStr [ eval_item loc (string mloc m) ]), []))
+(* [use "m"], with the module at [mloc] *)
+let use_item loc mloc m =
+  item loc (Pstr_extension (({ txt = "kanon.use"; loc }, PStr [ eval_item loc (string mloc m) ]), []))
 
 (* [node C ...] in the declaration of a language: a type [node] with the only
    constructor [C], which [Check] places where [C] appears in a type; [sort C
@@ -202,7 +188,7 @@ let neg loc oploc (e : expression) =
 %token ORACLE PREFIX PRIM
 %token RULE SORT SUBSORT THEN TRUE TYPE USE WHEN WITH
 %token LBRACKETAT LBRACKETATATAT COLONCOLON ARROW ANDAND BARBAR
-%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS STAR DOT
+%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SEMI COLON BAR EQ PLUS MINUS UMINUS STAR DOT
 %token HASH UNDERSCORE EOF
 
 (* the bodies of [let], [match] and [if] extend as far as possible *)
@@ -245,7 +231,6 @@ other_item:
      [path.kn] (see [Main]) *)
   | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
   | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
-  | USE PLUS m = LID { use_item ~ext:"kanon.use_plus" (mkloc $loc) (mkloc $loc(m)) m }
   | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
     { let loc = mkloc $loc in
       (* the payloads are at the names of the function and of the rule *)
@@ -316,11 +301,10 @@ documented_item:
              ] )) }
   | INFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
-      declare_word_op ~infix:true op;
+      declare_word_op op;
       item loc (Pstr_eval (e, [ attr loc "infix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   | PREFIX op = STRING EQ e = seq_expr
     { let loc = mkloc $loc in
-      declare_word_op ~infix:false op;
       item loc (Pstr_eval (e, [ attr loc "prefix" [ eval_item loc (string (mkloc (unquote $loc(op))) op) ] ])) }
   (* [constant c (v) = e], a function of [v], or [constant c = e], where [c] is
      a literal or a name (or a string, as before) *)
@@ -586,7 +570,7 @@ pow_expr:
 
 unary_expr:
   | e = app_expr { e }
-  | op = MINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
+  | op = UMINUS e = unary_expr { neg (mkloc $loc) (mkloc $loc(op)) e }
 
 app_expr:
   | e = simple_expr { e }
@@ -684,7 +668,7 @@ pow_pat:
 
 unary_pat:
   | p = app_pat { p }
-  | op = MINUS p = unary_pat
+  | op = UMINUS p = unary_pat
     { match p.ppat_desc with
       | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer ("-" ^ i, None)))
       | _ -> pnode (mkloc $loc) (mkloc $loc(op)) "~-" [ p ] }

@@ -4187,7 +4187,7 @@ let parse_file file : structure =
   let ic = open_in_bin file in
   Fun.protect
     ~finally:(fun () -> close_in ic)
-    (fun () -> parse ~file (Lexing.from_channel ic))
+    (fun () -> parse ~file (Lexing.from_string (In_channel.input_all ic)))
 
 (** Parses the contents [s] of the Kanon file [file]. *)
 let parse_string ~file s : structure = parse ~file (Lexing.from_string s)
