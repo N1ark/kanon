@@ -419,6 +419,90 @@ node Sq1 : TInt -> TNonzero`}
     sorts.
   </p>
 
+  <Heading level={2} id="typed">The typed interface</Heading>
+  <p>
+    The generated OCaml functions take and return terms of one type, <code>t</code>: nothing stops
+    <code>plus</code> from being applied to a boolean (the assertions on entry catch it at run
+    time). <code>ocaml-typed</code> generates a <em>typed interface</em> of the smart constructors
+    instead, where a term is a <code>'a t</code>: its parameter is a <em>tag</em>, a polymorphic
+    variant that says what Kanon knows of the term, and the OCaml compiler rejects the ill-kinded
+    calls. The tag of a term is that of its sort, which Kanon generates, and a
+    <a href="#subsorts">subsort</a> refines it. The tag is a phantom type: it is only in the type,
+    and a typed term is the same value as the untyped one.
+  </p>
+  <Code
+    code={`sort TInt
+subsort TNonzero : TInt
+
+node Int of int : TInt [@ctor mk_int]
+node Div : TInt -> TNonzero -> TInt`}
+  />
+  <ul>
+    <li>
+      A subsort has no meaning in OCaml, where the types and the rules erase it to its parent: it
+      is trusted. Only the interface uses it, with the tags <code>tint</code> and
+      <code>tnonzero</code>, where the divisor of <code>Div</code> is a <code>tnonzero</code> and a
+      <code>tnonzero</code> is accepted where a <code>tint</code> is expected, and not the reverse.
+    </li>
+    <li>
+      A leaf, or a node without a rule function, has a function in the interface only with
+      <code>{`[@ctor f]{:kanon}`}</code>: <code>mk_int</code> builds an integer literal.
+    </li>
+  </ul>
+  <Example id="typed" ocaml="ocaml-typed" lean="lean-model" />
+  <p>
+    <code>[&lt; Tag.tint ] t</code>, as an operand, accepts any term whose tag is within
+    <code>tint</code>, which includes <code>tnonzero</code>, and <code>[&gt; Tag.tint ] t</code>, as
+    a result, is a term that may have any of them. The interface is organised like the language,
+    with a module for each file (<code>Bool</code> and <code>Int</code>). <code>S</code> is its
+    signature, and <code>Derived</code> implements it with the rules, which the language names with
+    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.plus{:ocaml}`}</code>.
+    What it cannot implement are the leaves with <code>{`[@ctor]{:kanon}`}</code>, which are written
+    by hand:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`module Typed : Lang_typed.S = struct
+  include Lang_typed.Derived
+
+  module Int = struct
+    include Lang_typed.Derived.Int
+
+    let mk_int z = Lang_types.node (Int z) TInt
+  end
+end`}
+  />
+  <p>
+    <code>S</code> hides that a typed term is an untyped one (<code>Derived</code> has
+    <code>{`type 'a t = raw{:ocaml}`}</code>, which would make every tag the same type), so that a
+    client of <code>Typed</code> cannot add an integer to a boolean:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`Typed.Int.plus (Typed.Int.mk_int Z.one) (Typed.Int.int_lt (Typed.Int.mk_int Z.one) (Typed.Int.mk_int Z.zero))`}
+  />
+  <Code
+    lang="text"
+    code={`Error: This expression has type [> Tag.tbool ] t
+       but an expression was expected of type [< Tag.tint ] t
+       …
+       The second variant type does not allow tag(s) \`TBool`}
+  />
+  <p>
+    The same goes for a divisor that is not known to be non-zero:
+    <code>{`Int.div (Int.mk_int Z.one) (Int.mk_int Z.one){:ocaml}`}</code> is rejected too, since the
+    result of <code>mk_int</code> is any <code>tint</code>. A caller that knows better says so with
+    <code>cast</code>, which changes the tag of a term and is the identity at run time: the subsort
+    is trusted, nothing proves it. <code>untyped</code> forgets the tag (to call a function of the
+    untyped rules) and <code>type_</code> trusts one, also at no cost; <code>type_type</code> and
+    <code>untype_type</code> do the same for the sorts <code>'a ty</code>.
+  </p>
+  <p>
+    The tags are plain polymorphic variant types in the module <code>Tag</code>, which a program
+    may join to make its own groups of tags:
+    <code>{`type scalar = [ Tag.tint | Tag.tbool ]{:ocaml}`}</code>.
+  </p>
+
   <Heading level={2} id="typings">Typings</Heading>
   <p>
     Sorts may have arguments, and the typing of a node may name its arguments and constrain them
@@ -482,6 +566,13 @@ node Fill of int : TArray n`}
       (the ppx <code>kanon.ppx_include_file</code> includes a file:
       <code>{`[%%include_file "rules.gen.ml"]{:ocaml}`}</code>), or in the module of
       <code>{`[@@@ocaml_types "M"]{:kanon}`}</code>, which they open;
+    </dd>
+    <dt><code>ocaml-typed</code></dt>
+    <dd>
+      the typed interface of the smart constructors, typed by the tags of the sorts and subsorts
+      (see <a href="#typed">The typed interface</a>): the tags in <code>Tag</code>, the signature
+      <code>S</code> with a module per file, and <code>Derived</code>, which implements it with
+      the rules (the module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>);
     </dd>
     <dt><code>ocaml-tests</code></dt>
     <dd>
