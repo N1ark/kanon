@@ -8,6 +8,7 @@
 - [Operators with a word suffix](README.md#operators-on-terms): a symbol directly followed by a word is one operator, such as `<u` or `<=s` (`infix "<u" = Ult, bv_ult`, `a <u b`, `a <=s b`), at the precedence of its symbol. The tree-sitter grammar reads them too.
 - [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
 - [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
+- [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
 - `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
 
 ### Fixed

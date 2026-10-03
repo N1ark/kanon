@@ -98,3 +98,21 @@ constructor, and the check is skipped for a computed sort.
   $ kanon ocaml lang.knl bad.kn
   bad.kn:1:36: Proj is a term of sort TInt, by its typing, not TTuple
   [1]
+
+`(C x : t)` with the name of a type is a type annotation, not a sort. A type
+constraint on an expression is read as an expression first: a parenthesised
+type there is a syntax error (put it on a `let`).
+
+  $ cat > ann.kn <<'EOF'
+  > fn ann (x : var) : t = (Var x : t)
+  > fn ints (l : int list) : int list = (l : int list)
+  > EOF
+  $ kanon ocaml lang.knl ann.kn
+  ann.kn:1:24: Var has no typing, which would give the sort of its term
+  [1]
+  $ cat > bad.kn <<'EOF'
+  > fn bad (l : int list) : int = let x = (l : (int * bool) list) in 0
+  > EOF
+  $ kanon ocaml lang.knl bad.kn
+  bad.kn:1:56: syntax error
+  [1]

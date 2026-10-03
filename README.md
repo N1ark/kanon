@@ -428,6 +428,18 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
 - `(C x : S args)` builds the node `C x` at the sort `S args`, which its
   typing must allow: a leaf whose sort its arguments do not determine
   (`node BitVec of int : TBitVector n`) is built this way.
+- The sort may also be computed: `(C x : e)`, for any expression `e` of type
+  `ty` (a variable, a call of a function or of a primitive, or a parenthesised
+  expression such as an `if` or a `match`), builds `C x` at the sort `e`:
+  `(Tuple vs : TTuple (types_of vs))` (a sort constructor applied to
+  arguments, as above), `(Var x : s)` for a parameter `s : ty`,
+  `(Field (i, v) : field_ty v i)`. A computed sort is not checked against the
+  typing of `C`, which the sort-constructor form checks for an operator (a leaf
+  has no operands to check), so it is up to the function to build `C` at a
+  sort that its typing allows. In a rule, the Lean spec of the rule is built at
+  the sort of the typing of its node, not at the computed sort. A
+  constructor-led sort is a sort constructor (`S args`); `(C x : t)` with the
+  name of a type `t` is a type annotation.
 
 ## Patterns
 
