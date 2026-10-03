@@ -107,6 +107,7 @@ module.exports = grammar({
       $.extend_definition,
       $.node_declaration,
       $.sort_declaration,
+      $.subsort_declaration,
       $.notation_declaration,
       $.type_definition,
       $.operator_declaration,
@@ -179,6 +180,9 @@ module.exports = grammar({
 
     // [sort TBitVector of nat [@get size]]
     sort_declaration: $ => seq('sort', $.constructor_declaration),
+
+    // [subsort TNonzero of nat : TBitVector n]: the parent is its only sort
+    subsort_declaration: $ => seq('subsort', $.constructor_declaration),
 
     // [notation BitVec]: the literal patterns of a leaf node
     notation_declaration: $ => seq('notation', field('node', $.constructor)),

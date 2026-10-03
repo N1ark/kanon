@@ -43,6 +43,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "subsort_declaration"
+        },
+        {
+          "type": "SYMBOL",
           "name": "notation_declaration"
         },
         {
@@ -440,6 +444,19 @@
         {
           "type": "STRING",
           "value": "sort"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "constructor_declaration"
+        }
+      ]
+    },
+    "subsort_declaration": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "subsort"
         },
         {
           "type": "SYMBOL",

@@ -46,6 +46,10 @@ sort TBitVector of nat [@get size]
 (*                      ^ attribute *)
 (*                           ^ function *)
 
+subsort TNonzero of nat : TBitVector n
+(* <- keyword *)
+(*      ^ constructor *)
+
 node Mul : TBitVector n -> TBitVector n -> TBitVector n [@fold z_mul Lit]
 (*                                                       ^ attribute *)
 (*                                                             ^ function *)
