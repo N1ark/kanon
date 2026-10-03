@@ -307,6 +307,28 @@ node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
           (identifier))))))
 
 ================================================================================
+Lists of parenthesised sorts
+================================================================================
+
+node Concat : (TBitVector n) list -> TBitVector n
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (sorts
+        (list_sort
+          (parenthesized_expression
+            (constructor_expression
+              (constructor)
+              (identifier))))
+        (constructor_expression
+          (constructor)
+          (identifier))))))
+
+================================================================================
 Operators and constants
 ================================================================================
 
