@@ -145,6 +145,13 @@
             "type": "SYMBOL",
             "name": "_type"
           }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "attribute"
+          }
         }
       ]
     },
@@ -1952,7 +1959,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -1961,7 +1968,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -1970,7 +1977,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -1979,7 +1986,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -2022,7 +2029,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -2126,7 +2133,16 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "\\+[a-z][a-zA-Z0-9_']*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -2178,7 +2194,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*[a-z][a-zA-Z0-9_']*"
                       },
                       "named": true,
                       "value": "operator"
@@ -2187,7 +2203,16 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -2230,7 +2255,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3062,7 +3087,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[<>$&]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3071,7 +3096,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "=([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3080,7 +3105,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "\\|([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3089,7 +3114,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[^\\x00-\\x7F]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3132,7 +3157,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "[@^]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3236,7 +3261,16 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+"
+                        "value": "\\+[a-z][a-zA-Z0-9_']*"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[+-]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])+([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3288,7 +3322,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*[a-z][a-zA-Z0-9_']*"
                       },
                       "named": true,
                       "value": "operator"
@@ -3297,7 +3331,16 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*([!$%&+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
+                      },
+                      "named": true,
+                      "value": "operator"
+                    },
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "[/%]([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
@@ -3340,7 +3383,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "PATTERN",
-                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*"
+                        "value": "\\*\\*([!$%&*+\\-./:<=>?@^|~#]|[^\\x00-\\x7F])*([a-z][a-zA-Z0-9_']*)?"
                       },
                       "named": true,
                       "value": "operator"
