@@ -153,7 +153,9 @@
     In expressions, <code>{`(C x : S args){:kanon}`}</code> builds the node
     <code>{`C x{:kanon}`}</code> at the sort <code>{`S args{:kanon}`}</code>, which its typing must
     allow: a leaf whose sort its arguments do not determine
-    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way.
+    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way. The sort may be
+    any expression of type <code>ty</code>: <code>{`(Field (i, v) : field_ty v i){:kanon}`}</code>; the typing of an
+    operator is then not checked against it.
   </p>
   <p>
     <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
