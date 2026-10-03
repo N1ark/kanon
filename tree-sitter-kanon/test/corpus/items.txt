@@ -413,3 +413,60 @@ prim cost : t -> int [@no_lean]
     (attribute
       (attribute_name
         (identifier)))))
+
+================================================================================
+Parametrised abstract types
+================================================================================
+
+type 'a box [@ocaml "Box.t"] [@equal "Box.equal"]
+type ('a, 'b) pair [@ocaml "Pair.t"]
+node Arr of t box
+node Pairs of (t, int) pair * (t box) option
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_definition
+    (type_parameters
+      (type_variable))
+    (type_identifier)
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content)))
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content))))
+  (type_definition
+    (type_parameters
+      (type_variable)
+      (type_variable))
+    (type_identifier)
+    (attribute
+      (attribute_name
+        (identifier))
+      (string
+        (string_content))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_application
+        (type_identifier)
+        (type_identifier))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_application
+        (type_arguments
+          (type_identifier)
+          (type_identifier))
+        (type_identifier))
+      (type_application
+        (parenthesized_type
+          (type_application
+            (type_identifier)
+            (type_identifier)))
+        (type_identifier)))))

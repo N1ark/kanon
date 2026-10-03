@@ -14,6 +14,8 @@
 ((type_identifier) @type.builtin
   (#any-of? @type.builtin "t" "int" "nat" "bool" "unit" "list" "option"))
 
+(type_variable) @type
+
 (field_identifier) @property
 
 (wildcard) @variable.special

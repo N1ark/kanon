@@ -177,10 +177,19 @@ module.exports = grammar({
 
     type_definition: $ => seq(
       'type',
+      optional(field('parameters', $.type_parameters)),
       field('name', typeIdentifier($)),
       repeat($.attribute),
       optional(seq('=', field('body', choice($.variant_declaration, $.record_declaration)))),
     ),
+
+    // ['a box], [('a, 'b) pair]: the parameters of an abstract type
+    type_parameters: $ => choice(
+      $.type_variable,
+      seq('(', sep1($.type_variable, ','), ')'),
+    ),
+
+    type_variable: $ => /'[a-z_][A-Za-z0-9_']*/,
 
     variant_declaration: $ => seq(
       optional('|'),
@@ -317,11 +326,13 @@ module.exports = grammar({
       $.type_application,
     ),
 
-    // [t list], [(var * ty) list]
+    // [t list], [(var * ty) list], [(t, int) pair]
     type_application: $ => seq(
-      field('argument', $._type_application),
+      field('argument', choice($._type_application, $.type_arguments)),
       field('constructor', typeIdentifier($)),
     ),
+
+    type_arguments: $ => seq('(', $._type, repeat1(seq(',', $._type)), ')'),
 
     parenthesized_type: $ => seq('(', $._type, ')'),
 
