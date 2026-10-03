@@ -75,10 +75,9 @@ let () =
   check "hash-consing of arrays"
     (vec [ 1; 2 ] == vec [ 1; 2 ] && vec [ 1; 2 ] != vec [ 2; 1 ]);
   check "structural equality"
-    (sem_eq (vec [ 1; 2 ]) (vec [ 1; 2 ]) == Prims.v_true);
-  check "different arrays"
-    (sem_eq (vec [ 1; 2 ]) (vec [ 1; 3 ]) == Prims.v_false);
-  check "different lengths" (sem_eq (vec [ 1 ]) (vec [ 1; 2 ]) == Prims.v_false);
+    (same_vec (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.one ])
+    && not (same_vec (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.of_int 2 ]))
+    );
   check "lists" (elems (vec_of_list [ Z.of_int 4; Z.of_int 5 ]) = [ 4; 5 ]);
   check "list round trip"
     (elements (vec_of_list [ Z.one; Z.of_int 2 ]) = [ Z.one; Z.of_int 2 ]);

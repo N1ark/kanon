@@ -1,8 +1,7 @@
-(* The int module: integers, their sum, their order and their quotient. *)
+(* The int module: integers, their sum and their quotient. *)
 
 node Int of int : TInt
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
-node Lt : TInt -> TInt -> TBool
 (** The quotient: the divisor is not zero. *)
 node Div : TInt -> TNonzero -> TInt
 (** The square of an integer plus one, which is not zero. *)
@@ -16,5 +15,4 @@ subsort TNonzero : TInt [@lean "Nonzero"]
 notation Int
 
 infix "+" = Plus, plus
-infix "lt" = Lt, int_lt
 infix "/" = Div, int_div
