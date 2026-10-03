@@ -5,6 +5,7 @@
 
 [@@@lean_root "ArraysExample"]
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use builtin "bool"
 use "vec"
