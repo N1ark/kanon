@@ -173,7 +173,7 @@ let neg loc oploc (e : expression) =
   | _ -> apply loc (ident oploc "~-") [ e ]
 %}
 
-%token <string> LID UID INT STRING INFIXWORD
+%token <string> LID UID INT STRING INFIXWORD TYVAR
 (* the text of a doc comment [(** ... *)], which documents the item that follows *)
 %token <string> DOC
 (* the operators, by precedence (see the lexer) *)
@@ -273,7 +273,7 @@ documented_item:
   | SORT c = constr_decl
     { let loc = mkloc $loc in
       item loc (Pstr_type (Recursive, [ node_decl ~sort:true loc c ])) }
-  | TYPE x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
+  | TYPE ps = type_params x = LID attrs = list(decl_attr) kind = option(preceded(EQ, type_kind))
     { let loc = mkloc $loc in
       item loc
         (Pstr_type
@@ -281,7 +281,7 @@ documented_item:
              [
                {
                  ptype_name = { txt = x; loc = mkloc $loc(x) };
-                 ptype_params = [];
+                 ptype_params = List.map (fun (v, l) -> (typ (mkloc l) (Ptyp_var v), (NoVariance, NoInjectivity))) ps;
                  ptype_cstrs = [];
                  ptype_kind = Option.value ~default:Ptype_abstract kind;
                  ptype_private = Public;
@@ -340,6 +340,15 @@ attr_arg:
   | i = INT { (i, $loc) }
   | TRUE { ("true", $loc) }
   | FALSE { ("false", $loc) }
+
+(* the parameters of an abstract type: [type 'a box], [type ('a, 'b) pair] *)
+type_params:
+  | { [] }
+  | v = TYVAR { [ (v, $loc(v)) ] }
+  | LPAREN vs = separated_nonempty_list(COMMA, tyvar) RPAREN { vs }
+
+tyvar:
+  | v = TYVAR { (v, $loc) }
 
 type_kind:
   | BAR? cs = separated_nonempty_list(BAR, constr_decl) { Ptype_variant cs }
@@ -427,6 +436,9 @@ typ_app:
   | x = LID { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc) x, [])) }
   | LPAREN t = typ RPAREN { t }
   | t = typ_app x = LID { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc(x)) x, [ t ])) }
+  (* [(t, int) pair]: a type with several arguments *)
+  | LPAREN t = typ COMMA ts = separated_nonempty_list(COMMA, typ) RPAREN x = LID
+    { typ (mkloc $loc) (Ptyp_constr (lid (mkloc $loc(x)) x, t :: ts)) }
 
 (* ---------------------------------------------------------------- *)
 (* Expressions *)

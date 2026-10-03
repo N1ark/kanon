@@ -83,11 +83,30 @@ let rec ty_of_core (ct : core_type) : Syntax.ty =
   | Ptyp_constr ({ txt = Lident "kind"; loc }, [])
     when loc.loc_start.pos_fname = kanon_file ->
       TKind
+  | Ptyp_constr ({ txt = Lident s; loc }, [])
+    when match find_decl s with Some d -> d.d_arity > 0 | None -> false ->
+      error loc "type %s is parametrised: it expects %d argument%s" s
+        (Option.get (find_decl s)).d_arity
+        (if (Option.get (find_decl s)).d_arity = 1 then "" else "s")
   | Ptyp_constr ({ txt = Lident s; _ }, []) when Option.is_some (ty_of_name s)
     ->
       Option.get (ty_of_name s)
   | Ptyp_constr ({ txt = Lident "list"; _ }, [ t ]) -> TList (ty_of_core t)
   | Ptyp_constr ({ txt = Lident "option"; _ }, [ t ]) -> TOption (ty_of_core t)
+  | Ptyp_constr ({ txt = Lident s; loc }, (_ :: _ as args)) -> (
+      let n = List.length args in
+      match find_decl s with
+      | Some d when d.d_arity = n && s <> "list" && s <> "option" ->
+          TApp (s, List.map ty_of_core args)
+      | Some d when d.d_arity > 0 ->
+          error loc "type %s expects %d argument%s, given %d" s d.d_arity
+            (if d.d_arity = 1 then "" else "s")
+            n
+      | _ when s = "list" || s = "option" ->
+          error loc "type %s expects 1 argument, given %d" s n
+      | _ when Option.is_some (ty_of_name s) ->
+          error loc "type %s takes no argument" s
+      | _ -> error loc "unknown type constructor %s" s)
   | Ptyp_tuple l -> TTuple (List.map ty_of_core l)
   | _ -> error ct.ptyp_loc "unsupported type"
 
@@ -642,6 +661,7 @@ let bind_pat env ?sort t p =
 let rec eq_ty = function
   | TInt | TBool | TUnit | TTerm | TKind -> true
   | (TSty | TData _) as t -> (decl_of_ty t).d_eq
+  | TApp (_, l) as t -> (decl_of_ty t).d_eq && List.for_all eq_ty l
   | TTuple l -> List.for_all eq_ty l
   | TOption t | TList t -> eq_ty t
 
@@ -2402,12 +2422,13 @@ let generated_type name =
           (String.sub name 2 (String.length name - 2)))
 
 (** A type of the language, without constructors yet. *)
-let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
-    name =
+let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(arity = 0) ?(eq = true)
+    ?equal ?hash name =
   {
     d_name = name;
     d_ocaml = ocaml;
     d_lean = lean;
+    d_arity = arity;
     d_eq = eq;
     d_equal = equal;
     d_hash = hash;
@@ -2576,8 +2597,35 @@ let language (str : structure) =
             let attr n =
               Option.map string_attr (find_attr n td.ptype_attributes)
             in
+            let arity = List.length td.ptype_params in
+            if arity > 0 then (
+              if td.ptype_kind <> Ptype_abstract then
+                error loc "type %s: only abstract types have type parameters"
+                  name;
+              let vars =
+                List.map
+                  (fun ((ct : core_type), _) ->
+                    match ct.ptyp_desc with
+                    | Ptyp_var v -> v
+                    | _ -> error ct.ptyp_loc "expected a type parameter")
+                  td.ptype_params
+              in
+              if List.length (List.sort_uniq compare vars) <> arity then
+                error loc "type %s: type parameters must be distinct" name;
+              (* nodes are hash-consed: the host's equality and hash, which take
+                 those of the arguments, are needed *)
+              List.iter
+                (fun n ->
+                  if attr n = None then
+                    error loc
+                      "type %s is parametrised: [@%s \"M.%s\"] is required, a \
+                       function taking the %s of each argument first"
+                      name n n
+                      (if n = "equal" then "equality" else "hash"))
+                [ "equal"; "hash" ]);
             let d =
               new_decl ~loc ?doc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
+                ~arity
                 ~eq:(not (has_attr "noeq" td.ptype_attributes))
                 ?equal:(attr "equal") ?hash:(attr "hash") name
             in

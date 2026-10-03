@@ -1,0 +1,23 @@
+; Parametrised abstract types: the generated OCaml compiles, with the host
+; functions of Box and Pair, and hash-conses the nodes that contain them (see
+; ../param.t for the errors).
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   pa_types.ml
+   (run %{bin:kanon} ocaml-types lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   pa_rules.ml
+   (run %{bin:kanon} ocaml lang.knl))))
+
+(test
+ (name main)
+ (libraries zarith))

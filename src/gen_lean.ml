@@ -197,6 +197,14 @@ let rec lean_ty ft = function
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
+  | TApp (n, _) ->
+      raise
+        (Check.Error
+           ( (decl_of_ty (TData n)).d_loc,
+             Fmt.str
+               "type %s is parametrised: parametrised abstract types are not \
+                supported in Lean"
+               n ))
 
 let lean_constr (c : constr) = Fmt.str "%a.%s" lean_ty c.c_res c.c_name
 
@@ -1423,13 +1431,14 @@ let components (d : decl) =
 
 let rec decls_of_ty = function
   | (TKind | TSty | TData _) as t -> [ decl_of_ty t ]
+  | TApp (_, l) as t -> decl_of_ty t :: List.concat_map decls_of_ty l
   | TTuple l -> List.concat_map decls_of_ty l
   | TOption t | TList t -> decls_of_ty t
   | TInt | TBool | TUnit | TTerm -> []
 
 let rec uses_term = function
   | TTerm -> true
-  | TTuple l -> List.exists uses_term l
+  | TTuple l | TApp (_, l) -> List.exists uses_term l
   | TOption t | TList t -> uses_term t
   | _ -> false
 

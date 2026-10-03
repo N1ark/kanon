@@ -92,6 +92,8 @@ let rec value_ty ft = function
   | TTuple l -> pf ft "(%a)" (list ~sep:" * " value_ty) l
   | TOption t -> pf ft "(%a option)" value_ty t
   | TList t -> pf ft "(%a list)" value_ty t
+  | TApp (n, [ t ]) -> pf ft "(%a %s)" value_ty t n
+  | TApp (n, l) -> pf ft "((%a) %s)" (list ~sep:", " value_ty) l n
   | t -> Gen_ocaml.ocaml_ty ft t
 
 (** The tags of the operands and of the result of the node [c], whose typing is

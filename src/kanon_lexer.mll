@@ -71,6 +71,7 @@ rule token = parse
       | Some k -> k
       | None -> if Hashtbl.mem Syntax.infix_words s then INFIXWORD s else LID s }
   | uid as s { UID s }
+  | '\'' (lid as s) { TYVAR s }
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }
   | "::" { COLONCOLON }

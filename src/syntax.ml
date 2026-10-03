@@ -18,6 +18,9 @@ type ty =
   | TTuple of ty list
   | TOption of ty
   | TList of ty
+  | TApp of string * ty list
+      (** a parametrised abstract type of the language applied to its arguments
+          ([t box], [(t, int) pair]): at least one *)
 
 (** A doc comment where it cannot be attached: its location, and the message. *)
 exception Misplaced_doc of Location.t * string
@@ -33,6 +36,8 @@ let rec pp_ty ft = function
   | TTuple l -> Fmt.(parens (list ~sep:(any " * ") pp_ty)) ft l
   | TOption t -> Fmt.pf ft "%a option" pp_ty t
   | TList t -> Fmt.pf ft "%a list" pp_ty t
+  | TApp (s, [ t ]) -> Fmt.pf ft "%a %s" pp_ty t s
+  | TApp (s, l) -> Fmt.pf ft "(%a) %s" Fmt.(list ~sep:(any ", ") pp_ty) l s
 
 (** An argument of a constructor. [Small] integers are OCaml [int]s (widths,
     indices), as opposed to [Z.t]s; in Kanon both have type [int]. *)
@@ -58,6 +63,8 @@ type decl = {
           record or a variant re-exports *)
   d_lean : string option;
       (** the Lean type, if it is not the Kanon name, CamelCased ([[@lean]]) *)
+  d_arity : int;
+      (** the number of type parameters of an abstract type: [type 'a box] *)
   d_eq : bool;
       (** whether [=] and [<>] are allowed at this type: not at an abstract type
           marked [[@noeq]] *)
@@ -217,7 +224,7 @@ let find_decl name = List.find_opt (fun d -> d.d_name = name) !lang.decls
 let decl_name = function
   | TKind -> Some "kind"
   | TSty -> Some "ty"
-  | TData s -> Some s
+  | TData s | TApp (s, _) -> Some s
   | _ -> None
 
 let decl_of_ty t =

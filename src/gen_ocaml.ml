@@ -8,6 +8,9 @@ open Syntax
 
 let pf = Format.fprintf
 
+let list_sep sep pp ft l =
+  Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
+
 (** The OCaml type of [t], where the types of {!types} are in scope: a declared
     type has its Kanon name, and the kinds of terms (the constructors of [t])
     are [kind]. *)
@@ -23,6 +26,8 @@ let rec ocaml_ty ft = function
         l
   | TOption t -> pf ft "(%a option)" ocaml_ty t
   | TList t -> pf ft "(%a list)" ocaml_ty t
+  | TApp (n, [ t ]) -> pf ft "(%a %s)" ocaml_ty t n
+  | TApp (n, l) -> pf ft "((%a) %s)" (list_sep ", " ocaml_ty) l n
 
 let list ?(sep = ", ") pp ft l =
   Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
@@ -125,6 +130,11 @@ let rec equal_fn ft = function
         (List.combine l (List.combine (xs "a") (xs "b")))
   | TOption t -> pf ft "(Option.equal %a)" equal_fn t
   | TList t -> pf ft "(List.equal %a)" equal_fn t
+  | TApp (n, l) ->
+      (* the host function takes the equality of each argument first *)
+      pf ft "(%s %a)"
+        (Option.get (decl_of_ty (TApp (n, l))).d_equal)
+        (list_sep " " equal_fn) l
 
 (** [hash_combine (... (hash_combine h1 h2) ...) hn], for the hashes [l],
     printed by [pp]. *)
@@ -156,6 +166,10 @@ let rec hash_fn ft = function
   | TList t ->
       pf ft "(List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)" hash_fn
         t
+  | TApp (n, l) ->
+      pf ft "(%s %a)"
+        (Option.get (decl_of_ty (TApp (n, l))).d_hash)
+        (list_sep " " hash_fn) l
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -539,7 +553,17 @@ let check_abstract (d : decl) =
 let type_def ft (d : decl) =
   let reexport ft = Option.iter (pf ft " %s =") in
   let arg ft = function Small -> pf ft "int" | Arg t -> ocaml_ty ft t in
+  let params =
+    match d.d_arity with
+    | 0 -> ""
+    | 1 -> "'a "
+    | n ->
+        Fmt.str "(%s) "
+          (String.concat ", " (List.init n (Printf.sprintf "'a%d")))
+  in
   match (constrs_of d, d.d_fields, d.d_ocaml) with
+  | [], [], Some o when d.d_arity > 0 ->
+      pf ft "%s%s = %s%s" params d.d_name params o
   | [], [], Some o -> pf ft "%s = %s" d.d_name o
   | [], [], None -> pf ft "%s = |" d.d_name
   | [], fields, o ->
@@ -650,7 +674,11 @@ let types ~sources ft =
   pf ft "let hash_combine x y = (x * 65599) + y@ @ ";
   pf ft "let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag@ @ ";
   pf ft "and hash_t (a : t) = a.tag@ @ ";
-  List.iter (fun d -> pf ft "%a@ @ " eq_hash_def d) !lang.decls;
+  (* a parametrised type is compared and hashed by its host functions, applied
+     where it is used (see [equal_fn]) *)
+  List.iter
+    (fun d -> if d.d_arity = 0 then pf ft "%a@ @ " eq_hash_def d)
+    !lang.decls;
   pf ft "(* Not safe across domains (TODO). *)@ ";
   pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
   pf ft "@[<v 2>let module H = Ephemeron.K1.Make (struct@ type nonrec t = t@ ";

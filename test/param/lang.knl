@@ -1,0 +1,17 @@
+(* Parametrised abstract types: [t box] is a host container of terms. *)
+
+[@@@ocaml_types "Pa_types"]
+[@@@ocaml_prims "Pa_prims"]
+
+use "rules"
+
+(* the host functions take the equality (or the hash) of the elements first *)
+type 'a box [@ocaml "Box.t"] [@equal "Box.equal"] [@hash "Box.hash"]
+type ('a, 'b) pair [@ocaml "Pair.t"] [@equal "Pair.equal"] [@hash "Pair.hash"]
+
+sort TInt
+node Int of int : TInt
+notation Int
+node Arr of t box : TInt
+node Ints of int box : TInt
+node Pairs of (t, int) pair * (t box) option : TInt
