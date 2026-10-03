@@ -1,6 +1,7 @@
 ; Subsorts are erased to their parent in the OCaml of the rules: the generated
-; code compiles and runs on the terms of TBitVector (see ../subsort.t for the
-; typed interface).
+; code compiles and runs on the terms of TBitVector. The typed interface is
+; implemented with its generated phantom types, and its escape hatches are the
+; identity (see ../subsort.t and ../typed_compile.t for what it rejects).
 
 (rule
  (deps
@@ -17,6 +18,14 @@
   (with-stdout-to
    sub_rules.ml
    (run %{bin:kanon} ocaml lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   sub_typed.ml
+   (run %{bin:kanon} ocaml-typed lang.knl))))
 
 (test
  (name main)

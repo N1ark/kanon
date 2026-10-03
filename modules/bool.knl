@@ -1,8 +1,6 @@
 (* The bool module, at the bottom of every language: booleans, equality, [Ite]
    and [Distinct]. See the README of Kanon for the syntax. *)
 
-[@@@ghost "sbool" "[ `Bool ]"]
-
 node Bool of bool : TBool
 notation Bool
 node Not : TBool -> TBool
@@ -11,7 +9,7 @@ node Or : TBool -> TBool -> TBool [@comm] [@idem]
 node Eq : a -> a -> TBool [@comm]
 node Ite : TBool -> a -> a -> a
 node Distinct : a list -> TBool
-sort TBool [@ghost sbool]
+sort TBool
 
 infix "&&" = And, b_and
 infix "||" = Or, b_or

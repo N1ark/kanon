@@ -255,16 +255,6 @@
           <code>{`f v{:kanon}`}</code> rather than matching the sort of <code>v</code>.
         </td>
       </tr>
-      <tr>
-        <td><code>{`[@ghost tag]{:kanon}`}</code></td>
-        <td>a sort</td>
-        <td>
-          The ghost tag of its terms in <code>ocaml-typed</code> (<code>TBool</code> is
-          <code>sbool</code>, declared by the bool module). A tag with a parameter,
-          <code>{`sort TSeq of ty [@ghost sseq]{:kanon}`}</code>, is applied to the tag of the
-          argument of the sort. A sort without one has any tag.
-        </td>
-      </tr>
     </tbody>
   </table>
 
@@ -438,29 +428,12 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
 
   <Heading level={3} id="typed-attributes">For typed OCaml</Heading>
   <p>
-    The attributes of <a href="#backends"><code>ocaml-typed</code></a>, which types the smart
-    constructors by ghost tags (see <a href="./#typed">Ghost tags</a>).
+    The attribute of <a href="#backends"><code>ocaml-typed</code></a>, which types the smart
+    constructors by the tags of the sorts and subsorts (see <a href="./#typed">Subsorts</a>).
   </p>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr>
-        <td><code>{`[@ghost "t1" … "tn"]{:kanon}`}</code></td>
-        <td>a node</td>
-        <td>
-          The tags of its operands, then of its result (a leaf has one tag, a node of
-          <code>n</code> operands <code>n + 1</code>), instead of those of its sorts. A refinement
-          (<code>nonzero</code> for the divisor of a division) is trusted: nothing proves it.
-        </td>
-      </tr>
-      <tr>
-        <td><code>{`[@ghost t1 … tn]{:kanon}`}</code></td>
-        <td>a rule function, after its spec</td>
-        <td>
-          The tags of its term parameters, then of its result, instead of those that its spec
-          gives.
-        </td>
-      </tr>
       <tr>
         <td><code>{`[@ctor f]{:kanon}`}</code></td>
         <td>a node</td>
@@ -491,15 +464,6 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>
           The OCaml module of the types (the output of <code>ocaml-types</code>), which the
           generated rules open. Without it, they must be included where the types are in scope.
-        </td>
-      </tr>
-      <tr>
-        <td><code>{`[@@@ghost "name" "type"]{:kanon}`}</code></td>
-        <td>
-          A ghost tag type of <code>ocaml-typed</code>: <code>type name = type</code> in its
-          interface (<code>{`[@@@ghost "sint" "[ \`NonZero | \`Zero ]"]{:kanon}`}</code>). The name
-          may have type parameters (<code>"'a sseq"</code>). The tags may mention each other, but
-          not in a cycle. The bool module declares <code>sbool</code>.
         </td>
       </tr>
       <tr>
@@ -538,8 +502,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       <tr>
         <td><code>ocaml-typed</code></td>
         <td>
-          The OCaml interface of the smart constructors, <code>module type S</code>, typed by ghost
-          tags. Implemented by hand, and checked by OCaml against <code>S</code>.
+          The OCaml interface of the smart constructors, <code>module type S</code>, typed by the tags
+          of the sorts and subsorts, and <code>Ghost</code>, which implements its phantom types and
+          escape hatches. The rules implement the rest of <code>S</code>, but for the leaf nodes.
         </td>
       </tr>
       <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>

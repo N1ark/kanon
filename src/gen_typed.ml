@@ -1,81 +1,35 @@
 (** The [ocaml-typed] backend: the OCaml interface of the smart constructors of
     a language, where terms are typed by ghost tags: [module type S] has
-    [[< tag ] t] operands and [[> tag ] t] results, whose tags come from the
-    sorts of the typing of each node ([[@ghost]] on a sort), or from its own
-    annotation ([[@ghost "t1" ... "tn"]] on a node, which refines them). The
-    implementation of [S] is written by hand, and checked by OCaml against it.
-    The refinements are trusted: nothing proves them. *)
+    [[< tag ] t] operands and [[> tag ] t] results. The tag of a term is that of
+    its sort, which Kanon generates (see {!tag_types}): the tag of a subsort is
+    a refinement of the tag of its parent. [Ghost] implements the phantom types
+    of [S]: its escape hatches are the identity. The rest of [S] is the rules,
+    and the leaf nodes and sorts, whose implementation is written by hand. The
+    refinements are trusted: nothing proves them. *)
 
 open Syntax
 
 let pf = Format.fprintf
 let list = Gen_ocaml.list
 
-(** The ghost tag of a term (or of a sort): a polymorphic variant type, by its
-    text (["sint"], ["sint sseq"]), a sort variable, or none that Kanon knows,
-    for which any term does. *)
+(** The ghost tag of a term (or of a sort): the tag type of its sort or of its
+    subsort, a sort variable, or none that Kanon knows, for which any term does.
+*)
 type tag = Tag of string | Var of string | Unknown
 
-(** The bare name of the tag type declared as [decl] (["'a sseq"]: [sseq]), and
-    its number of parameters. *)
-let tag_decl decl =
-  let words = String.split_on_char ' ' decl in
-  let name = List.nth words (List.length words - 1) in
-  let vars =
-    List.length (List.filter (fun w -> String.contains w '\'') words)
-  in
-  (name, vars)
+(** The name of the tag type of the sort or subsort [c]: its name in lowercase.
+*)
+let tag_name c = String.lowercase_ascii c
 
-(** The number of parameters of the ghost tag type [name], if it is declared. *)
-let tag_arity name =
-  List.find_map
-    (fun (d, _) ->
-      let n, k = tag_decl d in
-      if n = name then Some k else None)
-    !lang.ghost_tags
-
-(** The tag of the sort [s] of a typing: the ghost of its head constructor,
-    applied to the tags of the sorts that are its arguments if the tag type has
-    parameters; a sort variable of [vars] is itself. *)
-let rec tag_of_sort vars (s : expr) =
-  match s.e with
-  | EVar x when List.mem_assoc x vars -> Var x
-  | EConstr (c, args) -> (
-      match List.assoc_opt c.c_name !lang.sort_ghosts with
-      | None -> Unknown
-      | Some g -> (
-          let g, _ = tag_decl g in
-          match tag_arity g with
-          | None | Some 0 -> Tag g
-          | Some k ->
-              let inner =
-                List.concat
-                  (List.map2
-                     (fun a e ->
-                       match a with
-                       | Arg TSty -> (
-                           match tag_of_sort vars e with
-                           | Tag t -> [ t ]
-                           | Var x -> [ "'" ^ x ]
-                           | Unknown -> [ "_" ])
-                       | _ -> [])
-                     c.c_args args)
-              in
-              let inner = List.filteri (fun i _ -> i < k) inner in
-              let inner =
-                inner @ List.init (k - List.length inner) (fun _ -> "_")
-              in
-              Tag
-                (match inner with
-                | [ a ] -> Fmt.str "%s %s" a g
-                | l -> Fmt.str "(%s) %s" (String.concat ", " l) g)))
-  | _ -> Unknown
-
-(** The tag of an annotation of a node: a type variable, or a tag type. *)
-let tag_of_annotation s =
-  if String.length s > 0 && s.[0] = '\'' && not (String.contains s ' ') then
-    Var (String.sub s 1 (String.length s - 1))
-  else Tag s
+(** The tag of the sort [s] of a typing, written as the subsort [sub]: the tag
+    of the subsort, else that of its head constructor, or a sort variable of
+    [vars]. *)
+let tag_of_sort vars (s : expr) sub =
+  match (sub, s.e) with
+  | Some ss, _ -> Tag (tag_name ss)
+  | None, EVar x when List.mem_assoc x vars -> Var x
+  | None, EConstr (c, _) -> Tag (tag_name c.c_name)
+  | None, _ -> Unknown
 
 (** The type of a term with the tag [tag]: [[< tag ] t] for an operand, and
     [[> tag ] t] for a result, over the type [t] ([ty] for a sort). *)
@@ -96,35 +50,16 @@ let rec value_ty ft = function
   | TApp (n, l) -> pf ft "((%a) %s)" (list ~sep:", " value_ty) l n
   | t -> Gen_ocaml.ocaml_ty ft t
 
-(** The tags of the operands and of the result of the node [c], whose typing is
-    [typing], if it has one. A node has [Some n] operands, [None] when it is
-    n-ary, with one tag for all. *)
-let node_tags ~loc (c : constr) (typing : typing option) =
-  let from_typing () =
-    match typing with
-    | None -> ([], Unknown)
-    | Some t ->
-        let tags = List.map (tag_of_sort t.t_vars) t.t_sorts in
-        let ops = List.filteri (fun i _ -> i < List.length tags - 1) tags in
-        (ops, List.nth tags (List.length tags - 1))
-  in
-  match List.assoc_opt c.c_name !lang.node_ghosts with
-  | Some tags ->
-      let tags = List.map tag_of_annotation tags in
-      let n = List.length tags in
-      let expected =
-        match typing with
-        | None -> None
-        | Some t -> Some (List.length t.t_sorts)
-      in
-      if expected <> None && expected <> Some n then
-        raise
-          (Check.Error
-             ( loc,
-               Fmt.str "%s: [@@ghost] has %d tags, but the typing of %s has %d"
-                 c.c_name n c.c_name (Option.get expected) ));
-      (List.filteri (fun i _ -> i < n - 1) tags, List.nth tags (n - 1))
-  | None -> from_typing ()
+(** The tags of the operands and of the result of the node [c], from its typing,
+    if it has one. A node has [Some n] operands, [None] when it is n-ary, with
+    one tag for all. *)
+let node_tags (typing : typing option) =
+  match typing with
+  | None -> ([], Unknown)
+  | Some t ->
+      let tags = List.map2 (tag_of_sort t.t_vars) t.t_sorts t.t_subs in
+      let ops = List.filteri (fun i _ -> i < List.length tags - 1) tags in
+      (ops, List.nth tags (List.length tags - 1))
 
 (** The parameters of a node, as plain arguments. *)
 let arg_ty ft = function Small -> pf ft "int" | Arg t -> value_ty ft t
@@ -180,47 +115,15 @@ let sort_val_name (c : constr) =
   "t_" ^ String.lowercase_ascii n
 
 (** The [val] of the sort [c], which makes the sorts of its terms: its arguments
-    are plain, or the sorts that its tag type is over. *)
+    are plain, or sorts of any tag. *)
 let sort_val ft (c : constr) =
-  let g =
-    Option.map
-      (fun g -> fst (tag_decl g))
-      (List.assoc_opt c.c_name !lang.sort_ghosts)
-  in
-  let vars = Option.bind g tag_arity |> Option.value ~default:0 in
-  let names = [ "a"; "b"; "c"; "d" ] in
-  let nth i =
-    if i < List.length names then List.nth names i else Fmt.str "a%d" i
-  in
-  let next = ref 0 in
   let args =
     List.map
-      (fun a ft ->
-        match a with
-        | Arg TSty ->
-            if !next < vars then (
-              let x = nth !next in
-              incr next;
-              pf ft "'%s ty" x)
-            else pf ft "_ ty"
-        | a -> arg_ty ft a)
+      (fun a ft -> match a with Arg TSty -> pf ft "_ ty" | a -> arg_ty ft a)
       c.c_args
   in
-  let tag =
-    match g with
-    | None -> Unknown
-    | Some g -> (
-        match vars with
-        | 0 -> Tag g
-        | 1 -> Tag ("'a " ^ g)
-        | k ->
-            Tag
-              (Fmt.str "(%s) %s"
-                 (String.concat ", " (List.init k (fun i -> "'" ^ nth i)))
-                 g))
-  in
   val_ ft ~doc:c.c_doc (sort_val_name c) args (fun ft ->
-      term ~operand:false ~t:"ty" ft tag)
+      term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)))
 
 (** The [val] of a smart constructor: the leading parameters, then the operands.
     [params] are the types of its parameters, and [operands] the kinds of its
@@ -249,83 +152,144 @@ let smart ft ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
   val_ ft ~doc name (params @ operands) (fun ft ->
       term ~operand:false ~t:"t" ft res)
 
-(** The ghost tag types that [text] mentions: the names in it that are not a
-    constructor, a type variable or a qualified name. *)
-let mentions text =
-  let n = String.length text in
-  let is_id c =
-    (c >= 'a' && c <= 'z')
-    || (c >= 'A' && c <= 'Z')
-    || (c >= '0' && c <= '9')
-    || c = '_'
-    || c = '\''
+(** The tag types of the sorts, in the module [Tag]: one for each subsort, the
+    variant of its name, and one for each sort, the variant of its name and the
+    tag types of its subsorts, which come first. Two sorts whose names differ by
+    their case have the same tag type: an error. *)
+let tag_types () =
+  let sorts = List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs in
+  let names =
+    List.map (fun (c : constr) -> c.c_name) sorts
+    @ List.map (fun (s : subsort) -> s.ss_name) !lang.subsorts
   in
-  let rec go i acc =
-    if i >= n then acc
-    else if is_id text.[i] then (
-      let j = ref i in
-      while !j < n && is_id text.[!j] do
-        incr j
-      done;
-      let word = String.sub text i (!j - i) in
-      let prev = if i = 0 then ' ' else text.[i - 1] in
-      let acc =
-        if prev = '`' || prev = '.' || word.[0] = '\'' then acc else word :: acc
+  let rec check = function
+    | [] -> ()
+    | n :: rest -> (
+        match List.find_opt (fun m -> tag_name m = tag_name n) rest with
+        | Some m ->
+            raise
+              (Check.Error
+                 ( Location.none,
+                   Fmt.str "%s and %s have the same tag type, %s" n m
+                     (tag_name n) ))
+        | None -> check rest)
+  in
+  check names;
+  List.concat_map
+    (fun (c : constr) ->
+      let subs =
+        List.filter (fun (s : subsort) -> s.ss_parent = c.c_name) !lang.subsorts
       in
-      go !j acc)
-    else go (i + 1) acc
-  in
-  go 0 []
+      List.map
+        (fun (s : subsort) -> (tag_name s.ss_name, [ Fmt.str "`%s" s.ss_name ]))
+        subs
+      @ [
+          ( tag_name c.c_name,
+            Fmt.str "`%s" c.c_name
+            :: List.map (fun s -> tag_name s.ss_name) subs );
+        ])
+    sorts
 
-(** The declarations of the ghost tag types, in the order of their declaration
-    except that a type comes after those that it mentions (a type that mentions
-    itself, as [any sseq] in [any], is fine). Types that mention each other are
-    an error. *)
-let ordered_tags () =
-  let decls =
-    List.map (fun (d, text) -> (fst (tag_decl d), (d, text))) !lang.ghost_tags
+(** The destructors of the node or sort [c] in the signature: the arguments of
+    the terms that [c] builds (see {!Gen_ocaml.destructor}), where its operands
+    have the tags of its typing, and the test. *)
+let destructor ft (c : constr) typing =
+  let suffix = Gen_ocaml.destructor_suffix c in
+  let ty = if c.c_res = TSty then "ty" else "t" in
+  let params = List.map (fun a ft -> arg_ty ft a) c.c_args in
+  let operands =
+    match (c.c_res, typing) with
+    | TSty, _ | _, None -> []
+    | _, Some (t : typing) ->
+        let ops, _ = node_tags typing in
+        let n = List.length t.t_sorts - 1 in
+        if t.t_nary then
+          [
+            (fun ft ->
+              pf ft "%a list" (term ~operand:false ~t:"t") (List.hd ops));
+          ]
+        else
+          List.init n (fun i ft ->
+              term ~operand:false ~t:"t" ft (List.nth ops i))
   in
-  let deps (name, (_, text)) =
-    let words = mentions text in
-    List.filter (fun m -> m <> name && List.mem m words) (List.map fst decls)
+  let tuple =
+    match params @ operands with
+    | [] -> fun ft -> pf ft "unit"
+    | [ x ] -> x
+    | l ->
+        fun ft ->
+          pf ft "(%a)"
+            (Format.pp_print_list
+               ~pp_sep:(fun ft () -> pf ft " * ")
+               (fun ft pp -> pp ft))
+            l
   in
-  let out = ref [] in
-  let rec visit path ((name, decl) as d) =
-    if not (List.mem_assoc name !out) then (
-      if List.mem name path then
-        raise
-          (Check.Error
-             ( List.assoc (fst decl) !lang.ghost_locs,
-               Fmt.str "ghost tag types are defined in terms of each other: %s"
-                 (String.concat " -> " (List.rev (name :: path))) ));
-      List.iter (fun m -> visit (name :: path) (m, List.assoc m decls)) (deps d);
-      out := !out @ [ (name, decl) ])
-  in
-  List.iter (visit []) decls;
-  List.map snd !out
+  let input ft = pf ft "_ %s" ty in
+  val_ ft ~doc:None ("as_" ^ suffix) [ input ] (fun ft ->
+      pf ft "%t option" tuple);
+  val_ ft ~doc:None ("is_" ^ suffix) [ input ] (fun ft -> pf ft "bool")
+
+(** The implementation of the phantom types of [S], and of what follows from
+    them: the terms and sorts are those of the language, whatever their tags, so
+    that the escape hatches are the identity (and need no [Obj.magic]: the types
+    are equal, and [S] hides it). The sorts are made by their constructors. *)
+let ghost ft () =
+  pf ft "@ @ %a@ " Gen_ocaml.ocaml_doc
+    "The phantom types of [S], over the types of the language, with the escape \
+     hatches, which are the identity, and the sorts: [module Typed : S = \
+     struct include Ghost include Rules ... end] only needs what is not \
+     generated, such as the leaf nodes.";
+  pf ft "@[<v 2>module Ghost = struct";
+  pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";
+  pf ft "type nonrec 'a ty = raw_ty@ @ ";
+  pf ft "let untyped : 'a t -> raw = Fun.id@ ";
+  pf ft "let type_ : raw -> 'a t = Fun.id@ ";
+  pf ft "let cast : 'a t -> 'b t = Fun.id@ ";
+  pf ft "let untype_type : 'a ty -> raw_ty = Fun.id@ ";
+  pf ft "let type_type : raw_ty -> 'a ty = Fun.id";
+  List.iter
+    (fun (c : constr) ->
+      if c.c_res = TSty then
+        let vars = List.mapi (fun i _ -> Fmt.str "a%d" (i + 1)) c.c_args in
+        let ctor =
+          match vars with
+          | [] -> c.c_name
+          | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
+        in
+        pf ft "@ let %s %s= %s" (sort_val_name c)
+          (String.concat "" (List.map (fun x -> x ^ " ") vars))
+          ctor)
+    !lang.constrs;
+  pf ft "@]@ end"
 
 let program ~sources ft (p : program) =
-  let tags = ordered_tags () in
+  Gen_ocaml.check_destructors p;
+  let tags = tag_types () in
   let node_typing (c : constr) = List.assoc_opt c.c_name !Check.node_typings in
   pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
     (list Format.pp_print_string)
     sources;
   Option.iter (pf ft "open %s@ @ ") !lang.ocaml_types;
-  pf ft "@[<v 2>module type S = sig@ (** {2 Ghost tags} *)";
+  pf ft
+    "(** The ghost tag types of the sorts: a sort that has subsorts has their \
+     variants too, which a term of the sort may be. *)@ ";
+  pf ft "@[<v 2>module Tag = struct";
+  List.iter
+    (fun (n, variants) ->
+      pf ft "@ type %s = [ %s ]" n (String.concat " | " variants))
+    tags;
+  pf ft "@]@ end@ @ ";
+  pf ft "@[<v 2>module type S = sig@ open Tag";
   let item text = pf ft "@ @ %s" text in
-  pf ft "@ @ @[<v 2>module T : sig";
-  List.iter (fun (n, def) -> pf ft "@ type %s = %s" n def) tags;
-  pf ft "@]@ end@ @ open T";
   item "(** {2 Types} *)";
+  item
+    "(** The untyped terms and sorts, of the types of the language. *)\n\
+    \  type raw = t\n\
+    \  type raw_ty = ty";
   item
     "(** A sort of terms, phantom-typed by the tag of its terms. *)\n\
     \  type +'a ty";
   item "(** A term, phantom-typed by its tag. *)\n  type +'a t";
-  item
-    "(** The untyped terms and sorts: instantiated with [with type raw = ...]. \
-     *)\n\
-    \  type raw\n\
-    \  type raw_ty";
   item "(** {2 Escape hatches} *)";
   item "(** Forgets the tag of a term. *)\n  val untyped : 'a t -> raw";
   item
@@ -352,32 +316,24 @@ let program ~sources ft (p : program) =
         let is_operand (_, t) = t = TTerm || t = TList TTerm in
         let operand_params = List.filter is_operand f.params in
         let ops, res =
-          match f.fghost with
-          | Some tags ->
-              let tags = List.map tag_of_annotation tags in
-              let n = List.length tags in
-              (List.filteri (fun i _ -> i < n - 1) tags, List.nth tags (n - 1))
-          | None -> (
-              match head with
-              | None -> (List.map (fun _ -> Unknown) operand_params, Unknown)
-              | Some (c, _, operands) ->
-                  let ops, res = node_tags ~loc:f.floc c (node_typing c) in
-                  let op i =
-                    Option.value (List.nth_opt ops i) ~default:Unknown
-                  in
-                  let op i =
-                    (* the operands of an n-ary node have one tag *)
-                    match node_typing c with
-                    | Some t when t.t_nary -> op 0
-                    | _ -> op i
-                  in
-                  ( List.map
-                      (fun (x, _) ->
-                        match index_of_var x operands with
-                        | Some i -> op i
-                        | None -> Unknown)
-                      operand_params,
-                    res ))
+          match head with
+          | None -> (List.map (fun _ -> Unknown) operand_params, Unknown)
+          | Some (c, _, operands) ->
+              let ops, res = node_tags (node_typing c) in
+              let op i = Option.value (List.nth_opt ops i) ~default:Unknown in
+              let op i =
+                (* the operands of an n-ary node have one tag *)
+                match node_typing c with
+                | Some t when t.t_nary -> op 0
+                | _ -> op i
+              in
+              ( List.map
+                  (fun (x, _) ->
+                    match index_of_var x operands with
+                    | Some i -> op i
+                    | None -> Unknown)
+                  operand_params,
+                res )
         in
         let operands =
           List.map
@@ -422,8 +378,12 @@ let program ~sources ft (p : program) =
             | Some t -> List.init (List.length t.t_sorts - 1) (fun _ -> `One)
             | None -> []
           in
-          smart ft ~doc:c.c_doc ~name params ~operands
-            (node_tags ~loc:Location.none c typing)
+          smart ft ~doc:c.c_doc ~name params ~operands (node_tags typing)
       | _ -> ())
     !lang.node_ctors;
-  pf ft "@]@ end@]@."
+  item "(** {2 Destructors} *)";
+  last_doc := true;
+  List.iter (fun c -> destructor ft c (node_typing c)) (Gen_ocaml.destructed ());
+  pf ft "@]@ end";
+  ghost ft ();
+  pf ft "@]@."

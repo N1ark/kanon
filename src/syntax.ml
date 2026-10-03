@@ -187,19 +187,6 @@ type lang = {
           open *)
   ocaml_prims : string option;
       (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
-  ghost_tags : (string * string) list;
-      (** [[@@@ghost "name" "ocaml text"]]: the ghost tag types of the typed
-          backend, in order of declaration: the name, possibly with type
-          parameters (["'a sseq"]), and the polymorphic variant that it stands
-          for *)
-  ghost_locs : (string * Location.t) list;
-      (** the locations of the declarations of the ghost tag types, by name *)
-  sort_ghosts : (string * string) list;
-      (** [[@ghost tag]] on a sort: the tag of its terms, by sort constructor *)
-  node_ghosts : (string * string list) list;
-      (** [[@ghost "t1" ... "tn"]] on a node: the tags of its operands, then of
-          its result, by node (a leaf has only the tag of its result, and the
-          operands of an n-ary node, a list, have one tag) *)
   subsorts : subsort list;
   node_ctors : (string * string) list;
       (** [[@ctor f]] on a node: the name of its smart constructor, if no rule
@@ -228,10 +215,6 @@ let lang =
       lean_params = [];
       ocaml_types = None;
       ocaml_prims = None;
-      ghost_tags = [];
-      ghost_locs = [];
-      sort_ghosts = [];
-      node_ghosts = [];
       subsorts = [];
       node_ctors = [];
       operators = [];
@@ -354,9 +337,6 @@ type fn = {
   body : expr;
   floc : Location.t;
   fdoc : string option;  (** the doc comment before [fn] or [rule] *)
-  fghost : string list option;
-      (** [[@ghost "t1" ... "tn"]] after the spec of a rule: the tags of its
-          term operands, then of its result *)
   no_lean : bool;
       (** [[@no_lean]]: a helper that is generated in OCaml but not modelled in
           Lean *)

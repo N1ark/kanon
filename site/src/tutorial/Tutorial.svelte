@@ -369,35 +369,36 @@ extend fn sure_neq =
   </p>
   <Example id="modules" ocaml="ocaml" lean="lean-soundness" />
 
-  <Heading level={2} id="typed">Ghost tags</Heading>
+  <Heading level={2} id="typed">Subsorts</Heading>
   <p>
     The generated OCaml functions take and return terms of one type, <code>t</code>: nothing stops
     <code>plus</code> from being applied to a boolean (the assertions on entry catch it at run
     time). <code>ocaml-typed</code> generates an OCaml <em>interface</em> of the smart constructors
     instead, where a term is typed by a <em>ghost tag</em>, a polymorphic variant that says what
-    Kanon knows of it, and the OCaml compiler rejects the ill-kinded calls.
+    Kanon knows of it, and the OCaml compiler rejects the ill-kinded calls. The tag of a term is
+    that of its sort, which Kanon generates, and a <em>subsort</em> refines it.
   </p>
   <Code
-    code={`[@@@ghost "sint" "[ \`NonZero | \`Zero ]"]
-[@@@ghost "nonzero" "[ \`NonZero ]"]
-
-sort TInt [@ghost sint]
+    code={`sort TInt
+subsort TNonzero : TInt
 
 node Int of int : TInt [@ctor mk_int]
-node Div : TInt -> TInt -> TInt [@ghost "sint" "nonzero" "sint"]`}
+node Div : TInt -> TNonzero -> TInt`}
   />
   <ul>
     <li>
-      <code>{`[@@@ghost "name" "type"]{:kanon}`}</code> declares a tag, as the OCaml type
-      <code>name</code>. The bool module declares <code>sbool</code>, the tag of
-      <code>TBool</code>.
+      <code>{`subsort TNonzero : TInt{:kanon}`}</code> declares a sort of the terms of
+      <code>TInt</code> that satisfy more than that: here that they are not zero. A subsort has the
+      arguments of its parent, none here (<code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>
+      for a width). A node may use it in its typing: the divisor of <code>Div</code> is a
+      <code>TNonzero</code>. A term of a subsort is accepted wherever its parent is expected, and
+      not the reverse.
     </li>
     <li>
-      <code>{`[@ghost tag]{:kanon}`}</code> on a sort gives the tag of its terms, which the typing of
-      each node carries: <code>Plus</code> takes two <code>sint</code> and returns one.
-      <code>{`[@ghost "t1" … "tn"]{:kanon}`}</code> on a node (or after the spec of a rule function)
-      overrides it with the tags of its operands, then of its result: the divisor of
-      <code>Div</code> is <code>nonzero</code>.
+      A subsort has no meaning in OCaml, where the types and the rules erase it to its parent: it
+      is trusted. Only the interface uses it, with the tags <code>tint</code> and
+      <code>tnonzero</code>, and Lean can give it a meaning (see the
+      <a href="reference.html#declarations">reference</a>).
     </li>
     <li>
       A leaf, or a node without a rule function, has a function in the interface only with
@@ -406,11 +407,13 @@ node Div : TInt -> TInt -> TInt [@ghost "sint" "nonzero" "sint"]`}
   </ul>
   <Example id="typed" ocaml="ocaml-typed" lean="lean-model" />
   <p>
-    <code>[&lt; sint ] t</code>, as an operand, accepts any term whose tag is within
-    <code>sint</code>, and <code>[&gt; sint ] t</code>, as a result, is a term that may have any of
-    them. The implementation is written by hand, most often as an identity layer over the raw
-    terms, and OCaml checks it against the interface. A client of the interface then cannot add an
-    integer to a boolean:
+    <code>[&lt; tint ] t</code>, as an operand, accepts any term whose tag is within
+    <code>tint</code>, which includes <code>tnonzero</code>, and <code>[&gt; tint ] t</code>, as a
+    result, is a term that may have any of them. The module <code>Ghost</code> implements the phantom
+    types of the interface, and the rules implement the rest, so that the implementation is
+    <code>{`struct include Ghost include Rules let mk_int = ... end{:ocaml}`}</code>, which OCaml
+    checks against the interface. A client of the interface then cannot add an integer to a
+    boolean:
   </p>
   <Code
     lang="ocaml"
@@ -418,18 +421,17 @@ node Div : TInt -> TInt -> TInt [@ghost "sint" "nonzero" "sint"]`}
   />
   <Code
     lang="text"
-    code={`Error: This expression has type [> M.T.sbool ] M.t
-       but an expression was expected of type [< M.T.sint ] M.t
-       Type [> M.T.sbool ] = [> \`Bool ] is not compatible with type
-         [< M.T.sint ] = [< \`NonZero | \`Zero ]
-       The second variant type does not allow tag(s) \`Bool`}
+    code={`Error: This expression has type [> Tag.tbool ] t
+       but an expression was expected of type [< Tag.tint ] t
+       …
+       The second variant type does not allow tag(s) \`TBool`}
   />
   <p>
-    Refinements such as <code>nonzero</code> are trusted: nothing proves them, and
-    <code>{`div (mk_int Z.one) (mk_int Z.one){:ocaml}`}</code> is rejected too, since a literal is
-    any <code>sint</code>: a caller that knows better says so with the escape hatches of the
-    interface (<code>type_</code>, <code>cast</code>). They are properties of terms, which a later
-    step can prove in Lean (<code>nonzero v := v &lt;&gt; 0</code>).
+    The same goes for a divisor that is not known to be non-zero:
+    <code>{`div (mk_int Z.one) (mk_int Z.one){:ocaml}`}</code> is rejected too, since the result of
+    <code>mk_int</code> is any <code>tint</code>. A caller that knows better says so with
+    <code>cast</code>, which is the identity at run time (and so are <code>untyped</code> and
+    <code>type_</code>): the subsort is trusted, nothing proves it.
   </p>
 
   <Heading level={2} id="typings">Typings</Heading>
@@ -498,9 +500,9 @@ node Fill of int : TArray n`}
     </dd>
     <dt><code>ocaml-typed</code></dt>
     <dd>
-      the interface of the smart constructors, typed by ghost tags (see
-      <a href="#typed">Ghost tags</a>): a <code>module type S</code> that an implementation written
-      by hand must have;
+      the interface of the smart constructors, typed by the tags of the sorts and subsorts (see
+      <a href="#typed">Subsorts</a>): a <code>module type S</code>, and <code>Ghost</code>, which
+      implements its phantom types;
     </dd>
     <dt><code>ocaml-tests</code></dt>
     <dd>

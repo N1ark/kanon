@@ -26,3 +26,30 @@ let () =
   check "the subsorts have no destructor"
     (as_tbitvector x.ty = Some 8
     && is_tbool (node (Zero 8) (TBitVector 8)).ty = false)
+
+(* The typed interface: [Ghost] gives the phantom types and the escape hatches,
+   the rules give the smart constructors, and the leaves are written by hand. *)
+
+module Typed : Sub_typed.S = struct
+  include Sub_typed.Ghost
+  include Sub_rules
+
+  let mk_bv v n = node (BitVec (v, n)) (TBitVector n)
+  let mk_zero n = node (Zero n) (TBitVector n)
+end
+
+let () =
+  let open Typed in
+  let x = mk_bv (Z.of_int 3) 8 and z = mk_zero 8 in
+  (* the escape hatches do not change the term *)
+  check "cast" (cast x == x && untyped (cast x) == untyped x);
+  check "type_" (type_ (untyped x) == x);
+  check "sorts" (untype_type (t_bitvector 8) = TBitVector 8);
+  check "type_type" (type_type (TBitVector 8) = t_bitvector 8);
+  (* a zero is a bit-vector, and a divisor once cast *)
+  let d = bv_div false x (cast z) in
+  check "typed rule"
+    (untyped d == Sub_rules.bv_div false (untyped x) (untyped z));
+  check "typed destructors"
+    (as_div d = Some (false, x, cast z) && is_div d && as_zero z = Some 8);
+  check "sorts of the destructors" (as_tbitvector (t_bitvector 8) = Some 8)

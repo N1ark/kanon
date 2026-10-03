@@ -71,7 +71,7 @@
     },
     {
       "id": "typed",
-      "title": "Tutorial 5: ghost tags",
+      "title": "Tutorial 5: subsorts",
       "files": {
         "lang.knl": "examples/typed/lang.knl",
         "int.knl": "examples/typed/int.knl",

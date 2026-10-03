@@ -59,11 +59,11 @@ Lean: the sort is the translated expression.
   63:  (Term.mk (Kind.Op1 (Op1.Proj i) v) Ty.TInt)
   68:    (whenSome true ((Term.mk (Kind.Op1 (Op1.Proj i) v) (field_ty v i)))))
 
-The ocaml-typed backend does not constrain the tag of a result built at a
-computed sort: `proj` returns `_ t`.
+The ocaml-typed backend types a rule by the typing of its node, not by the sort
+that its body builds: `proj` returns a `tint`.
 
   $ kanon ocaml-typed lang.knl | grep -n 'val proj'
-  47:  val proj : Z.t -> _ t -> _ t
+  48:  val proj : Z.t -> [< ttuple ] t -> [> tint ] t
 
 The sort of a node is a `ty`: anything else is an error at the sort.
 

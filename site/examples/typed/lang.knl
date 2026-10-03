@@ -1,4 +1,4 @@
-(* The language of the modules step, with ghost tags: the bool module declares the tag sbool. *)
+(* The language of the modules step, with a subsort: the divisor of a division is not zero. *)
 
 [@@@ocaml_prims "Prims"]
 

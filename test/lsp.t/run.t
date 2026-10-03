@@ -95,7 +95,7 @@ and its hover shows its first comment; it cannot be renamed.
   {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":10}}}]}
   {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":26}}}}
   {"jsonrpc":"2.0","id":7,"result":null}
-  {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool [@ghost sbool]\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
+  {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
   {"jsonrpc":"2.0","id":9,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"BUILTIN/bool.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
   {"jsonrpc":"2.0","id":10,"result":{"contents":{"kind":"markdown","value":"```kanon\nuse builtin \"bool\"\n```\n\nThe bool module, at the bottom of every language: booleans, equality, [Ite]\nand [Distinct]. See the README of Kanon for the syntax.\n\n*bool.knl*"},"range":{"start":{"line":2,"character":13},"end":{"line":2,"character":17}}}}
   {"jsonrpc":"2.0","id":11,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"file://ROOT/imp.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
@@ -216,7 +216,7 @@ extend rule f, and the hover of an operand of the spec.
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"xor\" = Xor, b_xor\n```\n\nIn this pattern, `a xor b` matches the node `Xor`.\n\n*xor.knl*"},"range":{"start":{"line":8,"character":12},"end":{"line":8,"character":15}}}}
   {"jsonrpc":"2.0","id":9,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":4,"character":7},"end":{"line":4,"character":8}}}]}
   {"jsonrpc":"2.0","id":10,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":10}}}]}
-  {"jsonrpc":"2.0","id":11,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":18,"character":8},"end":{"line":18,"character":11}}}]}
+  {"jsonrpc":"2.0","id":11,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":16,"character":8},"end":{"line":16,"character":11}}}]}
   {"jsonrpc":"2.0","id":12,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":8}}}]}
   {"jsonrpc":"2.0","id":13,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}}}]}
   {"jsonrpc":"2.0","id":14,"result":{"contents":{"kind":"markdown","value":"```kanon\nv1 : t\n```\n\nParameter of the rule `b_xor`: an operand of its spec, `Xor`. Bound on line 8.\n\nA term of sort `TBool`."},"range":{"start":{"line":10,"character":29},"end":{"line":10,"character":31}}}}
