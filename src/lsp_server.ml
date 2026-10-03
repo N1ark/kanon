@@ -478,7 +478,11 @@ let doc_comment s a =
   | Some j when j >= 3 && s.[j] = ')' && s.[j - 1] = '*' -> (
       match opening (j - 2) 0 with
       | Some k ->
-          let lines = String.split_on_char '\n' (sub s (k + 2, j - 1)) in
+          (* a doc comment starts with two stars: the second is not text *)
+          let start =
+            if k + 2 < j - 1 && s.[k + 2] = '*' then k + 3 else k + 2
+          in
+          let lines = String.split_on_char '\n' (sub s (start, j - 1)) in
           let indent l =
             let n = String.length l in
             let rec go i = if i < n && l.[i] = ' ' then go (i + 1) else i in
