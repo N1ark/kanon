@@ -52,6 +52,9 @@ type constr = {
   c_doc : string option;
       (** the doc comment of a node or a sort ([(** ... *)] before [node] or
           [sort]) *)
+  c_loc : Location.t;
+      (** where it is declared, in the file of its module ({!Location.none} for
+          the kinds that Kanon generates) *)
 }
 
 (** A type of the language: generated ([kind], [ty] and the types of operators),
@@ -187,6 +190,9 @@ type lang = {
           open *)
   ocaml_prims : string option;
       (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
+  ocaml_rules : string option;
+      (** [[@@@ocaml_rules "M"]]: the OCaml module of the rules, which the
+          implementation of [ocaml-typed] is made of *)
   subsorts : subsort list;
   node_ctors : (string * string) list;
       (** [[@ctor f]] on a node: the name of its smart constructor, if no rule
@@ -215,6 +221,7 @@ let lang =
       lean_params = [];
       ocaml_types = None;
       ocaml_prims = None;
+      ocaml_rules = None;
       subsorts = [];
       node_ctors = [];
       operators = [];
