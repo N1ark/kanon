@@ -470,3 +470,74 @@ node Pairs of (t, int) pair * (t box) option
             (type_identifier)
             (type_identifier)))
         (type_identifier)))))
+
+================================================================================
+Nodes built at a computed sort
+================================================================================
+
+fn mk_var (x : var) (s : ty) : t = (Var x : s)
+fn mk_field (i : int) (v : t) : t = (Field (i, v) : field_ty v i)
+fn mk_field_in (i : int) (v : t) : t = (Field (i, v) : (nth_ty (types_of [v]) i))
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (parameter
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (typed_expression
+      (constructor_expression
+        (constructor)
+        (identifier))
+      (type_identifier)))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (parameter
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (typed_expression
+      (constructor_expression
+        (constructor)
+        (parenthesized_expression
+          (tuple_expression
+            (identifier)
+            (identifier))))
+      (application_expression
+        (identifier)
+        (identifier)
+        (identifier))))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (parameter
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (typed_expression
+      (constructor_expression
+        (constructor)
+        (parenthesized_expression
+          (tuple_expression
+            (identifier)
+            (identifier))))
+      (parenthesized_expression
+        (application_expression
+          (identifier)
+          (parenthesized_expression
+            (application_expression
+              (identifier)
+              (list_expression
+                (identifier))))
+          (identifier))))))

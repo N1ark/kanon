@@ -2677,6 +2677,23 @@
                 "type": "SYMBOL",
                 "name": "_sort_annotation"
               }
+            },
+            {
+              "type": "FIELD",
+              "name": "computed_sort",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "application_expression"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "parenthesized_expression"
+                  }
+                ]
+              }
             }
           ]
         },
@@ -3996,7 +4013,12 @@
       "name": "comment"
     }
   ],
-  "conflicts": [],
+  "conflicts": [
+    [
+      "_type_application",
+      "_simple_expression"
+    ]
+  ],
   "precedences": [],
   "externals": [
     {

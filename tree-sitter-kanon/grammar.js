@@ -88,6 +88,8 @@ module.exports = grammar({
 
   supertypes: $ => [$._item, $._expression, $._pattern, $._type],
 
+  conflicts: $ => [[$._type_application, $._simple_expression]],
+
   rules: {
     source_file: $ => repeat($._item),
 
@@ -475,12 +477,17 @@ module.exports = grammar({
 
     parenthesized_expression: $ => seq('(', $._sequence_or_expression, ')'),
 
-    // [(e : t)], or [(v : TBitVector n)], the sort of an operand of a spec
+    // [(e : t)], or [(v : TBitVector n)], the sort of an operand of a spec,
+    // or [(Field (i, v) : field_ty v i)], a node built at a computed sort
     typed_expression: $ => seq(
       '(',
       field('expression', $._sequence_or_expression),
       ':',
-      choice(field('type', $._type), field('sort', $._sort_annotation)),
+      choice(
+        field('type', $._type),
+        field('sort', $._sort_annotation),
+        field('computed_sort', choice($.application_expression, $.parenthesized_expression)),
+      ),
       ')',
     ),
 
