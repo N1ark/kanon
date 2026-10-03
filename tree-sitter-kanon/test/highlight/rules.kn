@@ -96,6 +96,11 @@ rule b_and : And (v1, v2) =
 (*              ^ operator *)
 (*                 ^ operator *)
 (*                    ^ operator *)
+  | ult: x <u #y -> x <=s y
+(*  ^ label *)
+(*         ^ operator *)
+(*            ^ punctuation.special *)
+(*                    ^ operator *)
 
 extend rule b_and before not =
 (* <- keyword *)
