@@ -23,9 +23,9 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
 - auto-indentation: the cases of a rule under it, the body of a case or of a
   function on the next line, the lines of a node that do not fit on one;
 - text objects in vim mode: `af`/`if` for a rule function, a helper or a
-  rule, `ac`/`ic` for a type, a node or a sort, `gc` for a comment;
+  rule, `ac`/`ic` for a type, a node, a sort or a subsort, `gc` for a comment;
 - snippets: `rule`, `case`, `casew`, `fn`, `extendrule`, `extendfn`, `prim`,
-  `oracle`, `node`, `sort`, `notation`, `type`, `typer`, `infix`, `prefix`,
+  `oracle`, `node`, `sort`, `subsort`, `notation`, `type`, `typer`, `infix`, `prefix`,
   `constant`, `use`, `usebuiltin`, `match`, `let`, `if`, `section`.
 
 ## Installing
