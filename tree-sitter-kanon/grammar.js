@@ -227,8 +227,11 @@ module.exports = grammar({
       $.list_sort,
     ),
 
-    // [a list], the sort of the operands of an n-ary node
-    list_sort: $ => prec(PREC.app + 1, seq(field('element', $.identifier), 'list')),
+    // [a list], [(TBitVector n) list]: the sort of the operands of an n-ary node
+    list_sort: $ => prec(PREC.app + 1, seq(
+      field('element', choice($.identifier, $.parenthesized_expression)),
+      'list',
+    )),
 
     record_declaration: $ => seq(
       '{',
