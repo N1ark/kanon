@@ -512,6 +512,16 @@ they open. They call the primitives in the module of
 `[@@@ocaml_prims "Lang_prims"]`, which they check against the declarations
 (`module _ : sig ... end = Lang_prims`). On terms, `=` compares their tags.
 
+After the rules, it generates a destructor `as_foo` and a test `is_foo` for
+every node and every sort (not the kinds that Kanon builds). For the node
+`Foo`, `as_foo : t -> (args) option` gives its arguments, as a pattern would
+bind them: its parameters, then its operands (the list of an n-ary node), in a
+tuple, or alone, or `()`; `is_foo : t -> bool` tells whether a term is built by
+`Foo`. For a sort `TFoo of nat`, `as_tfoo : ty -> int option` and `is_tfoo`
+read a `ty`. The name is that of the constructor in lowercase (`BvAdd` gives
+`as_bvadd`), so a function or a primitive may not be named like a destructor,
+nor may two constructors that differ only by their case: these are errors.
+
 ## Typed OCaml
 
 `kanon ocaml-typed lang.knl rules.kn` generates an OCaml interface, `module

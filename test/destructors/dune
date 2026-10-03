@@ -1,0 +1,23 @@
+; The destructors as_foo and is_foo of the nodes and sorts: the generated OCaml
+; compiles, and they take apart the terms and sorts of every kind of node
+; (leaf, parameters and operands, n-ary).
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   ds_types.ml
+   (run %{bin:kanon} ocaml-types lang.knl))))
+
+(rule
+ (deps
+  (glob_files *.kn*))
+ (action
+  (with-stdout-to
+   ds_rules.ml
+   (run %{bin:kanon} ocaml lang.knl))))
+
+(test
+ (name main)
+ (libraries zarith))

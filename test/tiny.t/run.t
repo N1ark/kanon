@@ -282,6 +282,71 @@ The rules, in the scope of the types:
   
   let zero : t = (node (Int (Z.zero)) TInt)
   
+  let as_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  
+  let is_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+  
+  let is_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+  
+  let as_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+  
+  let as_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+  
+  let as_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+  
+  let as_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+  
+  let as_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
   
 
 The Lean statements and their proofs:
@@ -951,6 +1016,83 @@ OCaml asserts, and whose variables the rules may use.
       | _ -> (node (Op1 (Trunc, v)) v.ty)
       )))
   
+  let as_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  
+  let is_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+  
+  let is_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+  
+  let as_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+  
+  let as_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+  
+  let as_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+  
+  let as_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+  
+  let as_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+  
+  let as_trunc (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
+  
+  let is_trunc (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tword (t : ty) =
+    match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
+  
+  let is_tword (t : ty) =
+    match[@warning "-11"] t with TWord (_) -> true | _ -> false
+  
   
 
 With a getter, the variables of the sort are read by it.
@@ -967,6 +1109,83 @@ With a getter, the variables of the sort are read by it.
       | _ when ((Z.leq n (Z.of_int (8)))) -> v
       | _ -> (node (Op1 (Trunc, v)) v.ty)
       )))
+  
+  let as_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  
+  let is_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+  
+  let is_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+  
+  let as_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+  
+  let as_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+  
+  let as_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+  
+  let as_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+  
+  let as_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+  
+  let as_trunc (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
+  
+  let is_trunc (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tword (t : ty) =
+    match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
+  
+  let is_tword (t : ty) =
+    match[@warning "-11"] t with TWord (_) -> true | _ -> false
   
   
 
@@ -1002,6 +1221,71 @@ and is left out (the generated OCaml has the warning on unused match cases).
       | _ -> (node (Op1 (Not, v)) TBool)
       ))
   
+  let as_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  
+  let is_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+  
+  let is_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+  
+  let as_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+  
+  let as_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+  
+  let as_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+  
+  let as_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+  
+  let as_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
   
 
 An infix operator may be a word, which is an operator from its declaration on,
@@ -1035,5 +1319,76 @@ and its node may have fixed parameters, which its patterns then match.
         (sub true x (plus y z))
       | _ -> (node (Op2 ((Minus (b)), v1, v2)) TInt)
       ))
+  
+  let as_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  
+  let is_var (t : t) =
+    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+  
+  let is_not (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+  
+  let as_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_and (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+  
+  let as_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_plus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+  
+  let as_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_times (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+  
+  let as_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lt (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+  
+  let as_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eq (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+  
+  let as_minus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Minus (p1), x1, x2); _ } -> Some (p1, x1, x2) | _ -> None
+  
+  let is_minus (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Minus (_), _, _); _ } -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
   
   

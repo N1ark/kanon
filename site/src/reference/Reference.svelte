@@ -512,7 +512,16 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
     <tbody>
       <tr><td><code>ocaml-types</code></td><td>The OCaml types of the language and its hash-consed terms.</td></tr>
-      <tr><td><code>ocaml</code></td><td>The OCaml rule functions and helpers.</td></tr>
+      <tr>
+        <td><code>ocaml</code></td>
+        <td>
+          The OCaml rule functions and helpers, then, for every node <code>Foo</code> and sort
+          <code>TFoo</code>, the destructors <code>as_foo</code> (its arguments in an option: the
+          parameters, then the operands) and <code>is_foo</code>, named after the constructor in
+          lowercase (<code>BvAdd</code> gives <code>as_bvadd</code>): a function or a primitive
+          cannot have such a name.
+        </td>
+      </tr>
       <tr>
         <td><code>ocaml-typed</code></td>
         <td>

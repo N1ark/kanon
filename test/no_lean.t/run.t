@@ -162,4 +162,21 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   
   let[@inline] f (v : t) : Z.t = (Z.of_int (3))
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
   

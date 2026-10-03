@@ -107,7 +107,8 @@ let run args out err =
               | None -> usage err));
           0
         with Check.Error (loc, msg) ->
-          Format.fprintf err "%a: %s@." Check.pp_loc loc msg;
+          if loc = Location.none then Format.fprintf err "kanon: %s@." msg
+          else Format.fprintf err "%a: %s@." Check.pp_loc loc msg;
           1)
     | [] -> usage err
   with Exit_code code -> code

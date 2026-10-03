@@ -53,6 +53,29 @@ host's.
   let[@inline] same (a : (t box)) (b : (t box)) : bool =
       (((Box.equal equal_t) a b))
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_arr (t : t) =
+    match[@warning "-11"] t with { kind = Arr (p1); _ } -> Some p1 | _ -> None
+  
+  let is_arr (t : t) =
+    match[@warning "-11"] t with { kind = Arr (_); _ } -> true | _ -> false
+  
+  let as_pairs (t : t) =
+    match[@warning "-11"] t with { kind = Pairs (p1, p2); _ } -> Some (p1, p2) | _ -> None
+  
+  let is_pairs (t : t) =
+    match[@warning "-11"] t with { kind = Pairs (_, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
   
   $ kanon ocaml-tests lang.knl | sed -n '/^let untested/p'
   let untested = [  ]
@@ -89,6 +112,17 @@ Errors: the arity, unknown constructors, a parametrised type without arguments.
   module _ : sig
     val p : ((Z.t option) box) -> Z.t
   end = Prims
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
   
   
 

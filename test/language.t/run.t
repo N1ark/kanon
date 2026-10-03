@@ -63,6 +63,65 @@ functions named last in their declarations (z_land for &&&).
   let[@inline] masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
       (if ((Z.equal (Prims.z_land x y) Z.zero)) then (land a b) else a)
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
   
 
 A word declared infix is an operator at the level of *, as OCaml's mod and
@@ -104,6 +163,83 @@ k < (1 lsl (n - 1)).
       (Z.lt k (Prims.z_lsl Z.one (Z.sub n Z.one)))
   
   let[@inline] is_or (a : t) (l : t) (r : t) : t = (eqi a (lor_ l r))
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_lor (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lor, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_lor (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Lor, _, _); _ } -> true | _ -> false
+  
+  let as_shl (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Shl, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_shl (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Shl, _, _); _ } -> true | _ -> false
+  
+  let as_eqi (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eqi, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_eqi (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Eqi, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
   
   
 
@@ -148,6 +284,83 @@ is read as the symbol, then the word.
   
   let[@inline] prefixed (a : t) (b : t) : t = (ule (pu a) b)
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_ult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Ult, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_ult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Ult, _, _); _ } -> true | _ -> false
+  
+  let as_ule (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Ule, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_ule (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Ule, _, _); _ } -> true | _ -> false
+  
+  let as_pu (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Pu, x1); _ } -> Some x1 | _ -> None
+  
+  let is_pu (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Pu, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
   
 
 A symbol that does not start an operator cannot have a suffix:
@@ -167,6 +380,65 @@ A suffix that is not declared is not read as part of the symbol:
   > KN
   $ kanon ocaml ops.knl ops.kn nosuffix.kn | sed -n '/ lt_u/,$p'
   let[@inline] lt_u (x : Z.t) (y : Z.t) : bool = (Z.lt x (u y))
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
   
   
 
@@ -274,6 +546,65 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   let[@inline] same (a : t) (b : t) (l : (t list)) : bool =
       ((Int.equal a.tag b.tag) || (not ((List.equal equal_t) l (a :: []))))
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
   
   $ cat > bad.kn <<'KN'
   > fn h (a b : var) : bool = a = b
@@ -367,6 +698,77 @@ number of operands, whose elements all have that sort.
       (match l with
       | _ -> (node (OpN (Same, l)) TBool)
       )
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+  
+  let is_neg (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_mul (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+  
+  let as_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_cat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+  
+  let as_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_le (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+  
+  let as_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_land (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+  
+  let as_max (t : t) =
+    match[@warning "-11"] t with { kind = OpN (Max, xs); _ } -> Some xs | _ -> None
+  
+  let is_max (t : t) =
+    match[@warning "-11"] t with { kind = OpN (Max, _); _ } -> true | _ -> false
+  
+  let as_same (t : t) =
+    match[@warning "-11"] t with { kind = OpN (Same, xs); _ } -> Some xs | _ -> None
+  
+  let is_same (t : t) =
+    match[@warning "-11"] t with { kind = OpN (Same, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
   
   
   $ echo 'node Bad : TInt list -> TInt -> TInt' > bad.knl
@@ -500,6 +902,48 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
       | (_, _) when (false) -> (node (Bool (true)) TBool)
       | _ -> (node (Op2 (BvUlt, v1, v2)) TBool)
       ))
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_bitvec (t : t) =
+    match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bitvec (t : t) =
+    match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
+  
+  let as_bvadd (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvadd (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
+  
+  let as_bvconcat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvconcat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
+  
+  let as_bvult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
+  
+  let as_tbitvector (t : ty) =
+    match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
+  
+  let is_tbitvector (t : ty) =
+    match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
   
   
 
@@ -671,6 +1115,72 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
       (match v with
       | _ -> (node (Op1 ((FloatOfBits ((Z.to_int n))), v)) TFloat)
       )))
+  
+  let as_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bool (t : t) =
+    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+  
+  let as_bitvec (t : t) =
+    match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
+  
+  let is_bitvec (t : t) =
+    match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
+  
+  let as_bvadd (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvadd (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
+  
+  let as_bvconcat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvconcat (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
+  
+  let as_bvult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_bvult (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
+  
+  let as_bvextend (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (BvExtend (p1), x1); _ } -> Some (p1, x1) | _ -> None
+  
+  let is_bvextend (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (BvExtend (_), _); _ } -> true | _ -> false
+  
+  let as_floatofbv (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (FloatOfBv (p1), x1); _ } -> Some (p1, x1) | _ -> None
+  
+  let is_floatofbv (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (FloatOfBv (_), _); _ } -> true | _ -> false
+  
+  let as_floatofbits (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (FloatOfBits (p1), x1); _ } -> Some (p1, x1) | _ -> None
+  
+  let is_floatofbits (t : t) =
+    match[@warning "-11"] t with { kind = Op1 (FloatOfBits (_), _); _ } -> true | _ -> false
+  
+  let as_tbitvector (t : ty) =
+    match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
+  
+  let is_tbitvector (t : ty) =
+    match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
+  
+  let as_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> Some () | _ -> None
+  
+  let is_tbool (t : ty) =
+    match[@warning "-11"] t with TBool -> true | _ -> false
+  
+  let as_tfloat (t : ty) =
+    match[@warning "-11"] t with TFloat -> Some () | _ -> None
+  
+  let is_tfloat (t : ty) =
+    match[@warning "-11"] t with TFloat -> true | _ -> false
   
   
   $ kanon lean-statements bv.knl shadow.knl bv.kn shadow.kn | sed -n '/bv_extend.r_extend.main.Stmt/,/^$/p'
