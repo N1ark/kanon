@@ -1,0 +1,15 @@
+(* The destructors [as_foo] and [is_foo] of the nodes and sorts. *)
+
+[@@@ocaml_types "Ds_types"]
+[@@@ocaml_prims "Ds_prims"]
+
+use "rules"
+
+sort TBv of nat
+sort TPair of ty * ty
+sort TBool
+node Lit of int * nat (v, n) : TBv n [@ctor lit]
+node Flag of bool : TBool [@ctor flag]
+node Not : TBool -> TBool
+node Add of bool : TBv n -> TBv n -> TBv n
+node Concat : (TBv 8) list -> TBv 8

@@ -1,6 +1,7 @@
 (* A tiny value language: booleans and integers. *)
 
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use "rules"
 

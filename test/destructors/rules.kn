@@ -1,0 +1,3 @@
+rule not_ : Not v
+rule add : Add (c, v1, v2)
+rule concat : Concat vs

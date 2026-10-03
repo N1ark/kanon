@@ -5,6 +5,7 @@
 
 [@@@lean_root "DivisionExample"]
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use builtin "bool"
 use "int"

@@ -52,6 +52,28 @@ OCaml: the standard `Iarray`, with nothing else than the generated code.
   let[@inline] same (a : (Z.t Iarray.t)) (b : (Z.t Iarray.t)) : bool =
       ((((Iarray.equal Z.equal) a b)) && (not (not ((Iarray.equal Z.equal) a b))))
   
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_vec (t : t) =
+    match[@warning "-11"] t with { kind = Vec (p1); _ } -> Some p1 | _ -> None
+  
+  let is_vec (t : t) =
+    match[@warning "-11"] t with { kind = Vec (_); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  
+  let as_tvec (t : ty) =
+    match[@warning "-11"] t with TVec -> Some () | _ -> None
+  
+  let is_tvec (t : ty) = match[@warning "-11"] t with TVec -> true | _ -> false
+  
   
 
 The types define the structural equality and hash of a node with an array

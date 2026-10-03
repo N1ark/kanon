@@ -5,6 +5,7 @@ through. It applies once the language is complete, after the cases of every
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
+  > [@@@ocaml_rules "Rules"]
   > sort TInt
   > type var [@ocaml "string"] [@lean "String"]
   > node Int of int : TInt
@@ -37,7 +38,7 @@ and bind the operands in any way.
       | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
       )
   
-  $ for b in ocaml-types ocaml-tests lean-signatures lean-model lean-statements lean-lifts lean-soundness; do
+  $ for b in ocaml-types ocaml-typed ocaml-tests lean-signatures lean-model lean-statements lean-lifts lean-soundness; do
   >   kanon $b lang.knl ok.kn > /dev/null || echo "$b failed"
   > done
 

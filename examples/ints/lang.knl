@@ -2,6 +2,7 @@
 
 [@@@lean_root "IntsExample"]
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use builtin "bool"
 use "int"

@@ -3,5 +3,6 @@
    to edit. *)
 
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use "bool"
