@@ -12,11 +12,13 @@
 
 ### Fixed
 
+- The hover of the language server on a function or a node showed the second star of its documentation comment `(** ... *)` as text.
 - `kanon ocaml-tests` listed the single rule `main` for a rule function whose spec annotates the sort of an operand (`(v : TBv sz)`), and its `fired` did not bind the variables of the sorts: it lists the rules and binds them.
 - The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
 
 ### Changed
 
+- `[@ty_only]` on a rule is an error: it only means something on a helper (`fn`).
 - Operators need spaces: an operator is surrounded by spaces (or brackets), and `x<y`, `x +y` or `f x+1` are errors, no longer `x < y`. A prefix operator (`-`, or a symbol that starts with `!`, `~` or `?`) is written right before its operand (`-x`, `x - -y`), and has no word suffix; `.`, `:` and `#` need no spaces. A symbol followed by a word is one operator whatever the declarations: the lexer no longer knows them (but for the words declared infix, such as `urem`).
 - `use +name` is a syntax error like any other, not a message: it is `use builtin "name"`.
 - A tuple of blanks (`_, _`) is a final catch-all case like `_`, for `extend fn`, `extend rule`, `default` and unreachable cases: the cases of `extend fn` were silently dropped after a final `| _, _ ->`.
