@@ -1,3 +1,2 @@
-rule b_xor : Xor (v1, v2) =
-  | same: x, x -> v_false
-  | true_: true, x -> not x
+rule plus : Plus (v1, v2) =
+  | lits: #x + #y -> Int (x + y)

@@ -66,7 +66,8 @@ before (in the function that extend extends), a function of the bool module,
 built into kanon, which the server writes to a file, but not of the type of
 terms t, which Kanon generates. Hover shows the header of the definition (here
 of a sort), and the comment before it. The module of a use goes to its files,
-and its hover shows its first comment; it cannot be renamed.
+and its hover shows its first comment; it cannot be renamed, and nor can a
+function of the built-in modules.
 
   $ {
   >   msg "$init"
@@ -83,7 +84,8 @@ and its hover shows its first comment; it cannot be renamed.
   >   msg "$(at 10 hover lang.knl 2 14)"
   >   msg "$(at 11 definition lang.knl 3 6)"
   >   msg "$(printf '{"jsonrpc":"2.0","id":12,"method":"textDocument/rename","params":{"textDocument":{"uri":"file://ROOT/lang.knl"},"position":{"line":2,"character":14},"newName":"int"}}')"
-  >   msg '{"jsonrpc":"2.0","id":13,"method":"shutdown"}'
+  >   msg "$(printf '{"jsonrpc":"2.0","id":13,"method":"textDocument/rename","params":{"textDocument":{"uri":"file://ROOT/imp.kn"},"position":{"line":1,"character":23},"newName":"b_negate"}}')"
+  >   msg '{"jsonrpc":"2.0","id":14,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
   > } > input
   $ lsp | grep -v publishDiagnostics
@@ -100,7 +102,8 @@ and its hover shows its first comment; it cannot be renamed.
   {"jsonrpc":"2.0","id":10,"result":{"contents":{"kind":"markdown","value":"```kanon\nuse builtin \"bool\"\n```\n\nThe bool module, at the bottom of every language: booleans, equality, [Ite]\nand [Distinct]. See the README of Kanon for the syntax.\n\n*bool.knl*"},"range":{"start":{"line":2,"character":13},"end":{"line":2,"character":17}}}}
   {"jsonrpc":"2.0","id":11,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"file://ROOT/imp.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
   {"jsonrpc":"2.0","id":12,"error":{"code":-32803,"message":"modules cannot be renamed"}}
-  {"jsonrpc":"2.0","id":13,"result":null}
+  {"jsonrpc":"2.0","id":13,"error":{"code":-32803,"message":"b_not is in the built-in module bool.kn, which cannot be edited"}}
+  {"jsonrpc":"2.0","id":14,"result":null}
 
 Completion offers the names of the language and the keywords; the symbols of
 the workspace include the rules of each rule function.
@@ -138,12 +141,11 @@ Without shutdown, the end of the input is an error.
   $ kanon lsp < input > /dev/null
   [1]
 
-Local names, in another language: loc/lang.knl uses the bool module and the
-modules xor (xor.knl, xor.kn) and more (more.kn).
+Local names, in another language: loc/lang.knl uses the modules xor (xor.knl,
+xor.kn) and more (more.kn).
 
   $ mkdir loc
   $ cat > loc/lang.knl <<'KN'
-  > use builtin "bool"
   > use "xor"
   > use "more"
   > 
@@ -153,10 +155,16 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   > KN
   $ cat > loc/xor.knl <<'KN'
   > node Int of int
-  > node Xor : TBool -> TBool -> TBool [@unit false]
+  > node Xor : TBool -> TBool -> TBool
   > 
   > infix "xor" = Xor, b_xor
   > infix "+" = Or, b_or
+  > sort TBool
+  > node Bool of bool : TBool
+  > notation Bool
+  > node Not : TBool -> TBool
+  > node Or : TBool -> TBool -> TBool
+  > prefix "not" = Not, b_not
   > KN
   $ cat > loc/xor.kn <<'KN'
   > fn both (a b : t) : t =
@@ -167,9 +175,12 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   >   | z -> z + y
   > 
   > rule b_xor : Xor (v1, v2) =
-  >   | same: p xor p -> v_false
+  >   | same: p xor p -> Bool false
   >   | not_: not p xor q -> not (p xor q)
   >   | true_: _ xor true -> not v1
+  > 
+  > rule b_not : Not v
+  > rule b_or : Or (v1, v2)
   > KN
   $ cat > loc/more.kn <<'KN'
   > extend rule b_xor
@@ -216,7 +227,7 @@ extend rule f, and the hover of an operand of the spec.
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"xor\" = Xor, b_xor\n```\n\nIn this pattern, `a xor b` matches the node `Xor`.\n\n*xor.knl*"},"range":{"start":{"line":8,"character":12},"end":{"line":8,"character":15}}}}
   {"jsonrpc":"2.0","id":9,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":4,"character":7},"end":{"line":4,"character":8}}}]}
   {"jsonrpc":"2.0","id":10,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":10}}}]}
-  {"jsonrpc":"2.0","id":11,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":16,"character":8},"end":{"line":16,"character":11}}}]}
+  {"jsonrpc":"2.0","id":11,"result":[{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":10,"character":8},"end":{"line":10,"character":11}}}]}
   {"jsonrpc":"2.0","id":12,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":8}}}]}
   {"jsonrpc":"2.0","id":13,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}}}]}
   {"jsonrpc":"2.0","id":14,"result":{"contents":{"kind":"markdown","value":"```kanon\nv1 : t\n```\n\nParameter of the rule `b_xor`: an operand of its spec, `Xor`. Bound on line 8.\n\nA term of sort `TBool`."},"range":{"start":{"line":10,"character":29},"end":{"line":10,"character":31}}}}
@@ -243,8 +254,8 @@ declaration), in the files of its language.
   {"jsonrpc":"2.0","id":3,"result":[{"range":{"start":{"line":1,"character":9},"end":{"line":1,"character":10}},"kind":3},{"range":{"start":{"line":1,"character":26},"end":{"line":1,"character":27}},"kind":2}]}
   {"jsonrpc":"2.0","id":4,"result":null}
 
-Renaming a local, then a function, in all the files of its language; a
-function of the built-in modules and an uppercase function name are refused.
+Renaming a local, then a function, in all the files of its language; an
+uppercase function name is refused.
 
   $ rename() {
   >   printf '{"jsonrpc":"2.0","id":%s,"method":"textDocument/rename","params":{"textDocument":{"uri":"file://ROOT/%s"},"position":{"line":%s,"character":%s},"newName":"%s"}}' "$@"
@@ -255,18 +266,16 @@ function of the built-in modules and an uppercase function name are refused.
   >   msg "$(at 1 prepareRename loc/xor.kn 9 14)"
   >   msg "$(rename 2 loc/xor.kn 9 14 r)"
   >   msg "$(rename 3 loc/xor.kn 7 6 b_exclusive_or)"
-  >   msg "$(rename 4 loc/xor.kn 8 21 false_value)"
-  >   msg "$(rename 5 loc/xor.kn 7 6 Bxor)"
-  >   msg '{"jsonrpc":"2.0","id":6,"method":"shutdown"}'
+  >   msg "$(rename 4 loc/xor.kn 7 6 Bxor)"
+  >   msg '{"jsonrpc":"2.0","id":5,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
   > } > input
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","id":1,"result":{"range":{"start":{"line":9,"character":14},"end":{"line":9,"character":15}},"placeholder":"p"}}
   {"jsonrpc":"2.0","id":2,"result":{"changes":{"file://ROOT/loc/xor.kn":[{"range":{"start":{"line":9,"character":14},"end":{"line":9,"character":15}},"newText":"r"},{"range":{"start":{"line":9,"character":30},"end":{"line":9,"character":31}},"newText":"r"}]}}}
   {"jsonrpc":"2.0","id":3,"result":{"changes":{"file://ROOT/loc/more.kn":[{"range":{"start":{"line":0,"character":12},"end":{"line":0,"character":17}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.kn":[{"range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.knl":[{"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":24}},"newText":"b_exclusive_or"}]}}}
-  {"jsonrpc":"2.0","id":4,"error":{"code":-32803,"message":"v_false is in the built-in module bool.kn, which cannot be edited"}}
-  {"jsonrpc":"2.0","id":5,"error":{"code":-32803,"message":"Bxor is not a valid name: names start with a lowercase letter or _"}}
-  {"jsonrpc":"2.0","id":6,"result":null}
+  {"jsonrpc":"2.0","id":4,"error":{"code":-32803,"message":"Bxor is not a valid name: names start with a lowercase letter or _"}}
+  {"jsonrpc":"2.0","id":5,"result":null}
 
 The errors of independent functions are reported together; a name defined
 twice is reported at its second definition, and an unknown rule after before
@@ -286,7 +295,7 @@ at its name.
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":5,"character":13},"end":{"line":5,"character":14}},"severity":1,"source":"kanon","message":"type mismatch: expected t, got int"},{"range":{"start":{"line":10,"character":29},"end":{"line":10,"character":30}},"severity":1,"source":"kanon","message":"type mismatch: expected bool, got int"}]}}
   {"jsonrpc":"2.0","id":1,"result":null}
-  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":11,"character":3},"end":{"line":11,"character":7}},"severity":1,"source":"kanon","message":"both is defined twice"}]}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":14,"character":3},"end":{"line":14,"character":7}},"severity":1,"source":"kanon","message":"both is defined twice"}]}}
   {"jsonrpc":"2.0","id":2,"result":null}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/more.kn","diagnostics":[{"range":{"start":{"line":1,"character":9},"end":{"line":1,"character":13}},"severity":1,"source":"kanon","message":"extend b_xor: b_xor has no rule nope"}]}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[]}}
@@ -322,10 +331,10 @@ tell where an operator is not surrounded by spaces.
 
   $ mkdir suf
   $ cat > suf/lang.knl <<'KN'
-  > use builtin "bool"
   > use "ops"
   > KN
   $ cat > suf/ops.knl <<'KN'
+  > sort TBool
   > node Ult : TBool -> TBool -> TBool
   > infix "<u" = Ult, b_ult
   > KN
@@ -333,7 +342,7 @@ tell where an operator is not surrounded by spaces.
   > (** Strictly below. *)
   > fn below (a b : t) : t = a <u b
   > rule b_ult : Ult (v1, v2) =
-  >   | same: p <u p -> v_false
+  >   | same: p <u p -> p
   > KN
   $ initsuf='{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/suf","capabilities":{}}}'
   $ {
@@ -350,9 +359,9 @@ tell where an operator is not surrounded by spaces.
   > } > input
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"<u\" = Ult, b_ult\n```\n\n`a <u b` is `b_ult a b` on terms; in patterns, it matches the node `Ult`.\n\n*ops.knl*"},"range":{"start":{"line":1,"character":27},"end":{"line":1,"character":29}}}}
-  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":1,"character":7},"end":{"line":1,"character":9}}}]}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":2,"character":7},"end":{"line":2,"character":9}}}]}
   {"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"```kanon\ninfix \"<u\" = Ult, b_ult\n```\n\nIn this pattern, `a <u b` matches the node `Ult`.\n\n*ops.knl*"},"range":{"start":{"line":3,"character":12},"end":{"line":3,"character":14}}}}
-  {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":1,"character":7},"end":{"line":1,"character":9}}}]}
+  {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/suf/ops.knl","range":{"start":{"line":2,"character":7},"end":{"line":2,"character":9}}}]}
   {"jsonrpc":"2.0","id":5,"result":{"contents":{"kind":"markdown","value":"```kanon\nfn below (a b : t) : t\n```\n\nStrictly below.\n\n*ops.kn*"},"range":{"start":{"line":1,"character":3},"end":{"line":1,"character":8}}}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/suf/ops.kn","diagnostics":[{"range":{"start":{"line":1,"character":26},"end":{"line":1,"character":27}},"severity":1,"source":"kanon","message":"the operator < must be surrounded by spaces"}]}}
   {"jsonrpc":"2.0","id":6,"result":null}
