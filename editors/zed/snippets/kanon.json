@@ -21,12 +21,12 @@
   },
   "Extend a rule function": {
     "prefix": "extendrule",
-    "body": ["extend rule ${1:name} =", "  | ${2:label}: ${3:_} -> ${0}"],
+    "body": ["extend rule ${1:Module.name} =", "  | ${2:label}: ${3:_} -> ${0}"],
     "description": "Add rules to the rule function of a module below"
   },
   "Extend a helper": {
     "prefix": "extendfn",
-    "body": ["extend fn ${1:name} =", "  | ${2:_} -> ${0}"],
+    "body": ["extend fn ${1:Module.name} =", "  | ${2:_} -> ${0}"],
     "description": "Add cases to the helper of a module below"
   },
   "Primitive": {
