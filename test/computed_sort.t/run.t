@@ -42,12 +42,12 @@ to arguments, `(Tuple vs : TTuple (types_of vs))`, or any expression of type
 OCaml: the sort is the expression.
 
   $ kanon ocaml lang.knl | grep -n 'node'
-  29:    (node (Tuple (vs)) (TTuple ((rules_types_of vs))))
-  31:let[@inline] rules_mk_var (x : var) (s : ty) : t = (node (Var (x)) s)
-  34:    (node (Var (x)) (Prims.var_ty x))
-  37:    (node (Field (i, v)) (rules_field_ty v i))
-  40:    (node (Field (i, v)) (rules_nth_ty (rules_types_of (v :: [])) i))
-  48:    | _ -> (node (Op1 ((Proj (i)), v)) (rules_field_ty v i))
+  33:      (node (Tuple (vs)) (TTuple ((rules_types_of vs))))
+  35:  let[@inline] rules_mk_var (x : var) (s : ty) : t = (node (Var (x)) s)
+  38:      (node (Var (x)) (Prims.var_ty x))
+  41:      (node (Field (i, v)) (rules_field_ty v i))
+  44:      (node (Field (i, v)) (rules_nth_ty (rules_types_of (v :: [])) i))
+  52:      | _ -> (node (Op1 ((Proj (i)), v)) (rules_field_ty v i))
 
 Lean: the sort is the translated expression.
 

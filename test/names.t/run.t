@@ -28,8 +28,8 @@ variables of the sorts, and an operand of another sort fails its assertion.
       let v' = (src.term ()) in
       {
         spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (TBv ((Z.to_int (Z.add (Z.sub to' from') Z.one))))));
-        call = (fun () -> rules_bv_ext from' to' v');
-        fired = (fun () -> (let sz' = (rules_size v') in
+        call = (fun () -> Rules.bv_ext from' to' v');
+        fired = (fun () -> (let sz' = (Rules.size v') in
                            (assert (match v'.ty with
                                    | (TBv (kanon__n))
                                      when (let kanon__n = Z.of_int kanon__n in
@@ -54,8 +54,11 @@ variables of the sorts, and an operand of another sort fails its assertion.
 Lean.
 
   $ kanon ocaml lang.knl | grep -A1 "clamp"
-  let[@inline] rules_clamp (n : Z.t) (m : Z.t) : Z.t =
-      (if (Z.lt n m) then n else m)
+    let[@inline] rules_clamp (n : Z.t) (m : Z.t) : Z.t =
+        (if (Z.lt n m) then n else m)
+  --
+    let clamp = Kanon_flat.rules_clamp
+    let bv_ext = Kanon_flat.rules_bv_ext
   $ kanon lean-model lang.knl | grep -A1 "def Rules.clamp"
   def Rules.clamp (n : Int) (m : Int) : Int :=
     (if (decide (n < m)) then n else m)
@@ -75,4 +78,5 @@ Identifiers may have primes, and a user type may still be called `nat`.
   > fn succ (n : nat) : nat = n
   > KN
   $ kanon ocaml lang2.knl | grep "succ"
-  let[@inline] rules2_succ (n : nat) : nat = n
+    let[@inline] rules2_succ (n : nat) : nat = n
+    let succ = Kanon_flat.rules2_succ

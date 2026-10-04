@@ -93,7 +93,7 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   and equal_kind (a : kind) (b : kind) =
     match (a, b) with
     | Int a1, Int b1 -> Z.equal a1 b1
-    | Bool a1, Bool b1 -> Bool.equal a1 b1
+    | Bool a1, Bool b1 -> Stdlib.Bool.equal a1 b1
     | Op2 (a1, a2, a3), Op2 (b1, b2, b3) ->
         equal_op2 a1 b1 && equal_t a2 b2 && equal_t a3 b3
     | _ -> false
@@ -101,7 +101,7 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   and hash_kind (a : kind) =
     match a with
     | Int a1 -> hash_combine (0) (Z.hash a1)
-    | Bool a1 -> hash_combine (1) (Bool.to_int a1)
+    | Bool a1 -> hash_combine (1) (Stdlib.Bool.to_int a1)
     | Op2 (a1, a2, a3) ->
         hash_combine
           (hash_combine (hash_combine (2) (hash_op2 a1)) (hash_t a2))
@@ -160,88 +160,112 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
     val sort_ints : (t list) -> (t list)
   end = Prims
   
-  let[@inline] mk_commut_binop (op : op2) (l : t) (r : t) : kind =
-      (if (Int.compare l.tag r.tag <= 0)
-      then (Op2 (op, l, r))
-      else (Op2 (op, r, l)))
+  (** The functions of the language, in one recursive group, by their flat name: the module in lowercase, an underscore, and the name. The modules below are their names. Not meant to be used. *)
+  module Kanon_flat = struct
+    let[@inline] mk_commut_binop (op : op2) (l : t) (r : t) : kind =
+        (if (Stdlib.Int.compare l.tag r.tag <= 0)
+        then (Op2 (op, l, r))
+        else (Op2 (op, r, l)))
+    
+    let[@inline] rules_add_z (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
+    
+    let[@inline] rules_le_z (x : Z.t) (y : Z.t) : bool = (Z.leq x y)
+    
+    let rules_add (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (node (Int ((rules_add_z i1 i2))) TInt)
+        | (x, { kind = Int (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | ({ kind = Int (kanon__2); _ }, x)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | ({ kind = Int (kanon__1); _ }, x)
+          when (((Z.equal kanon__1 Z.zero))) ->
+          x
+        | (x, { kind = Int (kanon__1); _ })
+          when (((Z.equal kanon__1 Z.zero))) ->
+          x
+        | _ -> (node (mk_commut_binop Add v1 v2) TInt)
+        ))
+    
+    let rules_le (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (Prims.of_bool (rules_le_z i1 i2))
+        | _ -> (node (Op2 (Le, v1, v2)) TBool)
+        ))
+  end
   
-  (** A helper function. *)
-  let[@inline] rules_add_z (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
+  (** The Kanon module lang. *)
+  module Lang = struct
+    (** The sort of integers. *)
+    let t_int : ty = TInt
+    
+    (** The sort of booleans. *)
+    let t_bool : ty = TBool
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  (** Another one,
-      on two lines. *)
-  let[@inline] rules_le_z (x : Z.t) (y : Z.t) : bool = (Z.leq x y)
-  
-  (** The rule of addition. *)
-  let rules_add (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Int ((rules_add_z i1 i2))) TInt)
-      | (x, { kind = Int (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | ({ kind = Int (kanon__2); _ }, x)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | ({ kind = Int (kanon__1); _ }, x)
-        when (((Z.equal kanon__1 Z.zero))) ->
-        x
-      | (x, { kind = Int (kanon__1); _ })
-        when (((Z.equal kanon__1 Z.zero))) ->
-        x
-      | _ -> (node (mk_commut_binop Add v1 v2) TInt)
-      ))
-  
-  (** The rule of comparison. *)
-  let rules_le (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (Prims.of_bool (rules_le_z i1 i2))
-      | _ -> (node (Op2 (Le, v1, v2)) TBool)
-      ))
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    (** A helper function. *)
+    let add_z = Kanon_flat.rules_add_z
+    
+    (** Another one,
+        on two lines. *)
+    let le_z = Kanon_flat.rules_le_z
+    
+    (** The rule of addition. *)
+    let add = Kanon_flat.rules_add
+    
+    (** The rule of comparison. *)
+    let le = Kanon_flat.rules_le
+  end
   
   
   $ kanon lean-types lang.knl

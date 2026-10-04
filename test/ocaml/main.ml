@@ -16,25 +16,25 @@ let () =
   check "same term"
     ((node (Op2 (Plus, x, int 1)) TInt).tag
     = (node (Op2 (Plus, x, int 1)) TInt).tag);
-  check "fold" (rules_plus (int 1) (int 2) == int 3);
-  check "unit" (rules_plus x (int 0) == x && rules_plus (int 0) x == x);
-  check "zero" (rules_times x (int 0) == int 0 && rules_times (int 1) x == x);
-  check "fold to a bool" (rules_lt_ (int 1) (int 2) == Tiny_prims.v_true);
-  check "non-linear" (rules_and_ p (rules_not_ p) == Tiny_prims.v_false);
-  check "same" (rules_eq x x == Tiny_prims.v_true);
-  check "commutative" (rules_plus x (int 1) == rules_plus (int 1) x);
+  check "fold" (Rules.plus (int 1) (int 2) == int 3);
+  check "unit" (Rules.plus x (int 0) == x && Rules.plus (int 0) x == x);
+  check "zero" (Rules.times x (int 0) == int 0 && Rules.times (int 1) x == x);
+  check "fold to a bool" (Rules.lt_ (int 1) (int 2) == Tiny_prims.v_true);
+  check "non-linear" (Rules.and_ p (Rules.not_ p) == Tiny_prims.v_false);
+  check "same" (Rules.eq x x == Tiny_prims.v_true);
+  check "commutative" (Rules.plus x (int 1) == Rules.plus (int 1) x);
   check "tests" (List.length Tiny_tests.rule_fns > 0);
   check "sorts of parameters"
-    (rules_is_zero (int 0)
-    && (not (rules_is_zero (int 1)))
-    && rules_zero == int 0);
+    (Rules.is_zero (int 0)
+    && (not (Rules.is_zero (int 1)))
+    && Rules.zero == int 0);
   check "re-exported types"
     (equal_checked
        { signed = true; unsigned = false }
        { Tiny_base.signed = true; unsigned = false }
     && equal_rounding Nearest Tiny_base.Nearest);
   check "asserted sorts"
-    (match rules_is_zero p with
+    (match Rules.is_zero p with
     | _ -> false
     | exception Assert_failure _ -> true)
 
@@ -42,11 +42,11 @@ let () =
   let open Bool_lang in
   let v x = node (Var x) TBool in
   let a = v "a" and b = v "b" in
-  check "and" (bool_and_ a (bool_not_ a) == Prims.v_false);
-  check "or" (bool_or_ a Prims.v_true == Prims.v_true);
-  check "eq" (bool_eq a a == Prims.v_true);
-  check "ite" (bool_ite Prims.v_true a b == a);
-  check "distinct" (bool_distinct [ a; a ] == Prims.v_false)
+  check "and" (Bool.and_ a (Bool.not_ a) == Prims.v_false);
+  check "or" (Bool.or_ a Prims.v_true == Prims.v_true);
+  check "eq" (Bool.eq a a == Prims.v_true);
+  check "ite" (Bool.ite Prims.v_true a b == a);
+  check "distinct" (Bool.distinct [ a; a ] == Prims.v_false)
 
 let () =
   let open Hyg_types in
@@ -57,11 +57,11 @@ let () =
   (* i = 1, j = 2, i1 = 3, i2 = 4, b, z = 5, on the literals 6 and 7 *)
   check "fold with parameters named like its literals"
     (value
-       (rules_mix (Z.of_int 1) (Z.of_int 2) (Z.of_int 3) (Z.of_int 4) true
+       (Rules.mix (Z.of_int 1) (Z.of_int 2) (Z.of_int 3) (Z.of_int 4) true
           (Z.of_int 5) (int 6) (int 7))
     = 1 + 20 + 300 + 4000 + 50000 + 600000 + 7000000);
   check "fold of a unary operator, parameter named i"
-    (value (rules_neg (Z.of_int 3) (int 7)) = 21)
+    (value (Rules.neg (Z.of_int 3) (int 7)) = 21)
 
 let () =
   let open Arrays_lang in
@@ -71,23 +71,23 @@ let () =
     match t.kind with Vec a -> List.map Z.to_int (Iarray.to_list a) | _ -> []
   in
   let v = vec [ 10; 20; 30 ] in
-  check "length" (vec_len v == int 3 && vec_len (vec []) == int 0);
-  check "get" (vec_get v (int 1) == int 20);
-  check "set" (elems (vec_set v (int 1) (int 5)) = [ 10; 5; 30 ]);
+  check "length" (Vec.len v == int 3 && Vec.len (vec []) == int 0);
+  check "get" (Vec.get v (int 1) == int 20);
+  check "set" (elems (Vec.set v (int 1) (int 5)) = [ 10; 5; 30 ]);
   check "set copies" (elems v = [ 10; 20; 30 ]);
-  check "set, then get" (vec_get (vec_set v (int 2) (int 7)) (int 2) == int 7);
+  check "set, then get" (Vec.get (Vec.set v (int 2) (int 7)) (int 2) == int 7);
   check "hash-consing of arrays"
     (vec [ 1; 2 ] == vec [ 1; 2 ] && vec [ 1; 2 ] != vec [ 2; 1 ]);
   check "structural equality"
-    (vec_same (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.one ])
-    && not (vec_same (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.of_int 2 ]))
+    (Vec.same (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.one ])
+    && not (Vec.same (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.of_int 2 ]))
     );
-  check "lists" (elems (vec_of_list [ Z.of_int 4; Z.of_int 5 ]) = [ 4; 5 ]);
+  check "lists" (elems (Vec.of_list [ Z.of_int 4; Z.of_int 5 ]) = [ 4; 5 ]);
   check "list round trip"
-    (vec_elements (vec_of_list [ Z.one; Z.of_int 2 ]) = [ Z.one; Z.of_int 2 ]);
+    (Vec.elements (Vec.of_list [ Z.one; Z.of_int 2 ]) = [ Z.one; Z.of_int 2 ]);
   check "out of bounds is not simplified"
-    (vec_get v (int 3) == node (Op2 (Get, v, int 3)) TInt
-    && vec_set v (int (-1)) (int 0) == node (Op3 (Set, v, int (-1), int 0)) TVec
+    (Vec.get v (int 3) == node (Op2 (Get, v, int 3)) TInt
+    && Vec.set v (int (-1)) (int 0) == node (Op3 (Set, v, int (-1), int 0)) TVec
     )
 
 let () =
@@ -95,7 +95,7 @@ let () =
   let int n = node (Int (Z.of_int n)) TInt in
   let var x = node (Var x) TInt in
   let zero = int 0 and one = int 1 and two = int 2 in
-  let add a b = term_add a b in
+  let add a b = Term.add a b in
   (* the children, in the order of the arguments *)
   let children v =
     let l = ref [] in
@@ -201,7 +201,7 @@ let () =
     && map_ty_children (fun _ -> TBlock) TInt = TInt
     && for_all_ty_child (( = ) TInt) TInt);
   (* the nodes of the extension have their cases *)
-  let nv = ext_neg (var "x") in
+  let nv = Ext.neg (var "x") in
   check "an added node"
     (children nv = [ var "x" ]
-    && map_children (fun _ -> zero) nv == ext_neg zero)
+    && map_children (fun _ -> zero) nv == Ext.neg zero)

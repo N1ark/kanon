@@ -30,18 +30,28 @@ The traversals come after the destructors. A node with a smart constructor
 raw, at the sort that their typing gives from the new children (`Seq`), or, if
 they have no typing, at the sort of the term that they replace (`Lam`):
 
-  $ kanon ocaml lang.knl | sed -n '/^let\[@inline\] kanon__rebuild/,/^let as_/p'
-  let[@inline] kanon__rebuild_Seq (p1 : (t list)) : t =
-      (node (Seq (p1)) (TSeq ((rules_first_ty p1))))
-  
-  let[@inline] kanon__rebuild_Cells (p1 : cell) : t = (node (Cells (p1)) TInt)
-  
-  let[@inline] kanon__rebuild_Lam (s : ty) (p1 : var) (p2 : t) : t =
-      (node (Lam (p1, p2)) s)
-  
-  let[@inline] kanon__rebuild_Neg (x1 : t) : t = (rules_neg x1)
-  
-  let as_int (t : t) =
+  $ kanon ocaml lang.knl | sed -n '/^  let\[@inline\] kanon__rebuild/,/^end/p'
+    let[@inline] kanon__rebuild_Seq (p1 : (t list)) : t =
+        (node (Seq (p1)) (TSeq ((rules_first_ty p1))))
+    
+    let[@inline] kanon__rebuild_Cells (p1 : cell) : t =
+        (node (Cells (p1)) TInt)
+    
+    let[@inline] kanon__rebuild_Lam (s : ty) (p1 : var) (p2 : t) : t =
+        (node (Lam (p1, p2)) s)
+    
+    let[@inline] kanon__rebuild_Neg (x1 : t) : t = (rules_neg x1)
+  end
+
+The traversals are language-wide: top-level functions of the rules module, in no
+Kanon module, after the functions that they call (in `Kanon_flat`).
+
+  $ kanon ocaml lang.knl | grep "^open\|^let map_children\|^module"
+  module Kanon_flat = struct
+  open Kanon_flat
+  let map_children (f : t -> t) (v : t) : t =
+  module Lang = struct
+  module Rules = struct
 
 The generated functions, over the language: each child is mapped in order, and
 the types of the language get a function of their own.
@@ -151,6 +161,67 @@ the types of the language get a function of their own.
   
   let for_all_ty_child (f : ty -> bool) (v : ty) : bool =
     not (exists_ty_child (fun c -> not (f c)) v)
+  
+  
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_int : ty = TInt
+    let t_seq (a1 : ty) : ty = TSeq (a1)
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_seq (t : t) =
+      match[@warning "-11"] t with { kind = Seq (p1); _ } -> Some p1 | _ -> None
+    
+    let is_seq (t : t) =
+      match[@warning "-11"] t with { kind = Seq (_); _ } -> true | _ -> false
+    
+    let as_cells (t : t) =
+      match[@warning "-11"] t with { kind = Cells (p1); _ } -> Some p1 | _ -> None
+    
+    let is_cells (t : t) =
+      match[@warning "-11"] t with { kind = Cells (_); _ } -> true | _ -> false
+    
+    let as_lam (t : t) =
+      match[@warning "-11"] t with { kind = Lam (p1, p2); _ } -> Some (p1, p2) | _ -> None
+    
+    let is_lam (t : t) =
+      match[@warning "-11"] t with { kind = Lam (_, _); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tseq (t : ty) =
+      match[@warning "-11"] t with TSeq (p1) -> Some p1 | _ -> None
+    
+    let is_tseq (t : ty) =
+      match[@warning "-11"] t with TSeq (_) -> true | _ -> false
+  end
+  
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let first_ty = Kanon_flat.rules_first_ty
+    let neg = Kanon_flat.rules_neg
+  end
   
   
 

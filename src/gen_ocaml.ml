@@ -25,6 +25,9 @@ let rec ocaml_ty ft = function
   | TList t -> pf ft "(%a list)" ocaml_ty t
   | TArray t -> pf ft "(%a Iarray.t)" ocaml_ty t
 
+(** The OCaml type of the argument of a constructor: a [nat] is an [int]. *)
+let ocaml_arg ft = function Small -> pf ft "int" | Arg t -> ocaml_ty ft t
+
 let list ?(sep = ", ") pp ft l =
   Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "%s" sep) pp ft l
 
@@ -112,8 +115,8 @@ let doc_after ft = function
     the declared types, the generated [equal_d] (see {!types}). *)
 let rec equal_fn ft = function
   | TInt -> pf ft "Z.equal"
-  | TBool -> pf ft "Bool.equal"
-  | TUnit -> pf ft "Unit.equal"
+  | TBool -> pf ft "Stdlib.Bool.equal"
+  | TUnit -> pf ft "Stdlib.Unit.equal"
   | TTerm -> pf ft "equal_t"
   | (TKind | TSty | TData _) as t -> pf ft "equal_%s" (decl_of_ty t).d_name
   | TTuple l ->
@@ -124,9 +127,9 @@ let rec equal_fn ft = function
         (list ~sep:" && " (fun ft (t, (a, b)) ->
              pf ft "%a %s %s" equal_fn t a b))
         (List.combine l (List.combine (xs "a") (xs "b")))
-  | TOption t -> pf ft "(Option.equal %a)" equal_fn t
-  | TList t -> pf ft "(List.equal %a)" equal_fn t
-  | TArray t -> pf ft "(Iarray.equal %a)" equal_fn t
+  | TOption t -> pf ft "(Stdlib.Option.equal %a)" equal_fn t
+  | TList t -> pf ft "(Stdlib.List.equal %a)" equal_fn t
+  | TArray t -> pf ft "(Stdlib.Iarray.equal %a)" equal_fn t
 
 (** [hash_combine (... (hash_combine h1 h2) ...) hn], for the hashes [l],
     printed by [pp]. *)
@@ -144,7 +147,7 @@ let combine pp ft l =
     combined with [hash_combine] (see {!types}). *)
 let rec hash_fn ft = function
   | TInt -> pf ft "Z.hash"
-  | TBool -> pf ft "Bool.to_int"
+  | TBool -> pf ft "Stdlib.Bool.to_int"
   | TUnit -> pf ft "(fun () -> 0)"
   | TTerm -> pf ft "hash_t"
   | (TKind | TSty | TData _) as t -> pf ft "hash_%s" (decl_of_ty t).d_name
@@ -156,10 +159,10 @@ let rec hash_fn ft = function
   | TOption t ->
       pf ft "(function None -> 0 | Some x -> hash_combine 1 (%a x))" hash_fn t
   | TList t ->
-      pf ft "(List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)" hash_fn
-        t
+      pf ft "(Stdlib.List.fold_left (fun acc x -> hash_combine acc (%a x)) 0)"
+        hash_fn t
   | TArray t ->
-      pf ft "(Iarray.fold_left (fun acc x -> hash_combine acc (%a x)) 0)"
+      pf ft "(Stdlib.Iarray.fold_left (fun acc x -> hash_combine acc (%a x)) 0)"
         hash_fn t
 
 (* ---------------------------------------------------------------- *)
@@ -238,7 +241,16 @@ let prims_module () =
 type ctx = {
   prims : string list;  (** in the module of [[@@@ocaml_prims]] *)
   consts : string list;
+  public : bool;
+      (** the functions are called by their path in the rules module, [Int.add],
+          instead of by their name in [Kanon_flat], [int_add] *)
 }
+
+(** The OCaml name of the function [f], as [ctx] calls it. *)
+let fn_name ctx f =
+  if not ctx.public then flat_name f
+  else if Option.is_some (split_name f) then f
+  else "Kanon_flat." ^ f
 
 let rec expr ctx ft (e : expr) =
   let expr = expr ctx in
@@ -260,27 +272,27 @@ let rec expr ctx ft (e : expr) =
   | ECall ("type_of", [ a ]) -> pf ft "%a.ty" expr a
   | EArray l -> pf ft "([|%a|] : _ Iarray.t)" (list ~sep:"; " expr) l
   | ECall ("array_length", [ a ]) ->
-      pf ft "(Z.of_int (Iarray.length %a))" expr a
+      pf ft "(Z.of_int (Stdlib.Iarray.length %a))" expr a
   | ECall ("array_get", [ a; i ]) ->
-      pf ft "(Iarray.get %a (Z.to_int %a))" expr a expr i
+      pf ft "(Stdlib.Iarray.get %a (Z.to_int %a))" expr a expr i
   | ECall ("array_set", [ a; i; v ]) ->
       pf ft
         "@[<v>(let a = %a and i = Z.to_int %a and v = %a in@ let c = \
-         Iarray.to_array a in@ c.(i) <- v;@ Iarray.of_array c)@]"
+         Stdlib.Iarray.to_array a in@ c.(i) <- v;@ Stdlib.Iarray.of_array c)@]"
         expr a expr i expr v
-  | ECall ("array_of_list", [ l ]) -> pf ft "(Iarray.of_list %a)" expr l
-  | ECall ("array_to_list", [ a ]) -> pf ft "(Iarray.to_list %a)" expr a
+  | ECall ("array_of_list", [ l ]) -> pf ft "(Stdlib.Iarray.of_list %a)" expr l
+  | ECall ("array_to_list", [ a ]) -> pf ft "(Stdlib.Iarray.to_list %a)" expr a
   | ECall ("tag_le", [ a; b ]) ->
-      pf ft "(Int.compare %a.tag %a.tag <= 0)" expr a expr b
+      pf ft "(Stdlib.Int.compare %a.tag %a.tag <= 0)" expr a expr b
   | ECall (f, []) ->
       if List.mem f ctx.prims then
         pf ft "%s.%s" (prims_module ()) (plain_name f)
-      else if List.mem f ctx.consts then pf ft "%s" (flat_name f)
-      else pf ft "(%s ())" (flat_name f)
+      else if List.mem f ctx.consts then pf ft "%s" (fn_name ctx f)
+      else pf ft "(%s ())" (fn_name ctx f)
   | ECall (f, args) ->
       let f =
         if List.mem f ctx.prims then prims_module () ^ "." ^ plain_name f
-        else flat_name f
+        else fn_name ctx f
       in
       pf ft "(%s %a)" f (list ~sep:" " expr) args
   | ELocalCall (f, args) -> pf ft "(%s %a)" f (list ~sep:" " expr) args
@@ -491,43 +503,6 @@ let destructed () =
     lowercase. *)
 let destructor_suffix (c : constr) = String.lowercase_ascii c.c_name
 
-(** Checks that the destructors [as_x] and [is_x] of the nodes and sorts do not
-    have the name of another destructor, of a function or of a primitive. *)
-let check_destructors (p : program) =
-  let taken = Hashtbl.create 16 in
-  let take what loc name =
-    match Hashtbl.find_opt taken name with
-    | Some other ->
-        raise
-          (Check.Error
-             ( loc,
-               Fmt.str "%s is the destructor of %s, which is also %s" name what
-                 other ))
-    | None -> Hashtbl.replace taken name what
-  in
-  let sorted = destructed () in
-  List.iter
-    (fun (c : constr) ->
-      List.iter
-        (fun prefix ->
-          take c.c_name Location.none (prefix ^ destructor_suffix c))
-        [ "as_"; "is_" ])
-    sorted;
-  let clash loc name what =
-    match Hashtbl.find_opt taken name with
-    | Some of_ ->
-        raise
-          (Check.Error
-             ( loc,
-               Fmt.str "%s is the destructor of %s: rename the %s" name of_ what
-             ))
-    | None -> ()
-  in
-  List.iter (fun (f : fn) -> clash f.floc (flat_name f.name) "function") p.fns;
-  List.iter
-    (fun (q : prim) -> clash q.ploc (plain_name q.pname) "primitive")
-    p.prims
-
 (** Checks that two functions do not have the same OCaml name ([Bitvec.add_x]
     and [Bitvec_add.x] are both [bitvec_add_x]), nor two primitives (the module
     of the primitives implements them by their name without their module: rename
@@ -558,7 +533,7 @@ let check_names (p : program) =
 (** The destructors of [c]: [as_foo], which is the arguments of [c] (its
     parameters, then its operands, as in a pattern) in an option, and [is_foo].
 *)
-let destructor ft (c : constr) =
+let destructors (c : constr) =
   let suffix = destructor_suffix c in
   let vars k x = List.init k (fun i -> Fmt.str "%s%d" x (i + 1)) in
   let tuple = function
@@ -593,15 +568,141 @@ let destructor ft (c : constr) =
           (String.concat ", " (ctor :: List.map name operands))
     | _, None -> Fmt.str "{ kind = %s; _ }" ctor
   in
-  pf ft
-    "@[<hv 2>let as_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> Some \
-     %s | _ -> None@]@ @ "
-    suffix ty (pat ~blank:false)
-    (tuple (params @ operands));
-  pf ft
-    "@[<hv 2>let is_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> true \
-     | _ -> false@]@ @ "
-    suffix ty (pat ~blank:true)
+  [
+    ( "as_" ^ suffix,
+      fun ft ->
+        pf ft
+          "@[<hv 2>let as_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> \
+           Some %s | _ -> None@]"
+          suffix ty (pat ~blank:false)
+          (tuple (params @ operands)) );
+    ( "is_" ^ suffix,
+      fun ft ->
+        pf ft
+          "@[<hv 2>let is_%s (t : %s) =@ match[@@warning \"-11\"] t with %s -> \
+           true | _ -> false@]"
+          suffix ty (pat ~blank:true) );
+  ]
+
+(** The name of the function that makes the sort [c] in its module: [t_] and the
+    name of [c] in lowercase, without its [T] when it has one ([TBitVector] is
+    [t_bitvector]). *)
+let sort_val_name (c : constr) =
+  let n = c.c_name in
+  let n =
+    if
+      String.length n > 1
+      && n.[0] = 'T'
+      && Char.equal n.[1] (Char.uppercase_ascii n.[1])
+      && n.[1] <> '_'
+    then String.sub n 1 (String.length n - 1)
+    else n
+  in
+  "t_" ^ String.lowercase_ascii n
+
+(** The function of the sort [c]: its arguments are those of its constructor. *)
+let sort_ctor ft (c : constr) =
+  let vars = List.mapi (fun i a -> (Fmt.str "a%d" (i + 1), a)) c.c_args in
+  let param ft (x, a) = pf ft " (%s : %a)" x ocaml_arg a in
+  pf ft "let %s%a : ty = %s" (sort_val_name c) (list ~sep:"" param) vars
+    (match vars with
+    | [] -> c.c_name
+    | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " (List.map fst l)))
+
+(** The module of the generated OCaml where the declaration at [loc] is: the
+    Kanon module of its file (see {!Check.module_of_loc}), which may not be the
+    name of a module that the output defines, [reserved] or [Kanon_flat]. *)
+let module_of ?(reserved = []) (loc : Location.t) =
+  let m = Option.value (Check.module_of_loc loc) ~default:"Kanon" in
+  if List.mem m ("Kanon_flat" :: reserved) then
+    raise
+      (Check.Error
+         (loc, Fmt.str "the module %s has the name of a generated module" m));
+  m
+
+(** An item of a module of the rules: [let name = ...], which [print] prints,
+    declared at [loc]; a [block] has several lines. *)
+type entry = {
+  name : string;
+  loc : Location.t;
+  doc : string option;
+  block : bool;
+  is_fn : bool;
+  print : Format.formatter -> unit;
+}
+
+(** The items of the modules of the rules, by Kanon module, in order of
+    declaration: the functions of the sorts, the functions of the language (in
+    [Kanon_flat], which the module aliases), and the destructors of the nodes
+    and sorts. A name is that of one item of its module: if two have the same,
+    one would hide the other. *)
+let module_entries ?reserved (p : program) =
+  let mods : (string * entry list ref) list ref = ref [] in
+  let add m (e : entry) =
+    match List.assoc_opt m !mods with
+    | Some l ->
+        (match List.find_opt (fun (o : entry) -> o.name = e.name) !l with
+        | Some o ->
+            raise
+              (Check.Error
+                 ( (if o.is_fn then o.loc else e.loc),
+                   Fmt.str
+                     "%s.%s: the module has two items of this name (a \
+                      function, a destructor or the function of a sort): \
+                      rename one of them"
+                     m e.name ))
+        | None -> ());
+        l := !l @ [ e ]
+    | None -> mods := !mods @ [ (m, ref [ e ]) ]
+  in
+  List.iter
+    (fun (c : constr) ->
+      if c.c_res = TSty then
+        add
+          (module_of ?reserved c.c_loc)
+          {
+            name = sort_val_name c;
+            loc = c.c_loc;
+            doc = c.c_doc;
+            block = false;
+            is_fn = false;
+            print = (fun ft -> sort_ctor ft c);
+          })
+    !lang.constrs;
+  List.iter
+    (fun (f : fn) ->
+      match split_name f.name with
+      | Some (m, x) ->
+          ignore (module_of ?reserved f.floc);
+          add m
+            {
+              name = x;
+              loc = f.floc;
+              doc = f.fdoc;
+              block = false;
+              is_fn = true;
+              print =
+                (fun ft -> pf ft "let %s = Kanon_flat.%s" x (flat_name f.name));
+            }
+      | None -> ())
+    p.fns;
+  List.iter
+    (fun (c : constr) ->
+      List.iter
+        (fun (name, print) ->
+          add
+            (module_of ?reserved c.c_loc)
+            {
+              name;
+              loc = c.c_loc;
+              doc = None;
+              block = true;
+              is_fn = false;
+              print;
+            })
+        (destructors c))
+    (destructed ());
+  List.map (fun (m, l) -> (m, !l)) !mods
 
 (** The header of the generated files of rules: the warnings, and the types of
     the language, opened from their module if they are not in scope. *)
@@ -999,13 +1100,20 @@ let program ~sources ft (p : program) =
         | _ -> [])
       groups
   in
-  let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts } in
-  check_destructors p;
+  let ctx =
+    { prims = List.map (fun p -> p.pname) p.prims; consts; public = false }
+  in
+  let mods = module_entries p in
   check_names p;
   header ~sources ft;
   prim_sigs ft p;
-  List.iter
-    (fun group ->
+  pf ft "%a@ " ocaml_doc
+    "The functions of the language, in one recursive group, by their flat \
+     name: the module in lowercase, an underscore, and the name. The modules \
+     below are their names. Not meant to be used.";
+  pf ft "@[<v 2>module Kanon_flat = struct";
+  List.iteri
+    (fun n group ->
       let kw =
         match group with
         | _ when is_recursive group -> "let rec"
@@ -1014,13 +1122,31 @@ let program ~sources ft (p : program) =
       in
       List.iteri
         (fun i f ->
-          pf ft "%a@[<hv 2>%s %a@]@ @ " doc f.fdoc
-            (if i = 0 then kw else "and")
-            (fn ctx) f)
+          if n > 0 && i = 0 then pf ft "@ ";
+          pf ft "@ @[<hv 2>%s %a@]" (if i = 0 then kw else "and") (fn ctx) f)
         group)
     groups;
-  List.iter (destructor ft) (destructed ());
-  if !lang.traversals then traversals ft;
+  pf ft "@]@ end@ @ ";
+  if !lang.traversals then (
+    pf ft "%a@ open Kanon_flat@ @ " ocaml_doc
+      "The traversals of the terms and sorts, which are not in a module.";
+    traversals ft);
+  List.iter
+    (fun (m, entries) ->
+      pf ft "%a@ " ocaml_doc
+        (Fmt.str "The Kanon module %s." (String.uncapitalize_ascii m));
+      pf ft "@[<v 2>module %s = struct" m;
+      let prev = ref false in
+      List.iteri
+        (fun i (e : entry) ->
+          pf ft "@ ";
+          if i > 0 && (e.block || e.doc <> None || !prev) then pf ft "@ ";
+          prev := e.block || e.doc <> None;
+          doc ft e.doc;
+          e.print ft)
+        entries;
+      pf ft "@]@ end@ @ ")
+    mods;
   pf ft "@]@."
 
 (* ---------------------------------------------------------------- *)

@@ -138,9 +138,10 @@ files, and implemented by the rules.
     end
   end
   
-  (** The implementation of [S], from the rules, with the types of [S] visible: [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. It has no constructor for the leaf nodes, which no rule builds: a program adds them around it, with [type_], in [module Typed = struct include (Derived : S) ... end]. *)
+  (** The implementation of [S]: the rules, with the types of [S] visible, [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. It has no constructor for the leaf nodes, which no rule builds: a program adds them around it, with [type_], in [module Typed = struct include (Derived : S) ... end]. *)
   module Derived = struct
-    module Kanon_rules = Lang_rules
+    include Lang_rules
+    
     type raw = t
     type raw_ty = ty
     type nonrec 'a t = raw
@@ -151,51 +152,10 @@ files, and implemented by the rules.
     let[@inline] cast (x : 'a t) : 'b t = x
     let[@inline] untype_type (x : 'a ty) : raw_ty = x
     let[@inline] type_type (x : raw_ty) : 'a ty = x
-    
-    module Bitvec = struct
-      let t_bool = TBool
-      
-      (** Bit-vectors of a width. *)
-      let t_bitvec = fun a1 -> TBitVec (a1)
-      
-      (** Adds two bit-vectors. *)
-      let add = Kanon_rules.bitvec_add
-      
-      (** Division: the divisor is known to be non-zero. *)
-      let div = Kanon_rules.bitvec_div
-      
-      let ult = Kanon_rules.bitvec_ult
-      let as_bitvec = Kanon_rules.as_bitvec
-      let is_bitvec = Kanon_rules.is_bitvec
-      let as_zero = Kanon_rules.as_zero
-      let is_zero = Kanon_rules.is_zero
-      let as_add = Kanon_rules.as_add
-      let is_add = Kanon_rules.is_add
-      let as_div = Kanon_rules.as_div
-      let is_div = Kanon_rules.is_div
-      let as_ult = Kanon_rules.as_ult
-      let is_ult = Kanon_rules.is_ult
-      let as_unspecified = Kanon_rules.as_unspecified
-      let is_unspecified = Kanon_rules.is_unspecified
-      let as_tbool = Kanon_rules.as_tbool
-      let is_tbool = Kanon_rules.is_tbool
-      let as_tbitvec = Kanon_rules.as_tbitvec
-      let is_tbitvec = Kanon_rules.is_tbitvec
-    end
-    
-    module Seq = struct
-      (** Sequences of terms of a sort. *)
-      let t_seq = fun a1 -> TSeq (a1)
-      
-      let len = Kanon_rules.seq_len
-      let as_seq = Kanon_rules.as_seq
-      let is_seq = Kanon_rules.is_seq
-      let as_len = Kanon_rules.as_len
-      let is_len = Kanon_rules.is_len
-      let as_tseq = Kanon_rules.as_tseq
-      let is_tseq = Kanon_rules.is_tseq
-    end
   end
+  
+  (** Checks that the rules satisfy [S], whatever their tags. *)
+  module _ : S = Derived
 
 A sort has a tag type, the lowercase name of its constructor, in `Tag`: the
 variant of its name, and for a sort that has subsorts, their tag types. A term
@@ -320,7 +280,7 @@ interface, and have another name in the rules):
   > rule is_cast : Cast v
   > KN
   $ kanon ocaml-typed any.knl any.kn
-  any.kn:1:0: Any.is_cast: the module has two items of this name (a function of the module has the name of a destructor or of a sort): rename the function
+  any.kn:1:0: Any.is_cast: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
   [1]
 
 The implementation is made of the rules, whose OCaml module the language names,
@@ -334,5 +294,5 @@ the names of the generated modules:
   $ printf '[@@@ocaml_rules "R"]\nuse "tag"\n' > named.knl
   $ echo 'sort TInt' > tag.knl
   $ kanon ocaml-typed named.knl none.kn
-  ./tag.knl:1:5: the module Tag has the name of a module of ocaml-typed
+  ./tag.knl:1:5: the module Tag has the name of a generated module
   [1]

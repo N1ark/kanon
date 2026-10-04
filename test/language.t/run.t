@@ -54,73 +54,93 @@ functions named last in their declarations (z_land for &&&).
   > fn masked (x y : int) (a b : t) : t = if x &&& y = 0 then a &&& b else a
   > KN
   $ kanon ocaml ops.knl ops.kn | sed -n '/ ops_f (a/,$p'
-  let[@inline] ops_f (a : t) (b : t) (c : t) : t =
-      (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
+    let[@inline] ops_f (a : t) (b : t) (c : t) : t =
+        (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
+    
+    let[@inline] ops_g (x : Z.t) (y : Z.t) : bool =
+        (Z.lt (Z.add x (Z.mul y (Z.of_int (2)))) (Z.sub (Z.of_int (3)) (Z.neg x)))
+    
+    let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
+        (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+  end
   
-  let[@inline] ops_g (x : Z.t) (y : Z.t) : bool =
-      (Z.lt (Z.add x (Z.mul y (Z.of_int (2)))) (Z.sub (Z.of_int (3)) (Z.neg x)))
-  
-  let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
-      (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
   
 
@@ -147,100 +167,129 @@ k < (1 lsl (n - 1)).
   > fn is_or (a l r : t) : t = a == l lor r
   > KN
   $ kanon ocaml ops.knl words.knl ops.kn words.kn | sed -n '/let words_eqi/,$p'
-  let words_eqi (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (kanon__1); _ }, { kind = Op2 ((Lor), l, r); _ })
-        when (((Z.equal kanon__1 Z.zero))) ->
-        (node (Bool (false)) TBool)
-      | _ -> (node (Op2 (Eqi, v1, v2)) TBool)
-      ))
+    let words_eqi (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (kanon__1); _ }, { kind = Op2 ((Lor), l, r); _ })
+          when (((Z.equal kanon__1 Z.zero))) ->
+          (node (Bool (false)) TBool)
+        | _ -> (node (Op2 (Eqi, v1, v2)) TBool)
+        ))
+    
+    let[@inline] words_small (k : Z.t) (n : Z.t) : bool =
+        (Z.lt k (Prims.z_lsl Z.one (Z.sub n Z.one)))
+    
+    let[@inline] words_is_or (a : t) (l : t) (r : t) : t =
+        (words_eqi a (words_lor_ l r))
+  end
   
-  let[@inline] words_small (k : Z.t) (n : Z.t) : bool =
-      (Z.lt k (Prims.z_lsl Z.one (Z.sub n Z.one)))
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let[@inline] words_is_or (a : t) (l : t) (r : t) : t =
-      (words_eqi a (words_lor_ l r))
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_lor (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lor, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lor (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lor, _, _); _ } -> true | _ -> false
-  
-  let as_shl (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Shl, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_shl (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Shl, _, _); _ } -> true | _ -> false
-  
-  let as_eqi (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eqi, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eqi (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eqi, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module words. *)
+  module Words = struct
+    let lor_ = Kanon_flat.words_lor_
+    let shl = Kanon_flat.words_shl
+    let eqi = Kanon_flat.words_eqi
+    let small = Kanon_flat.words_small
+    let is_or = Kanon_flat.words_is_or
+    
+    let as_lor (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lor, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lor (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lor, _, _); _ } -> true | _ -> false
+    
+    let as_shl (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Shl, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_shl (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Shl, _, _); _ } -> true | _ -> false
+    
+    let as_eqi (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eqi, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eqi (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eqi, _, _); _ } -> true | _ -> false
+  end
   
   
 
@@ -270,19 +319,125 @@ language.
   > fn prefixed (a b : t) : t = ~a <=u b
   > KN
   $ kanon ocaml ops.knl suffix.knl ops.kn suffix.kn | sed -n '/ suffix_lt_t (a/,/^let as_int/p'
-  let[@inline] suffix_lt_t (a : t) (b : t) : t = (suffix_ult a b)
+    let[@inline] suffix_lt_t (a : t) (b : t) : t = (suffix_ult a b)
+    
+    let[@inline] suffix_lt_z (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+    
+    let[@inline] suffix_lt_app (x : Z.t) (y : Z.t) : bool =
+        (Z.lt x (suffix_u y))
+    
+    let[@inline] suffix_lt_plain (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
+    
+    let[@inline] suffix_lt_paren (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+    
+    let[@inline] suffix_prefixed (a : t) (b : t) : t =
+        (suffix_ule (ops_neg a) b)
+  end
   
-  let[@inline] suffix_lt_z (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let[@inline] suffix_lt_app (x : Z.t) (y : Z.t) : bool = (Z.lt x (suffix_u y))
+  (** The Kanon module suffix. *)
+  module Suffix = struct
+    let ult = Kanon_flat.suffix_ult
+    let ule = Kanon_flat.suffix_ule
+    let u = Kanon_flat.suffix_u
+    let lt_t = Kanon_flat.suffix_lt_t
+    let lt_z = Kanon_flat.suffix_lt_z
+    let lt_app = Kanon_flat.suffix_lt_app
+    let lt_plain = Kanon_flat.suffix_lt_plain
+    let lt_paren = Kanon_flat.suffix_lt_paren
+    let prefixed = Kanon_flat.suffix_prefixed
+    
+    let as_ult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Ult, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_ult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Ult, _, _); _ } -> true | _ -> false
+    
+    let as_ule (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Ule, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_ule (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Ule, _, _); _ } -> true | _ -> false
+  end
   
-  let[@inline] suffix_lt_plain (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
   
-  let[@inline] suffix_lt_paren (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
-  
-  let[@inline] suffix_prefixed (a : t) (b : t) : t = (suffix_ule (ops_neg a) b)
-  
-  let as_int (t : t) =
 
 An operator that is not surrounded by spaces is an error, but for a prefix
 operator (- or a symbol that starts with !, ~ or ?), which is directly followed
@@ -312,12 +467,97 @@ spaces: x - -y.
   > fn q (a : t) : t = ~a
   > KN
   $ kanon ocaml ops.knl ops.kn prefix.kn | sed -n '/let\[@inline\] prefix_p /,/^let as_int/p'
-  let[@inline] prefix_p (x : Z.t) (y : Z.t) : Z.t =
-      (Z.sub (Z.sub (Z.sub x (Z.neg y)) (Z.neg x)) (Z.neg y))
+    let[@inline] prefix_p (x : Z.t) (y : Z.t) : Z.t =
+        (Z.sub (Z.sub (Z.sub x (Z.neg y)) (Z.neg x)) (Z.neg y))
+    
+    let[@inline] prefix_q (a : t) : t = (ops_neg a)
+  end
   
-  let[@inline] prefix_q (a : t) : t = (ops_neg a)
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let as_int (t : t) =
+  (** The Kanon module prefix. *)
+  module Prefix = struct
+    let p = Kanon_flat.prefix_p
+    let q = Kanon_flat.prefix_q
+  end
+  
+  
 
 A suffix is not an operator that was declared, and an operator that is not
 declared is an error:
@@ -342,44 +582,152 @@ The laws of integer literals, written with the notation Int: the results of
 function or node given after it (Int, of_bool).
 
   $ kanon ocaml ops.knl ops.kn | sed -n '/let ops_add/,/^$/p;/let ops_mul/,/^$/p;/let ops_le/,/^$/p'
-  let ops_add (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Int ((ops_add_z i1 i2))) TInt)
-      | (x, { kind = Int (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | ({ kind = Int (kanon__2); _ }, x)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | _ -> (node (mk_commut_binop Add v1 v2) TInt)
-      ))
+    let ops_add (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (node (Int ((ops_add_z i1 i2))) TInt)
+        | (x, { kind = Int (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | ({ kind = Int (kanon__2); _ }, x)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | _ -> (node (mk_commut_binop Add v1 v2) TInt)
+        ))
+    
+    let ops_mul (v1 : t) (v2 : t) : t =
+    let ops_mul (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 | _ -> false
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (node (Int ((ops_mul_z i1 i2))) TInt)
+          (node (Int ((ops_mul_z i1 i2))) TInt)
+        | _ -> (node (Op2 (Mul, v1, v2)) TInt)
+        | _ -> (node (Op2 (Mul, v1, v2)) TInt)
+        ))
+        ))
+    
+    
+    let ops_cat (v1 : t) (v2 : t) : t =
+    let ops_cat (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 | _ -> false
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        (match v1, v2 with
+        | _ -> (node (Op2 (Cat, v1, v2)) TInt)
+        | _ -> (node (Op2 (Cat, v1, v2)) TInt)
+        ))
+        ))
+    
+    
+    let ops_le (v1 : t) (v2 : t) : t =
+    let ops_le (v1 : t) (v2 : t) : t =
+    let ops_le (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 | _ -> false
+                 | _ -> false
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        (match v1, v2 with
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (Prims.of_bool (ops_le_z i1 i2))
+          (Prims.of_bool (ops_le_z i1 i2))
+          (Prims.of_bool (ops_le_z i1 i2))
+        | _ -> (node (Op2 (Le, v1, v2)) TBool)
+        | _ -> (node (Op2 (Le, v1, v2)) TBool)
+        | _ -> (node (Op2 (Le, v1, v2)) TBool)
+        ))
+        ))
+        ))
+    
+    
+    
+    let ops_land (v1 : t) (v2 : t) : t =
+    let ops_land (v1 : t) (v2 : t) : t =
+    let ops_land (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 | _ -> false
+                 | _ -> false
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        (match v1, v2 with
+        (match v1, v2 with
+        | _ -> (node (Op2 (Land, v1, v2)) TInt)
+        | _ -> (node (Op2 (Land, v1, v2)) TInt)
+        | _ -> (node (Op2 (Land, v1, v2)) TInt)
+        ))
+        ))
+        ))
+    
+    
+    
+    let[@inline] ops_f (a : t) (b : t) (c : t) : t =
+    let[@inline] ops_f (a : t) (b : t) (c : t) : t =
+    let[@inline] ops_f (a : t) (b : t) (c : t) : t =
+        (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
+        (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
+        (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
+    
+    
+    
+    let[@inline] ops_g (x : Z.t) (y : Z.t) : bool =
+    let[@inline] ops_g (x : Z.t) (y : Z.t) : bool =
+    let[@inline] ops_g (x : Z.t) (y : Z.t) : bool =
+        (Z.lt (Z.add x (Z.mul y (Z.of_int (2)))) (Z.sub (Z.of_int (3)) (Z.neg x)))
+        (Z.lt (Z.add x (Z.mul y (Z.of_int (2)))) (Z.sub (Z.of_int (3)) (Z.neg x)))
+        (Z.lt (Z.add x (Z.mul y (Z.of_int (2)))) (Z.sub (Z.of_int (3)) (Z.neg x)))
+    
+    
+    
+    let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
+    let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
+    let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
+        (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+        (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+        (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+  end
+  end
+  end
   
-  let ops_mul (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Int ((ops_mul_z i1 i2))) TInt)
-      | _ -> (node (Op2 (Mul, v1, v2)) TInt)
-      ))
   
-  let ops_le (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (Prims.of_bool (ops_le_z i1 i2))
-      | _ -> (node (Op2 (Le, v1, v2)) TBool)
-      ))
   
 
 Some operators are not declared, or not of their kind:
@@ -438,67 +786,92 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   > fn same (a b : t) (l : t list) : bool = a = b || l <> [ a ]
   > KN
   $ kanon ocaml ops.knl eq.knl ops.kn eq.kn | sed -n '/ eq_same /,$p'
-  let[@inline] eq_same (a : t) (b : t) (l : (t list)) : bool =
-      ((Int.equal a.tag b.tag) || (not ((List.equal equal_t) l (a :: []))))
+    let[@inline] eq_same (a : t) (b : t) (l : (t list)) : bool =
+        ((Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
+  end
   
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module eq. *)
+  module Eq = struct
+    let same = Kanon_flat.eq_same
+  end
   
   
   $ cat > bad.kn <<'KN'
@@ -583,87 +956,113 @@ number of operands, whose elements all have that sort.
   > rule same : Same l
   > KN
   $ kanon ocaml ops.knl nary.knl ops.kn nary.kn | sed -n '/ nary_max /,$p'
-  let[@inline] nary_max (l : (t list)) : t =
-      (match l with
-      | (x :: []) -> x
-      | _ -> (node (OpN (Max, l)) TInt)
-      )
+    let[@inline] nary_max (l : (t list)) : t =
+        (match l with
+        | (x :: []) -> x
+        | _ -> (node (OpN (Max, l)) TInt)
+        )
+    
+    let[@inline] nary_same (l : (t list)) : t =
+        (match l with
+        | _ -> (node (OpN (Same, l)) TBool)
+        )
+  end
   
-  let[@inline] nary_same (l : (t list)) : t =
-      (match l with
-      | _ -> (node (OpN (Same, l)) TBool)
-      )
+  (** The Kanon module ops. *)
+  module Ops = struct
+    let t_int : ty = TInt
+    let t_bool : ty = TBool
+    let add_z = Kanon_flat.ops_add_z
+    let mul_z = Kanon_flat.ops_mul_z
+    let le_z = Kanon_flat.ops_le_z
+    let neg = Kanon_flat.ops_neg
+    let add = Kanon_flat.ops_add
+    let mul = Kanon_flat.ops_mul
+    let cat = Kanon_flat.ops_cat
+    let le = Kanon_flat.ops_le
+    let land = Kanon_flat.ops_land
+    let f = Kanon_flat.ops_f
+    let g = Kanon_flat.ops_g
+    let masked = Kanon_flat.ops_masked
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
+    
+    let is_neg (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_mul (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
+    
+    let as_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_cat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
+    
+    let as_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_le (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
+    
+    let as_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_land (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, x1); _ } -> Some x1 | _ -> None
-  
-  let is_neg (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Neg, _); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_mul (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Mul, _, _); _ } -> true | _ -> false
-  
-  let as_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_cat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Cat, _, _); _ } -> true | _ -> false
-  
-  let as_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_le (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Le, _, _); _ } -> true | _ -> false
-  
-  let as_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_land (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Land, _, _); _ } -> true | _ -> false
-  
-  let as_max (t : t) =
-    match[@warning "-11"] t with { kind = OpN (Max, xs); _ } -> Some xs | _ -> None
-  
-  let is_max (t : t) =
-    match[@warning "-11"] t with { kind = OpN (Max, _); _ } -> true | _ -> false
-  
-  let as_same (t : t) =
-    match[@warning "-11"] t with { kind = OpN (Same, xs); _ } -> Some xs | _ -> None
-  
-  let is_same (t : t) =
-    match[@warning "-11"] t with { kind = OpN (Same, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module nary. *)
+  module Nary = struct
+    let max = Kanon_flat.nary_max
+    let same = Kanon_flat.nary_same
+    
+    let as_max (t : t) =
+      match[@warning "-11"] t with { kind = OpN (Max, xs); _ } -> Some xs | _ -> None
+    
+    let is_max (t : t) =
+      match[@warning "-11"] t with { kind = OpN (Max, _); _ } -> true | _ -> false
+    
+    let as_same (t : t) =
+      match[@warning "-11"] t with { kind = OpN (Same, xs); _ } -> Some xs | _ -> None
+    
+    let is_same (t : t) =
+      match[@warning "-11"] t with { kind = OpN (Same, _); _ } -> true | _ -> false
+  end
   
   
   $ echo 'node Bad : TInt list -> TInt -> TInt' > bad.knl
@@ -720,125 +1119,141 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
   >   | true_: _, _ when false -> Bool true
   > KN
   $ kanon ocaml bv.knl bv.kn | sed -n '/ bv_lit /,$p'
-  let[@inline] bv_lit (n : Z.t) (z : Z.t) : t =
-      (node (BitVec ((Prims.wrap n z))) (TBitVector ((Z.to_int n))))
+    let[@inline] bv_lit (n : Z.t) (z : Z.t) : t =
+        (node (BitVec ((Prims.wrap n z))) (TBitVector ((Z.to_int n))))
+    
+    let bv_msb (v : t) : Z.t =
+        (let n = (bv_size v) in
+        (assert ((match v.ty with
+                 | (TBitVector (kanon__v_n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = BitVec (z); _ } when ((Z.gt z Z.zero)) -> z
+        | { kind = BitVec (kanon__1); _ }
+          when (((Z.equal kanon__1 Z.zero))) ->
+          (Z.sub n Z.one)
+        | { kind = Op2 ((BvAdd), _, { kind = BitVec (k); _ }); _ } -> k
+        | { kind = Op2 ((BvAdd), { kind = BitVec (k); _ }, _); _ } -> k
+        | _ -> n
+        )))
+    
+    let rec bv_add (v1 : t) (v2 : t) : t =
+        (let n = (bv_size v1) in
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
+                   when (let kanon__n = Z.of_int kanon__n in
+                   let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 kanon__n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
+          (node (BitVec ((bv_z_add lit_i1.ty lit_i2.ty i1 i2))) v1.ty)
+        | (x, { kind = BitVec (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | ({ kind = BitVec (kanon__2); _ }, x)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | (x, { kind = BitVec (k); _ })
+          when (((Z.equal k n))) ->
+          (bv_add x (bv_lit n Z.zero))
+        | ({ kind = BitVec (k); _ }, x)
+          when (((Z.equal k n))) ->
+          (bv_add x (bv_lit n Z.zero))
+        | _ -> (node (mk_commut_binop BvAdd v1 v2) v1.ty)
+        )))
+    
+    let bv_concat (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__m))) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
+          (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+        | _ ->
+          (node (Op2 (BvConcat, v1, v2)) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+        ))
+    
+    let bv_ult (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
+                   when (let kanon__n = Z.of_int kanon__n in
+                   let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 kanon__n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = BitVec (i1); _ }, { kind = BitVec (i2); _ }) ->
+          (node (Bool ((bv_z_ult i1 i2))) TBool)
+        | (_, { kind = BitVec (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          (node (Bool (false)) TBool)
+        | (_, _) when (false) -> (node (Bool (true)) TBool)
+        | _ -> (node (Op2 (BvUlt, v1, v2)) TBool)
+        ))
+  end
   
-  let bv_msb (v : t) : Z.t =
-      (let n = (bv_size v) in
-      (assert ((match v.ty with
-               | (TBitVector (kanon__v_n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = BitVec (z); _ } when ((Z.gt z Z.zero)) -> z
-      | { kind = BitVec (kanon__1); _ }
-        when (((Z.equal kanon__1 Z.zero))) ->
-        (Z.sub n Z.one)
-      | { kind = Op2 ((BvAdd), _, { kind = BitVec (k); _ }); _ } -> k
-      | { kind = Op2 ((BvAdd), { kind = BitVec (k); _ }, _); _ } -> k
-      | _ -> n
-      )))
-  
-  let rec bv_add (v1 : t) (v2 : t) : t =
-      (let n = (bv_size v1) in
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
-                 when (let kanon__n = Z.of_int kanon__n in
-                 let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 kanon__n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
-        (node (BitVec ((bv_z_add lit_i1.ty lit_i2.ty i1 i2))) v1.ty)
-      | (x, { kind = BitVec (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | ({ kind = BitVec (kanon__2); _ }, x)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | (x, { kind = BitVec (k); _ })
-        when (((Z.equal k n))) ->
-        (bv_add x (bv_lit n Z.zero))
-      | ({ kind = BitVec (k); _ }, x)
-        when (((Z.equal k n))) ->
-        (bv_add x (bv_lit n Z.zero))
-      | _ -> (node (mk_commut_binop BvAdd v1 v2) v1.ty)
-      )))
-  
-  let bv_concat (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__m))) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
-        (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
-      | _ ->
-        (node (Op2 (BvConcat, v1, v2)) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
-      ))
-  
-  let bv_ult (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
-                 when (let kanon__n = Z.of_int kanon__n in
-                 let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 kanon__n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = BitVec (i1); _ }, { kind = BitVec (i2); _ }) ->
-        (node (Bool ((bv_z_ult i1 i2))) TBool)
-      | (_, { kind = BitVec (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        (node (Bool (false)) TBool)
-      | (_, _) when (false) -> (node (Bool (true)) TBool)
-      | _ -> (node (Op2 (BvUlt, v1, v2)) TBool)
-      ))
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_bitvec (t : t) =
-    match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bitvec (t : t) =
-    match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
-  
-  let as_bvadd (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvadd (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
-  
-  let as_bvconcat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvconcat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
-  
-  let as_bvult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
-  
-  let as_tbitvector (t : ty) =
-    match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
-  
-  let is_tbitvector (t : ty) =
-    match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
+  (** The Kanon module bv. *)
+  module Bv = struct
+    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bool : ty = TBool
+    let size = Kanon_flat.bv_size
+    let z_add = Kanon_flat.bv_z_add
+    let z_concat = Kanon_flat.bv_z_concat
+    let z_ult = Kanon_flat.bv_z_ult
+    let lit = Kanon_flat.bv_lit
+    let msb = Kanon_flat.bv_msb
+    let add = Kanon_flat.bv_add
+    let concat = Kanon_flat.bv_concat
+    let ult = Kanon_flat.bv_ult
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_bitvec (t : t) =
+      match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bitvec (t : t) =
+      match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
+    
+    let as_bvadd (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvadd (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
+    
+    let as_bvconcat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvconcat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
+    
+    let as_bvult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
+    
+    let as_tbitvector (t : ty) =
+      match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
+    
+    let is_tbitvector (t : ty) =
+      match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
   
 
@@ -910,26 +1325,27 @@ constant gives it.
   > rule and_ : BvAnd (v1, v2)
   > KN
   $ kanon ocaml bv.knl ones.knl bv.kn ones.kn | sed -n '/let ones_and_/,/^$/p'
-  let ones_and_ (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
-                 when (let kanon__n = Z.of_int kanon__n in
-                 let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 kanon__n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, y) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
-      | (y, x) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
-      | (_, { kind = BitVec (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        (node (BitVec (Z.zero)) v1.ty)
-      | ({ kind = BitVec (kanon__2); _ }, _)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        (node (BitVec (Z.zero)) v1.ty)
-      | _ -> (node (mk_commut_binop BvAnd v1 v2) v1.ty)
-      ))
+    let ones_and_ (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
+                   when (let kanon__n = Z.of_int kanon__n in
+                   let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 kanon__n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, y) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (y, x) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (_, { kind = BitVec (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          (node (BitVec (Z.zero)) v1.ty)
+        | ({ kind = BitVec (kanon__2); _ }, _)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          (node (BitVec (Z.zero)) v1.ty)
+        | _ -> (node (mk_commut_binop BvAnd v1 v2) v1.ty)
+        ))
+  end
   
   $ sed 's/unit ones/unit twos/' ones.knl > bad.knl
   $ kanon ocaml bv.knl bad.knl bv.kn ones.kn
@@ -960,122 +1376,147 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   > rule float_of_bits (v : TBitVector n) : FloatOfBits (n, v)
   > KN
   $ kanon ocaml bv.knl shadow.knl bv.kn shadow.kn | sed -n '/let rec shadow_msb_of/,$p'
-  let rec shadow_msb_of (v : t) : Z.t =
-      (let n = (bv_size v) in
-      (assert ((match v.ty with
-               | (TBitVector (kanon__v_n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = Op1 ((BvExtend (_)), v); _ }
-        when ((Z.gt n (Z.of_int (3)))) ->
-        (shadow_msb_of v)
-      | _ -> (Z.sub n Z.one)
-      )))
+    let rec shadow_msb_of (v : t) : Z.t =
+        (let n = (bv_size v) in
+        (assert ((match v.ty with
+                 | (TBitVector (kanon__v_n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Op1 ((BvExtend (_)), v); _ }
+          when ((Z.gt n (Z.of_int (3)))) ->
+          (shadow_msb_of v)
+        | _ -> (Z.sub n Z.one)
+        )))
+    
+    let shadow_ext (k : Z.t) (v : t) : t =
+        (let n = (bv_size v) in
+        (assert ((match v.ty with
+                 | (TBitVector (kanon__n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Op1 ((BvExtend (j)), v); _ }
+          when ((Z.gt n (Z.of_int (3)))) ->
+          let j = Z.of_int j in
+          (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) (Z.add k j))))))
+        | _ ->
+          (node (Op1 ((BvExtend ((Z.to_int k))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) k)))))
+        )))
+    
+    let shadow_float_of (v : t) : t =
+        (let n = (bv_size v) in
+        (assert ((match v.ty with
+                 | (TBitVector (kanon__n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | _ -> (node (Op1 ((FloatOfBv ((Z.mul (Z.of_int (2)) n))), v)) TFloat)
+        )))
+    
+    let shadow_float_of_bits (v : t) : t =
+        (let n = (bv_size v) in
+        (assert ((match v.ty with
+                 | (TBitVector (kanon__s1))
+                   when (let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | _ -> (node (Op1 ((FloatOfBits ((Z.to_int n))), v)) TFloat)
+        )))
+  end
   
-  let shadow_ext (k : Z.t) (v : t) : t =
-      (let n = (bv_size v) in
-      (assert ((match v.ty with
-               | (TBitVector (kanon__n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = Op1 ((BvExtend (j)), v); _ }
-        when ((Z.gt n (Z.of_int (3)))) ->
-        let j = Z.of_int j in
-        (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) (Z.add k j))))))
-      | _ ->
-        (node (Op1 ((BvExtend ((Z.to_int k))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) k)))))
-      )))
+  (** The Kanon module bv. *)
+  module Bv = struct
+    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bool : ty = TBool
+    let size = Kanon_flat.bv_size
+    let z_add = Kanon_flat.bv_z_add
+    let z_concat = Kanon_flat.bv_z_concat
+    let z_ult = Kanon_flat.bv_z_ult
+    let lit = Kanon_flat.bv_lit
+    let msb = Kanon_flat.bv_msb
+    let add = Kanon_flat.bv_add
+    let concat = Kanon_flat.bv_concat
+    let ult = Kanon_flat.bv_ult
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_bitvec (t : t) =
+      match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bitvec (t : t) =
+      match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
+    
+    let as_bvadd (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvadd (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
+    
+    let as_bvconcat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvconcat (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
+    
+    let as_bvult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_bvult (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
+    
+    let as_tbitvector (t : ty) =
+      match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
+    
+    let is_tbitvector (t : ty) =
+      match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+  end
   
-  let shadow_float_of (v : t) : t =
-      (let n = (bv_size v) in
-      (assert ((match v.ty with
-               | (TBitVector (kanon__n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | _ -> (node (Op1 ((FloatOfBv ((Z.mul (Z.of_int (2)) n))), v)) TFloat)
-      )))
-  
-  let shadow_float_of_bits (v : t) : t =
-      (let n = (bv_size v) in
-      (assert ((match v.ty with
-               | (TBitVector (kanon__s1))
-                 when (let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | _ -> (node (Op1 ((FloatOfBits ((Z.to_int n))), v)) TFloat)
-      )))
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_bitvec (t : t) =
-    match[@warning "-11"] t with { kind = BitVec (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bitvec (t : t) =
-    match[@warning "-11"] t with { kind = BitVec (_); _ } -> true | _ -> false
-  
-  let as_bvadd (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvAdd, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvadd (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvAdd, _, _); _ } -> true | _ -> false
-  
-  let as_bvconcat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvConcat, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvconcat (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvConcat, _, _); _ } -> true | _ -> false
-  
-  let as_bvult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvUlt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_bvult (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (BvUlt, _, _); _ } -> true | _ -> false
-  
-  let as_bvextend (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (BvExtend (p1), x1); _ } -> Some (p1, x1) | _ -> None
-  
-  let is_bvextend (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (BvExtend (_), _); _ } -> true | _ -> false
-  
-  let as_floatofbv (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (FloatOfBv (p1), x1); _ } -> Some (p1, x1) | _ -> None
-  
-  let is_floatofbv (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (FloatOfBv (_), _); _ } -> true | _ -> false
-  
-  let as_floatofbits (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (FloatOfBits (p1), x1); _ } -> Some (p1, x1) | _ -> None
-  
-  let is_floatofbits (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (FloatOfBits (_), _); _ } -> true | _ -> false
-  
-  let as_tbitvector (t : ty) =
-    match[@warning "-11"] t with TBitVector (p1) -> Some p1 | _ -> None
-  
-  let is_tbitvector (t : ty) =
-    match[@warning "-11"] t with TBitVector (_) -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tfloat (t : ty) =
-    match[@warning "-11"] t with TFloat -> Some () | _ -> None
-  
-  let is_tfloat (t : ty) =
-    match[@warning "-11"] t with TFloat -> true | _ -> false
+  (** The Kanon module shadow. *)
+  module Shadow = struct
+    let t_float : ty = TFloat
+    let msb_of = Kanon_flat.shadow_msb_of
+    let ext = Kanon_flat.shadow_ext
+    let float_of = Kanon_flat.shadow_float_of
+    let float_of_bits = Kanon_flat.shadow_float_of_bits
+    
+    let as_bvextend (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (BvExtend (p1), x1); _ } -> Some (p1, x1) | _ -> None
+    
+    let is_bvextend (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (BvExtend (_), _); _ } -> true | _ -> false
+    
+    let as_floatofbv (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (FloatOfBv (p1), x1); _ } -> Some (p1, x1) | _ -> None
+    
+    let is_floatofbv (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (FloatOfBv (_), _); _ } -> true | _ -> false
+    
+    let as_floatofbits (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (FloatOfBits (p1), x1); _ } -> Some (p1, x1) | _ -> None
+    
+    let is_floatofbits (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (FloatOfBits (_), _); _ } -> true | _ -> false
+    
+    let as_tfloat (t : ty) =
+      match[@warning "-11"] t with TFloat -> Some () | _ -> None
+    
+    let is_tfloat (t : ty) =
+      match[@warning "-11"] t with TFloat -> true | _ -> false
+  end
   
   
   $ kanon lean-statements bv.knl shadow.knl bv.kn shadow.kn | sed -n '/Shadow.ext.r_extend.main.Stmt/,/^$/p'
