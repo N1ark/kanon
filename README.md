@@ -265,11 +265,9 @@ that the rules call, the functions (`fn`), rule functions (`rule`), primitives
 
 Backends use the same names: Lean defines them in the namespace of their
 module (`Bitvec.add`, `Bitvec.add.spec`), the typed interface nests them in a
-module `Bitvec` (see [Typed OCaml](#typed-ocaml)), and in the OCaml rules, a
-single module because the cases of an `extend` call the functions of the later
-modules, they are flat: `bitvec_add`, the module in lowercase and the name (see
-[OCaml](#ocaml)). Primitives are implemented by hand, under their plain name,
-whatever their module.
+module `Bitvec` (see [Typed OCaml](#typed-ocaml)), and so does the OCaml
+rules module: `Bitvec.add` (see [OCaml](#ocaml)). Primitives are implemented by
+hand, under their plain name, whatever their module.
 
 ### Attributes of nodes
 
@@ -606,25 +604,45 @@ they open. They call the primitives in the module of
 `[@@@ocaml_prims "Lang_prims"]`, which they check against the declarations
 (`module _ : sig ... end = Lang_prims`). On terms, `=` compares their tags.
 
-The functions are one module, in the order of their dependencies (an `extend`
-calls the functions of later modules), so the function `add` of the module
-`Bitvec` is `bitvec_add`: the module in lowercase, an underscore and the name.
-The names that Kanon provides (`mk_commut_binop`) are unchanged, and two
-functions with the same flat name are an error. The primitives are not
-prefixed: the module of the primitives implements `wrap` whichever module
-declares it, so two primitives of different modules may not have the same name
-(rename one). `kanon ocaml-typed` gives the nested names (`Bitvec.add`).
+The generated module has the structure of the language: a module per Kanon
+module, that is per file (`bitvec.knl` and `bitvec.kn` are `Bitvec`, `use
+builtin "bool"` is `Bool`), with the plain names: the function `add` of
+`bitvec.kn` is `Bitvec.add`, in the output as a program, which calls
+`Lang_rules.Bitvec.add`. A module has:
+- its functions: every `fn` and `rule` (and the zero-parameter ones, which are
+  values, computed once);
+- the function `t_foo` of each sort `TFoo` declared in its files (`t_bitvec`: a
+  `nat` is an `int`), which makes the sort from its arguments;
+- the destructors of the nodes and sorts declared in its files (below).
 
-After the rules, it generates a destructor `as_foo` and a test `is_foo` for
+Primitives are not in it: they stay in the module of `[@@@ocaml_prims]`,
+under their plain name, whichever module declares them, so two primitives of
+different modules may not have the same name (rename one). The types, `node`,
+the terms and the names that Kanon provides are not in a module; the traversals
+are not either (see below).
+
+The functions call each other freely, across modules (an `extend` calls the
+functions of later modules, and they call back), so they are one recursive
+group in a module `Kanon_flat`, in the order of their dependencies, under a flat
+name (`bitvec_add`: the module in lowercase, an underscore, the name; two
+functions with the same flat name are an error); and `module Bitvec = struct
+let add = Kanon_flat.bitvec_add ... end` names them. A module of `Lang_rules`
+is then an alias of the functions of the group: a call of `Bitvec.add` is a
+direct call of the function, which OCaml inlines when it is small, as with flat
+names.
+`Kanon_flat` is not for use, and a module cannot be named `Kanon_flat`.
+
+It generates a destructor `as_foo` and a test `is_foo` for
 every node and every sort (not the kinds that Kanon builds). For the node
 `Foo`, `as_foo : t -> (args) option` gives its arguments, as a pattern would
 bind them: its parameters, then its operands (the list of an n-ary node), in a
 tuple, or alone, or `()`; `is_foo : t -> bool` tells whether a term is built by
 `Foo`. For a sort `TFoo of nat`, `as_tfoo : ty -> int option` and `is_tfoo`
 read a `ty`. The name is that of the constructor in lowercase (`BvAdd` gives
-`as_bvadd`), so a function or a primitive may not be named like a destructor
-(a function `add` of a module `is` is `is_add`), nor may two constructors that
-differ only by their case: these are errors.
+`as_bvadd`), in the module of the file that declares the node or the sort. A
+module may not have two items of the same name: a function named like a
+destructor (`is_add`, in the module of `Add`) or like the function of a sort,
+or two constructors that differ only by their case: these are errors.
 
 ## Typed OCaml
 
@@ -712,22 +730,28 @@ What is generated, in the file, for the language (nothing is a functor):
   not a node (a call of a function) has any tag everywhere. For instance `rule
   to_bool (v : t) : Not (Eq (v, zero (size v)))` is `_ t -> [> tbool ]
   t`.
-- `module Derived`, the implementation of `S`: the rules, `let add =
-  Kanon_rules.bitvec_add`, where `Kanon_rules` is the module that names
-  `[@@@ocaml_rules "Lang_rules"]` (required: the output of `kanon ocaml`), and
-  the sorts, destructors and escape hatches. In `Derived`, `type 'a t = raw` is
-  visible, so that the rules have the types of `S`; `S` hides it, since a
-  visible equality would make every tag the same type, and OCaml would accept
-  the division by a bit-vector that is not known to be non-zero. There is no
-  functor, so that the escape hatches, which are `let[@inline] f x = x`, are
-  known functions to the compiler.
+- `module Derived`, the implementation of `S`: `include Lang_rules`, the module
+  that names `[@@@ocaml_rules "Lang_rules"]` (required: the output of `kanon
+  ocaml`), which already has the modules of `S` with their functions, the
+  functions of the sorts and the destructors under the same names, and the
+  phantom types and the escape hatches, which are all that `Derived` adds. In
+  `Derived`, `type 'a t = raw` is visible, so that the rules have the types of
+  `S`; `S` hides it, since a visible equality would make every tag the same
+  type, and OCaml would accept the division by a bit-vector that is not known to
+  be non-zero. The generated file checks `S` against the rules at compile time
+  (`module _ : S = Derived`). `S` is thus a module type that the rules module
+  satisfies, once its types are given a phantom parameter; the rules have no
+  tags, and what is not in `S` (the functions that are not rule functions, the
+  prims) is simply not exported. There is no functor, so that the escape
+  hatches, which are `let[@inline] f x = x`, are known functions to the
+  compiler.
 
 The module of a `val` is that of the Kanon module of its declaration: the file
 of the rule function, the sort or the node, without its extension and with a
 capital (`bitvec.kn` and `bitvec.knl` are `Bitvec`, `use builtin "bool"` is
-`Bool`), in `S` and in `Derived`. A module that declares none of them has no
-module in the interface. `Tag`, `S`, `Derived` and `Kanon_rules` are the names
-of generated modules: a file may not have them. The tags, which are not tied
+`Bool`), in `S`, in `Derived` and in the rules. A module that declares none of
+them has no module in the interface. `Tag`, `S`, `Derived` and `Kanon_flat`
+are the names of generated modules: a file may not have them. The tags, which are not tied
 to a module, are all in `Tag`.
 
 Leaf nodes have no constructor, in `S` nor in `Derived`: no rule builds them,
