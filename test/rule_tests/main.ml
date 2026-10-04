@@ -46,4 +46,4 @@ let () =
         run 0
       done)
     rule_fns;
-  check "nat" (Z.equal (rules_clamp (Z.of_int 3) (Z.of_int 2)) (Z.of_int 2))
+  check "nat" (Z.equal (Rules.clamp (Z.of_int 3) (Z.of_int 2)) (Z.of_int 2))

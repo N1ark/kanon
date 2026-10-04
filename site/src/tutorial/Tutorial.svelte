@@ -473,8 +473,9 @@ node Div : TInt -> TNonzero -> TInt`}
     <code>tint</code>, which includes <code>tnonzero</code>, and <code>[&gt; Tag.tint ] t</code>, as
     a result, is a term that may have any of them. The interface is organised like the language,
     with a module for each file (here <code>Int</code>, the only one that has rules). <code>S</code> is its
-    signature, and <code>Derived</code> implements it with the rules, which the language names with
-    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.int_plus{:ocaml}`}</code> (the rules are one OCaml module, where the name of a function is flat: the module and the name).
+    signature, a module type that the rules module of <code>kanon ocaml</code> satisfies, which has the same modules (<code>Rules.Int.plus</code>): <code>Derived</code> is
+    <code>{`include Rules{:ocaml}`}</code> (the module that the language names with
+    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>) and the phantom types, nothing else.
     A leaf has no function in either, since no rule builds it: it is written by hand, from the types,
     and given its tag with <code>type_</code>:
   </p>

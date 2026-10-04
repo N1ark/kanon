@@ -36,25 +36,29 @@ no space:
   > rule badd : BAdd (v1, v2)
   > KN
 
-In OCaml, the rules are one module, so the names are flat: the module in
-lowercase, an underscore, and the name. The primitives keep their name, which
-the module of the primitives implements.
+In OCaml, the rules have the structure of the modules: a module per Kanon
+module, with the plain names, and the primitives stay in the module of the
+primitives. The functions are defined together, since a function may call one
+of a module that comes after (an `extend` does), in `Kanon_flat`, by their flat
+name (the module in lowercase, an underscore, and the name), which the modules
+alias:
 
-  $ kanon ocaml lang.knl | grep "^let.*\(int_\|bitvec_\)\|Prims"
-  end = Prims
-  let[@inline] int_add (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
-  let int_plus (v1 : t) (v2 : t) : t =
-  let[@inline] bitvec_add (n : Z.t) (x : Z.t) (y : Z.t) : Z.t =
-      (Prims.wrap n (int_add x y))
-  let bitvec_badd (v1 : t) (v2 : t) : t =
+  $ kanon ocaml lang.knl | grep "^module [IB]\|^  let [a-z]* = Kanon_flat\|^  let.*bitvec_add\|(Prims"
+    let[@inline] bitvec_add (n : Z.t) (x : Z.t) (y : Z.t) : Z.t =
+        (Prims.wrap n (int_add x y))
+  module Int = struct
+    let add = Kanon_flat.int_add
+    let plus = Kanon_flat.int_plus
+  module Bitvec = struct
+    let add = Kanon_flat.bitvec_add
+    let badd = Kanon_flat.bitvec_badd
 
-The typed interface has a module per Kanon module, with the plain names, and
-Lean the names qualified by their module (its structures have flat fields):
+The typed interface has the same modules, and Lean the names qualified by their
+module (its structures have flat fields):
 
-  $ kanon ocaml-typed lang.knl | grep "val plus\|val badd\|^    module\|let plus"
+  $ kanon ocaml-typed lang.knl | grep "val plus\|val badd\|^    module"
       val plus : [< Tag.tint ] t -> [< Tag.tint ] t -> [> Tag.tint ] t
       val badd : [< Tag.tbv ] t -> [< Tag.tbv ] t -> [> Tag.tbv ] t
-      let plus = Kanon_rules.int_plus
   $ kanon lean-model lang.knl | grep "def Int.add\|def Bitvec.add\|^    int_plus :\|^    bitvec_badd :"
   def Int.add (x : Int) (y : Int) : Int :=
   def Bitvec.add (n : Int) (x : Int) (y : Int) : Int :=
@@ -86,7 +90,8 @@ of a function of another module:
   > fn ok (add : int) : int = add
   > KN
   $ kanon ocaml lang.knl ok.kn | grep "ok_ok"
-  let[@inline] ok_ok (add : Z.t) : Z.t = add
+    let[@inline] ok_ok (add : Z.t) : Z.t = add
+    let ok = Kanon_flat.ok_ok
   $ cat > bad.kn <<'KN'
   > fn add (x : int) : int = let bad (x : int) = x in x
   > fn bad2 (add : int) : int = add
@@ -104,8 +109,9 @@ extends, so the names they call are its own, or qualified:
   >   | same: x + x -> Int (double 1)
   > KN
   $ kanon ocaml lang.knl ext.kn | grep "ext_double"
-  let[@inline] ext_double (x : Z.t) : Z.t = (int_add x x)
-        (node (Int ((ext_double Z.one))) TInt)
+    let[@inline] ext_double (x : Z.t) : Z.t = (int_add x x)
+          (node (Int ((ext_double Z.one))) TInt)
+    let double = Kanon_flat.ext_double
   $ sed -i 's/Int.plus/plus/' ext.kn
   $ kanon ocaml lang.knl ext.kn
   ext.kn:2:12: extend Ext.plus: no rule Ext.plus is defined before

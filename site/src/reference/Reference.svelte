@@ -225,7 +225,7 @@
     <li>
       The backends nest the names the same way: Lean defines <code>Bitvec.add</code> in the
       namespace <code>Bitvec</code>, the typed interface has a module <code>Bitvec</code>, and the
-      OCaml rules, which are one module, call it <code>bitvec_add</code>. Primitives keep their plain
+      OCaml rules module has the same modules, <code>Rules.Bitvec.add</code>. Primitives keep their plain
       name in the module of the primitives.
     </li>
   </ul>
@@ -539,7 +539,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td><code>{`[@@@ocaml_rules "M"]{:kanon}`}</code></td>
         <td>
           The OCaml module of the rules (the output of <code>ocaml</code>), which the
-          implementation of <code>ocaml-typed</code> is made of (<code>M.f</code>). Required by
+          implementation of <code>ocaml-typed</code> includes. Required by
           <code>ocaml-typed</code>.
         </td>
       </tr>
@@ -574,8 +574,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           option (the parameters, then the operands) and <code>is_bvadd</code> tests it; for a sort
           <code>TInt</code>, <code>as_tint</code> returns the arguments of the sort and
           <code>is_tint</code> tests it. Their names are <code>as_</code> and <code>is_</code>
-          followed by the name of the constructor in lowercase, with no other change: a function or a
-          primitive cannot have such a name.
+          followed by the name of the constructor in lowercase, with no other change, in the module of the file
+          that declares the node or the sort: a function of that module cannot have such a name.
         </td>
       </tr>
       <tr>
@@ -590,8 +590,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           <code>untype_type</code>, <code>type_type</code> on sorts), and a module per Kanon module
           (per file: <code>bitvec.kn</code> and <code>bitvec.knl</code> give <code>Bitvec</code>)
           that has a function for each sort, rule function and destructor declared in it, typed by
-          the tags; and <code>Derived</code>, the implementation of <code>S</code> from the rules
-          (module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>), with <code>{`type 'a t = raw{:ocaml}`}</code>
+          the tags; and <code>Derived</code>, the implementation of <code>S</code>: <code>include</code> of the
+          rules (module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>, which has the same modules) with <code>{`type 'a t = raw{:ocaml}`}</code>
           visible, which <code>S</code> hides. A leaf node, which no rule builds, has no function in
           either: a program builds it from the types and gives it its tag with <code>type_</code>. The parameters of a rule function have the types that it declares, as in
           <code>ocaml</code> (a <code>nat</code> is a <code>Z.t</code>).

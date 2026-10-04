@@ -33,15 +33,15 @@ the last case.
   >   kanon lean-model lang.knl base.kn ext.kn | grep -n 'some ((\(5\|7\) : Int))'
   > done
   === _ -> 0
-  9:      (Z.of_int (5))
-  12:      (Z.of_int (7))
-  13:    | _ -> Z.zero
+  11:        (Z.of_int (5))
+  14:        (Z.of_int (7))
+  15:      | _ -> Z.zero
   20:                 then some ((5 : Int))
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === _, _, _ -> 0
-  9:      (Z.of_int (5))
-  12:      (Z.of_int (7))
-  13:    | (_, _, _) -> Z.zero
+  11:        (Z.of_int (5))
+  14:        (Z.of_int (7))
+  15:      | (_, _, _) -> Z.zero
   20:                 then some ((5 : Int))
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
 
@@ -62,21 +62,21 @@ the last case.
   >   kanon lean-model lang.knl base.kn ext.kn | grep -n 'some ((\(5\|7\) : Int))'
   > done
   === _ -> 0
-  9:      (Z.of_int (5))
-  12:      (Z.of_int (7))
-  13:    | _ -> Z.zero
+  11:        (Z.of_int (5))
+  14:        (Z.of_int (7))
+  15:      | _ -> Z.zero
   20:                 then some ((5 : Int))
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === (_, _), _ -> 0
-  9:      (Z.of_int (5))
-  12:      (Z.of_int (7))
-  13:    | ((_, _), _) -> Z.zero
+  11:        (Z.of_int (5))
+  14:        (Z.of_int (7))
+  15:      | ((_, _), _) -> Z.zero
   20:                 then some ((5 : Int))
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === _, _ -> 0
-  9:      (Z.of_int (5))
-  12:      (Z.of_int (7))
-  13:    | (_, _) -> Z.zero
+  11:        (Z.of_int (5))
+  14:        (Z.of_int (7))
+  15:      | (_, _) -> Z.zero
   20:                 then some ((5 : Int))
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
 
