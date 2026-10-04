@@ -437,3 +437,46 @@ their names.
   "label":"array_set","kind":3,"detail":"array_set : 'a array -> int -> 'a -> 'a array"
   "label":"array_of_list","kind":3,"detail":"array_of_list : 'a list -> 'a array"
   "label":"array_to_list","kind":3,"detail":"array_to_list : 'a array -> 'a list"
+
+A subsort has a hover, a definition and an outline entry, like a sort:
+
+  $ mkdir sub
+  $ printf 'sort TBitVector of nat\nsubsort TNonzero of nat : TBitVector n\nnode Div : TBitVector n -> TNonzero n -> TBitVector n\n' > sub/sub.knl
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/sub","capabilities":{}}}'
+  >   msg '{"jsonrpc":"2.0","method":"initialized","params":{}}'
+  >   msg "$(open sub/sub.knl 'sort TBitVector of nat\nsubsort TNonzero of nat : TBitVector n\nnode Div : TBitVector n -> TNonzero n -> TBitVector n\n')"
+  >   msg "$(at 1 hover sub/sub.knl 2 29)"
+  >   msg "$(at 2 definition sub/sub.knl 2 29)"
+  >   msg '{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } | kanon lsp |
+  >   sed -e 's/Content-Length: [0-9]*\r$//' -e '/^\r*$/d' -e "s|$PWD|ROOT|g" |
+  >   grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nsubsort TNonzero of nat : TBitVector n\n```\n\n*sub.knl*"},"range":{"start":{"line":2,"character":27},"end":{"line":2,"character":35}}}}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/sub/sub.knl","range":{"start":{"line":1,"character":8},"end":{"line":1,"character":16}}}]}
+  {"jsonrpc":"2.0","id":3,"result":null}
+
+Its doc comment and its Lean predicate are in the hover, the parent is a hover
+and a definition of its own, `subsort` is a keyword to complete, a subsort is
+completed with the sorts, and a declaration that does not check is reported on
+the subsort:
+
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/sub","capabilities":{}}}'
+  >   msg '{"jsonrpc":"2.0","method":"initialized","params":{}}'
+  >   msg "$(open sub/doc.knl 'sort TBitVector of nat\n(** Not zero. *)\nsubsort TNonzero of nat : TBitVector n [@lean \"Nonzero\"]\n')"
+  >   msg "$(at 1 hover sub/doc.knl 2 10)"
+  >   msg "$(at 2 hover sub/doc.knl 2 30)"
+  >   msg "$(at 3 completion sub/doc.knl 3 0)"
+  >   msg "$(open sub/bad.knl 'sort TBitVector of nat\nsubsort A of int : TBitVector n\n')"
+  >   msg '{"jsonrpc":"2.0","id":4,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } | kanon lsp |
+  >   sed -e 's/Content-Length: [0-9]*\r$//' -e '/^\r*$/d' -e "s|$PWD|ROOT|g" |
+  >   grep -v '"id":0,' | grep -o '"id":[12],"result":{"contents":{"kind":"markdown","value":"[^"]*\(\\"[^"]*\)*"\|{"label":"\(TNonzero\|subsort\)"[^}]*}\|"message":"[^"]*"'
+  "id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nsubsort TNonzero of nat : TBitVector n [@lean \"Nonzero\"]\n```\n\nNot zero.\n\n*doc.knl*"
+  "id":2,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBitVector of nat\n```\n\n*doc.knl*"
+  {"label":"TNonzero","kind":4,"detail":"subsort TNonzero of nat : TBitVector n [@lean \"Nonzero\"]"}
+  {"label":"subsort","kind":14}
+  "message":"subsort A: its arguments must be those of TBitVector (nat)"

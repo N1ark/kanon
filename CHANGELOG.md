@@ -12,6 +12,8 @@
 - `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
 
 - [Arrays](README.md#arrays): `t array` is an immutable array, with the literal `[| a; b |]` and the functions `array_length`, `array_get`, `array_set` (a copy), `array_of_list` and `array_to_list`, and structural equality. OCaml compiles them to the standard `Iarray` (OCaml 5.4, with the equality and hash generated, no hand-written glue), and Lean to `Array`, with the operations and lemmas of `KanonCore.Array`. There is no cons, concatenation or array pattern. `examples/arrays` shows them, and the language server hovers and completes them.
+- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n` declares a sort of the arguments of its parent, which the typing of a node may use for an operand or its result (`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n`). A term of a subsort is accepted wherever its parent is expected. They are erased to their parent in the OCaml of the types, rules and tests, and trusted. A `[@comm]` node whose operands have different subsorts is rejected.
+- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` on a subsort names a predicate on terms, which the Lean statements of a rule function assume of its operands at a position of the subsort (in the statements of its rules and arms, in `Ops.Sound`, in its step and lifting lemmas), and which the rule function whose node returns the subsort must prove of what it returns (`f.post.main.Stmt`, by hand). A subsort without `[@lean]` is erased. `examples/division` is checked by CI.
 
 ### Fixed
 

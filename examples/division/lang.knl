@@ -1,0 +1,12 @@
+(* The language: a module of integers with a division, and variables. It shows
+   a subsort: the divisor of a division is a TNonzero, whose meaning in Lean is
+   Nonzero, assumed by the rules of the division and proved by the rule that
+   returns a Sq1. *)
+
+[@@@lean_root "DivisionExample"]
+
+use "int"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

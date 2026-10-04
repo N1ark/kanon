@@ -385,18 +385,18 @@ is an error.
   [1]
   $ printf 'sort TInt\n(** inside *) [@@@ocaml_prims "P"]\n' > floating.knl
   $ kanon ocaml-types floating.knl
-  floating.knl:2:0: a doc comment cannot document this item: only fn, rule, node, sort, type, prim, oracle, infix, prefix and constant can have one
+  floating.knl:2:0: a doc comment cannot document this item: only fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix and constant can have one
   [1]
   $ printf '(** a *)\n(** b *)\nsort TInt\n' > two.knl
   $ kanon ocaml-types two.knl
-  two.knl:2:0: misplaced doc comment: it must come right before a fn, rule, node, sort, type, prim, oracle, infix, prefix or constant
+  two.knl:2:0: misplaced doc comment: it must come right before a fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix or constant
   [1]
   $ printf 'sort TInt\nnode Int of int : TInt\nnotation Int\n(** doc *)\nnotation Int\n' > notation.knl
   $ kanon ocaml-types notation.knl
-  notation.knl:4:0: a doc comment cannot document this item: only fn, rule, node, sort, type, prim, oracle, infix, prefix and constant can have one
+  notation.knl:4:0: a doc comment cannot document this item: only fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix and constant can have one
   [1]
   $ printf 'node Not : TBool -> TBool\nsort TBool\n' > case.knl
   $ printf 'rule not_ : Not v =\n  (** case *)\n  | a: Not (Not x) -> x\n' > case.kn
   $ kanon ocaml-types case.knl case.kn
-  case.kn:2:2: misplaced doc comment: it must come right before a fn, rule, node, sort, type, prim, oracle, infix, prefix or constant
+  case.kn:2:2: misplaced doc comment: it must come right before a fn, rule, node, sort, subsort, type, prim, oracle, infix, prefix or constant
   [1]

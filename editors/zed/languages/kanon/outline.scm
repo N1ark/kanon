@@ -30,6 +30,11 @@
   (constructor_declaration
     name: (_) @name)) @item
 
+(subsort_declaration
+  "subsort" @context
+  (constructor_declaration
+    name: (_) @name)) @item
+
 (notation_declaration
   "notation" @context
   node: (_) @name) @item

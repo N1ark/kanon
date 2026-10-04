@@ -1,0 +1,18 @@
+(* The int module: integers, their sum and their quotient. *)
+
+node Int of int : TInt
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+(** The quotient: the divisor is not zero. *)
+node Div : TInt -> TNonzero -> TInt
+(** The square of an integer plus one, which is not zero. *)
+node Sq1 : TInt -> TNonzero
+
+sort TInt
+(** The integers that are not zero: the divisor of a division, and the result of
+    `Sq1`. In Lean, `Nonzero`, in `Semantics.lean`. *)
+subsort TNonzero : TInt [@lean "Nonzero"]
+
+notation Int
+
+infix "+" = Plus, plus
+infix "/" = Div, int_div

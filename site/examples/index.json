@@ -79,6 +79,15 @@
         "int.knl": "../examples/ints/int.knl",
         "int.kn": "../examples/ints/int.kn"
       }
+    },
+    {
+      "id": "subsorts",
+      "title": "Tutorial 5: subsorts",
+      "files": {
+        "lang.knl": "examples/subsorts/lang.knl",
+        "int.knl": "examples/subsorts/int.knl",
+        "int.kn": "examples/subsorts/int.kn"
+      }
     }
   ]
 }

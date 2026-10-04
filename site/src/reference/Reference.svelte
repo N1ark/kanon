@@ -18,15 +18,16 @@
   <Heading level={2} id="declarations">Declarations</Heading>
   <p>
     A language is declared in <code>.knl</code> files, with <code>use</code>, <code>type</code>,
-    <code>sort</code>, <code>node</code>, <code>notation</code>, <code>infix</code>,
-    <code>prefix</code> and <code>constant</code> items and floating attributes; its rules are in
+    <code>sort</code>, <code>subsort</code>, <code>node</code>, <code>notation</code>,
+    <code>infix</code>, <code>prefix</code> and <code>constant</code> items and floating attributes; its rules are in
     <code>.kn</code> files, with <code>prim</code>, <code>oracle</code>, <code>fn</code>,
     <code>rule</code> and <code>extend</code> items. A module <code>path</code> is the pair
     <code>path.knl</code> and <code>path.kn</code>, either of which may be missing.
   </p>
   <p>
     A documentation comment <code>(** … *)</code> right before a <code>type</code>,
-    <code>sort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code> or
+    <code>sort</code>, <code>subsort</code>, <code>node</code>, <code>prim</code>, <code>oracle</code>,
+    <code>fn</code> or
     <code>rule</code> documents it: it is copied to the generated OCaml (as <code>(** … *)</code>)
     and Lean (as <code>/-- … -/</code>). A plain comment <code>(* … *)</code> is ignored. A
     documentation comment is also accepted before <code>infix</code>, <code>prefix</code> and
@@ -57,6 +58,22 @@
 
     <dt><code>sort S attrs</code>, <code>sort S of a * b attrs</code></dt>
     <dd>A sort, the type of a term: a constructor of <code>ty</code>.</dd>
+
+    <dt><code>{`subsort S of a * b : P x y attrs{:kanon}`}</code></dt>
+    <dd>
+      A subsort <code>S</code> of the sort <code>P</code>, such as
+      <code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>. It has the arguments of its
+      parent (the same number, of the same types), which the parent applies, as distinct variables.
+      A node may use it in its typing, for an operand or its result
+      (<code>{`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n{:kanon}`}</code>): a term
+      of a subsort is accepted wherever its parent is expected, and not the reverse. It has no
+      constructor of its own and no meaning in OCaml, where the types and rules erase it to its
+      parent; it is only trusted, but in Lean, where <code>{`[@lean "P"]{:kanon}`}</code> gives it a
+      predicate. It is not an argument of a sort, nor an annotation <code>(v : S n)</code>, and its
+      parent is a sort, not a subsort. Only rules have the assumptions and obligations of their
+      subsorts, since functions have no sort annotations; a <code>[@comm]</code> node whose operands
+      have different subsorts is rejected.
+    </dd>
 
     <dt><code>node C of a * b (x, y) : s1 -> s2 -> s when e attrs</code></dt>
     <dd>
@@ -160,7 +177,7 @@
   </p>
   <p>
     <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
-    <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>,
+    <code>subsort</code>, <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>,
     <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
@@ -265,7 +282,7 @@
     </tbody>
   </table>
 
-  <Heading level={3} id="on-sorts">On sorts</Heading>
+  <Heading level={3} id="on-sorts">On sorts and subsorts</Heading>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
@@ -276,6 +293,18 @@
           The helper <code>{`f : t -> int{:kanon}`}</code> reads that argument from the sort of a
           term (<code>{`sort TArray of nat [@get length]{:kanon}`}</code>): Kanon calls
           <code>{`f v{:kanon}`}</code> rather than matching the sort of <code>v</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@lean "P"]{:kanon}`}</code></td>
+        <td>a subsort</td>
+        <td>
+          The Lean predicate <code>{`P : Term → Prop{:lean}`}</code> that its terms satisfy, written
+          by hand in the semantics. The Lean statements of a rule function assume it of an operand
+          at a position of the subsort (<code>{`Nonzero v →{:lean}`}</code>), and the function must
+          prove that what it returns, when its node has the subsort for its result, satisfies it
+          (<code>f.post.main.Stmt</code>, proved by hand with <code>{`@[kanon_arm]{:lean}`}</code>).
+          Without it, Lean ignores the subsort.
         </td>
       </tr>
     </tbody>

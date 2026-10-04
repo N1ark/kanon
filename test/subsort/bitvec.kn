@@ -1,0 +1,5 @@
+prim size : t -> int
+prim one : int -> t
+
+rule bv_div : Div (signed, v1, v2) =
+  | same: x, y when x = y -> one (size x)

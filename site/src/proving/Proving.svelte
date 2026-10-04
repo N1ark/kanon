@@ -14,6 +14,7 @@
       "../../../examples/ints/lean/lakefile.toml",
       "../../../examples/ints/lean/IntsExample/*.lean",
       "../../../examples/ints/lean/IntsExample/Lib/*.lean",
+      "../../../examples/division/lean/DivisionExample/Proofs.lean",
     ],
     { query: "?raw", import: "default", eager: true },
   ) as Record<string, string>;
@@ -24,6 +25,10 @@
     if (text === undefined) throw new Error(`proving: examples/ints/${path} is not imported`);
     return text;
   }
+
+  /** The proofs of examples/division, the example with a subsort. */
+  const divisionProofs =
+    sources["../../../examples/division/lean/DivisionExample/Proofs.lean"] ?? "";
 
   const REPO = "https://github.com/N1ark/kanon/tree/main";
 </script>
@@ -390,6 +395,43 @@ lake env lean check_axioms.lean
       />
     </li>
   </ol>
+
+  <Heading level={2} id="subsorts">Subsorts</Heading>
+  <p>
+    A subsort with a Lean predicate (<code>{`subsort TNonzero : TInt [@lean "Nonzero"]{:kanon}`}</code>)
+    asks two things of you.
+    <a href="{REPO}/examples/division"><code>examples/division</code></a> is
+    a language of integers, with no booleans, that has a division whose divisor is a
+    <code>TNonzero</code>, and a node <code>Sq1</code> that returns one.
+  </p>
+  <ul>
+    <li>
+      <strong>The predicate</strong>, <code>{`Nonzero : Term → Prop{:lean}`}</code>, which you write in
+      <code>Semantics.lean</code>, with the semantics of terms:
+      <code>{`def Nonzero (t : Term) : Prop := ∀ ρ z, eval ρ t = some (.int z) → z ≠ 0{:lean}`}</code>.
+    </li>
+    <li>
+      <strong>What it assumes.</strong> A rule function with an operand of the subsort is stated
+      for the terms that satisfy it: <code>Nonzero v2 →</code> is a hypothesis of its rules, its
+      arms and its step and lifting lemmas, and of <code>Ops.Sound</code>. The proofs that Kanon
+      generates thread it, and <code>kanon_auto</code> proves an arm that does not need it. An arm
+      that does, like <code>a / a = 1</code> (the quotient by zero is zero), is proved by hand,
+      using the hypothesis (<code>hs</code> below).
+    </li>
+    <li>
+      <strong>What it proves.</strong> A rule function whose node returns a subsort has to prove
+      that what it returns, a rule or its spec, satisfies the predicate:
+      <code>sq1.post.main.Stmt</code>. <code>kanon_auto</code> does not prove it, and the build
+      fails until a <code>{`@[kanon_arm]{:lean}`}</code> theorem does.
+    </li>
+    <li>
+      <strong>Lifting.</strong> The lifting lemma of a function with a subsort operand assumes the
+      predicate of its argument, which <code>kanon_lift</code> cannot discharge: if the body of a
+      rule calls such a function, the goal <code>Nonzero v'</code> is left for the hand proof of
+      that rule. Functions have no sorts, so only rules assume or prove anything.
+    </li>
+  </ul>
+  <Code lang="lean" code={divisionProofs} />
 
   <Heading level={2} id="pitfalls">Pitfalls</Heading>
   <p>The proof of <code>examples/ints</code> ran into these:</p>
