@@ -136,7 +136,10 @@
       A helper. All functions can call each other. A parameter of type <code>t</code> may be
       annotated with its sort instead (<code>{`(v : TBitVector n){:kanon}`}</code>): it binds the
       variables of the sort in the body, the generated OCaml asserts it on entry, and literals in
-      patterns on <code>v</code> resolve with it.
+      patterns on <code>v</code> resolve with it. The result may be annotated with a sort too
+      (<code>{`fn double (v : TInt) : TInt{:kanon}`}</code>): the generated OCaml asserts it on exit,
+      and <code>ocaml-typed</code> gives the function the tags of its sorts. Lean ignores the
+      annotation.
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>

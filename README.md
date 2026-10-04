@@ -442,6 +442,15 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   its sort instead, `fn msb_of (v : TBitVector n) : int`: the variables of the sort are
   bound in the body, the generated OCaml asserts the sort on entry, and the
   literals of patterns on `v` resolve with it (see [Patterns](#patterns)).
+  The result may be annotated with a sort too, `fn wrapping_add (a b :
+  TBitVector n) : TBitVector n = add unchecked a b`: its sort is a sort
+  constructor applied to expressions over the variables that the parameters
+  bind (not a subsort), and the function must return a term of that sort. The
+  generated OCaml asserts it on exit, as it asserts the sorts of the parameters
+  on entry, and `ocaml-typed` types the function with the tags of its sorts (see
+  [Typed OCaml](#typed-ocaml)); Lean does not model the annotation (the model of
+  the function is the same, and the proofs assume and prove nothing about its
+  sort). A function whose result is not annotated is untyped.
 - `prim f : a -> b` declares a primitive, implemented by hand in OCaml, in the
   module of `[@@@ocaml_prims]` (see [OCaml](#ocaml)), and in Lean (the
   generated OCaml and `Signatures.lean` check that both define it, at this
@@ -702,6 +711,18 @@ What is generated, in the file, for the language (nothing is a functor):
     `as_foo : _ t -> (args) option`, whose operands are `[> tag ] t` (the tags
     of the typing of `Foo`), and `is_foo : _ t -> bool`, for every node, and
     `as_tfoo`, `is_tfoo` for every sort (not subsort), on `_ ty`.
+- A `fn` whose result is annotated with a sort, `fn wrapping_add (a b :
+  TBitVector n) : TBitVector n`, has a `val` too, in the order of its
+  parameters, with the tag of the sort of each annotated parameter (`[<
+  Tag.tbitvector ] t`), any tag for the other terms, the types of the others
+  (`Z.t` for an `int`), and the tag of its result sort (`[> Tag.tbitvector ]
+  t`): `val wrapping_add : [< Tag.tbitvector ] t -> [< Tag.tbitvector ] t -> [>
+  Tag.tbitvector ] t`, implemented by `Kanon_rules.bitvec_wrapping_add`. So a
+  derived helper (`wrapping_add`, with a rule function `add` that receives the
+  flags) is in the interface with the right tags, defined in Kanon, and the
+  tag of its result is trusted, as the subsorts are: the generated rules assert
+  the sort, not the subsort. A function without an annotated result has no
+  `val`.
 - A sort that is a parameter (`ty`) is a `raw_ty`, since its tag is not known,
   and a term that is a parameter and not an operand (the body of `Exists of
   (var * ty) list * t`) is `_ t`: any tag. A rule function has a `val` whatever

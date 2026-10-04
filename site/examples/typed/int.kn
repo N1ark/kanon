@@ -1,5 +1,8 @@
 fn add (x y : int) : int = x + y
 
+(** A helper whose result is annotated with its sort: it is typed too. *)
+fn double (v : TInt) : TInt = plus v v
+
 rule plus : Plus (v1, v2)
 rule div : Div (v1, v2)
 rule int_lt : Lt (v1, v2)
