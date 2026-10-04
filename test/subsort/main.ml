@@ -28,18 +28,22 @@ let () =
     && is_tbool (node (Zero 8) (TBitVector 8)).ty = false)
 
 (* The typed interface, over the types and the rules above: [Sub_typed.S] is
-   implemented by [Sub_typed.Derived], which has everything but the leaf nodes,
-   written by hand. [S] makes the phantom types abstract: nothing here knows
-   that a typed term is an untyped one, but the escape hatches. *)
+   implemented by [Sub_typed.Derived], which has no constructor for the leaf
+   nodes: [Typed] adds them, by hand, with [type_]. [S] makes the phantom types
+   abstract: nothing here knows that a typed term is an untyped one, but the
+   escape hatches. *)
 
-module Typed : Sub_typed.S = struct
-  include Sub_typed.Derived
+module Typed = struct
+  include (Sub_typed.Derived : Sub_typed.S)
 
   module Bitvec = struct
-    include Sub_typed.Derived.Bitvec
+    include Bitvec
 
-    let mk_bv v n = node (BitVec (v, n)) (TBitVector n)
-    let mk_zero n = node (Zero n) (TBitVector n)
+    let mk_bv v n : [> Sub_typed.Tag.tbitvector ] t =
+      type_ (node (BitVec (v, n)) (TBitVector n))
+
+    let mk_zero n : [> Sub_typed.Tag.tzero ] t =
+      type_ (node (Zero n) (TBitVector n))
   end
 end
 

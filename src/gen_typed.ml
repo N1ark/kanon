@@ -6,8 +6,10 @@
     a refinement of the tag of its parent. [S] is organised like the language,
     one module per Kanon module (per file). [Derived] is the implementation of
     [S]: the rules, whose types are those of [S] but for the phantom parameter,
-    which [S] hides; what it does not have are the leaf nodes ([[@ctor]]),
-    written by hand. The refinements are trusted: nothing proves them. *)
+    which [S] hides. The leaf nodes, which no rule builds, have no constructor
+    in [S] nor in [Derived]: a program builds them from the types,
+    [node (Foo ...) sort], and gives them their tag by [type_]. The refinements
+    are trusted: nothing proves them. *)
 
 open Syntax
 
@@ -66,13 +68,13 @@ let node_tags (typing : typing option) =
     [nat] is an [int]. *)
 let arg_ty ft = function Small -> pf ft "int" | Arg t -> value_ty ft t
 
-(** An item of the interface: [val name : sig_], or [let name = impl] in its
-    implementation, which the leaf nodes (written by hand) do not have. *)
+(** An item of the interface: [val name : sig_], and [let name = impl] in its
+    implementation. *)
 type item = {
   name : string;
   doc : string option;
   sig_ : Format.formatter -> unit;
-  impl : (Format.formatter -> unit) option;
+  impl : Format.formatter -> unit;
 }
 
 let arrow args res ft =
@@ -115,21 +117,19 @@ let sort_item (c : constr) =
       arrow args (fun ft ->
           term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)));
     impl =
-      Some
-        (fun ft ->
-          if vars = [] then pf ft "%s" ctor
-          else
-            pf ft "@[<hov 2>fun %s->@ %s@]"
-              (String.concat "" (List.map (fun x -> x ^ " ") vars))
-              ctor);
+      (fun ft ->
+        if vars = [] then pf ft "%s" ctor
+        else
+          pf ft "@[<hov 2>fun %s->@ %s@]"
+            (String.concat "" (List.map (fun x -> x ^ " ") vars))
+            ctor);
   }
 
 (** The item of a smart constructor: the leading parameters, then the operands.
     [params] are the types of its parameters, and [operands] the kinds of its
     operands: [`One] for a term, [`List] for the list of an n-ary node. It is
-    the rule function [name] if [impl]. *)
-let smart ~doc ~name ~impl params ~(operands : [ `One | `List ] list) (ops, res)
-    =
+    the rule function [name]. *)
+let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
   let ops_tags = ref ops in
   let next () =
     match !ops_tags with
@@ -155,7 +155,7 @@ let smart ~doc ~name ~impl params ~(operands : [ `One | `List ] list) (ops, res)
     doc;
     sig_ =
       arrow (params @ operands) (fun ft -> term ~operand:false ~t:"t" ft res);
-    impl = (if impl then Some (fun ft -> pf ft "Kanon_rules.%s" name) else None);
+    impl = (fun ft -> pf ft "Kanon_rules.%s" name);
   }
 
 (** The tag types of the sorts, in the module [Tag]: one for each subsort, the
@@ -237,13 +237,13 @@ let destructor_items (c : constr) typing =
       name = "as_" ^ suffix;
       doc = None;
       sig_ = arrow [ input ] (fun ft -> pf ft "%t option" tuple);
-      impl = Some (rules ("as_" ^ suffix));
+      impl = rules ("as_" ^ suffix);
     };
     {
       name = "is_" ^ suffix;
       doc = None;
       sig_ = arrow [ input ] (fun ft -> pf ft "bool");
-      impl = Some (rules ("is_" ^ suffix));
+      impl = rules ("is_" ^ suffix);
     };
   ]
 
@@ -294,11 +294,9 @@ let modules (p : program) =
     (fun (c : constr) ->
       if c.c_res = TSty then add (module_of c.c_loc) (sort_item c))
     !lang.constrs;
-  let emitted = ref [] in
   List.iter
     (fun (f : fn) ->
-      if f.spec <> None then (
-        emitted := f.name :: !emitted;
+      if f.spec <> None then
         let head = Check.spec_head f in
         let is_operand (_, t) = t = TTerm || t = TList TTerm in
         let operand_params = List.filter is_operand f.params in
@@ -345,25 +343,8 @@ let modules (p : program) =
           | doc, _ -> doc
         in
         add (module_of f.floc)
-          (smart ~doc ~name:f.name ~impl:true params ~operands (ops, res))))
+          (smart ~doc ~name:f.name params ~operands (ops, res)))
     p.fns;
-  List.iter
-    (fun (node, name) ->
-      match find_constr node with
-      | Some c when not (List.mem name !emitted) ->
-          let typing = node_typing c in
-          let params = List.map (fun a ft -> arg_ty ft a) c.c_args in
-          let operands =
-            match typing with
-            | Some t when t.t_nary -> [ `List ]
-            | Some t -> List.init (List.length t.t_sorts - 1) (fun _ -> `One)
-            | None -> []
-          in
-          add (module_of c.c_loc)
-            (smart ~doc:c.c_doc ~name ~impl:false params ~operands
-               (node_tags typing))
-      | _ -> ())
-    !lang.node_ctors;
   List.iter
     (fun (c : constr) ->
       List.iter (add (module_of c.c_loc)) (destructor_items c (node_typing c)))
@@ -386,10 +367,7 @@ let print_sig ft it =
   pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc it.name it.sig_
 
 let print_impl ft it =
-  match it.impl with
-  | Some impl ->
-      pf ft "%a@[<hov 2>let %s =@ %t@]" Gen_ocaml.doc it.doc it.name impl
-  | None -> ()
+  pf ft "%a@[<hov 2>let %s =@ %t@]" Gen_ocaml.doc it.doc it.name it.impl
 
 (** The signature [S] and the module [Derived]. *)
 let interface ft mods =
@@ -428,8 +406,9 @@ let interface ft mods =
   pf ft "%a@ " Gen_ocaml.ocaml_doc
     "The implementation of [S], from the rules, with the types of [S] visible: \
      [type 'a t = raw]. [S] hides it, since a visible equality would make \
-     every tag the same type. What it does not define are the leaf nodes, \
-     written by hand: [module Typed : S = struct include Derived ... end].";
+     every tag the same type. It has no constructor for the leaf nodes, which \
+     no rule builds: a program adds them around it, with [type_], in [module \
+     Typed = struct include (Derived : S) ... end].";
   pf ft "@[<v 2>module Derived = struct";
   pf ft "@ module Kanon_rules = %s" (Option.get !lang.ocaml_rules);
   pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";
@@ -442,8 +421,7 @@ let interface ft mods =
   List.iter
     (fun (m, items) ->
       pf ft "@ @ @[<v 2>module %s = struct" m;
-      print_items ft ~print:print_impl
-        (List.filter (fun it -> it.impl <> None) items);
+      print_items ft ~print:print_impl items;
       pf ft "@]@ end")
     mods;
   pf ft "@]@ end"

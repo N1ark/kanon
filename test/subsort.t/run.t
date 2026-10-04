@@ -10,8 +10,8 @@ those of the parent, so that a subsort in a typing is the sort of its parent.
   > subsort TNonzero of nat : TBitVector n
   > subsort TZero of nat : TBitVector n
   > sort TBool
-  > node BitVec of int * nat (v, n) : TBitVector n [@ctor mk_bv]
-  > node Zero of nat (n) : TZero n [@ctor mk_zero]
+  > node BitVec of int * nat (v, n) : TBitVector n
+  > node Zero of nat (n) : TZero n
   > node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
   > node Ult : TBitVector n -> TBitVector n -> TBool
   > KN
