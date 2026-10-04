@@ -26,9 +26,11 @@ it does not exist in the Lean files.
 
   $ kanon ocaml lang.knl rules.kn | grep "hidden"
     val p_hidden : Z.t -> Z.t
-  let[@inline] rules_size_hidden (x : Z.t) : Z.t =
-  let[@inline] rules_hidden_helper (x : Z.t) : Z.t =
-      (Z.add (Prims.p_hidden (rules_lean_helper x)) (rules_size_hidden x))
+    let[@inline] rules_size_hidden (x : Z.t) : Z.t =
+    let[@inline] rules_hidden_helper (x : Z.t) : Z.t =
+        (Z.add (Prims.p_hidden (rules_lean_helper x)) (rules_size_hidden x))
+    let hidden_helper = Kanon_flat.rules_hidden_helper
+    let size_hidden = Kanon_flat.rules_size_hidden
   $ kanon ocaml-typed lang.knl rules.kn | grep -c "hidden"
   0
   [1]
@@ -85,7 +87,7 @@ the typing of a node.
   > fn unfold (x : int) : int [@no_lean] = ok x
   > KN
   $ kanon ocaml lang.knl bad.kn | grep -c unfold
-  1
+  2
 
   $ cat > bad.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
@@ -124,7 +126,7 @@ are not modelled either, and may call other `[@no_lean]` functions.
   >   | 3 -> other 4
   > KN
   $ kanon ocaml lang.knl base.kn ext.kn | grep -c "other"
-  2
+  3
   $ kanon lean-model lang.knl base.kn ext.kn | grep -c "other\|hidden"
   0
   [1]
@@ -163,23 +165,33 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   
   [@@@warning "-a+11"]
   
-  let[@inline] bad_f (v : t) : Z.t = (Z.of_int (3))
+  (** The functions of the language, in one recursive group, by their flat name: the module in lowercase, an underscore, and the name. The modules below are their names. Not meant to be used. *)
+  module Kanon_flat = struct
+    let[@inline] bad_f (v : t) : Z.t = (Z.of_int (3))
+  end
   
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_add (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  (** The Kanon module bad. *)
+  module Bad = struct
+    let t_int : ty = TInt
+    let f = Kanon_flat.bad_f
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_add (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
   

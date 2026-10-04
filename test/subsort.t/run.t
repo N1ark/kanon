@@ -35,18 +35,19 @@ those of the parent, so that a subsort in a typing is the sort of its parent.
   
   and t = {
   $ kanon ocaml lang.knl | sed -n '/let rules_bv_div/,/^$/p'
-  let rules_bv_div (signed : bool) (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
-                 when (let kanon__n = Z.of_int kanon__n in
-                 let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 kanon__n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | _ -> (node (Op2 ((Div (signed)), v1, v2)) v1.ty)
-      ))
+    let rules_bv_div (signed : bool) (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
+                   when (let kanon__n = Z.of_int kanon__n in
+                   let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 kanon__n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | _ -> (node (Op2 ((Div (signed)), v1, v2)) v1.ty)
+        ))
+  end
   
 
 The checks of a subsort declaration: its arguments are those of its parent

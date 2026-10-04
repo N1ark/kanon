@@ -57,10 +57,11 @@ and primitives).
   and hash_var (a : var) = Hashtbl.hash a
   
   and equal_checked (a : checked) (b : checked) =
-    Bool.equal a.signed b.signed && Bool.equal a.unsigned b.unsigned
+    Stdlib.Bool.equal a.signed b.signed &&
+    Stdlib.Bool.equal a.unsigned b.unsigned
   
   and hash_checked (a : checked) =
-    hash_combine (Bool.to_int a.signed) (Bool.to_int a.unsigned)
+    hash_combine (Stdlib.Bool.to_int a.signed) (Stdlib.Bool.to_int a.unsigned)
   
   and equal_rounding (a : rounding) (b : rounding) =
     match (a, b) with
@@ -76,7 +77,7 @@ and primitives).
   and equal_kind (a : kind) (b : kind) =
     match (a, b) with
     | Var a1, Var b1 -> equal_var a1 b1
-    | Bool a1, Bool b1 -> Bool.equal a1 b1
+    | Bool a1, Bool b1 -> Stdlib.Bool.equal a1 b1
     | Int a1, Int b1 -> Z.equal a1 b1
     | Op1 (a1, a2), Op1 (b1, b2) -> equal_op1 a1 b1 && equal_t a2 b2
     | Op2 (a1, a2, a3), Op2 (b1, b2, b3) ->
@@ -86,7 +87,7 @@ and primitives).
   and hash_kind (a : kind) =
     match a with
     | Var a1 -> hash_combine (0) (hash_var a1)
-    | Bool a1 -> hash_combine (1) (Bool.to_int a1)
+    | Bool a1 -> hash_combine (1) (Stdlib.Bool.to_int a1)
     | Int a1 -> hash_combine (2) (Z.hash a1)
     | Op1 (a1, a2) -> hash_combine (hash_combine (3) (hash_op1 a1)) (hash_t a2)
     | Op2 (a1, a2, a3) ->
@@ -162,190 +163,217 @@ The rules, in the scope of the types:
     val v_false : t
   end = Tiny_prims
   
-  let[@inline] mk_commut_binop (op : op2) (l : t) (r : t) : kind =
-      (if (Int.compare l.tag r.tag <= 0)
-      then (Op2 (op, l, r))
-      else (Op2 (op, r, l)))
+  (** The functions of the language, in one recursive group, by their flat name: the module in lowercase, an underscore, and the name. The modules below are their names. Not meant to be used. *)
+  module Kanon_flat = struct
+    let[@inline] mk_commut_binop (op : op2) (l : t) (r : t) : kind =
+        (if (Stdlib.Int.compare l.tag r.tag <= 0)
+        then (Op2 (op, l, r))
+        else (Op2 (op, r, l)))
+    
+    let[@inline] rules_of_bool (b : bool) : t =
+        (if b then Tiny_prims.v_true else Tiny_prims.v_false)
+    
+    let[@inline] rules_add (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
+    
+    let[@inline] rules_lt (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
+    
+    let rules_plus (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (node (Int ((rules_add i1 i2))) TInt)
+        | (x, { kind = Int (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | ({ kind = Int (kanon__2); _ }, x)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          x
+        | _ -> (node (mk_commut_binop Plus v1 v2) TInt)
+        ))
+    
+    let rules_times (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, { kind = Int (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.one))) ->
+          x
+        | ({ kind = Int (kanon__2); _ }, x)
+          when (((Z.equal kanon__2 Z.one))) ->
+          x
+        | (_, { kind = Int (kanon__2); _ })
+          when (((Z.equal kanon__2 Z.zero))) ->
+          (node (Int (Z.zero)) TInt)
+        | ({ kind = Int (kanon__2); _ }, _)
+          when (((Z.equal kanon__2 Z.zero))) ->
+          (node (Int (Z.zero)) TInt)
+        | _ -> (node (mk_commut_binop Times v1 v2) TInt)
+        ))
+    
+    let rules_lt_ (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
+          (node (Bool ((rules_lt i1 i2))) TBool)
+        | _ -> (node (Op2 (Lt, v1, v2)) TBool)
+        ))
+    
+    let rules_not_ (v : t) : t =
+        (assert ((match v.ty with
+                 | (TBool) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Bool (true); _ } -> Tiny_prims.v_false
+        | { kind = Op1 ((Not), x); _ } -> x
+        | _ -> (node (Op1 (Not, v)) TBool)
+        ))
+    
+    let rules_and_ (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBool), (TBool)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, { kind = Bool (true); _ }) -> x
+        | ({ kind = Bool (true); _ }, x) -> x
+        | (_, { kind = Bool (false); _ }) -> Tiny_prims.v_false
+        | ({ kind = Bool (false); _ }, _) -> Tiny_prims.v_false
+        | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
+        | (x, { kind = Op1 ((Not), kanon__3); _ })
+          when ((Int.equal x.tag kanon__3.tag)) ->
+          Tiny_prims.v_false
+        | ({ kind = Op1 ((Not), kanon__3); _ }, x)
+          when ((Int.equal x.tag kanon__3.tag)) ->
+          Tiny_prims.v_false
+        | _ -> (node (mk_commut_binop And v1 v2) TBool)
+        ))
+    
+    let rules_eq (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | (kanon__a, kanon__s1)
+                   when (((equal_ty kanon__s1 kanon__a))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, kanon__2)
+          when ((Int.equal x.tag kanon__2.tag)) ->
+          Tiny_prims.v_true
+        | ({ kind = Int (x); _ }, { kind = Int (y); _ }) ->
+          (rules_of_bool ((Z.equal x y)))
+        | _ -> (node (mk_commut_binop Eq v1 v2) TBool)
+        ))
+    
+    let rules_is_zero (v : t) : bool =
+        (assert ((match v.ty with
+                 | (TInt) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Int (kanon__1); _ }
+          when (((Z.equal kanon__1 Z.zero))) ->
+          true
+        | _ -> false
+        ))
+    
+    let rules_zero : t = (node (Int (Z.zero)) TInt)
+  end
   
-  let[@inline] rules_of_bool (b : bool) : t =
-      (if b then Tiny_prims.v_true else Tiny_prims.v_false)
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_bool : ty = TBool
+    let t_int : ty = TInt
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+    
+    let is_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+    
+    let as_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+    
+    let as_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+    
+    let as_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+    
+    let as_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+    
+    let as_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
-  let[@inline] rules_add (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
-  
-  let[@inline] rules_lt (x : Z.t) (y : Z.t) : bool = (Z.lt x y)
-  
-  let rules_plus (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Int ((rules_add i1 i2))) TInt)
-      | (x, { kind = Int (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | ({ kind = Int (kanon__2); _ }, x)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        x
-      | _ -> (node (mk_commut_binop Plus v1 v2) TInt)
-      ))
-  
-  let rules_times (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, { kind = Int (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.one))) ->
-        x
-      | ({ kind = Int (kanon__2); _ }, x)
-        when (((Z.equal kanon__2 Z.one))) ->
-        x
-      | (_, { kind = Int (kanon__2); _ })
-        when (((Z.equal kanon__2 Z.zero))) ->
-        (node (Int (Z.zero)) TInt)
-      | ({ kind = Int (kanon__2); _ }, _)
-        when (((Z.equal kanon__2 Z.zero))) ->
-        (node (Int (Z.zero)) TInt)
-      | _ -> (node (mk_commut_binop Times v1 v2) TInt)
-      ))
-  
-  let rules_lt_ (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Bool ((rules_lt i1 i2))) TBool)
-      | _ -> (node (Op2 (Lt, v1, v2)) TBool)
-      ))
-  
-  let rules_not_ (v : t) : t =
-      (assert ((match v.ty with
-               | (TBool) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = Bool (true); _ } -> Tiny_prims.v_false
-      | { kind = Op1 ((Not), x); _ } -> x
-      | _ -> (node (Op1 (Not, v)) TBool)
-      ))
-  
-  let rules_and_ (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBool), (TBool)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, { kind = Bool (true); _ }) -> x
-      | ({ kind = Bool (true); _ }, x) -> x
-      | (_, { kind = Bool (false); _ }) -> Tiny_prims.v_false
-      | ({ kind = Bool (false); _ }, _) -> Tiny_prims.v_false
-      | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
-      | (x, { kind = Op1 ((Not), kanon__3); _ })
-        when ((Int.equal x.tag kanon__3.tag)) ->
-        Tiny_prims.v_false
-      | ({ kind = Op1 ((Not), kanon__3); _ }, x)
-        when ((Int.equal x.tag kanon__3.tag)) ->
-        Tiny_prims.v_false
-      | _ -> (node (mk_commut_binop And v1 v2) TBool)
-      ))
-  
-  let rules_eq (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | (kanon__a, kanon__s1)
-                 when (((equal_ty kanon__s1 kanon__a))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, kanon__2)
-        when ((Int.equal x.tag kanon__2.tag)) ->
-        Tiny_prims.v_true
-      | ({ kind = Int (x); _ }, { kind = Int (y); _ }) ->
-        (rules_of_bool ((Z.equal x y)))
-      | _ -> (node (mk_commut_binop Eq v1 v2) TBool)
-      ))
-  
-  let rules_is_zero (v : t) : bool =
-      (assert ((match v.ty with
-               | (TInt) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = Int (kanon__1); _ } when (((Z.equal kanon__1 Z.zero))) -> true
-      | _ -> false
-      ))
-  
-  let rules_zero : t = (node (Int (Z.zero)) TInt)
-  
-  let as_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
-  
-  let is_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
-  
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
-  
-  let is_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
-  
-  let as_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
-  
-  let as_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
-  
-  let as_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
-  
-  let as_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
-  
-  let as_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let of_bool = Kanon_flat.rules_of_bool
+    let add = Kanon_flat.rules_add
+    let lt = Kanon_flat.rules_lt
+    let plus = Kanon_flat.rules_plus
+    let times = Kanon_flat.rules_times
+    let lt_ = Kanon_flat.rules_lt_
+    let not_ = Kanon_flat.rules_not_
+    let and_ = Kanon_flat.rules_and_
+    let eq = Kanon_flat.rules_eq
+    let is_zero = Kanon_flat.rules_is_zero
+    let zero = Kanon_flat.rules_zero
+  end
   
   
 
@@ -968,25 +996,56 @@ the sort of the spec, as Bool has no typing.
 
   $ sed 's/^constant false.*//' lang.knl > nofalse.knl
   $ kanon ocaml nofalse.knl | sed -n '/let rules_and_/,/^$/p'
-  let rules_and_ (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBool), (TBool)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, { kind = Bool (true); _ }) -> x
-      | ({ kind = Bool (true); _ }, x) -> x
-      | (_, { kind = Bool (false); _ }) -> (node (Bool (false)) TBool)
-      | ({ kind = Bool (false); _ }, _) -> (node (Bool (false)) TBool)
-      | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
-      | (x, { kind = Op1 ((Not), kanon__3); _ })
-        when ((Int.equal x.tag kanon__3.tag)) ->
-        Tiny_prims.v_false
-      | ({ kind = Op1 ((Not), kanon__3); _ }, x)
-        when ((Int.equal x.tag kanon__3.tag)) ->
-        Tiny_prims.v_false
-      | _ -> (node (mk_commut_binop And v1 v2) TBool)
-      ))
+    let rules_and_ (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBool), (TBool)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, { kind = Bool (true); _ }) -> x
+        | ({ kind = Bool (true); _ }, x) -> x
+        | (_, { kind = Bool (false); _ }) -> (node (Bool (false)) TBool)
+        | ({ kind = Bool (false); _ }, _) -> (node (Bool (false)) TBool)
+        | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
+        | (x, { kind = Op1 ((Not), kanon__3); _ })
+          when ((Int.equal x.tag kanon__3.tag)) ->
+          Tiny_prims.v_false
+        | ({ kind = Op1 ((Not), kanon__3); _ }, x)
+          when ((Int.equal x.tag kanon__3.tag)) ->
+          Tiny_prims.v_false
+        | _ -> (node (mk_commut_binop And v1 v2) TBool)
+        ))
+    
+    let rules_eq (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | (kanon__a, kanon__s1)
+                   when (((equal_ty kanon__s1 kanon__a))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, kanon__2)
+          when ((Int.equal x.tag kanon__2.tag)) ->
+          Tiny_prims.v_true
+        | ({ kind = Int (x); _ }, { kind = Int (y); _ }) ->
+          (rules_of_bool ((Z.equal x y)))
+        | _ -> (node (mk_commut_binop Eq v1 v2) TBool)
+        ))
+    
+    let rules_is_zero (v : t) : bool =
+        (assert ((match v.ty with
+                 | (TInt) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Int (kanon__1); _ }
+          when (((Z.equal kanon__1 Z.zero))) ->
+          true
+        | _ -> false
+        ))
+    
+    let rules_zero : t = (node (Int (Z.zero)) TInt)
+  end
   
 
 The operands of a spec may be annotated with their sort, which the generated
@@ -1003,96 +1062,126 @@ OCaml asserts, and whose variables the rules may use.
   >   | narrow: _ when n <= 8 -> v
   > KN
   $ kanon ocaml lang.knl word.knl word.kn | sed -n '/let word_trunc/,$p'
-  let word_trunc (v : t) : t =
-      (let n = (match v.ty with
-               | (TWord (n)) -> let n = Z.of_int n in n
-               | _ -> (assert false)
-               ) in
-      (assert ((match v.ty with
-               | (TWord (kanon__n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | _ when ((Z.leq n (Z.of_int (8)))) -> v
-      | _ -> (node (Op1 (Trunc, v)) v.ty)
-      )))
+    let word_trunc (v : t) : t =
+        (let n = (match v.ty with
+                 | (TWord (n)) -> let n = Z.of_int n in n
+                 | _ -> (assert false)
+                 ) in
+        (assert ((match v.ty with
+                 | (TWord (kanon__n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | _ when ((Z.leq n (Z.of_int (8)))) -> v
+        | _ -> (node (Op1 (Trunc, v)) v.ty)
+        )))
+  end
   
-  let as_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_bool : ty = TBool
+    let t_int : ty = TInt
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+    
+    let is_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+    
+    let as_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+    
+    let as_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+    
+    let as_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+    
+    let as_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+    
+    let as_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
-  let is_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  (** The Kanon module word. *)
+  module Word = struct
+    let t_word (a1 : int) : ty = TWord (a1)
+    let width = Kanon_flat.word_width
+    let trunc = Kanon_flat.word_trunc
+    
+    let as_trunc (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
+    
+    let is_trunc (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
+    
+    let as_tword (t : ty) =
+      match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
+    
+    let is_tword (t : ty) =
+      match[@warning "-11"] t with TWord (_) -> true | _ -> false
+  end
   
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
-  
-  let is_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
-  
-  let as_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
-  
-  let as_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
-  
-  let as_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
-  
-  let as_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
-  
-  let as_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
-  
-  let as_trunc (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
-  
-  let is_trunc (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tword (t : ty) =
-    match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
-  
-  let is_tword (t : ty) =
-    match[@warning "-11"] t with TWord (_) -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let of_bool = Kanon_flat.rules_of_bool
+    let add = Kanon_flat.rules_add
+    let lt = Kanon_flat.rules_lt
+    let plus = Kanon_flat.rules_plus
+    let times = Kanon_flat.rules_times
+    let lt_ = Kanon_flat.rules_lt_
+    let not_ = Kanon_flat.rules_not_
+    let and_ = Kanon_flat.rules_and_
+    let eq = Kanon_flat.rules_eq
+    let is_zero = Kanon_flat.rules_is_zero
+    let zero = Kanon_flat.rules_zero
+  end
   
   
 
@@ -1100,93 +1189,127 @@ With a getter, the variables of the sort are read by it.
 
   $ sed 's/^sort TWord of nat$/sort TWord of nat [@get Word.width]/' word.knl > getter.knl
   $ kanon ocaml lang.knl getter.knl word.kn | sed -n '/let word_trunc/,$p'
-  let word_trunc (v : t) : t =
-      (let n = (word_width v) in
-      (assert ((match v.ty with
-               | (TWord (kanon__n)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | _ when ((Z.leq n (Z.of_int (8)))) -> v
-      | _ -> (node (Op1 (Trunc, v)) v.ty)
-      )))
+    let word_trunc (v : t) : t =
+        (let n = (word_width v) in
+        (assert ((match v.ty with
+                 | (TWord (kanon__n)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | _ when ((Z.leq n (Z.of_int (8)))) -> v
+        | _ -> (node (Op1 (Trunc, v)) v.ty)
+        )))
+  end
   
-  let as_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_bool : ty = TBool
+    let t_int : ty = TInt
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+    
+    let is_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+    
+    let as_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+    
+    let as_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+    
+    let as_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+    
+    let as_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+    
+    let as_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
-  let is_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  (** The Kanon module getter. *)
+  module Getter = struct
+    let t_word (a1 : int) : ty = TWord (a1)
+    
+    let as_trunc (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
+    
+    let is_trunc (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
+    
+    let as_tword (t : ty) =
+      match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
+    
+    let is_tword (t : ty) =
+      match[@warning "-11"] t with TWord (_) -> true | _ -> false
+  end
   
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let of_bool = Kanon_flat.rules_of_bool
+    let add = Kanon_flat.rules_add
+    let lt = Kanon_flat.rules_lt
+    let plus = Kanon_flat.rules_plus
+    let times = Kanon_flat.rules_times
+    let lt_ = Kanon_flat.rules_lt_
+    let not_ = Kanon_flat.rules_not_
+    let and_ = Kanon_flat.rules_and_
+    let eq = Kanon_flat.rules_eq
+    let is_zero = Kanon_flat.rules_is_zero
+    let zero = Kanon_flat.rules_zero
+  end
   
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
-  
-  let is_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
-  
-  let as_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
-  
-  let as_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
-  
-  let as_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
-  
-  let as_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
-  
-  let as_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
-  
-  let as_trunc (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
-  
-  let is_trunc (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Trunc, _); _ } -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tword (t : ty) =
-    match[@warning "-11"] t with TWord (p1) -> Some p1 | _ -> None
-  
-  let is_tword (t : ty) =
-    match[@warning "-11"] t with TWord (_) -> true | _ -> false
+  (** The Kanon module word. *)
+  module Word = struct
+    let width = Kanon_flat.word_width
+    let trunc = Kanon_flat.word_trunc
+  end
   
   
 
@@ -1211,81 +1334,109 @@ and is left out (the generated OCaml has the warning on unused match cases).
   >   | other: not _ -> v
   > KN
   $ kanon ocaml lang.knl dup.kn | sed -n '/let dup_not_twice/,$p'
-  let dup_not_twice (v : t) : t =
-      (assert ((match v.ty with
-               | (TBool) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v with
-      | { kind = Op1 ((Not), x); _ } -> x
-      | _ when (true) -> v
-      | _ -> (node (Op1 (Not, v)) TBool)
-      ))
+    let dup_not_twice (v : t) : t =
+        (assert ((match v.ty with
+                 | (TBool) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v with
+        | { kind = Op1 ((Not), x); _ } -> x
+        | _ when (true) -> v
+        | _ -> (node (Op1 (Not, v)) TBool)
+        ))
+  end
   
-  let as_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_bool : ty = TBool
+    let t_int : ty = TInt
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+    
+    let is_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+    
+    let as_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+    
+    let as_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+    
+    let as_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+    
+    let as_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+    
+    let as_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
-  let is_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let of_bool = Kanon_flat.rules_of_bool
+    let add = Kanon_flat.rules_add
+    let lt = Kanon_flat.rules_lt
+    let plus = Kanon_flat.rules_plus
+    let times = Kanon_flat.rules_times
+    let lt_ = Kanon_flat.rules_lt_
+    let not_ = Kanon_flat.rules_not_
+    let and_ = Kanon_flat.rules_and_
+    let eq = Kanon_flat.rules_eq
+    let is_zero = Kanon_flat.rules_is_zero
+    let zero = Kanon_flat.rules_zero
+  end
   
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
-  
-  let is_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
-  
-  let as_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
-  
-  let as_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
-  
-  let as_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
-  
-  let as_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
-  
-  let as_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  (** The Kanon module dup. *)
+  module Dup = struct
+    let not_twice = Kanon_flat.dup_not_twice
+  end
   
   
 
@@ -1303,93 +1454,121 @@ and its node may have fixed parameters, which its patterns then match.
   >   | sub_sub: (x minus y) minus z -> x minus (y + z)
   > KN
   $ kanon ocaml lang.knl minus.knl minus.kn | sed -n '/let rec minus_sub/,$p'
-  let rec minus_sub (b : bool) (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TInt), (TInt)) -> true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | (x, { kind = Int (kanon__2); _ })
-        when ((((Z.equal kanon__2 Z.zero)) && ((Bool.equal b true)))) ->
-        x
-      | ({ kind = Int (x); _ }, { kind = Int (y); _ })
-        when (((Bool.equal b true))) ->
-        (node (Int ((Z.sub x y))) TInt)
-      | ({ kind = Op2 ((Minus (true)), x, y); _ }, z)
-        when (((Bool.equal b true))) ->
-        (minus_sub true x (rules_plus y z))
-      | _ -> (node (Op2 ((Minus (b)), v1, v2)) TInt)
-      ))
+    let rec minus_sub (b : bool) (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TInt), (TInt)) -> true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | (x, { kind = Int (kanon__2); _ })
+          when ((((Z.equal kanon__2 Z.zero)) && ((Stdlib.Bool.equal b true)))) ->
+          x
+        | ({ kind = Int (x); _ }, { kind = Int (y); _ })
+          when (((Stdlib.Bool.equal b true))) ->
+          (node (Int ((Z.sub x y))) TInt)
+        | ({ kind = Op2 ((Minus (true)), x, y); _ }, z)
+          when (((Stdlib.Bool.equal b true))) ->
+          (minus_sub true x (rules_plus y z))
+        | _ -> (node (Op2 ((Minus (b)), v1, v2)) TInt)
+        ))
+  end
   
-  let as_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_bool : ty = TBool
+    let t_int : ty = TInt
+    
+    let as_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
+    
+    let is_var (t : t) =
+      match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+    
+    let as_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
+    
+    let is_bool (t : t) =
+      match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
+    
+    let is_not (t : t) =
+      match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
+    
+    let as_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_and (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
+    
+    let as_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_plus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
+    
+    let as_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_times (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
+    
+    let as_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_lt (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
+    
+    let as_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
+    
+    let is_eq (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
+    
+    let as_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> Some () | _ -> None
+    
+    let is_tbool (t : ty) =
+      match[@warning "-11"] t with TBool -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+  end
   
-  let is_var (t : t) =
-    match[@warning "-11"] t with { kind = Var (_); _ } -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let of_bool = Kanon_flat.rules_of_bool
+    let add = Kanon_flat.rules_add
+    let lt = Kanon_flat.rules_lt
+    let plus = Kanon_flat.rules_plus
+    let times = Kanon_flat.rules_times
+    let lt_ = Kanon_flat.rules_lt_
+    let not_ = Kanon_flat.rules_not_
+    let and_ = Kanon_flat.rules_and_
+    let eq = Kanon_flat.rules_eq
+    let is_zero = Kanon_flat.rules_is_zero
+    let zero = Kanon_flat.rules_zero
+  end
   
-  let as_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (p1); _ } -> Some p1 | _ -> None
-  
-  let is_bool (t : t) =
-    match[@warning "-11"] t with { kind = Bool (_); _ } -> true | _ -> false
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, x1); _ } -> Some x1 | _ -> None
-  
-  let is_not (t : t) =
-    match[@warning "-11"] t with { kind = Op1 (Not, _); _ } -> true | _ -> false
-  
-  let as_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_and (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (And, _, _); _ } -> true | _ -> false
-  
-  let as_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_plus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Plus, _, _); _ } -> true | _ -> false
-  
-  let as_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_times (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Times, _, _); _ } -> true | _ -> false
-  
-  let as_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_lt (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Lt, _, _); _ } -> true | _ -> false
-  
-  let as_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, x1, x2); _ } -> Some (x1, x2) | _ -> None
-  
-  let is_eq (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Eq, _, _); _ } -> true | _ -> false
-  
-  let as_minus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Minus (p1), x1, x2); _ } -> Some (p1, x1, x2) | _ -> None
-  
-  let is_minus (t : t) =
-    match[@warning "-11"] t with { kind = Op2 (Minus (_), _, _); _ } -> true | _ -> false
-  
-  let as_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> Some () | _ -> None
-  
-  let is_tbool (t : ty) =
-    match[@warning "-11"] t with TBool -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
+  (** The Kanon module minus. *)
+  module Minus = struct
+    let sub = Kanon_flat.minus_sub
+    
+    let as_minus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Minus (p1), x1, x2); _ } -> Some (p1, x1, x2) | _ -> None
+    
+    let is_minus (t : t) =
+      match[@warning "-11"] t with { kind = Op2 (Minus (_), _, _); _ } -> true | _ -> false
+  end
   
   

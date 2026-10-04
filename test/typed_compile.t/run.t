@@ -119,3 +119,26 @@ group of tags, which is the user's:
   > let _ = is_node x && is_node (Cmp.ult x x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c group.ml
+
+The typed module is the module of the rules, seen through `S`: a call through
+`Typed` is the call of the rules, on the same term. The interface checks itself
+against the rules (`module _ : S = Derived`, in the generated file), and
+`Derived` is the rules and the phantom types, with no function of its own:
+
+  $ kanon ocaml-typed lang.knl | sed -n '/^module Derived/,/^end/p' | grep -c "^  let\[@inline\]"
+  5
+  $ kanon ocaml-typed lang.knl | grep "include Sub\|module _"
+    include Sub_rules
+  module _ : S = Derived
+  $ cat > run.ml <<'ML'
+  > let () =
+  >   let open Impl.Typed in
+  >   let x = Bitvec.mk_bv (Z.of_int 5) 8 in
+  >   let d = Bitvec.div x (cast x) in
+  >   assert (untyped d == Sub_rules.Bitvec.div (untyped x) (untyped x));
+  >   assert (untyped (Cmp.ult x x) == Sub_rules.Cmp.ult (untyped x) (untyped x));
+  >   print_endline "ok"
+  > ML
+  $ ocamlfind ocamlopt -package zarith -linkpkg sub_types.ml sub_prims.ml sub_rules.ml sub_typed.ml impl.ml run.ml -o run.exe
+  $ ./run.exe
+  ok

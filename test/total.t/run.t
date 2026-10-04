@@ -28,16 +28,16 @@ and bind the operands in any way.
   >   | a + b -> [a; b]
   >   | Sub (a, b) -> [a; b]
   > KN
-  $ kanon ocaml lang.knl ok.kn | grep -A8 "^let ok_operands"
-  let ok_operands (v : t) : (t list) =
-      (match v with
-      | { kind = Int (_); _ } -> []
-      | { kind = Var (_); _ } -> []
-      | { kind = Op1 ((Neg), a); _ } -> (a :: [])
-      | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
-      | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
-      )
-  
+  $ kanon ocaml lang.knl ok.kn | grep -A8 "^  let ok_operands"
+    let ok_operands (v : t) : (t list) =
+        (match v with
+        | { kind = Int (_); _ } -> []
+        | { kind = Var (_); _ } -> []
+        | { kind = Op1 ((Neg), a); _ } -> (a :: [])
+        | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
+        | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
+        )
+  end
   $ for b in ocaml-types ocaml-typed ocaml-tests lean-signatures lean-model lean-statements lean-lifts lean-soundness; do
   >   kanon $b lang.knl ok.kn > /dev/null || echo "$b failed"
   > done
@@ -147,16 +147,16 @@ catch-all case to go before, and the check sees them.
   > extend fn operands =
   >   | a + b | Sub (a, b) -> [a; b]
   > KN
-  $ kanon ocaml lang.knl good.kn | grep -A8 "^let good_operands"
-  let good_operands (v : t) : (t list) =
-      (match v with
-      | { kind = Int (_); _ } -> []
-      | { kind = Var (_); _ } -> []
-      | { kind = Op1 ((Neg), a); _ } -> (a :: [])
-      | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
-      | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
-      )
-  
+  $ kanon ocaml lang.knl good.kn | grep -A8 "^  let good_operands"
+    let good_operands (v : t) : (t list) =
+        (match v with
+        | { kind = Int (_); _ } -> []
+        | { kind = Var (_); _ } -> []
+        | { kind = Op1 ((Neg), a); _ } -> (a :: [])
+        | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
+        | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
+        )
+  end
 
 A module that adds nodes, used after the function, must extend it: the check
 runs once, on the final language, whatever the order of the modules.
@@ -178,17 +178,17 @@ runs once, on the final language, whatever the order of the modules.
   ./base.kn:1:0: fn Base.operands is [@total] but has no case for Mul
   [1]
   $ (cat full.knl; echo 'use "ext"') > fixed.knl
-  $ kanon ocaml fixed.knl | grep -A9 "^let base_operands"
-  let base_operands (v : t) : (t list) =
-      (match v with
-      | { kind = Int (_); _ } -> []
-      | { kind = Var (_); _ } -> []
-      | { kind = Op1 ((Neg), a); _ } -> (a :: [])
-      | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
-      | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
-      | { kind = Op2 ((Mul), a, b); _ } -> (b :: (a :: []))
-      )
-  
+  $ kanon ocaml fixed.knl | grep -A9 "^  let base_operands"
+    let base_operands (v : t) : (t list) =
+        (match v with
+        | { kind = Int (_); _ } -> []
+        | { kind = Var (_); _ } -> []
+        | { kind = Op1 ((Neg), a); _ } -> (a :: [])
+        | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
+        | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
+        | { kind = Op2 ((Mul), a, b); _ } -> (b :: (a :: []))
+        )
+  end
 
 The nodes of an interleaved declaration are listed in the order of the file, and
 `[@total]` combines with `[@no_lean]`.
