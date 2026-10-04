@@ -148,9 +148,10 @@
       variables, they are its parameters.
     </dd>
 
-    <dt><code>{`extend rule f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn f = | p -> e | …{:kanon}`}</code></dt>
+    <dt><code>{`extend rule M.f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn M.f = | p -> e | …{:kanon}`}</code></dt>
     <dd>
-      Adds rules to the rule function <code>f</code> of a module below, last but before its final
+      Adds rules to the rule function <code>M.f</code> of a module below (qualified, as everywhere
+      outside its own module: see <a href="#names">Names and modules</a>), last but before its final
       catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
       <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
       rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
@@ -183,6 +184,48 @@
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
   </p>
+
+  <Heading level={3} id="names">Names and modules</Heading>
+  <p>
+    A module is a file: <code>bitvec.knl</code> and <code>bitvec.kn</code> are the module
+    <code>Bitvec</code>, and <code>{`use builtin "bool"{:kanon}`}</code> is <code>Bool</code>. The
+    names of the functions, rule functions, primitives and constants are scoped by module, so that
+    an <code>Int.add</code> and a <code>Bitvec.add</code> live in the same language. Nodes, sorts,
+    subsorts, types, their constructors and fields, and the labels of rules are not: they are those
+    of the terms that Kanon generates.
+  </p>
+  <ul>
+    <li>
+      In its module, a name is <em>plain</em> (<code>add</code>); from another module it is
+      <em>qualified</em>: <code>{`Bitvec.add a b{:kanon}`}</code>, a module and a name with a dot
+      and no space. A definition (<code>fn</code>, <code>rule</code>, <code>prim</code>,
+      <code>constant</code>) is always plain.
+    </li>
+    <li>
+      A plain name is that of the module of the file where it is written, and never that of a
+      module that it uses (there is no implicit opening, so no ambiguity): in a
+      <code>extend</code> of another module's function, the cases call their own module's names,
+      and <code>Bool.of_bool</code> for the bool module's. A variable may not have the name of a
+      function of its module.
+    </li>
+    <li>
+      The names that Kanon provides, <code>type_of</code>, the functions on arrays,
+      <code>tag_le</code> and <code>mk_commut_binop</code>, are never qualified, and no module can
+      define them.
+    </li>
+    <li>
+      The attributes (<code>{`[@fold Int.add]{:kanon}`}</code>, <code>{`[@get size]{:kanon}`}</code>,
+      <code>{`[@unit ones]{:kanon}`}</code>), <code>infix</code>, <code>prefix</code> and
+      <code>extend</code> name functions and constants in the same way. A literal constant belongs
+      to its module (<code>Bitvec.0</code>).
+    </li>
+    <li>
+      The backends nest the names the same way: Lean defines <code>Bitvec.add</code> in the
+      namespace <code>Bitvec</code>, the typed interface has a module <code>Bitvec</code>, and the
+      OCaml rules, which are one module, call it <code>bitvec_add</code>. Primitives keep their plain
+      name in the module of the primitives.
+    </li>
+  </ul>
 
   <Heading level={3} id="arrays">Arrays</Heading>
   <p>
@@ -577,17 +620,17 @@ sort TBitVector of nat [@get size]
 node Add of checked : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@fold z_add]
 node BitAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@fold z_and] [@zero 0]
 
-infix "+" = Add, bv_add unchecked
-infix "land" = BitAnd, bv_and, z_land
+infix "+" = Add, add unchecked
+infix "land" = BitAnd, and_, z_land
 
 fn z_add (s _ : ty) (l r : int) : int = wrap (size_of_ty s) (l + r)
 fn lit (n z : int) : t = (BitVec (wrap n z) : TBitVector n)
 
-rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
-  | add_const: Add (c, #k1, r) + #k2 -> bv_add checked (lit n (k1 + k2)) r`}
+rule add : Add (checked, (v1 : TBitVector n), v2) =
+  | add_const: Add (c, #k1, r) + #k2 -> add checked (lit n (k1 + k2)) r`}
   />
   <p>
-    In <code>bv_add</code>, <code>#k1</code> and <code>#k2</code> are bit-vector literals, which
+    In <code>add</code>, <code>#k1</code> and <code>#k2</code> are bit-vector literals, which
     bind their integers, and <code>n</code> is the width of the operands, from the annotation of
     the spec.
   </p>
@@ -658,18 +701,18 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
 
   <Heading level={3} id="declaring">Declaring an operator</Heading>
   <Code
-    code={`infix "&&" = And, b_and
-infix "+" = Add, bv_add unchecked, lit_add
-infix "urem" = Rem false, bv_rem false, lit_urem
-prefix "not" = Not, b_not`}
+    code={`infix "&&" = And, Bool.and_
+infix "+" = Add, add unchecked, lit_add
+infix "urem" = Rem false, rem false, lit_urem
+prefix "not" = Not, Bool.not_`}
   />
   <p>
     <code>{`infix "op" = Node, f args, g{:kanon}`}</code> declares what <code>a op b</code> builds
     and matches: in expressions, it calls the smart constructor <code>f</code> with the leading
-    arguments <code>args</code> (<code>{`bv_add unchecked a b{:kanon}`}</code>); in patterns, it
+    arguments <code>args</code> (<code>{`add unchecked a b{:kanon}`}</code>); in patterns, it
     matches the node (<code>{`Add (_, a, b){:kanon}`}</code>, whatever its parameters); on operands
     that are not terms, it is the function <code>g</code>, which is optional, when they have the
-    types of its arguments (<code>{`infix "land" = BitAnd, bv_and, z_land{:kanon}`}</code> makes
+    types of its arguments (<code>{`infix "land" = BitAnd, and_, z_land{:kanon}`}</code> makes
     <code>a land b</code> on integers <code>{`z_land a b{:kanon}`}</code>). <code>prefix</code> is
     the same for one operand.
   </p>

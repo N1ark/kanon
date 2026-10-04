@@ -317,8 +317,8 @@
   <p>
     The proofs of the arms that <code>kanon_auto</code> does not find, tagged
     <code>{`@[kanon_arm]{:lean}`}</code>. Here <code>kanon_auto</code> proves every arm of the
-    language's rules (<code>plus</code>, <code>int_lt</code>, the <code>ints</code> rule added to
-    <code>sem_eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
+    language's rules (<code>Int.plus</code>, <code>Int.int_lt</code>, the <code>ints</code> rule added to
+    <code>Bool.eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
     proof of the commutativity of <code>+</code> shows how one replaces <code>kanon_auto</code>.
   </p>
   <Code lang="lean" code={file("lean/IntsExample/Proofs.lean")} />
@@ -329,18 +329,18 @@
       <p>
         <code>lake build</code>. <code>Soundness.lean</code> proves each arm <code>X</code> by
         <code>{`theorem X.ok : X.Stmt := kanon_proof% X{:lean}`}</code>; an arm that its tactic does
-        not prove is an error there, which names it. Without <code>of_bool</code> in
+        not prove is an error there, which names it. Without <code>Bool.of_bool</code> in
         <code>kanon_body</code>, two arms fail:
       </p>
       <Code
         lang="text"
         code={`error: IntsExample/Soundness.lean:509:59: unsolved goals
-⊢ (of_bool (decide (x✝ = y✝))).WT ∧ (of_bool (decide (x✝ = y✝))).ty = Ty.TBool
+⊢ (Bool.of_bool (decide (x✝ = y✝))).WT ∧ (Bool.of_bool (decide (x✝ = y✝))).ty = Ty.TBool
 error: IntsExample/Soundness.lean:675:59: unsolved goals`}
       />
       <Code
         lang="lean"
-        code={`theorem sem_eq.r_ints.main.ok : sem_eq.r_ints.main.Stmt := kanon_proof% sem_eq.r_ints.main`}
+        code={`theorem Bool.eq.r_ints.main.ok : Bool.eq.r_ints.main.Stmt := kanon_proof% Bool.eq.r_ints.main`}
       />
     </li>
     <li>
@@ -350,27 +350,27 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
       </p>
       <Code
         lang="lean"
-        code={`def sem_eq.r_ints.main.Stmt : Prop :=
+        code={`def Bool.eq.r_ints.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Int) (t__2 : Ty) (y : Int) (t__4 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
-  ((of_bool (decide (x = y))))`}
+  Refines (Bool.eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
+  ((Bool.of_bool (decide (x = y))))`}
       />
     </li>
     <li>
       <p>
-        Give the tactics the lemma they miss (here, <code>of_bool</code> in
+        Give the tactics the lemma they miss (here, <code>Bool.of_bool</code> in
         <code>kanon_body</code>, as <code>Lib/Rule.lean</code> does), or a function a tactic of its
         own, which its arms try before <code>kanon_auto</code>:
       </p>
       <Code
         lang="lean"
-        code={`attribute [kanon_tactic "(intro O hO; simp only [of_bool]; revert O hO; kanon_rule)"]
-  sem_eq.spec int_lt.spec`}
+        code={`attribute [kanon_tactic "(intro O hO; simp only [Bool.of_bool]; revert O hO; kanon_rule)"]
+  Bool.eq.spec Int.int_lt.spec`}
       />
       <p>
         or prove the arm by hand, in <code>Proofs.lean</code>: an
-        <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>sem_eq.r_ints.main.Stmt</code>.
+        <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>Bool.eq.r_ints.main.Stmt</code>.
       </p>
     </li>
     <li>
@@ -460,13 +460,13 @@ lake env lean check_axioms.lean
       <code>{`simp_all [sure_neq, ty, firstSome]{:lean}`}</code>.
     </li>
     <li>
-      <strong>Helpers with conditionals.</strong> Put helpers such as <code>of_bool</code> in
+      <strong>Helpers with conditionals.</strong> Put helpers such as <code>Bool.of_bool</code> in
       <code>kanon_body</code>, not <code>kanon_lits</code>, so that <code>kanon_rule_lift</code>
       splits their <code>if</code>s.
     </li>
     <li>
       <strong>The sort of <code>ite</code>.</strong> State its congruence lemma at the sort that the
-      spec of <code>b_ite</code> writes, <code>{`ty b{:lean}`}</code> (the sort of the first
+      spec of <code>Bool.ite</code> writes, <code>{`ty b{:lean}`}</code> (the sort of the first
       branch), so that <code>kanon_congr</code> has no side goal (or give one to
       <code>kanon_congr_side</code>, with <code>macro_rules</code>).
     </li>

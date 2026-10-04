@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- [Scoped names](README.md#names-and-modules): the functions, rule functions, primitives and constants are scoped by module (a file: `bitvec.knl` and `bitvec.kn` are `Bitvec`, `use builtin "bool"` is `Bool`). A name is plain in its module and qualified, `Bitvec.add`, from another one, in expressions, in `extend rule Bitvec.add`, in `infix "+" = Add, Bitvec.add` and in the attributes (`[@fold Int.add]`), so that an `Int.add` and a `Bitvec.add` live in the same language and the prefixes of the names (`bv_add`) are redundant. A plain name is that of the module of the file where it is written, never of a module that it uses; the error of an unknown name says which module declares it. The tree-sitter grammar reads `Bitvec.add` (`qualified_identifier`), and the language server hovers, goes to, renames (after the dot) and completes qualified names.
+
+### Changed
+
+- The names of the generated code follow the scoping. In OCaml, the rules are one module, so their names are flat: `bitvec_add` (the module in lowercase, an underscore, the name); the primitives keep their plain name in the module of the primitives, and two primitives of different modules may not have the same name. `ocaml-typed` nests the plain names in the module of the file, as before (`S.Bitvec.add`), and refuses a function that has the name of a destructor of its module. In Lean, the definitions are qualified by their module (`Bitvec.add`, `Bitvec.add.r_zero`, `Bitvec.add.spec`) and the fields of `Ops` are the flat names (`bitvec_add`). `ocaml-tests` lists the rule functions by their qualified name (`"Bitvec.add"`).
+- The bool module's functions lose their prefixes: `b_not`, `b_and`, `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct` are `Bool.not_`, `Bool.and_`, `Bool.or_`, `Bool.ite`, `Bool.eq`, `Bool.eq_untyped` and `Bool.distinct`, and `KanonCore.BoolMod`'s theorems are named after them (`Bool.and_.r_same.main`). Its primitives `v_true`, `v_false` and `sort_by_tag` are unchanged.
+- A bare constructor directly followed by `.x` (`Foo.x`) is a qualified name, not a field access.
+
 ## 0.3.0 (2026-10-04)
 
 ### Added

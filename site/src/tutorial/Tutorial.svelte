@@ -12,8 +12,8 @@
   <h1>Kanon</h1>
   <p class="lede">
     Kanon is a rule language for the <em>simplifying smart constructors</em> of a value language:
-    the functions that build its terms (<code>{`b_and a b{:kanon}`}</code>,
-    <code>{`plus a b{:kanon}`}</code>, …) and simplify them on the fly. You declare the language and
+    the functions that build its terms (<code>{`Bool.and_ a b{:kanon}`}</code>,
+    <code>{`Int.plus a b{:kanon}`}</code>, …) and simplify them on the fly. You declare the language and
     write the rules; Kanon generates their OCaml implementation and a Lean model of them, with one
     soundness statement per rule and the proof that the whole simplifier is sound from the proofs of
     these statements.
@@ -133,9 +133,9 @@ notation Int`}
     like the others.
   </p>
   <Code
-    code={`node Not : TBool -> TBool [@invol] [@fold negb]
+    code={`node Not : TBool -> TBool [@invol] [@fold Rules.negb]
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
-node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold Rules.add]`}
   />
   <table>
     <thead>
@@ -202,18 +202,26 @@ node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]`}
     its operand: <code>{`-x{:kanon}`}</code>, <code>{`~x{:kanon}`}</code>.
   </p>
   <Code
-    code={`infix "&&" = And, and_
-infix "+" = Plus, plus
-infix "==" = Eq, eq
-prefix "not" = Not, not_`}
+    code={`infix "&&" = And, Rules.and_
+infix "+" = Plus, Rules.plus
+infix "==" = Eq, Rules.eq
+prefix "not" = Not, Rules.not_`}
   />
+  <p>
+    The names of functions, rules, primitives and constants are scoped by module, and a module is a
+    file: the functions of <code>rules.kn</code> are <code>Rules.and_</code>,
+    <code>Rules.plus</code>, … from <code>lang.knl</code>, which is another module, and plain
+    (<code>and_</code>) inside <code>rules.kn</code>. A name from another module is written
+    qualified, with a dot and no space; a plain name is always that of the module of its file. That
+    is what lets an <code>Int.add</code> and a <code>Bitvec.add</code> live in the same language.
+  </p>
   <p>
     The rules are in <code>.kn</code> files, which the language uses
     (<code>{`use "rules"{:kanon}`}</code> reads <code>rules.knl</code> and <code>rules.kn</code>,
     either of which may be missing). A rule function without a body,
     <code>{`rule f : spec{:kanon}`}</code>, only has the rules derived from the laws of its spec,
     and <code>default</code>, which builds the spec. <code>fn</code> declares a helper, here the
-    functions of the folds.
+    functions of the folds (which <code>lang.knl</code> names qualified, as above).
   </p>
   <Code
     code={`(** Negation of a boolean. *)
@@ -355,17 +363,20 @@ node Var of var`}
   </p>
   <p>
     A module adds rules to the rule function of a module below it with
-    <code>extend rule f</code>: last, but before its final catch-all case (<code>_</code>, or
+    <code>extend rule M.f</code>, which names the function qualified by its module (here
+    <code>Bool</code>): last, but before its final catch-all case (<code>_</code>, or
     <code>{`_, _{:kanon}`}</code>, a tuple of blanks, for the operands of a spec or a helper), or
-    before its rule <code>r</code> with <code>extend rule f before r</code>. <code>extend fn</code> adds cases to a
-    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>. A case that an
+    before its rule <code>r</code> with <code>extend rule M.f before r</code>. <code>extend fn</code> adds cases to a
+    helper, here the literals of <code>int</code> to the bool module's <code>sure_neq</code>. The
+    cases are written in the module that extends, so what they call is qualified when it is
+    another module's (<code>Bool.of_bool</code>). A case that an
     earlier case already matches is an error there, rather than left out.
   </p>
   <Code
-    code={`extend rule sem_eq before same =
-  | ints: Int x == Int y -> of_bool (x = y)
+    code={`extend rule Bool.eq before same =
+  | ints: Int x == Int y -> Bool.of_bool (x = y)
 
-extend fn sure_neq =
+extend fn Bool.sure_neq =
   | Int x, Int y -> not (x = y)`}
   />
   <p>
@@ -408,11 +419,11 @@ node Sq1 : TInt -> TNonzero`}
   </ul>
   <Example id="subsorts" ocaml="ocaml" lean="lean-statements" />
   <p>
-    In the statements, the rule function <code>int_div</code> is stated for a divisor that
+    In the statements, the rule function <code>div</code> is stated for a divisor that
     satisfies <code>Nonzero</code>: <code>{`Nonzero v2 →{:lean}`}</code> comes before its guards, in
     <code>Ops.Sound</code> and in the lemmas that follow from it. The function
     <code>sq1</code>, whose node returns a <code>TNonzero</code>, has to prove the other way
-    round: <code>sq1.post.main.Stmt</code> says that what it returns, a rule or its spec,
+    round: <code>Int.sq1.post.main.Stmt</code> says that what it returns, a rule or its spec,
     satisfies <code>Nonzero</code>. Kanon does not prove it, and the build of the Lean files fails
     until you do (see the <a href="proving.html">guide to proofs</a>). Only rules have these
     assumptions and obligations, since the parameters and results of a <code>fn</code> have no
@@ -456,7 +467,7 @@ node Div : TInt -> TNonzero -> TInt`}
     a result, is a term that may have any of them. The interface is organised like the language,
     with a module for each file (here <code>Int</code>, the only one that has rules). <code>S</code> is its
     signature, and <code>Derived</code> implements it with the rules, which the language names with
-    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.plus{:ocaml}`}</code>.
+    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.int_plus{:ocaml}`}</code> (the rules are one OCaml module, where the name of a function is flat: the module and the name).
     A leaf has no function in either, since no rule builds it: it is written by hand, from the types,
     and given its tag with <code>type_</code>:
   </p>

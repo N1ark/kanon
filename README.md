@@ -1,7 +1,7 @@
 # Kanon
 
 Kanon is a rule language for the simplifying smart constructors of a *value
-language*: the functions that build its terms (`b_and a b`, `bv_add c a b`,
+language*: the functions that build its terms (`Bool.and_ a b`, `Bitvec.add c a b`,
 ...) and simplify them on the fly. From the rules, the `kanon` tool generates:
 
 - the OCaml types of the language, with its hash-consed terms;
@@ -207,12 +207,15 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
   would swap what is assumed of them.
 - `notation C` gives literal patterns to the leaf `C` of one `bool` or `int`
   (see [Patterns](#patterns)).
-- `extend rule f = | r: p -> e ...`, in the rules of a module, adds rules to the
-  rule function `f` of a module below it, as if they were written in `f`: last,
-  but before its final catch-all case `_`, or with `extend rule f before r`,
-  before its rule `r`. A function's rules are tried in order, so this keeps the
+- `extend rule M.f = | r: p -> e ...`, in the rules of a module, adds rules to
+  the rule function `f` of the module `M` below it, as if they were written in
+  `f`: last, but before its final catch-all case `_`, or with
+  `extend rule M.f before r`, before its rule `r`. The target is named like any
+  function of another module (see [Names and modules](#names-and-modules)); the
+  cases are written in the module that extends, so the names that they call are
+  its own. A function's rules are tried in order, so this keeps the
   order of the rules independent of the modules they are written in.
-- `extend fn f = | p -> e ...` adds cases to the helper `f` in the same way.
+- `extend fn M.f = | p -> e ...` adds cases to the helper `f` in the same way.
   The cases go into the match that ends `f`, behind `let`s and the right
   operands of `||` and `&&`. The final catch-all case is `_`, or a tuple of
   blanks, which is strictly equivalent (`_, _`, `_, _, _`, `(_, _), _`): the
@@ -227,6 +230,46 @@ in a type `opk` (with their other arguments: `Add of checked`) under a
 constructor `Opk`: `Op1 of op1 * t`, `Op2 of op2 * t * t`, ..., and
 `OpN of opn * t list`. In Lean, they are `Kind.Op2 Op2.And a b`. The rules do
 not name them: they write `And (a, b)` or `a && b`.
+
+### Names and modules
+
+A module is a file: `bitvec.knl` and `bitvec.kn` are the module `Bitvec`,
+`use builtin "bool"` is `Bool`. Its name is that of the file without its
+extension, capitalised, which must make an OCaml module name; two files of the
+same name (in different directories) are one module. The names of the things
+that the rules call, the functions (`fn`), rule functions (`rule`), primitives
+(`prim`, `oracle`) and constants (`constant`), are scoped by module, so that an
+`Int.add` and a `Bitvec.add` live in the same language:
+
+- in its module, a name is *plain*: `add`, in `bitvec.knl` and `bitvec.kn`.
+  From another module it is *qualified*, `Bitvec.add`: an uppercase name, a dot
+  and a lowercase name, with no space (a bare constructor directly followed by
+  `.x` is read as a qualified name). A definition (`fn`, `rule`, `prim`,
+  `constant`) is always plain: it is in the module of its file.
+- A plain name means the name of the module of the file where it is written,
+  and never the name of a module that it uses: there is no implicit opening,
+  hence no ambiguity or shadowing between modules. The error of an unknown name
+  that another module declares says so (`unknown function add: Int.add is
+  declared in another module, write it qualified`). A variable may not have the
+  name of a function of its module, but may have that of another module's.
+- The names that Kanon itself provides, `type_of`, the functions on arrays,
+  `tag_le` and `mk_commut_binop`, belong to no module and are never qualified;
+  a module cannot define them. The nodes, sorts, subsorts, types, their
+  constructors and fields, and the labels of rules are not scoped: they are
+  those of the terms and types that Kanon generates.
+- The names in the attributes of a declaration (`[@fold add]`, `[@get size]`,
+  `[@unit ones]`) and in `infix`, `prefix` and `extend` are written like in the
+  rules, in the module of the file that declares them: `[@fold Int.add]`,
+  `infix "+" = Add, Bitvec.add`, `extend rule Bool.eq before same`. A literal
+  constant belongs to its module too (see [Constants](#constants)).
+
+Backends use the same names: Lean defines them in the namespace of their
+module (`Bitvec.add`, `Bitvec.add.spec`), the typed interface nests them in a
+module `Bitvec` (see [Typed OCaml](#typed-ocaml)), and in the OCaml rules, a
+single module because the cases of an `extend` call the functions of the later
+modules, they are flat: `bitvec_add`, the module in lowercase and the name (see
+[OCaml](#ocaml)). Primitives are implemented by hand, under their plain name,
+whatever their module.
 
 ### Attributes of nodes
 
@@ -254,17 +297,19 @@ integers, `true` and `false`, or strings for anything else (`[@fold f_add]`,
 ### Operators on terms
 
 ```ocaml
-infix "+" = Add, bv_add unchecked, lit_add
-infix "urem" = Rem false, bv_rem false, lit_urem
-prefix "not" = Not, b_not
+infix "+" = Add, add unchecked, lit_add
+infix "urem" = Rem false, rem false, lit_urem
+prefix "not" = Not, Bool.not_
 ```
 
-`infix "op" = Node, f args[, g]` declares what the operator builds and matches:
+`infix "op" = Node, f args[, g]` declares what the operator builds and matches
+(its functions are named as everywhere: plain in the module of the declaration,
+qualified from another one, see [Names and modules](#names-and-modules)):
 in expressions, `a + b` calls the smart constructor `f` with the leading
-arguments `args` (`bv_add unchecked a b`); in patterns, it matches the node
+arguments `args` (`add unchecked a b`); in patterns, it matches the node
 (`Add (_, a, b)`, whatever its parameters); on operands that are not terms and
 have the types of the arguments of `g`, it is `g` (with
-`infix "land" = BitAnd, bv_and, z_land`, `a land b` on integers is
+`infix "land" = BitAnd, and_, z_land`, `a land b` on integers is
 `z_land a b`). An operator with a built-in meaning on a type cannot have a `g`
 on that type. `prefix "op" = Node, f args[, g]` is
 the same for one operand.
@@ -310,9 +355,9 @@ node, a case `p urem q` is the case `p, q` when the parameter of the spec is
 ### Constants
 
 ```ocaml
-constant 0 (v) = bv_zero (size v)
-constant true = v_true
-constant ones (v) = bv_ones (size v)
+constant 0 (v) = zero (size v)
+constant true = Bool.v_true
+constant ones (v) = ones_of (size v)
 ```
 
 `constant c (v) = e` is the term of the constant `c` at the sort of the term
@@ -320,7 +365,9 @@ constant ones (v) = bv_ones (size v)
 `[@zero c]`. `c` is a literal, `0`, `1`, `true` or `false` (also written
 `"0"`, ...), or a name. The constant of a literal is optional: Kanon otherwise
 builds the node of its notation at the sort of the spec (`Bool false`,
-`Int 0`).
+`Int 0`). A constant belongs to its module like a function: the `0` of
+`bitvec.knl` is `Bitvec.0`, and `[@unit 0]` on a node of the module `Int` does
+not see it (`[@unit Bitvec.ones]` names a named constant of another module).
 
 ### Floating attributes
 
@@ -341,9 +388,9 @@ builds the node of its notation at the sort of the spec (`Bool false`,
 ## Functions
 
 ```ocaml
-rule bv_not : BvNot v =
+rule not_ : BvNot v =
   | not: BvNot x -> x
-  | ite: Ite (b, l, r) -> b_ite b (bv_not l) (bv_not r)
+  | ite: Ite (b, l, r) -> Bool.ite b (not_ l) (not_ r)
 
 fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
 ```
@@ -370,7 +417,7 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   `Model.lean`, and no statement, lift or soundness entry, so it is for
   analysis and infrastructure code that is not a simplification rule (see
   [Proofs](#proofs)). A function or rule that Lean models may not call a
-  `[@no_lean]` function or primitive (`rule bv_add calls f, which is
+  `[@no_lean]` function or primitive (`rule Bitvec.add calls Bitvec.f, which is
   [@no_lean]`), but a `[@no_lean]` function may call anything. Only `fn` and
   `prim` can be `[@no_lean]`: not rules, oracles, sorts, nodes or types.
   `[@total]` (on a `fn` only, and it combines with `[@no_lean]`) makes the
@@ -423,28 +470,28 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   must then name the operands rather than use `v1` and `v2` (other than as the
   argument of `type_of` and `[@ty_only]` helpers).
 - The cases of a rule whose spec is a binary operator may also be written with
-  the operator: in `rule bv_sub : Sub (checked, v1, v2)`,
+  the operator: in `rule sub : Sub (checked, v1, v2)`,
   `| sub_sub: l - (l - r) -> r` stands for `| sub_sub: l, (l - r) -> r`.
 - The operands of a spec have the sorts that the typing of its node gives
   them, which the generated OCaml asserts on entry to the rule function (so
   that the assertion is compiled out with `-noassert`), and the proofs assume.
   An operand may be annotated with its sort, `(v : TBitVector n)`, to also
   assert it and bind its variables in the rules:
-  `rule bv_extract : BvExtract (from_, to_, (v : TBitVector sz))` uses `sz`
+  `rule extract : BvExtract (from_, to_, (v : TBitVector sz))` uses `sz`
   for the width of `v`. A rule that also simplifies ill-typed specs is marked
-  `[@untyped]` after its spec (`rule sem_eq_untyped : Eq (v1, v2) [@untyped]`),
+  `[@untyped]` after its spec (`rule eq_untyped : Eq (v1, v2) [@untyped]`),
   and asserts nothing.
 
 ## Laws
 
 Attributes on an operator in its declaration declare its algebraic laws, from
 which Kanon derives the first rules of its *rule function* (the rule function
-whose spec is the operator over the function's parameters, e.g. `bv_mul` for
+whose spec is the operator over the function's parameters, e.g. `mul` for
 `Mul (checked, v1, v2)`), in this order, before the rules written by hand. The
 derived rules are ordinary rules: they are generated and proved like the
 others, and a hand-written rule may not reuse their names.
 
-| law | rule | rewrite, in `plus (v1 v2)`, `b_and`, `b_not`, `bv_and`, ... |
+| law | rule | rewrite, in `plus (v1 v2)`, `Bool.and_`, `Bool.not_`, `and_`, ... |
 |---|---|---|
 | `[@comm]` | none | the rules match the operands in either order |
 | `[@fold f]` | `lits`, `lit` | `Int i1 + Int i2 -> Int (f i1 i2)`, `not (Bool b) -> Bool (f b)` |
@@ -454,7 +501,7 @@ others, and a hand-written rule may not reuse their names.
 | `[@idem]` | `same` | `x && x -> x` |
 | `[@invol]` | `not`, after the operator | `not (not x) -> x` |
 
-The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
+The rewrites are on whole terms: in `rule not_ : Not v`, the rule of
 `[@invol]` is the case `not x -> x`, on the operand `v`.
 
 - `[@comm]` applies to binary operators: see [Terms](#terms) and
@@ -522,7 +569,7 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
   of a node in a pattern, the parameters of helpers annotated with a sort),
   compared with the result sort of each notation's node; otherwise it is an
   error, and the pattern names the node (`Int x`).
-- A repeated variable matches equal terms (`=`): `| p, not p -> v_false`.
+- A repeated variable matches equal terms (`=`): `| p, not p -> Bool.v_false`.
 - The operands of commutative operators match in either order: `x + #k` also
   matches `#k + x`. The swap is left out when both operands are wildcards or
   variables bound nowhere else, as it matches the same terms.
@@ -559,6 +606,15 @@ they open. They call the primitives in the module of
 `[@@@ocaml_prims "Lang_prims"]`, which they check against the declarations
 (`module _ : sig ... end = Lang_prims`). On terms, `=` compares their tags.
 
+The functions are one module, in the order of their dependencies (an `extend`
+calls the functions of later modules), so the function `add` of the module
+`Bitvec` is `bitvec_add`: the module in lowercase, an underscore and the name.
+The names that Kanon provides (`mk_commut_binop`) are unchanged, and two
+functions with the same flat name are an error. The primitives are not
+prefixed: the module of the primitives implements `wrap` whichever module
+declares it, so two primitives of different modules may not have the same name
+(rename one). `kanon ocaml-typed` gives the nested names (`Bitvec.add`).
+
 After the rules, it generates a destructor `as_foo` and a test `is_foo` for
 every node and every sort (not the kinds that Kanon builds). For the node
 `Foo`, `as_foo : t -> (args) option` gives its arguments, as a pattern would
@@ -566,14 +622,15 @@ bind them: its parameters, then its operands (the list of an n-ary node), in a
 tuple, or alone, or `()`; `is_foo : t -> bool` tells whether a term is built by
 `Foo`. For a sort `TFoo of nat`, `as_tfoo : ty -> int option` and `is_tfoo`
 read a `ty`. The name is that of the constructor in lowercase (`BvAdd` gives
-`as_bvadd`), so a function or a primitive may not be named like a destructor,
-nor may two constructors that differ only by their case: these are errors.
+`as_bvadd`), so a function or a primitive may not be named like a destructor
+(a function `add` of a module `is` is `is_add`), nor may two constructors that
+differ only by their case: these are errors.
 
 ## Typed OCaml
 
 `kanon ocaml-typed lang.knl rules.kn` generates the typed interface of the
 language. The terms of the generated OCaml are all of one type, `t`: nothing
-stops `bv_add` from being applied to a boolean, but for the assertions on its
+stops `bitvec_add` from being applied to a boolean, but for the assertions on its
 entry. In the typed interface a term is a `'a t`, where `'a` is a *tag*, a
 polymorphic variant that says what Kanon knows of the term, and OCaml rejects
 the ill-kinded calls. The tag is a phantom type: it is only in the type, and a
@@ -587,7 +644,7 @@ node Add of checked (c) : TBitVec n -> TBitVec n -> TBitVec n
 node Div : TBitVec n -> TNonzero n -> TBitVec n
 ```
 
-gives, for the rule functions `bv_add` and `bv_div` of `Add` and `Div`, in a
+gives, for the rule functions `add` and `div` of `Add` and `Div`, in a
 file `bitvec.knl` and `bitvec.kn`:
 
 ```ocaml
@@ -601,8 +658,8 @@ module type S = sig
   (* ... *)
   module Bitvec : sig
     val t_bitvec : int -> [> Tag.tbitvec ] ty
-    val bv_add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
-    val bv_div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
+    val add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
+    val div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
   end
 end
 ```
@@ -619,9 +676,9 @@ What is generated, in the file, for the language (nothing is a functor):
   join them to make groups of tags of its own: `type scalar = [ Tag.tbitvec |
   Tag.tfloat ]`, and `([< scalar ] as 'a) t` for a function over them.
 - A term has the tag that its typing gives: a result is `[> tag ] t` (the
-  result of `bv_add` is a `tbitvec`, which is not known to be non-zero), and an
+  result of `add` is a `tbitvec`, which is not known to be non-zero), and an
   operand `[< tag ] t`. A subsort is trusted: nothing proves it, and `cast`
-  gives a term the tag that it needs (`bv_div x (cast y)`). The width, and
+  gives a term the tag that it needs (`Bitvec.div x (cast y)`). The width, and
   other values of a sort, are erased: Kanon does not check them. A sort
   variable (`Eq`, `Ite`, `Distinct`) is shared by the operands and the result,
   as `'a t`. A node without a typing has any tag, `_ t`.
@@ -653,10 +710,10 @@ What is generated, in the file, for the language (nothing is a functor):
   the result has its tag, a parameter that is one of its operands has the tag
   of that operand, and any other parameter has any tag, `_ t`; a spec that is
   not a node (a call of a function) has any tag everywhere. For instance `rule
-  bv_to_bool (v : t) : Not (Eq (v, bv_zero (size v)))` is `_ t -> [> tbool ]
+  to_bool (v : t) : Not (Eq (v, zero (size v)))` is `_ t -> [> tbool ]
   t`.
-- `module Derived`, the implementation of `S`: the rules, `let bv_add =
-  Kanon_rules.bv_add`, where `Kanon_rules` is the module that names
+- `module Derived`, the implementation of `S`: the rules, `let add =
+  Kanon_rules.bitvec_add`, where `Kanon_rules` is the module that names
   `[@@@ocaml_rules "Lang_rules"]` (required: the output of `kanon ocaml`), and
   the sorts, destructors and escape hatches. In `Derived`, `type 'a t = raw` is
   visible, so that the rules have the types of `S`; `S` hides it, since a
@@ -716,6 +773,12 @@ The Lean files are generated in the namespace `R` of `[@@@lean_root]`:
   Its arrays are Lean's `Array`, and their operations (`arrayLength`,
   `arrayGet`, `arraySet`) are defined, with their lemmas (reading after a set,
   lengths, the conversions to and from lists), in `KanonCore.Array`.
+  The functions are in the namespace of their module (see [Names and
+  modules](#names-and-modules)): the function `add` of `Bitvec` is
+  `R.Bitvec.add`, its rules `Bitvec.add.r_zero`, its spec `Bitvec.add.spec` and
+  its step `Bitvec.add.step`. The fields of the structures (`Ops`,
+  `Ops.Sound`), which cannot have a dot, have the flat name, `bitvec_add`
+  (`O.bitvec_add`), and the primitives and oracles their plain name.
 - `Statements.lean` states that every alternative of every rule is sound: its
   result *refines* its spec (the raw term it simplifies), and that the
   operands of every commutative operator commute (`Op2.Plus.comm.Stmt`:
@@ -843,14 +906,14 @@ any language that uses it (namespace `Kanon.BoolMod`):
   functions, the oracles `tag_le` and `sort_by_tag`, and the helpers
   `at_most_one`, `distinct_check_one` and `distinct_check`), and
   `BoolMod.Ops.Sound` what the rules assume of them;
-- `KanonCore.BoolMod.Rules` proves, for every arm `f.r_rule.arm` of the module
+- `KanonCore.BoolMod.Rules` proves, for every arm `Bool.f.r_rule.arm` of the module
   (with those derived from the laws of `bool.knl` and from the swaps of
-  commutative operands), the theorem `Kanon.BoolMod.f.r_rule.arm L B hB`,
+  commutative operands), the theorem `Kanon.BoolMod.Bool.f.r_rule.arm L B hB`,
   whose statement is that of the arm, for any `L`, `B` and `hB : B.Sound`. Most
   are proved by the tactic `kanon_bool` (`KanonCore.BoolMod.Tactic`).
 
 `Soundness.lean` proves each arm of the module by that theorem, applied to the
-language (`fun O hO => BoolMod.f.r_rule.arm boolLang O.bool hO.bool`), the
+language (`fun O hO => BoolMod.Bool.f.r_rule.arm boolLang O.bool hO.bool`), the
 commutativity of `And`, `Or` and `Eq` by `BoolMod.Lang.refines_and_comm`, …, and
 defines the bool module of the model, `Ops.bool O : BoolMod.Ops boolLang`, with
 the proof `Ops.Sound.bool : O.Sound → O.bool.Sound` (which uses the field
@@ -891,8 +954,8 @@ others (the generator itself knows nothing of sorts).
 
 - `modules/bool.knl` and `modules/bool.kn` are an optional module of booleans:
   boolean literals, `Not`, `And`, `Or`, equality (`Eq`), conditionals (`Ite`)
-  and `Distinct`, with their rules (the rule functions `b_not`, `b_and`,
-  `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct`). They are built
+  and `Distinct`, with their rules (the rule functions `Bool.not_`, `and_`,
+  `or_`, `ite`, `eq`, `eq_untyped` and `distinct`). They are built
   into `kanon`, as the module `use builtin "bool"` uses. The modules above it can add rules to
   its rule functions with `extend rule`, and literals to its helper `sure_neq`
   with `extend fn`. It is the bool module of soteria's
@@ -944,7 +1007,9 @@ the independent items of a declaration, rather than only the first.
 
 It knows the names of the language, as Kanon scopes them:
 
-- the global names: functions, primitives, nodes, constructors, types, rules
+- the global names: functions, primitives (written plain in their module, and
+  qualified, `Bitvec.add`, from another one, which renaming changes after the
+  dot), nodes, constructors, types, rules
   (`before r` goes to the rule `r` of the extended function, or to the law that
   derives it, `[@unit 0]`) and operators (`+`, `&&`, `not`, `urem`, ...,
   which go to their `infix` or `prefix` declaration, and whose hover says what
@@ -961,7 +1026,10 @@ it) and where it is bound; their references and highlights (of a global, in
 the files of the language); their renaming, which refuses operators, keywords,
 the names of the built-in modules and invalid new names (a function, a type
 or a rule starts with a lowercase letter, a constructor with an uppercase
-one); completion of the names of the language; and the symbols of a file and
+one, and a function may not take the name of another of its module);
+completion of the names of the language (the names of the module of the file
+plain, those of other modules qualified, and after `Bitvec.` those of
+`Bitvec`); and the symbols of a file and
 of the workspace.
 
 A `.kn` file is only meaningful in its language: the server checks a file with
