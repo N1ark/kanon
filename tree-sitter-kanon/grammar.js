@@ -169,7 +169,7 @@ module.exports = grammar({
     extend_definition: $ => seq(
       'extend',
       field('kind', choice('rule', 'fn')),
-      field('name', $.identifier),
+      field('name', choice($.identifier, $.qualified_identifier)),
       optional(seq('before', field('before', $.rule_name))),
       '=',
       optional('|'),
@@ -281,7 +281,7 @@ module.exports = grammar({
 
     attribute_argument: $ => $._name,
 
-    _name: $ => choice($.identifier, $.constructor),
+    _name: $ => choice($.identifier, $.qualified_identifier, $.constructor),
 
     // ------------------------------------------------------------------
     // Functions and rules
@@ -441,7 +441,7 @@ module.exports = grammar({
     )),
 
     application_expression: $ => prec(PREC.app, seq(
-      field('function', $.identifier),
+      field('function', choice($.identifier, $.qualified_identifier)),
       $._arguments,
     )),
 
@@ -465,6 +465,7 @@ module.exports = grammar({
 
     _simple_expression: $ => choice(
       $.identifier,
+      $.qualified_identifier,
       $.constructor,
       $.boolean,
       $.number,
@@ -654,6 +655,10 @@ module.exports = grammar({
     // Lexemes
 
     identifier: _ => /[a-z_][a-zA-Z0-9_']*/,
+
+    // [Bitvec.add]: a function of another module, with no space around the dot
+    // (a single lexeme, as in kanon)
+    qualified_identifier: _ => /[A-Z][a-zA-Z0-9_']*\.[a-z_][a-zA-Z0-9_']*/,
 
     constructor: _ => /[A-Z][a-zA-Z0-9_']*/,
 

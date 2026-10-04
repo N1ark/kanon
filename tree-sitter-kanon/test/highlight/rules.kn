@@ -134,3 +134,6 @@ fn swap (a : int array) : int array = array_set a 0 ([| 1 |] = a)
 (*                                    ^ function.builtin *)
 (*                                                   ^ punctuation.bracket *)
 (*                                                        ^ punctuation.bracket *)
+
+fn qualified (x y : int) : int = Int.add x y
+(*                               ^ function *)

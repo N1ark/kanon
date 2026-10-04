@@ -613,3 +613,73 @@ rule ult : Ult (v1, v2) =
             (operator)
             (identifier)))
         (identifier)))))
+
+================================================================================
+Qualified names
+================================================================================
+
+infix "+" = Add, Bitvec.add
+node Add : TInt -> TInt -> TInt [@fold Int.add]
+fn f (x y : int) : int = Int.add x (Bitvec.add 1 y)
+extend rule Bool.eq before same =
+  | ints: Int x == Int y -> Bool.of_bool (x = y)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (operator_declaration
+    (string
+      (string_content))
+    (tuple_expression
+      (constructor)
+      (qualified_identifier)))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (sorts
+        (constructor)
+        (constructor)
+        (constructor))
+      (attribute
+        (attribute_name
+          (identifier))
+        (attribute_argument
+          (qualified_identifier)))))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (identifier)
+      (type_identifier))
+    (type_identifier)
+    (application_expression
+      (qualified_identifier)
+      (identifier)
+      (parenthesized_expression
+        (application_expression
+          (qualified_identifier)
+          (number)
+          (identifier)))))
+  (extend_definition
+    (qualified_identifier)
+    (rule_name
+      (identifier))
+    (cases
+      (case
+        (rule_name
+          (identifier))
+        (binary_pattern
+          (constructor_pattern
+            (constructor)
+            (identifier))
+          (operator)
+          (constructor_pattern
+            (constructor)
+            (identifier)))
+        (application_expression
+          (qualified_identifier)
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (operator)
+              (identifier))))))))

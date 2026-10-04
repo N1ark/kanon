@@ -68,6 +68,10 @@
         "named": true
       },
       {
+        "type": "qualified_identifier",
+        "named": true
+      },
+      {
         "type": "record_expression",
         "named": true
       },
@@ -326,6 +330,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -345,6 +353,10 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "qualified_identifier",
             "named": true
           }
         ]
@@ -408,6 +420,10 @@
           },
           {
             "type": "prefix_expression",
+            "named": true
+          },
+          {
+            "type": "qualified_identifier",
             "named": true
           },
           {
@@ -493,6 +509,10 @@
         {
           "type": "identifier",
           "named": true
+        },
+        {
+          "type": "qualified_identifier",
+          "named": true
         }
       ]
     }
@@ -511,6 +531,10 @@
         },
         {
           "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "qualified_identifier",
           "named": true
         }
       ]
@@ -675,6 +699,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -772,6 +800,10 @@
           },
           {
             "type": "prefix_expression",
+            "named": true
+          },
+          {
+            "type": "qualified_identifier",
             "named": true
           },
           {
@@ -1215,6 +1247,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -1374,6 +1410,10 @@
           {
             "type": "identifier",
             "named": true
+          },
+          {
+            "type": "qualified_identifier",
+            "named": true
           }
         ]
       }
@@ -1457,6 +1497,10 @@
           },
           {
             "type": "prefix_expression",
+            "named": true
+          },
+          {
+            "type": "qualified_identifier",
             "named": true
           },
           {
@@ -2126,6 +2170,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -2417,6 +2465,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -2559,6 +2611,10 @@
           "named": true
         },
         {
+          "type": "qualified_identifier",
+          "named": true
+        },
+        {
           "type": "record_expression",
           "named": true
         },
@@ -2689,6 +2745,10 @@
         },
         {
           "type": "prefix_expression",
+          "named": true
+        },
+        {
+          "type": "qualified_identifier",
           "named": true
         },
         {
@@ -3053,6 +3113,10 @@
             "named": true
           },
           {
+            "type": "qualified_identifier",
+            "named": true
+          },
+          {
             "type": "record_expression",
             "named": true
           },
@@ -3392,6 +3456,10 @@
   {
     "type": "prim",
     "named": false
+  },
+  {
+    "type": "qualified_identifier",
+    "named": true
   },
   {
     "type": "rule",

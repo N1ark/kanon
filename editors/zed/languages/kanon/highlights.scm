@@ -56,7 +56,10 @@
   (#any-of? @function.builtin "type_of" "array_length" "array_get" "array_set"
     "array_of_list" "array_to_list"))
 
-; [infix "+" = Add, bv_add unchecked, lit_add]: the smart constructor and the
+; [Bitvec.add]: a function of another module
+(qualified_identifier) @function
+
+; [infix "+" = Add, Bitvec.add, lit_add]: the smart constructor and the
 ; primitive on values
 (operator_declaration
   body: (tuple_expression
