@@ -258,7 +258,7 @@ other_item:
 documented_item:
   | PRIM x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "" }
   | ORACLE x = LID COLON t = typ attrs = list(decl_attr) { prim (mkloc $loc) (x, mkloc $loc(x)) t attrs "oracle" }
-  | FN x = LID ps = params ret = option(preceded(COLON, typ)) attrs = list(decl_attr) EQ body = seq_expr
+  | FN x = LID ps = params ret = option(preceded(COLON, fn_result)) attrs = list(decl_attr) EQ body = seq_expr
     { let loc = mkloc $loc and xloc = mkloc $loc(x) in
       item loc (Pstr_value (Nonrecursive, [ binding loc ~attrs (pat xloc (Ppat_var { txt = x; loc = xloc })) ps ret body ])) }
   | RULE x = LID ps = params COLON spec = concat_expr rattrs = list(decl_attr) body = option(rule_body)
@@ -429,6 +429,16 @@ param_group:
       let tloc = { sloc with loc_ghost = true } in
       let t = { (typ tloc (Ptyp_constr (lid tloc "t", []))) with ptyp_attributes = [ attr sloc "kanon.sort" [ eval_item sloc s ] ] } in
       List.map (fun (x, l) -> (x, l, t)) xs }
+
+(* the result of a function: a type, or [S args], the sort of the term that it returns
+   (the type [t] with a [[@kanon.sort]] attribute, as for the parameters) *)
+fn_result:
+  | t = typ { t }
+  | c = UID arg = option(simple_expr)
+    { let sloc = mkloc ($startpos(c), $endpos(arg)) in
+      let s = econstr ~cloc:(mkloc $loc(c)) sloc c arg in
+      let tloc = { sloc with loc_ghost = true } in
+      { (typ tloc (Ptyp_constr (lid tloc "t", []))) with ptyp_attributes = [ attr sloc "kanon.sort" [ eval_item sloc s ] ] } }
 
 param_name:
   | x = LID { (x, $loc) }

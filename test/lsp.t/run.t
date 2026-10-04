@@ -520,3 +520,22 @@ and `[@ctor]`, which is gone, is an unknown attribute:
   "id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nnode Int of int : TInt\n```\n\n*ok.knl*"
   "id":2,"result":[{"uri":"file://ROOT/typed/ok.knl","range":{"start":{"line":2,"character":5},"end":{"line":2,"character":8}}}]}
   "message":"unknown attribute [@ctor]"
+
+The sort of the result of a function, `: TBv n`, is resolved like the sort of a
+parameter: the sort has a hover, and its variable goes to where the parameters
+bind it.
+
+  $ mkdir rs
+  $ printf 'sort TBv of nat\nnode Neg : TBv n -> TBv n\n' > rs/lang.knl
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/rs","capabilities":{}}}'
+  >   msg "$(open rs/rules.kn 'fn keep (v : TBv n) : TBv n = v\n')"
+  >   msg "$(at 1 hover rs/rules.kn 0 23)"
+  >   msg "$(at 2 definition rs/rules.kn 0 26)"
+  >   msg '{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } > input
+  $ lsp | grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBv of nat\n```\n\n*lang.knl*"},"range":{"start":{"line":0,"character":22},"end":{"line":0,"character":25}}}}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/rs/rules.kn","range":{"start":{"line":0,"character":17},"end":{"line":0,"character":18}}}]}
+  {"jsonrpc":"2.0","id":3,"result":null}

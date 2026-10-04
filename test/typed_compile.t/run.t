@@ -23,6 +23,7 @@ nodes: they are added by hand.
   $ cat > bitvec.kn <<'KN'
   > prim size : t -> int
   > rule div : Div (v1, v2)
+  > fn keep (v : TBitVector n) : TBitVector n = v
   > KN
   $ cat > cmp.knl <<'KN'
   > sort TBool
@@ -107,6 +108,24 @@ one: `S` hides that the typed terms are the untyped ones.
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TBool
+
+A function with an annotated result is typed like a rule function: its result is
+a bit-vector, not known to be non-zero.
+
+  $ cat > good.ml <<'ML'
+  > open Impl.Typed
+  > let x = Bitvec.mk_bv Z.one 8
+  > let _ = Bitvec.div x (cast (Bitvec.keep x))
+  > let _ = Cmp.ult (Bitvec.keep (Bitvec.mk_zero 8)) x
+  > ML
+  $ ocamlfind ocamlc -package zarith -I . -c good.ml
+  $ cat > bad.ml <<'ML'
+  > open Impl.Typed
+  > let x = Bitvec.mk_bv Z.one 8
+  > let _ = Bitvec.div x (Bitvec.keep x)
+  > ML
+  $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
+  does not allow tag(s) `TBitVector, `TZero
 
 The tags are plain polymorphic variants, whose types may be joined to make a
 group of tags, which is the user's:
