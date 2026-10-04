@@ -648,7 +648,7 @@ or two constructors that differ only by their case: these are errors.
 
 `kanon ocaml-typed lang.knl rules.kn` generates the typed interface of the
 language. The terms of the generated OCaml are all of one type, `t`: nothing
-stops `bitvec_add` from being applied to a boolean, but for the assertions on its
+stops `Bitvec.add` from being applied to a boolean, but for the assertions on its
 entry. In the typed interface a term is a `'a t`, where `'a` is a *tag*, a
 polymorphic variant that says what Kanon knows of the term, and OCaml rejects
 the ill-kinded calls. The tag is a phantom type: it is only in the type, and a
