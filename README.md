@@ -286,7 +286,14 @@ integers, `true` and `false`, or strings for anything else (`[@fold f_add]`,
   variable stands for any sort where a sort is expected, and otherwise for any
   value of its type, and a repeated one for the same (`node Eq : a -> a ->
   TBool`); a width (`nat` argument of a type) is positive, unless the condition
-  constrains it.
+  constrains it. A sort may also be any expression of type `ty` over them, such
+  as a call of a function, which computes the sort of the result from the
+  sorts of the operands and the arguments (`node Field of nat (i) : TTuple tys ->
+  Rules.nth_ty tys i`); and a leaf can declare the computed sort of its result
+  as well, `node Tuple of t list (vs) : TTuple (Rules.types_of vs)`, so that
+  Kanon can build it (`Tuple vs`) and rebuild it. Lean's `Typing.lean` comes
+  before the model, so a function that a typing calls must be a primitive,
+  as for a condition.
 - `[@get f]` on a sort with one argument: the helper `f : t -> int` reads that
   argument from the sort of a term (`sort TBitVector of nat [@get size]`). Kanon then
   reads the argument with `f v`, rather than by matching the sort of `v`,
@@ -377,6 +384,8 @@ not see it (`[@unit Bitvec.ones]` names a named constant of another module).
   [OCaml](#ocaml)), required when the language has primitives.
 - `[@@@ocaml_types "M"]`: the OCaml module of the types, which the generated
   rules open (see [OCaml](#ocaml)).
+- `[@@@traversals]`: the `ocaml` backend also generates the traversals of the
+  terms and of the sorts (see [Traversals](#traversals)).
 - `[@@@lean_root "R"]`: the namespace of the Lean model, and the root of its
   modules (`Kanon` by default).
 - `[@@@lean_param "x" "T"]`: a parameter `x : T` of the semantics, which the
@@ -773,6 +782,61 @@ end
 The constraint `(Derived : S)` makes the types abstract (`type +'a t`): OCaml
 checks the rest of the program against the interface `S`.
 
+## Traversals
+
+A language that has `[@@@traversals]` gets, in the output of `kanon ocaml`,
+functions that traverse its terms and its sorts, one case per node (and per
+sort constructor), in the order of the arguments, with no intermediate list. A
+node added by a later module, or by a later `extend`, has its case without
+more: the traversals are generated from the final language. They are what a
+host writes the operations that Kanon does not know of (the free variables, a
+substitution, an evaluation, a search) over: what a variable is, or a binder,
+stays out of Kanon.
+
+```ocaml
+val map_children : (t -> t) -> t -> t
+val iter_children : (t -> unit) -> t -> unit
+val exists_child : (t -> bool) -> t -> bool
+val for_all_child : (t -> bool) -> t -> bool
+val map_ty_children : (ty -> ty) -> ty -> ty
+(* iter_ty_children, exists_ty_child, for_all_ty_child *)
+```
+
+- The *children* of a node are the values of type `t` in its parameters and
+  operands, left to right: directly (`Not of t`), in a list, an array or an
+  option (`t list`, `t array`, `t option`), in a tuple (`(int * t) option`),
+  and in a type of the language that mentions `t`, a record
+  (`type block = { owner : var; offset : t; size : t }`, its fields in order) or
+  a variant (the arguments of its constructors), possibly recursive, whose
+  traversal is generated (`kanon__map_block`, ...). A value of an abstract type
+  is opaque: it has no children, even if its OCaml type contains terms. Every
+  other type has none. The sorts have children too: the values of type `ty` in
+  the arguments of the sort constructors (`TSeq of ty`, `TTuple of ty list`),
+  in the same shapes.
+- `iter_children f v` calls `f` on the children; `exists_child f v` is true
+  as soon as `f` is, and does not look at the others (`for_all_child f v` is
+  the dual, `false` as soon as `f` is). `map_children f v` rebuilds `v` from
+  `f` applied to its children, in order: through the *smart constructor* of
+  the node, if a rule function has the node as its spec over its parameters
+  (so that mapping a child to `0` simplifies the sum), else as the raw node,
+  whose sort is that of its typing from the new children (the `Tuple` of
+  `TTuple (types_of vs)` above), or, if the node has no typing (a leaf), the
+  sort of `v`. The rebuilt term is always built again (hash-consing finds the
+  existing one). A node without children, and a term that is not a node with
+  children, is its own `map_children`.
+- The searches compose with the recursion of the host, with no handler and no
+  allocation: `let rec has_var v = is_var v || exists_child has_var v`.
+  A host that wants to leave a traversal from inside raises its own exception
+  at the top level (`iter_children` has no handler of its own), and Kanon
+  has no `Break`: the exception of a handler in each call would only stop the
+  innermost loop of a recursive search. On a term of 187,000 nodes, the
+  predicate, the iteration with a top-level exception, a built-in handler and
+  the list of operands that the traversals replace are within the noise of each
+  other (3 to 6 ms), so the choice is that of simplicity.
+- The functions that rebuild the nodes are `kanon__rebuild_C`, `[@no_lean]`
+  functions of the rules; the traversals are in OCaml only: nothing is
+  generated for Lean, and `ocaml-typed` does not type them.
+
 ## Proofs
 
 The site's [guide to proofs](https://n1ark.github.io/kanon/proving.html) walks
@@ -986,6 +1050,11 @@ others (the generator itself knows nothing of sorts).
   its OCaml is compiled and run by the tests (`test/ocaml`), and its Lean model
   (`lean/`, `lake build`) has no proofs, only the generated files, which `dune
   test` checks are up to date.
+- `examples/traversals/` is a small language, in two modules, with nodes whose
+  children are in a list, an array, an option of a tuple and a record, to show
+  the [traversals](#traversals): its OCaml is compiled and run by the tests
+  (`test/ocaml`). It has no Lean files (a typing that calls a function is not in
+  Lean's `Typing.lean`).
 - `examples/bool/` is a complete example language, made of the bool module
   alone, to start from: `lang.knl` adds its variables to the module, and
   `lean/` is the Lean proof of its rules (the package

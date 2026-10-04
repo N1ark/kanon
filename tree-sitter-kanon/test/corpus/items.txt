@@ -631,3 +631,47 @@ fn h (l : int list) : int array = array_of_list [| x; y; |]
       (array_expression
         (identifier)
         (identifier)))))
+
+================================================================================
+Traversals and computed sorts of nodes
+================================================================================
+
+[@@@traversals]
+node Proj of nat (i) : TTuple tys -> Rules.nth_ty tys i
+node Tuple of t list (vs) : TTuple (Rules.types_of vs)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (floating_attribute
+    (attribute_name
+      (identifier)))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_identifier)
+      (constructor_parameters
+        (identifier))
+      (sorts
+        (constructor_expression
+          (constructor)
+          (identifier))
+        (application_expression
+          (qualified_identifier)
+          (identifier)
+          (identifier)))))
+  (node_declaration
+    (constructor_declaration
+      (constructor)
+      (type_application
+        (type_identifier)
+        (type_identifier))
+      (constructor_parameters
+        (identifier))
+      (sorts
+        (constructor_expression
+          (constructor)
+          (parenthesized_expression
+            (application_expression
+              (qualified_identifier)
+              (identifier))))))))

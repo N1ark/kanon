@@ -8,6 +8,9 @@
 
 - [Typed functions](README.md#functions): the result of a `fn` may be annotated with a sort, `fn wrapping_add (a b : TBitVector n) : TBitVector n = add unchecked a b`. The generated OCaml asserts it on exit, and `ocaml-typed` gives the function a `val` with the tags of the sorts of its parameters and of its result, so that a derived helper is defined in Kanon and typed, rather than wrapped by hand. Lean erases the annotation.
 
+- [Traversals](README.md#traversals): `[@@@traversals]` makes `kanon ocaml` generate `map_children`, `iter_children`, `exists_child` and `for_all_child` over the terms, and `map_ty_children`, ... over the sorts: one case per node, left to right, with no intermediate list, for the children in a list, an array, an option, a tuple, a record or a variant of the language. `map_children` rebuilds the node with its smart constructor, else raw at the sort of its typing. A later module's nodes get their case.
+- The typing of a node may give the sort of its result as an expression of type `ty` (a call of a function), and a leaf may declare a computed sort: `node Field of nat (i) : TTuple tys -> Rules.nth_ty tys i`, `node Tuple of t list (vs) : TTuple (Rules.types_of vs)`.
+
 ### Changed
 
 - The names of the generated code follow the scoping. In OCaml, the rules are one module, so their names are flat: `bitvec_add` (the module in lowercase, an underscore, the name); the primitives keep their plain name in the module of the primitives, and two primitives of different modules may not have the same name. `ocaml-typed` nests the plain names in the module of the file, as before (`S.Bitvec.add`), and refuses a function that has the name of a destructor of its module. In Lean, the definitions are qualified by their module (`Bitvec.add`, `Bitvec.add.r_zero`, `Bitvec.add.spec`) and the fields of `Ops` are the flat names (`bitvec_add`). `ocaml-tests` lists the rule functions by their qualified name (`"Bitvec.add"`).

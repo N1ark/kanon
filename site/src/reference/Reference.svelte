@@ -544,6 +544,13 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@@@traversals]{:kanon}`}</code></td>
+        <td>
+          <code>ocaml</code> also generates the <a href="#traversals">traversals</a> of the terms and
+          of the sorts.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
         <td>The namespace of the Lean model, and the root of its modules (<code>Kanon</code> by default).</td>
       </tr>
@@ -556,6 +563,39 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
     </tbody>
   </table>
+
+  <Heading level={3} id="traversals">Traversals</Heading>
+  <p>
+    With <code>{`[@@@traversals]{:kanon}`}</code>, <code>kanon ocaml</code> generates, after the
+    rules, <code>map_children</code>, <code>iter_children</code>, <code>exists_child</code> and
+    <code>for_all_child</code> over the terms, and <code>map_ty_children</code>,
+    <code>iter_ty_children</code>, <code>exists_ty_child</code> and <code>for_all_ty_child</code>
+    over the sorts: a case per node (or sort constructor) in the order of its arguments, with no
+    intermediate list, and the cases of the nodes of every module.
+  </p>
+  <ul>
+    <li>
+      The children of a node are the values of type <code>t</code> in its arguments and operands:
+      directly, in a <code>t list</code>, <code>t array</code> or <code>t option</code>, in a tuple,
+      or in a type of the language that mentions <code>t</code>, a record or a variant
+      (<code>{`type block = { owner : var; offset : t; size : t }{:kanon}`}</code>), whose own
+      traversal is generated. An abstract type is opaque. The children of a sort are its
+      <code>ty</code> arguments, in the same shapes.
+    </li>
+    <li>
+      <code>map_children f v</code> rebuilds <code>v</code> from its mapped children, in order:
+      through the smart constructor of the node if a rule function has it as its spec, else the raw
+      node at the sort that its typing gives (a leaf may declare a computed sort,
+      <code>{`node Tuple of t list (vs) : TTuple (types_of vs){:kanon}`}</code>), or at the sort of
+      <code>v</code> if it has no typing.
+    </li>
+    <li>
+      <code>exists_child</code> stops at the first child that satisfies its predicate, and composes
+      with the recursion of the host without a handler:
+      <code>{`let rec has_var v = is_var v || exists_child has_var v{:ocaml}`}</code>. Variables and
+      binders are the host's: Kanon does not know them. Nothing is generated for Lean.
+    </li>
+  </ul>
 
   <Heading level={2} id="backends">Backends</Heading>
   <p>
