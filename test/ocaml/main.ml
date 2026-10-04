@@ -89,3 +89,119 @@ let () =
     (vec_get v (int 3) == node (Op2 (Get, v, int 3)) TInt
     && vec_set v (int (-1)) (int 0) == node (Op3 (Set, v, int (-1), int 0)) TVec
     )
+
+let () =
+  let open Trav_lang in
+  let int n = node (Int (Z.of_int n)) TInt in
+  let var x = node (Var x) TInt in
+  let zero = int 0 and one = int 1 and two = int 2 in
+  let add a b = term_add a b in
+  (* the children, in the order of the arguments *)
+  let children v =
+    let l = ref [] in
+    iter_children (fun c -> l := c :: !l) v;
+    List.rev !l
+  in
+  let tuple = node (Tuple [ one; two; zero ]) (TTuple [ TInt; TInt; TInt ]) in
+  let vec = node (Vec (Iarray.of_list [ two; one ])) TVec in
+  let opt = node (Opt (Some (Z.of_int 7, two))) TInt in
+  let none = node (Opt None) TInt in
+  let mem = node (Mem { owner = "p"; offset = one; size = two }) TBlock in
+  let sum = node (Op2 (Add, one, two)) TInt in
+  check "children of a leaf" (children (var "x") = [] && children one = []);
+  check "children of an operator" (children sum = [ one; two ]);
+  check "children of a list" (children tuple = [ one; two; zero ]);
+  check "children of an array" (children vec = [ two; one ]);
+  check "children of an option of a tuple"
+    (children opt = [ two ] && children none = []);
+  check "children of a record, in the order of its fields"
+    (children mem = [ one; two ]);
+  (* map: each child once, from the left; a node with a smart constructor is
+     rebuilt through it, so that a zero disappears *)
+  let order = ref [] in
+  ignore
+    (map_children
+       (fun c ->
+         order := c :: !order;
+         c)
+       sum);
+  check "map visits the children from the left" (List.rev !order = [ one; two ]);
+  check "map is rebuilt by the smart constructor"
+    (map_children (fun c -> if c == two then zero else c) sum == one);
+  let negx = node (Op1 (Neg, node (Op1 (Neg, var "x")) TInt)) TInt in
+  check "map through the smart constructor of the extension"
+    (map_children (fun c -> c) negx == var "x");
+  (* a node without a smart constructor is rebuilt raw, at the sort of its
+     typing: the sort of a tuple follows its elements *)
+  let empty = node (Vec (Iarray.of_list [])) TVec in
+  let mapped = map_children (fun _ -> empty) tuple in
+  check "the sort of a tuple is computed from the new children"
+    (mapped.ty = TTuple [ TVec; TVec; TVec ]
+    && mapped.kind = Tuple [ empty; empty; empty ]);
+  check "map of an array"
+    ((map_children (fun _ -> one) vec).kind = Vec (Iarray.of_list [ one; one ]));
+  check "map of an option of a tuple"
+    ((map_children (fun _ -> one) opt).kind = Opt (Some (Z.of_int 7, one))
+    && map_children (fun _ -> one) none == none);
+  check "map of a record"
+    ((map_children (fun _ -> two) mem).kind
+    = Mem { owner = "p"; offset = two; size = two });
+  check "a leaf is its own map"
+    (map_children (fun _ -> zero) (var "x") == var "x");
+  (* exists / for_all: short-circuit, in order *)
+  let seen = ref [] in
+  let p c =
+    seen := c :: !seen;
+    c == one
+  in
+  check "exists" (exists_child p tuple && List.rev !seen = [ one ]);
+  seen := [];
+  check "for_all stops at the first failure"
+    ((not
+        (for_all_child
+           (fun c ->
+             seen := c :: !seen;
+             c == one)
+           tuple))
+    && List.rev !seen = [ one; two ]);
+  check "for_all of a leaf, exists of a leaf"
+    (for_all_child (fun _ -> false) one
+    && not (exists_child (fun _ -> true) one));
+  (* a recursive search without a handler or an allocation *)
+  let rec has_var v =
+    (match v.kind with Var _ -> true | _ -> false) || exists_child has_var v
+  in
+  check "recursive exists"
+    (has_var (add (var "x") one)
+    && (not (has_var (add one two)))
+    && has_var (node (Mem { owner = "p"; offset = var "y"; size = one }) TBlock)
+    );
+  (* a host exception stops a traversal: iter has no handler of its own *)
+  let exception Stop in
+  let count = ref 0 in
+  let rec walk v =
+    incr count;
+    if v == two then raise Stop;
+    iter_children walk v
+  in
+  check "a host exception stops iter"
+    ((try
+        walk (add (add one two) (add one one));
+        false
+      with Stop -> true)
+    && !count = 4);
+  (* the sorts *)
+  let sort = TTuple [ TInt; TVec ] in
+  let tys = ref [] in
+  iter_ty_children (fun t -> tys := t :: !tys) sort;
+  check "children of a sort"
+    (List.rev !tys = [ TInt; TVec ] && exists_ty_child (( = ) TVec) sort);
+  check "map of a sort"
+    (map_ty_children (fun _ -> TBlock) sort = TTuple [ TBlock; TBlock ]
+    && map_ty_children (fun _ -> TBlock) TInt = TInt
+    && for_all_ty_child (( = ) TInt) TInt);
+  (* the nodes of the extension have their cases *)
+  let nv = ext_neg (var "x") in
+  check "an added node"
+    (children nv = [ var "x" ]
+    && map_children (fun _ -> zero) nv == ext_neg zero)

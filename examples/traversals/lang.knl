@@ -1,0 +1,15 @@
+(* A tiny language to show the generated traversals: nodes whose children are
+   in a list, an array, an option of a tuple, and a record, over two modules.
+   Its OCaml is compiled and run in test/ocaml. *)
+
+[@@@ocaml_rules "Rules"]
+[@@@traversals]
+
+use "term"
+use "ext"
+
+type var [@ocaml "string"] [@lean "String"]
+
+(** A variable: it has no typing, so a traversal rebuilds it at the sort of the
+    term that it replaces (it has no children, so it never does). *)
+node Var of var

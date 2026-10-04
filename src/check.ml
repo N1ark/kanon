@@ -2700,6 +2700,9 @@ let language (str : structure) =
                    | "ocaml_rules", [ m ] ->
                        lang := { !lang with ocaml_rules = Some m };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "traversals", [] ->
+                       lang := { !lang with traversals = true };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
                          a.attr_name.txt)
@@ -3811,6 +3814,7 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
         | Some c when c.c_res = TKind || Option.is_some (node_of_op c) ->
             error e.pexp_loc "%s is a node, not a sort" n
         | _ -> error e.pexp_loc "%s is not a sort" n)
+    | Pexp_apply _ -> expr (env ()) ~expected:TSty e
     | _ -> error e.pexp_loc "expected a sort"
   in
   let sorts = List.map sort rt.rt_sorts in
@@ -4416,6 +4420,70 @@ let rec uses x (e : Syntax.expr) =
 let is_sort_constr c =
   match find_constr c with Some c -> c.c_res = TSty | None -> false
 
+(** The functions that rebuild the nodes that have children, for the traversals
+    (see [Gen_ocaml.traversals]), as raw functions with the node at the location
+    where it is declared: [kanon__rebuild_C params operands] is the smart
+    constructor of [C], the rule function whose spec is [C] over its parameters,
+    if there is one, else the raw node, whose sort is that of its typing. A node
+    that has no typing, which can only be a leaf, is built at the sort of the
+    term that it replaces, a parameter [s]. *)
+let traversal_raws raws =
+  let nodes =
+    List.filter
+      (fun (c : constr) ->
+        (c.c_res = TKind && not (List.mem c.c_name !lang.node_kinds))
+        || Option.is_some (node_of_op c))
+      !lang.constrs
+  in
+  List.filter_map
+    (fun (c : constr) ->
+      let operands =
+        match node_of_op c with Some (_, ops) -> ops | None -> []
+      in
+      if
+        operands = []
+        && not
+             (List.exists (fun a -> Syntax.mentions TTerm (arg_ty a)) c.c_args)
+      then None
+      else
+        let ty t = Fmt.str "%a" pp_ty t in
+        let ps =
+          List.mapi (fun i a -> (Fmt.str "p%d" (i + 1), arg_ty a)) c.c_args
+        and xs = List.mapi (fun i t -> (Fmt.str "x%d" (i + 1), t)) operands in
+        let names = List.map fst (ps @ xs) in
+        let typed = List.mem_assoc c.c_name !lang.raw_typing in
+        let node =
+          match names with
+          | [] -> c.c_name
+          | [ x ] -> Fmt.str "%s %s" c.c_name x
+          | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
+        in
+        let rule =
+          List.find_opt
+            (fun r ->
+              r.rcases && (not r.runtyped) && spec_head r = Some c.c_name)
+            raws
+        in
+        let params =
+          String.concat " "
+            (List.map
+               (fun (x, t) -> Fmt.str "(%s : %s)" x (ty t))
+               (((if typed then [] else [ ("s", TSty) ]) @ ps) @ xs))
+        in
+        let body =
+          match rule with
+          | Some r -> Fmt.str "%s %s" r.rname (String.concat " " names)
+          | None -> if typed then node else Fmt.str "(%s : s)" node
+        in
+        let src =
+          Fmt.str "fn kanon__rebuild_%s %s : t [@no_lean] = %s\n" c.c_name
+            params body
+        in
+        match parse_string ~file:kanon_file src with
+        | [ { pstr_desc = Pstr_value (_, [ vb ]); _ } ] -> Some (raw_fn vb, c)
+        | _ -> None)
+    nodes
+
 (** Checks the raw function [r], in the global environment [env0]. *)
 let check_fn env0 globals r =
   atom_counter := 0;
@@ -4843,6 +4911,8 @@ let program (str : structure) : program =
         o.on_value)
     !lang.operators;
   let raws = law_cases globals raws in
+  let travs = if !lang.traversals then traversal_raws raws else [] in
+  let raws = raws @ List.map fst travs in
   let start = errors_so_far () in
   let typings = typings env0 in
   checkpoint_since start;
@@ -4858,7 +4928,16 @@ let program (str : structure) : program =
             sort_vars := [];
             in_spec := false
           in
-          match attempt (fun () -> check_fn env0 globals r) with
+          let check () =
+            match List.find_opt (fun (t, _) -> t.rname = r.rname) travs with
+            | None -> check_fn env0 globals r
+            | Some (_, (c : constr)) -> (
+                try check_fn env0 globals r
+                with Error (_, msg) ->
+                  error c.c_loc "traversals: the node %s cannot be rebuilt: %s"
+                    c.c_name msg)
+          in
+          match attempt check with
           | Some f -> Some f
           | None ->
               reset ();

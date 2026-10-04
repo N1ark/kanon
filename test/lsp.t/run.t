@@ -539,3 +539,23 @@ bind it.
   {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBv of nat\n```\n\n*lang.knl*"},"range":{"start":{"line":0,"character":22},"end":{"line":0,"character":25}}}}
   {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/rs/rules.kn","range":{"start":{"line":0,"character":17},"end":{"line":0,"character":18}}}]}
   {"jsonrpc":"2.0","id":3,"result":null}
+
+The result sort of a typing may call a function: its name is resolved like any
+other, qualified from the module of the language (here, `lang.knl` is the
+module `Lang`), and its variables are those that the operand sorts bind.
+`[@@@traversals]` is a floating attribute without an argument.
+
+  $ mkdir tr
+  $ printf '[@@@traversals]\nsort TInt\nsort TTuple of ty list\nnode Proj of nat (i) : TTuple tys -> Rules.nth_ty tys i\n' > tr/lang.knl
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/tr","capabilities":{}}}'
+  >   msg "$(open tr/rules.kn 'fn nth_ty (tys : ty list) (i : int) : ty = TInt\n')"
+  >   msg "$(at 1 definition tr/lang.knl 3 47)"
+  >   msg "$(at 2 definition tr/lang.knl 3 57)"
+  >   msg '{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } > input
+  $ lsp | grep -v '"id":0,'
+  {"jsonrpc":"2.0","id":1,"result":[{"uri":"file://ROOT/tr/rules.kn","range":{"start":{"line":0,"character":3},"end":{"line":0,"character":9}}}]}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/tr/lang.knl","range":{"start":{"line":3,"character":18},"end":{"line":3,"character":19}}}]}
+  {"jsonrpc":"2.0","id":3,"result":null}
