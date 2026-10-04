@@ -8,7 +8,7 @@
 
 (name kanon)
 
-(version 0.2.0)
+(version 0.3.0)
 
 (source
  (github N1ark/kanon))
