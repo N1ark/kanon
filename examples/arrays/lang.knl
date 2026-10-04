@@ -4,5 +4,6 @@
    and its Lean model is in lean/. *)
 
 [@@@lean_root "ArraysExample"]
+[@@@ocaml_rules "Rules"]
 
 use "vec"

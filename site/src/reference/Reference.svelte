@@ -68,7 +68,8 @@
       (<code>{`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n{:kanon}`}</code>): a term
       of a subsort is accepted wherever its parent is expected, and not the reverse. It has no
       constructor of its own and no meaning in OCaml, where the types and rules erase it to its
-      parent; it is only trusted, but in Lean, where <code>{`[@lean "P"]{:kanon}`}</code> gives it a
+      parent; it is only trusted, but in <code>ocaml-typed</code>, where the tags of its terms refine
+      those of its parent, and in Lean, where <code>{`[@lean "P"]{:kanon}`}</code> gives it a
       predicate. It is not an argument of a sort, nor an annotation <code>(v : S n)</code>, and its
       parent is a sort, not a subsort. Only rules have the assumptions and obligations of their
       subsorts, since functions have no sort annotations; a <code>[@comm]</code> node whose operands
@@ -489,6 +490,14 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@@@ocaml_rules "M"]{:kanon}`}</code></td>
+        <td>
+          The OCaml module of the rules (the output of <code>ocaml</code>), which the
+          implementation of <code>ocaml-typed</code> is made of (<code>M.f</code>). Required by
+          <code>ocaml-typed</code>.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
         <td>The namespace of the Lean model, and the root of its modules (<code>Kanon</code> by default).</td>
       </tr>
@@ -511,7 +520,37 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
     <tbody>
       <tr><td><code>ocaml-types</code></td><td>The OCaml types of the language and its hash-consed terms.</td></tr>
-      <tr><td><code>ocaml</code></td><td>The OCaml rule functions and helpers.</td></tr>
+      <tr>
+        <td><code>ocaml</code></td>
+        <td>
+          The OCaml rule functions and helpers, then the destructors and tests of the nodes and the
+          sorts. For a node <code>BvAdd</code>, <code>as_bvadd</code> returns its arguments in an
+          option (the parameters, then the operands) and <code>is_bvadd</code> tests it; for a sort
+          <code>TInt</code>, <code>as_tint</code> returns the arguments of the sort and
+          <code>is_tint</code> tests it. Their names are <code>as_</code> and <code>is_</code>
+          followed by the name of the constructor in lowercase, with no other change: a function or a
+          primitive cannot have such a name.
+        </td>
+      </tr>
+      <tr>
+        <td><code>ocaml-typed</code></td>
+        <td>
+          The typed interface of the smart constructors, where a term <code>'a t</code> has a
+          phantom parameter, a tag, that says what Kanon knows of it: the module
+          <code>Tag</code>, with a polymorphic variant type per sort and subsort (they may be
+          joined into groups of tags: <code>{`[ Tag.tbitvec | Tag.tfloat ]{:ocaml}`}</code>);
+          the signature <code>S</code>, with the types <code>'a t</code> and <code>'a ty</code>,
+          the escape hatches <code>untyped</code>, <code>type_</code> and <code>cast</code> (and
+          <code>untype_type</code>, <code>type_type</code> on sorts), and a module per Kanon module
+          (per file: <code>bitvec.kn</code> and <code>bitvec.knl</code> give <code>Bitvec</code>)
+          that has a function for each sort, rule function and destructor declared in it, typed by
+          the tags; and <code>Derived</code>, the implementation of <code>S</code> from the rules
+          (module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>), with <code>{`type 'a t = raw{:ocaml}`}</code>
+          visible, which <code>S</code> hides. A leaf node, which no rule builds, has no function in
+          either: a program builds it from the types and gives it its tag with <code>type_</code>. The parameters of a rule function have the types that it declares, as in
+          <code>ocaml</code> (a <code>nat</code> is a <code>Z.t</code>).
+        </td>
+      </tr>
       <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>
       <tr>
         <td>

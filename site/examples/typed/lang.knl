@@ -1,0 +1,5 @@
+(* A language with a subsort, and its typed interface. *)
+
+[@@@ocaml_rules "Rules"]
+
+use "int"

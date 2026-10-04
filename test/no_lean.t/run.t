@@ -3,6 +3,7 @@ it does not exist in the Lean files.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
+  > [@@@ocaml_rules "Rules"]
   > sort TInt
   > node Int of int : TInt
   > node Add : TInt -> TInt -> TInt
@@ -28,6 +29,9 @@ it does not exist in the Lean files.
   let[@inline] size_hidden (x : Z.t) : Z.t =
   let[@inline] hidden_helper (x : Z.t) : Z.t =
       (Z.add (Prims.p_hidden (lean_helper x)) (size_hidden x))
+  $ kanon ocaml-typed lang.knl rules.kn | grep -c "hidden"
+  0
+  [1]
   $ kanon ocaml-tests lang.knl rules.kn | grep -c "hidden"
   0
   [1]
@@ -141,11 +145,11 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   === oracle o : int -> int [@no_lean]
   bad.kn:1:24: an oracle is a parameter of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === sort TFoo [@no_lean]
-  bad.knl:7:12: a sort is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  bad.knl:8:12: a sort is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === node Foo : TInt [@no_lean]
-  bad.knl:7:18: a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  bad.knl:8:18: a node is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === type foo [@no_lean]
-  bad.knl:7:11: a type is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
+  bad.knl:8:11: a type is part of the Lean model and cannot be [@no_lean]: only fn and prim items can be
   === fn f (x : int) : int [@ocaml_only] = x
   bad.kn:1:23: unknown attribute [@ocaml_only]
   === prim q : int [@whatever]
@@ -160,5 +164,22 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   [@@@warning "-a+11"]
   
   let[@inline] f (v : t) : Z.t = (Z.of_int (3))
+  
+  let as_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+  
+  let is_int (t : t) =
+    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+  
+  let as_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, x1, x2); _ } -> Some (x1, x2) | _ -> None
+  
+  let is_add (t : t) =
+    match[@warning "-11"] t with { kind = Op2 (Add, _, _); _ } -> true | _ -> false
+  
+  let as_tint (t : ty) =
+    match[@warning "-11"] t with TInt -> Some () | _ -> None
+  
+  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
   
   

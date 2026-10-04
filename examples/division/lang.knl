@@ -4,6 +4,7 @@
    returns a Sq1. *)
 
 [@@@lean_root "DivisionExample"]
+[@@@ocaml_rules "Rules"]
 
 use "int"
 

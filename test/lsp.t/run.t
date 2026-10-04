@@ -480,3 +480,24 @@ the subsort:
   {"label":"TNonzero","kind":4,"detail":"subsort TNonzero of nat : TBitVector n [@lean \"Nonzero\"]"}
   {"label":"subsort","kind":14}
   "message":"subsort A: its arguments must be those of TBitVector (nat)"
+
+The attributes of the typed backend: `[@@@ocaml_rules]` is a floating attribute
+like `[@@@ocaml_prims]`. A node has a hover and a definition like any node,
+and `[@ctor]`, which is gone, is an unknown attribute:
+
+  $ mkdir typed
+  $ {
+  >   msg '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/typed","capabilities":{}}}'
+  >   msg '{"jsonrpc":"2.0","method":"initialized","params":{}}'
+  >   msg "$(open typed/ok.knl '[@@@ocaml_rules \"Rules\"]\nsort TInt\nnode Int of int : TInt\nnode Neg : TInt -> TInt\n')"
+  >   msg "$(at 1 hover typed/ok.knl 2 6)"
+  >   msg "$(at 2 definition typed/ok.knl 2 6)"
+  >   msg "$(open typed/ctor.knl 'sort TInt\nnode Int of int : TInt [@ctor mk_int]\n')"
+  >   msg '{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } | kanon lsp |
+  >   sed -e 's/Content-Length: [0-9]*\r$//' -e '/^\r*$/d' -e "s|$PWD|ROOT|g" |
+  >   grep -v '"id":0,' | grep -o '"id":[12],"result":{"contents":{"kind":"markdown","value":"[^"]*\(\\"[^"]*\)*"\|"id":2,"result":.*\|"message":"[^"]*"'
+  "id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nnode Int of int : TInt\n```\n\n*ok.knl*"
+  "id":2,"result":[{"uri":"file://ROOT/typed/ok.knl","range":{"start":{"line":2,"character":5},"end":{"line":2,"character":8}}}]}
+  "message":"unknown attribute [@ctor]"

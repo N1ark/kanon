@@ -36,7 +36,7 @@
     return () => io.disconnect();
   });
 
-  const OCAML = ["ocaml-types", "ocaml", "ocaml-tests"];
+  const OCAML = ["ocaml-types", "ocaml", "ocaml-typed", "ocaml-tests"];
   const LEAN = [
     "lean-types",
     "lean-syntax",

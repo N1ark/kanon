@@ -35,6 +35,9 @@ the modules it uses, and writes on standard output:
   file that only needs Zarith (and only the `.knl` files, see [OCaml](#ocaml));
 - `ocaml`: the OCaml implementation of the rule functions and helpers, which
   needs the types in scope;
+- `ocaml-typed`: the typed interface of the smart constructors, where terms
+  are typed by the tags of their sorts and subsorts, and its implementation
+  from the rules (see [Typed OCaml](#typed-ocaml));
 - `ocaml-tests`: the differential tests (see [Tests](#tests));
 - `lean-types`, `lean-syntax`, `lean-signatures`, `lean-typing`, `lean-model`,
   `lean-statements`, `lean-lifts`, `lean-soundness`: the generated Lean files
@@ -193,7 +196,8 @@ declarations (`bool.knl`) and its rules, primitives and helpers (`bool.kn`).
   constructor of its own, and no meaning in OCaml: the generated types, rules and
   tests erase it to its parent, so that the typing of `Div` is that of
   `TBitVector n -> TBitVector n -> TBitVector n`. It is only trusted, apart from
-  in Lean, where `[@lean "Q"]` names its predicate (see [Subsorts in
+  in `ocaml-typed`, which types terms by it (see [Typed OCaml](#typed-ocaml)),
+  and in Lean, where `[@lean "Q"]` names its predicate (see [Subsorts in
   Lean](#subsorts-in-lean)). A subsort is the sort of an operand or of a result
   only: not an argument of a sort (`TBitVector (TNonzero n)`), nor an annotation
   `(v : TNonzero n)`, and its parent is a sort, not a subsort. Functions and
@@ -320,6 +324,8 @@ builds the node of its notation at the sort of the spec (`Bool false`,
 
 ### Floating attributes
 
+- `[@@@ocaml_rules "M"]`: the OCaml module of the rules (the output of `kanon
+  ocaml`), required by `ocaml-typed` (see [Typed OCaml](#typed-ocaml)).
 - `[@@@ocaml_prims "M"]`: the OCaml module of the primitives (see
   [OCaml](#ocaml)), required when the language has primitives.
 - `[@@@ocaml_types "M"]`: the OCaml module of the types, which the generated
@@ -499,7 +505,8 @@ The rewrites are on whole terms: in `rule b_not : Not v`, the rule of
   typing of `C`, which the sort-constructor form checks for an operator (a leaf
   has no operands to check), so it is up to the function to build `C` at a
   sort that its typing allows. In a rule, the Lean spec of the rule is built at
-  the sort of the typing of its node, not at the computed sort. A
+  the sort of the typing of its node, not at the computed sort, and the
+  `ocaml-typed` backend does not constrain the tag of the result. A
   constructor-led sort is a sort constructor (`S args`); `(C x : t)` with the
   name of a type `t` is a type annotation.
 
@@ -551,6 +558,142 @@ those types in scope: included next to them (`[%%include_file]`, see
 they open. They call the primitives in the module of
 `[@@@ocaml_prims "Lang_prims"]`, which they check against the declarations
 (`module _ : sig ... end = Lang_prims`). On terms, `=` compares their tags.
+
+After the rules, it generates a destructor `as_foo` and a test `is_foo` for
+every node and every sort (not the kinds that Kanon builds). For the node
+`Foo`, `as_foo : t -> (args) option` gives its arguments, as a pattern would
+bind them: its parameters, then its operands (the list of an n-ary node), in a
+tuple, or alone, or `()`; `is_foo : t -> bool` tells whether a term is built by
+`Foo`. For a sort `TFoo of nat`, `as_tfoo : ty -> int option` and `is_tfoo`
+read a `ty`. The name is that of the constructor in lowercase (`BvAdd` gives
+`as_bvadd`), so a function or a primitive may not be named like a destructor,
+nor may two constructors that differ only by their case: these are errors.
+
+## Typed OCaml
+
+`kanon ocaml-typed lang.knl rules.kn` generates the typed interface of the
+language. The terms of the generated OCaml are all of one type, `t`: nothing
+stops `bv_add` from being applied to a boolean, but for the assertions on its
+entry. In the typed interface a term is a `'a t`, where `'a` is a *tag*, a
+polymorphic variant that says what Kanon knows of the term, and OCaml rejects
+the ill-kinded calls. The tag is a phantom type: it is only in the type, and a
+typed term is the same value as the untyped one, at no cost. The tags come from
+the sorts, and the subsorts refine them.
+
+```ocaml
+sort TBitVec of nat
+subsort TNonzero of nat : TBitVec n
+node Add of checked (c) : TBitVec n -> TBitVec n -> TBitVec n
+node Div : TBitVec n -> TNonzero n -> TBitVec n
+```
+
+gives, for the rule functions `bv_add` and `bv_div` of `Add` and `Div`, in a
+file `bitvec.knl` and `bitvec.kn`:
+
+```ocaml
+module Tag : sig
+  type tnonzero = [ `TNonzero ]
+  type tbitvec = [ `TBitVec | tnonzero ]
+end
+
+module type S = sig
+  type +'a t
+  (* ... *)
+  module Bitvec : sig
+    val t_bitvec : int -> [> Tag.tbitvec ] ty
+    val bv_add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
+    val bv_div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
+  end
+end
+```
+
+What is generated, in the file, for the language (nothing is a functor):
+
+- `Tag` has a tag type per sort and per subsort: the lowercase name of its
+  constructor, the variant of that name (`` `TNonzero ``), and for a sort, the
+  tag types of its subsorts too (`tbitvec`). So an operand `[< Tag.tbitvec ] t`
+  accepts any bit-vector, including a non-zero one (`[> Tag.tnonzero ] t`), and
+  an operand `[< Tag.tnonzero ] t` only one that is known to be non-zero. Two
+  sorts or subsorts that differ by their case have the same tag type: an error.
+  The tag types are plain polymorphic variant types, so that a program may
+  join them to make groups of tags of its own: `type scalar = [ Tag.tbitvec |
+  Tag.tfloat ]`, and `([< scalar ] as 'a) t` for a function over them.
+- A term has the tag that its typing gives: a result is `[> tag ] t` (the
+  result of `bv_add` is a `tbitvec`, which is not known to be non-zero), and an
+  operand `[< tag ] t`. A subsort is trusted: nothing proves it, and `cast`
+  gives a term the tag that it needs (`bv_div x (cast y)`). The width, and
+  other values of a sort, are erased: Kanon does not check them. A sort
+  variable (`Eq`, `Ite`, `Distinct`) is shared by the operands and the result,
+  as `'a t`. A node without a typing has any tag, `_ t`.
+- `module type S`, the signature, with the types of the language and, for
+  `'a t` and the sorts `'a ty`, the escape hatches: `untyped : 'a t -> raw`
+  forgets the tag (`raw` is the term `t` of the types of the language), `type_
+  : raw -> 'a t` trusts one and `cast : 'a t -> 'b t` changes it, and
+  `untype_type` and `type_type` do the same for the sorts. They are the
+  identity at run time. Then a module per Kanon module (see below), with:
+  - a `val t_s` per sort (not subsort), which makes the sorts of its terms from
+    its arguments, which are those of its constructor (a `nat` is an `int`);
+  - a `val` per rule function, named after it, for the node that is its spec.
+    A node that no rule function is the spec of, in particular a leaf node
+    (which has no operands to build from), has none: see below. The parameters
+    of a rule function have the types that it declares, which are those of the
+    generated rules (a `nat` or an `int` is a `Z.t`), then come the operands,
+    and the result. Types of the language are those of `ocaml-types`, opened
+    from `[@@@ocaml_types]`, or else in scope. The docs of the rule function or
+    the node are carried onto the `val`;
+  - the destructors of the `ocaml` backend (see [OCaml](#ocaml)):
+    `as_foo : _ t -> (args) option`, whose operands are `[> tag ] t` (the tags
+    of the typing of `Foo`), and `is_foo : _ t -> bool`, for every node, and
+    `as_tfoo`, `is_tfoo` for every sort (not subsort), on `_ ty`.
+- A sort that is a parameter (`ty`) is a `raw_ty`, since its tag is not known,
+  and a term that is a parameter and not an operand (the body of `Exists of
+  (var * ty) list * t`) is `_ t`: any tag. A rule function has a `val` whatever
+  its spec. When the spec is a node over the parameters of the function, it is
+  typed as the node. Otherwise it is typed by the outermost node of the spec:
+  the result has its tag, a parameter that is one of its operands has the tag
+  of that operand, and any other parameter has any tag, `_ t`; a spec that is
+  not a node (a call of a function) has any tag everywhere. For instance `rule
+  bv_to_bool (v : t) : Not (Eq (v, bv_zero (size v)))` is `_ t -> [> tbool ]
+  t`.
+- `module Derived`, the implementation of `S`: the rules, `let bv_add =
+  Kanon_rules.bv_add`, where `Kanon_rules` is the module that names
+  `[@@@ocaml_rules "Lang_rules"]` (required: the output of `kanon ocaml`), and
+  the sorts, destructors and escape hatches. In `Derived`, `type 'a t = raw` is
+  visible, so that the rules have the types of `S`; `S` hides it, since a
+  visible equality would make every tag the same type, and OCaml would accept
+  the division by a bit-vector that is not known to be non-zero. There is no
+  functor, so that the escape hatches, which are `let[@inline] f x = x`, are
+  known functions to the compiler.
+
+The module of a `val` is that of the Kanon module of its declaration: the file
+of the rule function, the sort or the node, without its extension and with a
+capital (`bitvec.kn` and `bitvec.knl` are `Bitvec`, `use builtin "bool"` is
+`Bool`), in `S` and in `Derived`. A module that declares none of them has no
+module in the interface. `Tag`, `S`, `Derived` and `Kanon_rules` are the names
+of generated modules: a file may not have them. The tags, which are not tied
+to a module, are all in `Tag`.
+
+Leaf nodes have no constructor, in `S` nor in `Derived`: no rule builds them,
+and Kanon does not generate one. A program builds them from the types, with the
+hash-consing constructor `node` at the sort that the typing of the node gives,
+and gives the term its tag with `type_`. The same goes for the other layers on
+top of `Derived` (labelled arguments, a nesting of its own, groups of tags):
+
+```ocaml
+module Typed = struct
+  include (Lang_typed.Derived : Lang_typed.S)
+
+  module Bitvec = struct
+    include Bitvec
+
+    let mk_bv v n : [> Lang_typed.Tag.tbitvec ] t =
+      type_ (Lang_types.node (BitVec (v, n)) (TBitVec n))
+  end
+end
+```
+
+The constraint `(Derived : S)` makes the types abstract (`type +'a t`): OCaml
+checks the rest of the program against the interface `S`.
 
 ## Proofs
 

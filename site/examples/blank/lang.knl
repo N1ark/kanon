@@ -2,6 +2,7 @@
    write its rules in rules.kn. *)
 
 [@@@ocaml_prims "Prims"]
+[@@@ocaml_rules "Rules"]
 
 use builtin "bool"
 use "rules"

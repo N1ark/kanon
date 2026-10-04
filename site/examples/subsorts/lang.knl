@@ -1,3 +1,5 @@
 (* A language with a subsort: the divisor of a division is not zero. *)
 
+[@@@ocaml_rules "Rules"]
+
 use "int"
