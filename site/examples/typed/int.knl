@@ -8,7 +8,7 @@ subsort TNonzero : TInt
 sort TBool
 
 (** An integer literal. *)
-node Int of int : TInt [@ctor mk_int]
+node Int of int : TInt
 (** The sum of two integers. *)
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
 (** The quotient: the divisor is known to be non-zero. *)

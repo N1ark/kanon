@@ -434,7 +434,7 @@ node Sq1 : TInt -> TNonzero`}
     code={`sort TInt
 subsort TNonzero : TInt
 
-node Int of int : TInt [@ctor mk_int]
+node Int of int : TInt
 node Div : TInt -> TNonzero -> TInt`}
   />
   <ul>
@@ -445,8 +445,8 @@ node Div : TInt -> TNonzero -> TInt`}
       <code>tnonzero</code> is accepted where a <code>tint</code> is expected, and not the reverse.
     </li>
     <li>
-      A leaf, or a node without a rule function, has a function in the interface only with
-      <code>{`[@ctor f]{:kanon}`}</code>: <code>mk_int</code> builds an integer literal.
+      A node without a rule function, like the leaf <code>Int</code>, has no function in the
+      interface: only its destructors.
     </li>
   </ul>
   <Example id="typed" ocaml="ocaml-typed" lean="lean-model" />
@@ -457,18 +457,19 @@ node Div : TInt -> TNonzero -> TInt`}
     with a module for each file (here <code>Int</code>, the only one that has rules). <code>S</code> is its
     signature, and <code>Derived</code> implements it with the rules, which the language names with
     <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>: <code>{`let plus = Kanon_rules.plus{:ocaml}`}</code>.
-    What it cannot implement are the leaves with <code>{`[@ctor]{:kanon}`}</code>, which are written
-    by hand:
+    A leaf has no function in either, since no rule builds it: it is written by hand, from the types,
+    and given its tag with <code>type_</code>:
   </p>
   <Code
     lang="ocaml"
-    code={`module Typed : Lang_typed.S = struct
-  include Lang_typed.Derived
+    code={`module Typed = struct
+  include (Lang_typed.Derived : Lang_typed.S)
 
   module Int = struct
-    include Lang_typed.Derived.Int
+    include Int
 
-    let mk_int z = Lang_types.node (Int z) TInt
+    let mk_int z : [> Lang_typed.Tag.tint ] t =
+      type_ (Lang_types.node (Int z) TInt)
   end
 end`}
   />

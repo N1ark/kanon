@@ -190,9 +190,6 @@ type lang = {
   ocaml_rules : string option;
       (** [[@@@ocaml_rules "M"]]: the OCaml module of the rules, which the
           implementation of [ocaml-typed] is made of *)
-  node_ctors : (string * string) list;
-      (** [[@ctor f]] on a node: the name of its smart constructor, if no rule
-          function is its spec *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
   laws : (string * law * Location.t * Location.t) list;
@@ -219,7 +216,6 @@ let lang =
       ocaml_types = None;
       ocaml_prims = None;
       ocaml_rules = None;
-      node_ctors = [];
       operators = [];
       raw_typing = [];
       laws = [];

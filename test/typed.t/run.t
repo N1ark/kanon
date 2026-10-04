@@ -21,9 +21,9 @@ files, and implemented by the rules.
   > subsort TZero of nat : TBitVec n
   > 
   > (** A bit-vector literal. *)
-  > node BitVec of int * nat (v, n) : TBitVec n [@ctor mk_bv]
+  > node BitVec of int * nat (v, n) : TBitVec n
   > (** The zero of a width. *)
-  > node Zero of nat (n) : TZero n [@ctor mk_zero]
+  > node Zero of nat (n) : TZero n
   > (** Addition, which may overflow. *)
   > node Add of checked (c) : TBitVec n -> TBitVec n -> TBitVec n
   > (** Division: the divisor is known to be non-zero. *)
@@ -40,7 +40,7 @@ files, and implemented by the rules.
   $ cat > seq.knl <<'KN'
   > (** Sequences of terms of a sort. *)
   > sort TSeq of ty
-  > node Seq : a list -> TSeq a [@ctor mk_seq]
+  > node Seq : a list -> TSeq a
   > node Len : TSeq a -> TBitVec 32
   > KN
   $ cat > seq.kn <<'KN'
@@ -104,13 +104,6 @@ files, and implemented by the rules.
         [> Tag.tbitvec ] t
       
       val bv_ult : [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbool ] t
-      
-      (** A bit-vector literal. *)
-      val mk_bv : Z.t -> int -> [> Tag.tbitvec ] t
-      
-      (** The zero of a width. *)
-      val mk_zero : int -> [> Tag.tzero ] t
-      
       val as_bitvec : _ t -> (Z.t * int) option
       val is_bitvec : _ t -> bool
       val as_zero : _ t -> int option
@@ -137,7 +130,6 @@ files, and implemented by the rules.
       val t_seq : _ ty -> [> Tag.tseq ] ty
       
       val len : [< Tag.tseq ] t -> [> Tag.tbitvec ] t
-      val mk_seq : 'a t list -> [> Tag.tseq ] t
       val as_seq : _ t -> 'a t list option
       val is_seq : _ t -> bool
       val as_len : _ t -> [> Tag.tseq ] t option
@@ -147,7 +139,7 @@ files, and implemented by the rules.
     end
   end
   
-  (** The implementation of [S], from the rules, with the types of [S] visible: [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. What it does not define are the leaf nodes, written by hand: [module Typed : S = struct include Derived ... end]. *)
+  (** The implementation of [S], from the rules, with the types of [S] visible: [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. It has no constructor for the leaf nodes, which no rule builds: a program adds them around it, with [type_], in [module Typed = struct include (Derived : S) ... end]. *)
   module Derived = struct
     module Kanon_rules = Lang_rules
     type raw = t
@@ -211,16 +203,17 @@ variant of its name, and for a sort that has subsorts, their tag types. A term
 of a subsort is accepted wherever its parent sort is, and not the reverse: an
 operand `[< tbitvec ] t` accepts any bit-vector, `[< tnonzero ] t` (the divisor
 of `bv_div`) only those that are known to be non-zero. A result is `[> tag ] t`:
-`mk_zero` builds a `tzero`, and `bv_add` a `tbitvec`, which has to be cast to
-be a divisor. The docs of the rule or, failing that, of the node, are carried
-to the `val`. Parameters are plain arguments. A node without a rule function or
-`[@ctor]` has no `val` (`Unspecified`), but it has its destructors. A `val` is
-in the module of the file of its declaration: the rule function, the sort, or
-the node; a module that has nothing to declare has no module.
+`bv_add` builds a `tbitvec`, which has to be cast to be a divisor. The docs of
+the rule or, failing that, of the node, are carried to the `val`. Parameters
+are plain arguments. A node without a rule function (a leaf node, which no
+rule builds, like `BitVec` and `Zero`) has no `val`, but it has its
+destructors: a program builds leaf terms itself, from the types (`node (Zero
+n) (TBitVec n)`), and gives them their tag with `type_`. A `val` is in the
+module of the file of its declaration: the rule function, the sort, or the
+rule; a module that has nothing to declare has no module.
 
 `S` is the signature. `Derived` implements it with the rules, `let bv_add =
-Kanon_rules.bv_add`, but for the leaf nodes with `[@ctor]`, which have no
-implementation.
+Kanon_rules.bv_add`.
 
 A sort variable is shared by the operands and the result (`b_ite`), and a
 sort that the typing does not determine, or a node without a typing, has any
@@ -231,7 +224,7 @@ tag:
   > type var [@ocaml "string"]
   > sort TInt
   > sort TOther
-  > node Var of var [@ctor mk_var]
+  > node Var of var
   > node Cast : TInt -> TOther
   > node Neg : TOther -> TInt
   > KN
@@ -244,12 +237,11 @@ tag:
       val t_other : [> Tag.tother ] ty
       val cast : [< Tag.tint ] t -> [> Tag.tother ] t
       val neg : [< Tag.tother ] t -> [> Tag.tint ] t
-      val mk_var : var -> _ t
 
 A rule function has the parameters that it declares, as the generated rules
 have them: a `nat` or an `int` is a `Z.t` (`extract`). The arguments of the
-constructors of the types are those of the types, and of the leaf nodes and the
-sorts, so a `nat` is an `int` there (`lit`, `t_bitvec`). The sorts that are
+constructors of the types are those of the types, and of the sorts and the
+destructors, so a `nat` is an `int` there (`t_bitvec`, `as_lit`). The sorts that are
 parameters of a node are raw (`raw_ty`): their tag is not known, and the terms
 that are parameters (not operands) have any tag:
 
@@ -259,7 +251,7 @@ that are parameters (not operands) have any tag:
   > sort TBool
   > sort TBitVec of nat
   > node Extract of nat * nat (i, j) : TBitVec n -> TBitVec (j - i + 1)
-  > node Lit of int * nat (v, n) : TBitVec n [@ctor lit]
+  > node Lit of int * nat (v, n) : TBitVec n
   > node Exists of (var * ty) list * t : TBool
   > node Eqz : TBitVec n -> TBool
   > KN
@@ -272,7 +264,6 @@ that are parameters (not operands) have any tag:
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       val extract : Z.t -> Z.t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
       val mk_exists : ((var * raw_ty) list) -> _ t -> [> Tag.tbool ] t
-      val lit : Z.t -> int -> [> Tag.tbitvec ] t
 
 A rule function whose spec is not a single node over its parameters is typed
 by the outermost node of its spec: the result has the tag of that node, a

@@ -2,8 +2,8 @@ The typed interface compiles, and rejects what the subsorts forbid. In this
 language, TNonzero and TZero are subsorts of TBitVector, with the tags
 `tnonzero` and `tzero`, and the language is in two modules, bitvec and cmp. The
 types, the rules and the interface are generated, and the interface is
-implemented by the generated `Derived` and the leaf nodes, which are written by
-hand.
+implemented by the generated `Derived`, which has no constructor for the leaf
+nodes: they are added by hand.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_types "Sub_types"]
@@ -16,8 +16,8 @@ hand.
   > sort TBitVector of nat [@get size]
   > subsort TNonzero of nat : TBitVector n
   > subsort TZero of nat : TBitVector n
-  > node BitVec of int * nat (v, n) : TBitVector n [@ctor mk_bv]
-  > node Zero of nat (n) : TZero n [@ctor mk_zero]
+  > node BitVec of int * nat (v, n) : TBitVector n
+  > node Zero of nat (n) : TZero n
   > node Div : TBitVector n -> TNonzero n -> TBitVector n
   > KN
   $ cat > bitvec.kn <<'KN'
@@ -39,14 +39,17 @@ hand.
   $ kanon ocaml lang.knl > sub_rules.ml
   $ kanon ocaml-typed lang.knl > sub_typed.ml
   $ cat > impl.ml <<'ML'
-  > module Typed : Sub_typed.S = struct
-  >   include Sub_typed.Derived
+  > module Typed = struct
+  >   include (Sub_typed.Derived : Sub_typed.S)
   > 
   >   module Bitvec = struct
-  >     include Sub_typed.Derived.Bitvec
+  >     include Bitvec
   > 
-  >     let mk_bv v n = Sub_types.node (BitVec (v, n)) (TBitVector n)
-  >     let mk_zero n = Sub_types.node (Zero n) (TBitVector n)
+  >     let mk_bv v n : [> Sub_typed.Tag.tbitvector ] t =
+  >       type_ (Sub_types.node (BitVec (v, n)) (TBitVector n))
+  > 
+  >     let mk_zero n : [> Sub_typed.Tag.tzero ] t =
+  >       type_ (Sub_types.node (Zero n) (TBitVector n))
   >   end
   > end
   > ML

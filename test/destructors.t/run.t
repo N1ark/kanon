@@ -8,11 +8,11 @@ the rules.
   > [@@@ocaml_prims "P"]
   > sort TBv of nat
   > sort TBool
-  > node Lit of int * nat (v, n) : TBv n [@ctor lit]
+  > node Lit of int * nat (v, n) : TBv n
   > node Add of bool (c) : TBv n -> TBv n -> TBv n
   > node Not : TBool -> TBool
   > node Concat : (TBv 8) list -> TBv 8
-  > node Unit : TBool [@ctor unit_]
+  > node Unit : TBool
   > KN
   $ cat > rules.kn <<'KN'
   > rule add : Add (c, v1, v2)

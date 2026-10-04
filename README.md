@@ -244,9 +244,6 @@ integers, `true` and `false`, or strings for anything else (`[@fold f_add]`,
   value of its type, and a repeated one for the same (`node Eq : a -> a ->
   TBool`); a width (`nat` argument of a type) is positive, unless the condition
   constrains it.
-- `[@ctor f]` on a node: the name of its smart constructor in `ocaml-typed`,
-  for a node that is not the spec of a rule function (see [Typed
-  OCaml](#typed-ocaml)).
 - `[@get f]` on a sort with one argument: the helper `f : t -> int` reads that
   argument from the sort of a term (`sort TBitVector of nat [@get size]`). Kanon then
   reads the argument with `f v`, rather than by matching the sort of `v`,
@@ -636,15 +633,14 @@ What is generated, in the file, for the language (nothing is a functor):
   identity at run time. Then a module per Kanon module (see below), with:
   - a `val t_s` per sort (not subsort), which makes the sorts of its terms from
     its arguments, which are those of its constructor (a `nat` is an `int`);
-  - a `val` per rule function, named after it, for the node that is its spec,
-    and per node with `[@ctor f]` (the leaves, and the nodes that have no rule
-    function). Other nodes have none. The parameters of a rule function have
-    the types that it declares, which are those of the generated rules (a `nat`
-    or an `int` is a `Z.t`), then come the operands, and the result. The
-    parameters of a `[@ctor]` are the arguments of the constructor of the node
-    (a `nat` is an `int`, an `int` a `Z.t`). Types of the language are those of
-    `ocaml-types`, opened from `[@@@ocaml_types]`, or else in scope. The docs of
-    the rule function or the node are carried onto the `val`;
+  - a `val` per rule function, named after it, for the node that is its spec.
+    A node that no rule function is the spec of, in particular a leaf node
+    (which has no operands to build from), has none: see below. The parameters
+    of a rule function have the types that it declares, which are those of the
+    generated rules (a `nat` or an `int` is a `Z.t`), then come the operands,
+    and the result. Types of the language are those of `ocaml-types`, opened
+    from `[@@@ocaml_types]`, or else in scope. The docs of the rule function or
+    the node are carried onto the `val`;
   - the destructors of the `ocaml` backend (see [OCaml](#ocaml)):
     `as_foo : _ t -> (args) option`, whose operands are `[> tag ] t` (the tags
     of the typing of `Foo`), and `is_foo : _ t -> bool`, for every node, and
@@ -677,24 +673,27 @@ module in the interface. `Tag`, `S`, `Derived` and `Kanon_rules` are the names
 of generated modules: a file may not have them. The tags, which are not tied
 to a module, are all in `Tag`.
 
-What is left to write by hand are the leaf nodes with `[@ctor]`, which
-`Derived` has no implementation of, and the other layers on top of it (labelled
-arguments, a nesting of its own, groups of tags):
+Leaf nodes have no constructor, in `S` nor in `Derived`: no rule builds them,
+and Kanon does not generate one. A program builds them from the types, with the
+hash-consing constructor `node` at the sort that the typing of the node gives,
+and gives the term its tag with `type_`. The same goes for the other layers on
+top of `Derived` (labelled arguments, a nesting of its own, groups of tags):
 
 ```ocaml
-module Typed : Lang_typed.S = struct
-  include Lang_typed.Derived
+module Typed = struct
+  include (Lang_typed.Derived : Lang_typed.S)
 
   module Bitvec = struct
-    include Lang_typed.Derived.Bitvec
+    include Bitvec
 
-    let mk_bv v n = Lang_types.node (BitVec (v, n)) (TBitVec n)
+    let mk_bv v n : [> Lang_typed.Tag.tbitvec ] t =
+      type_ (Lang_types.node (BitVec (v, n)) (TBitVec n))
   end
 end
 ```
 
-OCaml checks the result against the interface `S`, whose types are abstract
-(`type +'a t`).
+The constraint `(Derived : S)` makes the types abstract (`type +'a t`): OCaml
+checks the rest of the program against the interface `S`.
 
 ## Proofs
 
