@@ -58,3 +58,29 @@ let () =
     = 1 + 20 + 300 + 4000 + 50000 + 600000 + 7000000);
   check "fold of a unary operator, parameter named i"
     (value (neg (Z.of_int 3) (int 7)) = 21)
+
+let () =
+  let open Arrays_lang in
+  let int n = node (Int (Z.of_int n)) TInt in
+  let vec l = node (Vec (Iarray.of_list (List.map Z.of_int l))) TVec in
+  let elems (t : t) =
+    match t.kind with Vec a -> List.map Z.to_int (Iarray.to_list a) | _ -> []
+  in
+  let v = vec [ 10; 20; 30 ] in
+  check "length" (len v == int 3 && len (vec []) == int 0);
+  check "get" (get v (int 1) == int 20);
+  check "set" (elems (set v (int 1) (int 5)) = [ 10; 5; 30 ]);
+  check "set copies" (elems v = [ 10; 20; 30 ]);
+  check "set, then get" (get (set v (int 2) (int 7)) (int 2) == int 7);
+  check "hash-consing of arrays"
+    (vec [ 1; 2 ] == vec [ 1; 2 ] && vec [ 1; 2 ] != vec [ 2; 1 ]);
+  check "structural equality"
+    (same_vec (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.one ])
+    && not (same_vec (Iarray.of_list [ Z.one ]) (Iarray.of_list [ Z.of_int 2 ]))
+    );
+  check "lists" (elems (vec_of_list [ Z.of_int 4; Z.of_int 5 ]) = [ 4; 5 ]);
+  check "list round trip"
+    (elements (vec_of_list [ Z.one; Z.of_int 2 ]) = [ Z.one; Z.of_int 2 ]);
+  check "out of bounds is not simplified"
+    (get v (int 3) == node (Op2 (Get, v, int 3)) TInt
+    && set v (int (-1)) (int 0) == node (Op3 (Set, v, int (-1), int 0)) TVec)

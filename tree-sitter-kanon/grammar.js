@@ -325,7 +325,7 @@ module.exports = grammar({
       $.type_application,
     ),
 
-    // [t list], [(var * ty) list]
+    // [t list], [(var * ty) list], [t array]
     type_application: $ => seq(
       field('argument', $._type_application),
       field('constructor', typeIdentifier($)),
@@ -465,6 +465,7 @@ module.exports = grammar({
       $.parenthesized_expression,
       $.typed_expression,
       $.list_expression,
+      $.array_expression,
       $.record_expression,
       $.field_expression,
       $.prefix_expression,
@@ -492,6 +493,13 @@ module.exports = grammar({
       '[',
       optional(seq(sep1($._expression, ';'), optional(';'))),
       ']',
+    ),
+
+    // [[| a; b |]], an immutable array
+    array_expression: $ => seq(
+      '[|',
+      optional(seq(sep1($._expression, ';'), optional(';'))),
+      '|]',
     ),
 
     record_expression: $ => seq(

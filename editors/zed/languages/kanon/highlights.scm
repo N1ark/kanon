@@ -9,10 +9,10 @@
 (constructor) @constructor
 
 ((type_identifier) @type
-  (#not-any-of? @type "t" "int" "nat" "bool" "unit" "list" "option"))
+  (#not-any-of? @type "t" "int" "nat" "bool" "unit" "list" "option" "array"))
 
 ((type_identifier) @type.builtin
-  (#any-of? @type.builtin "t" "int" "nat" "bool" "unit" "list" "option"))
+  (#any-of? @type.builtin "t" "int" "nat" "bool" "unit" "list" "option" "array"))
 
 (field_identifier) @property
 
@@ -48,11 +48,13 @@
 
 ((application_expression
   function: (identifier) @function)
-  (#not-eq? @function "type_of"))
+  (#not-any-of? @function "type_of" "array_length" "array_get" "array_set"
+    "array_of_list" "array_to_list"))
 
 ((application_expression
   function: (identifier) @function.builtin)
-  (#eq? @function.builtin "type_of"))
+  (#any-of? @function.builtin "type_of" "array_length" "array_get" "array_set"
+    "array_of_list" "array_to_list"))
 
 ; [infix "+" = Add, bv_add unchecked, lit_add]: the smart constructor and the
 ; primitive on values
@@ -210,6 +212,12 @@
   [
     "["
     "]"
+  ] @punctuation.bracket)
+
+(array_expression
+  [
+    "[|"
+    "|]"
   ] @punctuation.bracket)
 
 (list_pattern

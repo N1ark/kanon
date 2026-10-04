@@ -1388,11 +1388,51 @@ let operator_text d (oc : Lsp_scope.occ option) =
              value)
   | _ -> []
 
+(** The functions on arrays, which Kanon defines: their signatures, and what
+    they do. *)
+let array_functions =
+  [
+    ("array_length", "array_length : 'a array -> int", "The number of elements.");
+    ( "array_get",
+      "array_get : 'a array -> int -> 'a",
+      "The element at an index, which must be in bounds." );
+    ( "array_set",
+      "array_set : 'a array -> int -> 'a -> 'a array",
+      "A copy of the array with the element at an index, which must be in \
+       bounds, replaced." );
+    ( "array_of_list",
+      "array_of_list : 'a list -> 'a array",
+      "The array of the elements of a list." );
+    ( "array_to_list",
+      "array_to_list : 'a array -> 'a list",
+      "The list of the elements of an array." );
+  ]
+
+let array_type_doc =
+  "An immutable array, `[| a; b |]`, in OCaml `Iarray.t` and in Lean `Array`. \
+   `=` compares arrays element by element."
+
 let hover params : Yojson.Safe.t =
   let f, o = doc_position params in
   let lang = lang_of f in
   match at lang f o with
   | Some (At_local (b, _), sp) -> markdown ~range:sp f (local_hover f b)
+  | Some (At_global (Some (Value x), [], _), sp)
+    when List.exists (fun (n, _, _) -> n = x) array_functions ->
+      let _, signature, doc =
+        List.find (fun (n, _, _) -> n = x) array_functions
+      in
+      markdown ~range:sp f
+        (String.concat "\n\n"
+           [ "```kanon\n" ^ signature ^ "\n```"; doc; "*built into Kanon*" ])
+  | Some (At_global (Some (Type "array"), [], _), sp) ->
+      markdown ~range:sp f
+        (String.concat "\n\n"
+           [
+             "```kanon\ntype 'a array\n```";
+             array_type_doc;
+             "*built into Kanon*";
+           ])
   | Some (At_global (_, d :: _, oc), sp) ->
       let doc =
         match Hashtbl.find_opt index d.file with
@@ -1559,7 +1599,8 @@ let valid_name lang (t : Lsp_scope.target) case x =
   let value = function Fn | Rule | Prim | Oracle -> true | _ -> false in
   match t with
   | Local _ | Global (Value _) ->
-      if taken value || x = "type_of" then failed "%s is already a function" x
+      if taken value || x = "type_of" || List.mem x Check.array_builtins then
+        failed "%s is already a function" x
   | Global (Constr _) ->
       if taken (function Node | Constr -> true | _ -> false) then
         failed "%s is already a constructor" x
@@ -1658,7 +1699,12 @@ let completion params : Yojson.Safe.t =
         | _ -> None)
       (lang_defs f)
   in
-  `List (defs @ List.filter_map (fun k -> item k 14 None) keywords)
+  let builtins =
+    List.filter_map
+      (fun (n, signature, _) -> item n 3 (Some signature))
+      array_functions
+  in
+  `List (defs @ builtins @ List.filter_map (fun k -> item k 14 None) keywords)
 
 let symbol_kind = function
   | Fn | Rule | Prim | Oracle -> 12

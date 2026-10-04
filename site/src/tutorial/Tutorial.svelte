@@ -51,7 +51,8 @@
     types, here the abstract type of variables, whose OCaml and Lean types
     <code>{`[@ocaml "..."]{:kanon}`}</code> and <code>{`[@lean "..."]{:kanon}`}</code> give.
     <code>int</code> (arbitrary precision, <code>Z.t</code> in OCaml), <code>bool</code>,
-    <code>unit</code>, tuples, <code>option</code> and <code>list</code> are built in.
+    <code>unit</code>, tuples, <code>option</code>, <code>list</code> and <code>array</code> (immutable
+    arrays, see the <a href="reference.html#arrays">reference</a>) are built in.
   </p>
   <Code
     code={`type var [@ocaml "string"] [@lean "String"]

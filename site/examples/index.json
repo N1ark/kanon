@@ -20,6 +20,17 @@
       "files": { "lang.knl": "../examples/bool/lang.knl" }
     },
     {
+      "id": "arrays",
+      "title": "Arrays: integers and arrays of integers",
+      "description": "examples/arrays: the built-in immutable arrays, int array, in a node, its rules and its Lean model",
+      "template": true,
+      "files": {
+        "lang.knl": "../examples/arrays/lang.knl",
+        "vec.knl": "../examples/arrays/vec.knl",
+        "vec.kn": "../examples/arrays/vec.kn"
+      }
+    },
+    {
       "id": "tiny",
       "title": "Tiny: booleans and integers",
       "description": "test/tiny.t: one module, with laws",

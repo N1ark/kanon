@@ -46,7 +46,8 @@
     <dd>
       An abstract, variant or record type, of the arguments of nodes and of the helpers.
       <code>int</code> (arbitrary precision), <code>bool</code>, <code>unit</code>, tuples,
-      <code>option</code> and <code>list</code> are built in; <code>nat</code>, in the arguments
+      <code>option</code>, <code>list</code> and <code>array</code> (see <a href="#arrays">Arrays</a>)
+      are built in; <code>nat</code>, in the arguments
       of nodes and sorts, is an OCaml <code>int</code> (a width, an index) and a Kanon
       <code>int</code>; it is also accepted in the signatures of functions, rules and primitives, as a
       synonym of <code>int</code> (<code>Z.t</code> in OCaml, not checked to be non-negative).
@@ -163,6 +164,49 @@
     <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
+  </p>
+
+  <Heading level={3} id="arrays">Arrays</Heading>
+  <p>
+    <code>t array</code> is the type of immutable arrays of <code>t</code>: a type of its own, not a
+    list under other names (<code>Iarray.t</code> in OCaml, <code>Array t</code> in Lean). It has
+    a literal and five functions, which are built in: their names cannot be declared again.
+  </p>
+  <table>
+    <thead><tr><th>Expression</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>{`[| a; b |]{:kanon}`}</code>, <code>{`[||]{:kanon}`}</code></td>
+        <td>The array of these elements. <code>{`[||]{:kanon}`}</code> needs its type to be known (a result, an argument).</td>
+      </tr>
+      <tr><td><code>{`array_length a{:kanon}`}</code></td><td>The number of elements, an <code>int</code>.</td></tr>
+      <tr><td><code>{`array_get a i{:kanon}`}</code></td><td>The element at the index <code>i</code>, which must be in bounds.</td></tr>
+      <tr>
+        <td><code>{`array_set a i x{:kanon}`}</code></td>
+        <td>A copy of <code>a</code> where the element at <code>i</code>, in bounds, is <code>x</code>; <code>a</code> is not changed.</td>
+      </tr>
+      <tr>
+        <td><code>{`array_of_list l{:kanon}`}</code>, <code>{`array_to_list a{:kanon}`}</code></td>
+        <td>The conversions between lists and arrays.</td>
+      </tr>
+      <tr>
+        <td><code>{`a = b{:kanon}`}</code>, <code>{`a <> b{:kanon}`}</code></td>
+        <td>
+          Structural equality: the same length and equal elements. A node with an array argument is
+          hash-consed on it.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    There is no cons, concatenation, array pattern or <code>a.(i)</code>: an array is read and updated by
+    index, and a recursion is written on its list (<code>array_to_list</code>). An index out of
+    bounds is a precondition that Kanon does not check: OCaml raises <code>Invalid_argument</code>,
+    and Lean's total operations (<code>arrayGet</code> and <code>arraySet</code>, in
+    <code>KanonCore.Array</code>, with their lemmas) return <code>default</code> and the array
+    itself, which must not be relied on, so a rule tests the index first
+    (<code>{`Vec a, #k when 0 <= k && k < array_length a -> …{:kanon}`}</code>). The generated OCaml
+    uses the standard <code>Iarray</code> (OCaml 5.4) and needs nothing else.
   </p>
 
   <Heading level={2} id="attributes">Attributes</Heading>

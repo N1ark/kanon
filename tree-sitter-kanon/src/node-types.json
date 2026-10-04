@@ -8,6 +8,10 @@
         "named": true
       },
       {
+        "type": "array_expression",
+        "named": true
+      },
+      {
         "type": "assert_expression",
         "named": true
       },
@@ -282,6 +286,10 @@
         "required": true,
         "types": [
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "boolean",
             "named": true
           },
@@ -340,6 +348,21 @@
     }
   },
   {
+    "type": "array_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "assert_expression",
     "named": true,
     "fields": {
@@ -347,6 +370,10 @@
         "multiple": false,
         "required": true,
         "types": [
+          {
+            "type": "array_expression",
+            "named": true
+          },
           {
             "type": "boolean",
             "named": true
@@ -584,6 +611,10 @@
             "named": true
           },
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "assert_expression",
             "named": true
           },
@@ -677,6 +708,10 @@
         "types": [
           {
             "type": "application_expression",
+            "named": true
+          },
+          {
+            "type": "array_expression",
             "named": true
           },
           {
@@ -1140,6 +1175,10 @@
         "required": true,
         "types": [
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "boolean",
             "named": true
           },
@@ -1380,6 +1419,10 @@
         "multiple": false,
         "required": true,
         "types": [
+          {
+            "type": "array_expression",
+            "named": true
+          },
           {
             "type": "boolean",
             "named": true
@@ -2039,6 +2082,10 @@
         "required": true,
         "types": [
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "boolean",
             "named": true
           },
@@ -2322,6 +2369,10 @@
             "named": true
           },
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "boolean",
             "named": true
           },
@@ -2456,6 +2507,10 @@
           "named": true
         },
         {
+          "type": "array_expression",
+          "named": true
+        },
+        {
           "type": "boolean",
           "named": true
         },
@@ -2551,6 +2606,10 @@
       "types": [
         {
           "type": "application_expression",
+          "named": true
+        },
+        {
+          "type": "array_expression",
           "named": true
         },
         {
@@ -2911,6 +2970,10 @@
             "named": true
           },
           {
+            "type": "array_expression",
+            "named": true
+          },
+          {
             "type": "assert_expression",
             "named": true
           },
@@ -3183,6 +3246,10 @@
     "named": false
   },
   {
+    "type": "[|",
+    "named": false
+  },
+  {
     "type": "]",
     "named": false
   },
@@ -3353,6 +3420,10 @@
   },
   {
     "type": "|",
+    "named": false
+  },
+  {
+    "type": "|]",
     "named": false
   },
   {

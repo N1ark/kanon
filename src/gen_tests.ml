@@ -47,7 +47,7 @@ let rec draw t : (Format.formatter -> unit) option =
                            c.c_name))
                     (List.mapi (fun i c -> (i, c)) constrs))
           | _ -> None))
-  | TUnit | TKind | TSty | TOption _ | TList _ -> None
+  | TUnit | TKind | TSty | TOption _ | TList _ | TArray _ -> None
 
 (** The name of the rule of [body] that fires, where [body] is the body of a
     rule function. *)

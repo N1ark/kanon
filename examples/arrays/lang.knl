@@ -1,0 +1,8 @@
+(* An example language of integers and of arrays of integers: it shows the
+   built-in immutable arrays, whose type [int array] is the argument of a node,
+   and which rules build, read and update. Its OCaml is tested in test/ocaml,
+   and its Lean model is in lean/. *)
+
+[@@@lean_root "ArraysExample"]
+
+use "vec"

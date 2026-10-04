@@ -484,3 +484,74 @@ fn mk_field_in (i : int) (v : t) : t = (Field (i, v) : (nth_ty (types_of [v]) i)
               (list_expression
                 (identifier))))
           (identifier))))))
+
+================================================================================
+Arrays
+================================================================================
+
+fn f (a : int array) (b : (t * int) array array) : int array =
+  array_set a (array_length a - 1) ([| 1; 2 |] = a)
+fn g : int array = [||]
+fn h (l : int list) : int array = array_of_list [| x; y; |]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_application
+        (type_identifier)
+        (type_identifier)))
+    (parameter
+      (identifier)
+      (type_application
+        (type_application
+          (parenthesized_type
+            (tuple_type
+              (type_identifier)
+              (type_identifier)))
+          (type_identifier))
+        (type_identifier)))
+    (type_application
+      (type_identifier)
+      (type_identifier))
+    (application_expression
+      (identifier)
+      (identifier)
+      (parenthesized_expression
+        (binary_expression
+          (application_expression
+            (identifier)
+            (identifier))
+          (operator)
+          (number)))
+      (parenthesized_expression
+        (binary_expression
+          (array_expression
+            (number)
+            (number))
+          (operator)
+          (identifier)))))
+  (function_definition
+    (identifier)
+    (type_application
+      (type_identifier)
+      (type_identifier))
+    (array_expression))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_application
+        (type_identifier)
+        (type_identifier)))
+    (type_application
+      (type_identifier)
+      (type_identifier))
+    (application_expression
+      (identifier)
+      (array_expression
+        (identifier)
+        (identifier)))))

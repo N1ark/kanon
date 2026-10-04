@@ -78,7 +78,7 @@ let text ctx (loc : Location.t) =
 (** The types built into Kanon, or generated from the nodes and sorts, which
     have no definition. *)
 let builtin_types =
-  [ "int"; "bool"; "unit"; "t"; "ty"; "list"; "option"; "nat" ]
+  [ "int"; "bool"; "unit"; "t"; "ty"; "list"; "option"; "array"; "nat" ]
 
 (** The constructors built into Kanon. *)
 let builtin_constrs = [ "true"; "false"; "()"; "[]"; "::"; "None"; "Some"; "#" ]
@@ -135,7 +135,9 @@ let analyze ctx (str : structure) : occ list =
   let rec typ (t : core_type) =
     match t.ptyp_desc with
     | Ptyp_constr ({ txt = Lident x; loc }, args) ->
-        if not (List.mem x builtin_types) then global loc (Type x);
+        (* [array] is built in, but its hover documents it *)
+        if x = "array" || not (List.mem x builtin_types) then
+          global loc (Type x);
         List.iter typ args
     | Ptyp_tuple l -> List.iter typ l
     | Ptyp_arrow (_, a, b) ->

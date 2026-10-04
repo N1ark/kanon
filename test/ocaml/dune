@@ -1,7 +1,8 @@
 ; The generated OCaml compiles and runs: the types and rules of the language
 ; of ../tiny.t, as modules (Tiny_types, Tiny_rules, opened through
 ; [@@@ocaml_types] and the primitives of Tiny_prims), and of the example
-; language of examples/bool, included in one module (Bool_lang).
+; language of examples/bool, included in one module (Bool_lang), and that of
+; examples/arrays (Arrays_lang), with its arrays.
 
 (rule
  (deps
@@ -43,12 +44,32 @@
    bool_rules.gen.ml
    (run %{bin:kanon} ocaml %{project_root}/examples/bool/lang.knl))))
 
+(rule
+ (deps
+  (glob_files %{project_root}/examples/arrays/*.kn*))
+ (action
+  (with-stdout-to
+   arrays_types.gen.ml
+   (run %{bin:kanon} ocaml-types %{project_root}/examples/arrays/lang.knl))))
+
+(rule
+ (deps
+  (glob_files %{project_root}/examples/arrays/*.kn*))
+ (action
+  (with-stdout-to
+   arrays_rules.gen.ml
+   (run %{bin:kanon} ocaml %{project_root}/examples/arrays/lang.knl))))
+
 (test
  (name main)
  (libraries zarith)
  (preprocess
   (pps kanon.ppx_include_file))
- (preprocessor_deps bool_types.gen.ml bool_rules.gen.ml))
+ (preprocessor_deps
+  bool_types.gen.ml
+  bool_rules.gen.ml
+  arrays_types.gen.ml
+  arrays_rules.gen.ml))
 
 ; The literals of a [@fold] law do not capture the parameters of the node,
 ; named like them (hygiene/lang.knl).

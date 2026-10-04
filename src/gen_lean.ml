@@ -197,6 +197,7 @@ let rec lean_ty ft = function
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
+  | TArray t -> pf ft "(Array %a)" lean_ty t
 
 let lean_constr (c : constr) = Fmt.str "%a.%s" lean_ty c.c_res c.c_name
 
@@ -265,6 +266,13 @@ let rec expr ctx ft (e : expr) =
       pf ft "(%s %a)" (lean_constr c) (list ~sep:" " expr) args
   | ENode (k, t) -> pf ft "(Term.mk %a %a)" expr k expr t
   | ECall ("type_of", [ a ]) -> pf ft "(ty %a)" expr a
+  | EArray l -> pf ft "#[%a]" (list expr) l
+  | ECall ("array_length", [ a ]) -> pf ft "(arrayLength %a)" expr a
+  | ECall ("array_get", [ a; i ]) -> pf ft "(arrayGet %a %a)" expr a expr i
+  | ECall ("array_set", [ a; i; v ]) ->
+      pf ft "(arraySet %a %a %a)" expr a expr i expr v
+  | ECall ("array_of_list", [ l ]) -> pf ft "(List.toArray %a)" expr l
+  | ECall ("array_to_list", [ a ]) -> pf ft "(Array.toList %a)" expr a
   | ECall (f, args) ->
       let f =
         if is_oracle ctx f then "O.orc." ^ f
@@ -668,7 +676,7 @@ let rec occurs ~ty_ok x (e : expr) =
   | ECall (f, [ { e = EVar y; _ } ]) when y = x && List.mem f !lang.ty_only ->
       not ty_ok
   | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> false
-  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l ->
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
       List.exists go l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
       go a || go b
@@ -1146,7 +1154,8 @@ let rec calls (e : expr) =
   match e.e with
   | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
   | ECall (f, l) -> f :: List.concat_map calls l
-  | EConstr (_, l) | ELocalCall (_, l) | ETuple l -> List.concat_map calls l
+  | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
+      List.concat_map calls l
   | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
       calls a @ calls b
   | EUnop (_, a) | ESome a | EField (a, _) -> calls a
@@ -1424,13 +1433,13 @@ let components (d : decl) =
 let rec decls_of_ty = function
   | (TKind | TSty | TData _) as t -> [ decl_of_ty t ]
   | TTuple l -> List.concat_map decls_of_ty l
-  | TOption t | TList t -> decls_of_ty t
+  | TOption t | TList t | TArray t -> decls_of_ty t
   | TInt | TBool | TUnit | TTerm -> []
 
 let rec uses_term = function
   | TTerm -> true
   | TTuple l -> List.exists uses_term l
-  | TOption t | TList t -> uses_term t
+  | TOption t | TList t | TArray t -> uses_term t
   | _ -> false
 
 (** The declared types, callees first, and otherwise in declaration order. *)

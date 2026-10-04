@@ -392,3 +392,48 @@ a sort that is not a ty is reported where it is.
   {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/cs/rules.kn","range":{"start":{"line":3,"character":28},"end":{"line":3,"character":29}}}]}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/cs/rules.kn","diagnostics":[{"range":{"start":{"line":3,"character":58},"end":{"line":3,"character":59}},"severity":1,"source":"kanon","message":"type mismatch: expected ty, got int"}]}}
   {"jsonrpc":"2.0","id":5,"result":null}
+
+Arrays: the hover of the type and of the functions on arrays, which Kanon
+defines, the completion of these functions, the types of the elements and of
+the indices that are checked, and a function of the language that cannot take
+their names.
+
+  $ mkdir ar
+  $ cat > ar/lang.knl <<'KN'
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ cat > ar/rules.kn <<'KN'
+  > fn first (a : int array) : int = array_get a 0
+  > fn put (a : int array) (x : int) : int array = array_set a 0 x
+  > fn lit : int array = [| 1; 2 |]
+  > fn bad (a : int array) : int = array_get a true
+  > fn other (a : int array) : int array = [| 1; true |]
+  > KN
+  $ initar='{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/ar","capabilities":{}}}'
+  $ {
+  >   msg "$initar"
+  >   msg "$(open ar/rules.kn "$(sed 's/$/\\n/' ar/rules.kn | tr -d '\n')")"
+  >   msg "$(at 1 hover ar/rules.kn 0 19)"
+  >   msg "$(at 2 hover ar/rules.kn 0 38)"
+  >   msg "$(at 3 hover ar/rules.kn 0 44)"
+  >   msg "$(at 4 definition ar/rules.kn 1 57)"
+  >   msg "$(at 5 completion ar/rules.kn 2 20)"
+  >   msg '{"jsonrpc":"2.0","id":6,"method":"textDocument/rename","params":{"textDocument":{"uri":"file://ROOT/ar/rules.kn"},"position":{"line":1,"character":4},"newName":"array_get"}}'
+  >   msg '{"jsonrpc":"2.0","id":7,"method":"shutdown"}'
+  >   msg '{"jsonrpc":"2.0","method":"exit"}'
+  > } > input
+  $ lsp | grep -v -e '"id":0,' -e '"id":5,'
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/ar/rules.kn","diagnostics":[{"range":{"start":{"line":3,"character":43},"end":{"line":3,"character":47}},"severity":1,"source":"kanon","message":"type mismatch: expected int, got bool"},{"range":{"start":{"line":4,"character":45},"end":{"line":4,"character":49}},"severity":1,"source":"kanon","message":"type mismatch: expected int, got bool"}]}}
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\ntype 'a array\n```\n\nAn immutable array, `[| a; b |]`, in OCaml `Iarray.t` and in Lean `Array`. `=` compares arrays element by element.\n\n*built into Kanon*"},"range":{"start":{"line":0,"character":18},"end":{"line":0,"character":23}}}}
+  {"jsonrpc":"2.0","id":2,"result":{"contents":{"kind":"markdown","value":"```kanon\narray_get : 'a array -> int -> 'a\n```\n\nThe element at an index, which must be in bounds.\n\n*built into Kanon*"},"range":{"start":{"line":0,"character":33},"end":{"line":0,"character":42}}}}
+  {"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"```kanon\na : int array\n```\n\nParameter of `first`. Bound on line 1."},"range":{"start":{"line":0,"character":43},"end":{"line":0,"character":44}}}}
+  {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/ar/rules.kn","range":{"start":{"line":1,"character":8},"end":{"line":1,"character":9}}}]}
+  {"jsonrpc":"2.0","id":6,"error":{"code":-32803,"message":"array_get is already a function"}}
+  {"jsonrpc":"2.0","id":7,"result":null}
+  $ lsp | grep '"id":5,' | grep -o '"label":"array_[a-z_]*","kind":3,"detail":"[^"]*"'
+  "label":"array_length","kind":3,"detail":"array_length : 'a array -> int"
+  "label":"array_get","kind":3,"detail":"array_get : 'a array -> int -> 'a"
+  "label":"array_set","kind":3,"detail":"array_set : 'a array -> int -> 'a -> 'a array"
+  "label":"array_of_list","kind":3,"detail":"array_of_list : 'a list -> 'a array"
+  "label":"array_to_list","kind":3,"detail":"array_to_list : 'a array -> 'a list"

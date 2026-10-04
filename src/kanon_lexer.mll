@@ -119,6 +119,8 @@ rule token = parse
       let left = left_ok lexbuf in
       rewind lexbuf;
       operator s left lexbuf }
+  | "[|" { LBRACKETBAR }
+  | "|]" { BARRBRACKET }
   | "[@@@" { LBRACKETATATAT }
   | "[@" { LBRACKETAT }
   | '(' { LPAREN }

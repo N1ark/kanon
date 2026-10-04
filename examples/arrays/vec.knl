@@ -1,0 +1,17 @@
+(* The vec module: integers, and arrays of integers. *)
+
+node Int of int : TInt
+notation Int
+node Vec of int array : TVec
+
+(** The number of elements of an array. *)
+node Len : TVec -> TInt
+
+(** The element at an index, which must be in bounds. *)
+node Get : TVec -> TInt -> TInt
+
+(** The array with the element at an index replaced: a copy. *)
+node Set : TVec -> TInt -> TInt -> TVec
+
+sort TInt
+sort TVec
