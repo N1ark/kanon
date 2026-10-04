@@ -20,15 +20,15 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   > node Int of int : TInt
   > 
   > (** Addition. Mentions a nested (* plain comment *) and (* another (* nested *) one *). *)
-  > node Add : TInt -> TInt -> TInt [@comm] [@fold add_z] [@unit 0]
+  > node Add : TInt -> TInt -> TInt [@comm] [@fold Rules.add_z] [@unit 0]
   > 
   > (** Comparison: contains a close-comment lookalike ( * ) and a Lean one -/ here. *)
-  > node Le : TInt -> TInt -> TBool [@fold le_z of_bool]
+  > node Le : TInt -> TInt -> TBool [@fold Rules.le_z Rules.of_bool]
   > 
   > node Bool of bool : TBool
   > notation Int
   > notation Bool
-  > infix "+" = Add, add
+  > infix "+" = Add, Rules.add
   > KN
   $ cat > rules.kn <<'KN'
   > (** A primitive. *)
@@ -166,21 +166,21 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
       else (Op2 (op, r, l)))
   
   (** A helper function. *)
-  let[@inline] add_z (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
+  let[@inline] rules_add_z (x : Z.t) (y : Z.t) : Z.t = (Z.add x y)
   
   (** Another one,
       on two lines. *)
-  let[@inline] le_z (x : Z.t) (y : Z.t) : bool = (Z.leq x y)
+  let[@inline] rules_le_z (x : Z.t) (y : Z.t) : bool = (Z.leq x y)
   
   (** The rule of addition. *)
-  let add (v1 : t) (v2 : t) : t =
+  let rules_add (v1 : t) (v2 : t) : t =
       (assert ((match v1.ty, v2.ty with
                | ((TInt), (TInt)) -> true
                | _ -> false
                ) [@warning "-11"]);
       (match v1, v2 with
       | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (node (Int ((add_z i1 i2))) TInt)
+        (node (Int ((rules_add_z i1 i2))) TInt)
       | (x, { kind = Int (kanon__2); _ })
         when (((Z.equal kanon__2 Z.zero))) ->
         x
@@ -197,14 +197,14 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
       ))
   
   (** The rule of comparison. *)
-  let le (v1 : t) (v2 : t) : t =
+  let rules_le (v1 : t) (v2 : t) : t =
       (assert ((match v1.ty, v2.ty with
                | ((TInt), (TInt)) -> true
                | _ -> false
                ) [@warning "-11"]);
       (match v1, v2 with
       | ({ kind = Int (i1); _ }, { kind = Int (i2); _ }) ->
-        (Prims.of_bool (le_z i1 i2))
+        (Prims.of_bool (rules_le_z i1 i2))
       | _ -> (node (Op2 (Le, v1, v2)) TBool)
       ))
   
@@ -320,40 +320,40 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
     sort_ints : (List Term) → (List Term)
   
   /-- A helper function. -/
-  def add_z (x : Int) (y : Int) : Int :=
+  def Rules.add_z (x : Int) (y : Int) : Int :=
     (x + y)
   
   /-- Another one,
       on two lines. -/
-  def le_z (x : Int) (y : Int) : Bool :=
+  def Rules.le_z (x : Int) (y : Int) : Bool :=
     (decide (x ≤ y))
   
   /-- The rule functions, as used by the rules. -/
   structure Ops where
     orc : Oracle
     /-- The rule of addition. -/
-    add : Term → Term → Term
+    rules_add : Term → Term → Term
     /-- The rule of comparison. -/
-    le : Term → Term → Term
+    rules_le : Term → Term → Term
   
   def mk_commut_binop (O : Ops) (op : Op2) (l : Term) (r : Term) : Kind :=
     (if (O.orc.tag_le l r) then (Kind.Op2 op l r) else (Kind.Op2 op r l))
   
   /-- The rule of addition. -/
-  @[kanon_spec] def add.spec (v1 : Term) (v2 : Term) : Term :=
+  @[kanon_spec] def Rules.add.spec (v1 : Term) (v2 : Term) : Term :=
     (Term.mk (Kind.Op2 Op2.Add v1 v2) Ty.TInt)
   
   /-- The rule of comparison. -/
-  @[kanon_spec] def le.spec (v1 : Term) (v2 : Term) : Term :=
+  @[kanon_spec] def Rules.le.spec (v1 : Term) (v2 : Term) : Term :=
     (Term.mk (Kind.Op2 Op2.Le v1 v2) Ty.TBool)
   
-  def add.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.add.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | (Term.mk (Kind.Int i1) _), (Term.mk (Kind.Int i2) _) =>
-      (whenSome true ((Term.mk (Kind.Int (add_z i1 i2)) Ty.TInt)))
+      (whenSome true ((Term.mk (Kind.Int (Rules.add_z i1 i2)) Ty.TInt)))
       | _, _ => none)
   
-  def add.r_unit_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.add.r_unit_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | x, (Term.mk (Kind.Int kanon__2) _) =>
       (whenSome (decide (kanon__2 = (0 : Int))) (x))
@@ -363,7 +363,7 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
           (whenSome (decide (kanon__2 = (0 : Int))) (x))
           | _, _ => none)
   
-  def add.r_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.add.r_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | (Term.mk (Kind.Int kanon__1) _), x =>
       (whenSome (decide (kanon__1 = (0 : Int))) (x))
@@ -373,37 +373,37 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
           (whenSome (decide (kanon__1 = (0 : Int))) (x))
           | _, _ => none)
   
-  def add.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.add.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | _, _ =>
       (whenSome true ((Term.mk (mk_commut_binop O Op2.Add v1 v2) Ty.TInt))))
   
-  def add.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-    (firstSome [add.r_lits O v1 v2, add.r_unit_zero O v1 v2, add.r_zero O v1 v2, add.r_default O v1 v2]).getD (add.spec v1 v2)
+  def Rules.add.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+    (firstSome [Rules.add.r_lits O v1 v2, Rules.add.r_unit_zero O v1 v2, Rules.add.r_zero O v1 v2, Rules.add.r_default O v1 v2]).getD (Rules.add.spec v1 v2)
   
-  def le.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.le.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | (Term.mk (Kind.Int i1) _), (Term.mk (Kind.Int i2) _) =>
-      (whenSome true ((of_bool (le_z i1 i2))))
+      (whenSome true ((of_bool (Rules.le_z i1 i2))))
       | _, _ => none)
   
-  def le.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  def Rules.le.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
     (match v1, v2 with
       | _, _ =>
       (whenSome true ((Term.mk (Kind.Op2 Op2.Le v1 v2) Ty.TBool))))
   
-  def le.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-    (firstSome [le.r_lits O v1 v2, le.r_default O v1 v2]).getD (le.spec v1 v2)
+  def Rules.le.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+    (firstSome [Rules.le.r_lits O v1 v2, Rules.le.r_default O v1 v2]).getD (Rules.le.spec v1 v2)
   
   def opsRaw (orc : Oracle) : Ops :=
     { orc := orc,
-      add := fun v1 v2 => add.spec v1 v2,
-      le := fun v1 v2 => le.spec v1 v2 }
+      rules_add := fun v1 v2 => Rules.add.spec v1 v2,
+      rules_le := fun v1 v2 => Rules.le.spec v1 v2 }
   
   def opsStep (O : Ops) : Ops :=
     { orc := O.orc,
-      add := add.step O,
-      le := le.step O }
+      rules_add := Rules.add.step O,
+      rules_le := Rules.le.step O }
   
   def opsN (orc : Oracle) : Nat → Ops
     | 0 => opsRaw orc

@@ -273,11 +273,15 @@ let rec expr ctx ft (e : expr) =
   | ECall ("tag_le", [ a; b ]) ->
       pf ft "(Int.compare %a.tag %a.tag <= 0)" expr a expr b
   | ECall (f, []) ->
-      if List.mem f ctx.prims then pf ft "%s.%s" (prims_module ()) f
-      else if List.mem f ctx.consts then pf ft "%s" f
-      else pf ft "(%s ())" f
+      if List.mem f ctx.prims then
+        pf ft "%s.%s" (prims_module ()) (plain_name f)
+      else if List.mem f ctx.consts then pf ft "%s" (flat_name f)
+      else pf ft "(%s ())" (flat_name f)
   | ECall (f, args) ->
-      let f = if List.mem f ctx.prims then prims_module () ^ "." ^ f else f in
+      let f =
+        if List.mem f ctx.prims then prims_module () ^ "." ^ plain_name f
+        else flat_name f
+      in
       pf ft "(%s %a)" f (list ~sep:" " expr) args
   | ELocalCall (f, args) -> pf ft "(%s %a)" f (list ~sep:" " expr) args
   | EUnop (Neg, a) -> pf ft "(Z.neg %a)" expr a
@@ -431,8 +435,8 @@ let fn ctx ft (f : fn) =
     | [] -> pf ft " ()"
     | ps -> List.iter (fun (x, t) -> pf ft " (%s : %a)" x ocaml_ty t) ps
   in
-  pf ft "%s%a : %a =@;<1 2>%a" f.name params f.params ocaml_ty f.ret (expr ctx)
-    f.body
+  pf ft "%s%a : %a =@;<1 2>%a" (flat_name f.name) params f.params ocaml_ty f.ret
+    (expr ctx) f.body
 
 (** The primitives that [expr] compiles inline. *)
 let inline_prims = [ "type_of"; "tag_le" ]
@@ -446,7 +450,7 @@ let prim_fns (p : program) =
       if List.mem q.pname inline_prims then None
       else
         Some
-          ( q.pname,
+          ( plain_name q.pname,
             String.concat " -> " (List.map ty (q.pargs @ [ q.pret ])),
             q.pdoc ))
     p.prims
@@ -457,7 +461,7 @@ let check_prims (p : program) =
   match (prim_fns p, !lang.ocaml_prims) with
   | (f, _, _) :: _, None ->
       let loc =
-        match List.find_opt (fun q -> q.pname = f) p.prims with
+        match List.find_opt (fun q -> plain_name q.pname = f) p.prims with
         | Some q -> q.ploc
         | None -> Location.none
       in
@@ -519,8 +523,37 @@ let check_destructors (p : program) =
              ))
     | None -> ()
   in
-  List.iter (fun (f : fn) -> clash f.floc f.name "function") p.fns;
-  List.iter (fun (q : prim) -> clash q.ploc q.pname "primitive") p.prims
+  List.iter (fun (f : fn) -> clash f.floc (flat_name f.name) "function") p.fns;
+  List.iter
+    (fun (q : prim) -> clash q.ploc (plain_name q.pname) "primitive")
+    p.prims
+
+(** Checks that two functions do not have the same OCaml name ([Bitvec.add_x]
+    and [Bitvec_add.x] are both [bitvec_add_x]), nor two primitives (the module
+    of the primitives implements them by their name without their module: rename
+    one of [Int.size] and [Bitvec.size]). *)
+let check_names (p : program) =
+  let dup what loc name = function
+    | Some other when other <> name ->
+        raise
+          (Check.Error
+             ( loc,
+               Fmt.str "%s and %s are both the %s %s" other name what
+                 (if what = "function" then flat_name name else plain_name name)
+             ))
+    | _ -> ()
+  in
+  let seen = Hashtbl.create 16 in
+  let check what key loc name =
+    dup what loc name (Hashtbl.find_opt seen (what, key));
+    Hashtbl.replace seen (what, key) name
+  in
+  List.iter
+    (fun (f : fn) -> check "function" (flat_name f.name) f.floc f.name)
+    p.fns;
+  List.iter
+    (fun (q : prim) -> check "primitive" (plain_name q.pname) q.ploc q.pname)
+    p.prims
 
 (** The destructors of [c]: [as_foo], which is the arguments of [c] (its
     parameters, then its operands, as in a pattern) in an option, and [is_foo].
@@ -609,6 +642,7 @@ let program ~sources ft (p : program) =
   in
   let ctx = { prims = List.map (fun p -> p.pname) p.prims; consts } in
   check_destructors p;
+  check_names p;
   header ~sources ft;
   prim_sigs ft p;
   List.iter

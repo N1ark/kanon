@@ -11,7 +11,7 @@ refined by `b + a`, at any type `t`.
 
 The subsort `TNonzero` (its Lean predicate is `Nonzero`, in `Semantics.lean`) asks
 two more proofs: the arm `a / a = 1` assumes that its divisor is not zero (the
-quotient by zero is zero), and `sq1.post.main.Stmt` says that what `sq1`
+quotient by zero is zero), and `Int.sq1.post.main.Stmt` says that what `sq1`
 returns, which has the sort `TNonzero`, is not zero.
 -/
 
@@ -36,18 +36,18 @@ open Kanon
 open Classical in
 /-- `a / a` is refined by `1`, when `a` is not zero (the divisor, `Nonzero`: the
 quotient by zero is zero). -/
-@[kanon_arm] theorem int_div_self : int_div.r_self.main.Stmt := by
+@[kanon_arm] theorem int_div_self : Int.div.r_self.main.Stmt := by
   intro O hO v1 v2 hs hg
   have h12 : v1 = v2 := of_decide_eq_true hg
   subst h12
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
   · -- typing: `1` is an integer
-    simp [sem, int_div.spec, Term.WT, Op2.WT] at w ⊢
+    simp [sem, Int.div.spec, Term.WT, Op2.WT] at w ⊢
   · -- values: a non-zero integer divided by itself is 1
     have hw : v1.WT := by
-      simp only [int_div.spec, Term.WT, Op2.WT] at w
+      simp only [Int.div.spec, Term.WT, Op2.WT] at w
       exact w.2.1
-    simp only [sem, int_div.spec, ev, evOp2] at e ⊢
+    simp only [sem, Int.div.spec, ev, evOp2] at e ⊢
     unfold divV at e
     split at e
     · next x y hx hy =>
@@ -60,9 +60,9 @@ quotient by zero is zero). -/
 
 /-- What `sq1` returns satisfies `Nonzero`: its rule gives back its spec, whose
 value is the square of an integer plus one. -/
-@[kanon_arm] theorem sq1_nonzero : sq1.post.main.Stmt := by
+@[kanon_arm] theorem sq1_nonzero : Int.sq1.post.main.Stmt := by
   intro O hO v ρ z h
-  simp [sq1.step, sq1.r_default, firstSome, whenSome, sq1.spec, Sem.eval, sem, ev, evOp1, sq1V] at h
+  simp [Int.sq1.step, Int.sq1.r_default, firstSome, whenSome, Int.sq1.spec, Sem.eval, sem, ev, evOp1, sq1V] at h
   obtain ⟨-, h⟩ := h
   split at h
   · next x _ =>

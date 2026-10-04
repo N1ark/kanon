@@ -13,9 +13,9 @@ open Classical Kanon
 /-- Every rule function refines its spec. -/
 structure Ops.Sound (O : Ops) : Prop where
   orc : O.orc.Compat
-  plus : ∀ (v1 : Term) (v2 : Term), Refines (plus.spec v1 v2) (O.plus v1 v2)
-  int_div : ∀ (v1 : Term) (v2 : Term), Nonzero v2 → Refines (int_div.spec v1 v2) (O.int_div v1 v2)
-  sq1 : ∀ (v : Term), Refines (sq1.spec v) (O.sq1 v)
+  int_plus : ∀ (v1 : Term) (v2 : Term), Refines (Int.plus.spec v1 v2) (O.int_plus v1 v2)
+  int_div : ∀ (v1 : Term) (v2 : Term), Nonzero v2 → Refines (Int.div.spec v1 v2) (O.int_div v1 v2)
+  int_sq1 : ∀ (v : Term), Refines (Int.sq1.spec v) (O.int_sq1 v)
 
 /-- The operands of `Op2.Plus` commute. -/
 def Op2.Plus.comm.Stmt : Prop :=
@@ -23,86 +23,86 @@ def Op2.Plus.comm.Stmt : Prop :=
   Refines (Term.mk (Kind.Op2 Op2.Plus a b) t)
   (Term.mk (Kind.Op2 Op2.Plus b a) t)
 
-def plus.r_lits.Stmt : Prop :=
+def Int.plus.r_lits.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_lits O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_lits O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_unit_zero.Stmt : Prop :=
+def Int.plus.r_unit_zero.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_unit_zero O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_unit_zero O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_default.Stmt : Prop :=
+def Int.plus.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_default O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_default O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_lits.main.Stmt : Prop :=
+def Int.plus.r_lits.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (i1 : Int) (t__2 : Ty) (i2 : Int) (t__4 : Ty),
-  Refines (plus.spec (Term.mk (Kind.Int i1) t__2) (Term.mk (Kind.Int i2) t__4))
-  ((Term.mk (Kind.Int (add i1 i2)) Ty.TInt))
+  Refines (Int.plus.spec (Term.mk (Kind.Int i1) t__2) (Term.mk (Kind.Int i2) t__4))
+  ((Term.mk (Kind.Int (Int.add i1 i2)) Ty.TInt))
 
-def plus.r_unit_zero.main.Stmt : Prop :=
+def Int.plus.r_unit_zero.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__2 : Int) (t__3 : Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  Refines (plus.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
+  Refines (Int.plus.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
   (v1)
 
-def plus.r_unit_zero.swap.Stmt : Prop :=
+def Int.plus.r_unit_zero.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__2 : Int) (t__3 : Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  Refines (plus.spec (Term.mk (Kind.Int kanon__2) t__3) v2)
+  Refines (Int.plus.spec (Term.mk (Kind.Int kanon__2) t__3) v2)
   (v2)
 
-def plus.r_default.main.Stmt : Prop :=
+def Int.plus.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (plus.spec v1 v2)
+  Refines (Int.plus.spec v1 v2)
   ((Term.mk (mk_commut_binop O Op2.Plus v1 v2) Ty.TInt))
 
-def int_div.r_self.Stmt : Prop :=
+def Int.div.r_self.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero v2 → int_div.r_self O v1 v2 = some res →
-  Refines (int_div.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero v2 → Int.div.r_self O v1 v2 = some res →
+  Refines (Int.div.spec v1 v2) res
 
-def int_div.r_default.Stmt : Prop :=
+def Int.div.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero v2 → int_div.r_default O v1 v2 = some res →
-  Refines (int_div.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero v2 → Int.div.r_default O v1 v2 = some res →
+  Refines (Int.div.spec v1 v2) res
 
-def int_div.r_self.main.Stmt : Prop :=
+def Int.div.r_self.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   Nonzero v2 →
   (decide (v1 = v2)) = true →
-  Refines (int_div.spec v1 v2)
+  Refines (Int.div.spec v1 v2)
   ((Term.mk (Kind.Int (1 : Int)) Ty.TInt))
 
-def int_div.r_default.main.Stmt : Prop :=
+def Int.div.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   Nonzero v2 →
-  Refines (int_div.spec v1 v2)
+  Refines (Int.div.spec v1 v2)
   ((Term.mk (Kind.Op2 Op2.Div v1 v2) Ty.TInt))
 
-def sq1.r_default.Stmt : Prop :=
+def Int.sq1.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v : Term) (res : Term), sq1.r_default O v = some res →
-  Refines (sq1.spec v) res
+  ∀ (v : Term) (res : Term), Int.sq1.r_default O v = some res →
+  Refines (Int.sq1.spec v) res
 
-def sq1.r_default.main.Stmt : Prop :=
+def Int.sq1.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v : Term),
-  Refines (sq1.spec v)
+  Refines (Int.sq1.spec v)
   ((Term.mk (Kind.Op1 Op1.Sq1 v) Ty.TInt))
 
-/-- What `sq1` returns, a rule or its spec, satisfies `Nonzero`: to prove by hand, with `@[kanon_arm]`. -/
-def sq1.post.main.Stmt : Prop :=
+/-- What `Int.sq1` returns, a rule or its spec, satisfies `Nonzero`: to prove by hand, with `@[kanon_arm]`. -/
+def Int.sq1.post.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v : Term), Nonzero (sq1.step O v)
+  ∀ (v : Term), Nonzero (Int.sq1.step O v)
 
 end DivisionExample

@@ -13,15 +13,15 @@ open Classical Kanon
 /-- Every rule function refines its spec. -/
 structure Ops.Sound (O : Ops) : Prop where
   orc : O.orc.Compat
-  b_and : ∀ (v1 : Term) (v2 : Term), Refines (b_and.spec v1 v2) (O.b_and v1 v2)
-  b_or : ∀ (v1 : Term) (v2 : Term), Refines (b_or.spec v1 v2) (O.b_or v1 v2)
-  b_not : ∀ (sv : Term), Refines (b_not.spec sv) (O.b_not sv)
-  b_ite : ∀ (guard : Term) (if_ : Term) (else_ : Term), Refines (b_ite.spec guard if_ else_) (O.b_ite guard if_ else_)
-  sem_eq : ∀ (v1 : Term) (v2 : Term), Refines (sem_eq.spec v1 v2) (O.sem_eq v1 v2)
-  sem_eq_untyped : ∀ (v1 : Term) (v2 : Term), Refines (sem_eq_untyped.spec v1 v2) (O.sem_eq_untyped v1 v2)
-  b_distinct : ∀ (l : (List Term)), Refines (b_distinct.spec l) (O.b_distinct l)
-  plus : ∀ (v1 : Term) (v2 : Term), Refines (plus.spec v1 v2) (O.plus v1 v2)
-  int_lt : ∀ (v1 : Term) (v2 : Term), Refines (int_lt.spec v1 v2) (O.int_lt v1 v2)
+  bool_and_ : ∀ (v1 : Term) (v2 : Term), Refines (Bool.and_.spec v1 v2) (O.bool_and_ v1 v2)
+  bool_or_ : ∀ (v1 : Term) (v2 : Term), Refines (Bool.or_.spec v1 v2) (O.bool_or_ v1 v2)
+  bool_not_ : ∀ (sv : Term), Refines (Bool.not_.spec sv) (O.bool_not_ sv)
+  bool_ite : ∀ (guard : Term) (if_ : Term) (else_ : Term), Refines (Bool.ite.spec guard if_ else_) (O.bool_ite guard if_ else_)
+  bool_eq : ∀ (v1 : Term) (v2 : Term), Refines (Bool.eq.spec v1 v2) (O.bool_eq v1 v2)
+  bool_eq_untyped : ∀ (v1 : Term) (v2 : Term), Refines (Bool.eq_untyped.spec v1 v2) (O.bool_eq_untyped v1 v2)
+  bool_distinct : ∀ (l : (List Term)), Refines (Bool.distinct.spec l) (O.bool_distinct l)
+  int_plus : ∀ (v1 : Term) (v2 : Term), Refines (Int.plus.spec v1 v2) (O.int_plus v1 v2)
+  int_int_lt : ∀ (v1 : Term) (v2 : Term), Refines (Int.int_lt.spec v1 v2) (O.int_int_lt v1 v2)
 
 /-- The operands of `Op2.And` commute. -/
 def Op2.And.comm.Stmt : Prop :=
@@ -47,864 +47,864 @@ def Op2.Plus.comm.Stmt : Prop :=
   Refines (Term.mk (Kind.Op2 Op2.Plus a b) t)
   (Term.mk (Kind.Op2 Op2.Plus b a) t)
 
-def b_and.r_same.Stmt : Prop :=
+def Bool.and_.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_same O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_same O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_false_.Stmt : Prop :=
+def Bool.and_.r_false_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_false_ O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_false_ O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_true_.Stmt : Prop :=
+def Bool.and_.r_true_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_true_ O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_true_ O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_not.Stmt : Prop :=
+def Bool.and_.r_not.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_not O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_not O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_and_.Stmt : Prop :=
+def Bool.and_.r_and_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_and_ O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_and_ O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_or_.Stmt : Prop :=
+def Bool.and_.r_or_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_or_ O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_or_ O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_eq_neq.Stmt : Prop :=
+def Bool.and_.r_eq_neq.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_eq_neq O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_eq_neq O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_default.Stmt : Prop :=
+def Bool.and_.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_and.r_default O v1 v2 = some res →
-  Refines (b_and.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.and_.r_default O v1 v2 = some res →
+  Refines (Bool.and_.spec v1 v2) res
 
-def b_and.r_same.main.Stmt : Prop :=
+def Bool.and_.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   (decide (v1 = v2)) = true →
-  Refines (b_and.spec v1 v2)
+  Refines (Bool.and_.spec v1 v2)
   (v1)
 
-def b_and.r_false_.main.Stmt : Prop :=
+def Bool.and_.r_false_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (b_and.spec (Term.mk (Kind.Bool false) t__2) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Bool false) t__2) v2)
   (v_false)
 
-def b_and.r_false_.swap.Stmt : Prop :=
+def Bool.and_.r_false_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (b_and.spec v1 (Term.mk (Kind.Bool false) t__2))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Bool false) t__2))
   (v_false)
 
-def b_and.r_true_.main.Stmt : Prop :=
+def Bool.and_.r_true_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (b_and.spec (Term.mk (Kind.Bool true) t__2) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Bool true) t__2) v2)
   (v2)
 
-def b_and.r_true_.swap.Stmt : Prop :=
+def Bool.and_.r_true_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (b_and.spec v1 (Term.mk (Kind.Bool true) t__2))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Bool true) t__2))
   (v1)
 
-def b_and.r_not.main.Stmt : Prop :=
+def Bool.and_.r_not.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__3 : Term) (t__4 : Ty),
   (decide (v1 = kanon__3)) = true →
-  Refines (b_and.spec v1 (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4))
   (v_false)
 
-def b_and.r_not.swap.Stmt : Prop :=
+def Bool.and_.r_not.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__3 : Term) (t__4 : Ty),
   (decide (v2 = kanon__3)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4) v2)
   (v_false)
 
-def b_and.r_and_.main.Stmt : Prop :=
+def Bool.and_.r_and_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.And a w__3) t__4) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.And a w__3) t__4) v2)
   ((Term.mk (Kind.Op2 Op2.And a w__3) t__4))
 
-def b_and.r_and_.swap1.Stmt : Prop :=
+def Bool.and_.r_and_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.And w__3 a) t__4) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.And w__3 a) t__4) v2)
   ((Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
 
-def b_and.r_and_.swap2.Stmt : Prop :=
+def Bool.and_.r_and_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_and.spec v1 (Term.mk (Kind.Op2 Op2.And a w__3) t__4))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Op2 Op2.And a w__3) t__4))
   ((Term.mk (Kind.Op2 Op2.And a w__3) t__4))
 
-def b_and.r_and_.swap1_swap2.Stmt : Prop :=
+def Bool.and_.r_and_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_and.spec v1 (Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
   ((Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
 
-def b_and.r_or_.main.Stmt : Prop :=
+def Bool.and_.r_or_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Or a w__3) t__4) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Or a w__3) t__4) v2)
   (a)
 
-def b_and.r_or_.swap1.Stmt : Prop :=
+def Bool.and_.r_or_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4) v2)
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4) v2)
   (a)
 
-def b_and.r_or_.swap2.Stmt : Prop :=
+def Bool.and_.r_or_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_and.spec v1 (Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
   (a)
 
-def b_and.r_or_.swap1_swap2.Stmt : Prop :=
+def Bool.and_.r_or_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_and.spec v1 (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
+  Refines (Bool.and_.spec v1 (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
   (a)
 
-def b_and.r_eq_neq.main.Stmt : Prop :=
+def Bool.and_.r_eq_neq.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (a : Term) (x : Term) (t__4 : Ty) (kanon__7 : Term) (y : Term) (t__9 : Ty),
-  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Eq a x) t__4) (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) t__9))
+  ((decide (a = kanon__7)) && (Bool.sure_neq x y)) = true →
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Eq a x) t__4) (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) t__9))
   (v_false)
 
-def b_and.r_eq_neq.swap2.Stmt : Prop :=
+def Bool.and_.r_eq_neq.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (a : Term) (x : Term) (t__4 : Ty) (y : Term) (kanon__7 : Term) (t__9 : Ty),
-  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Eq a x) t__4) (Term.mk (Kind.Op2 Op2.Eq y kanon__7) t__9))
+  ((decide (a = kanon__7)) && (Bool.sure_neq x y)) = true →
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Eq a x) t__4) (Term.mk (Kind.Op2 Op2.Eq y kanon__7) t__9))
   (v_false)
 
-def b_and.r_eq_neq.swap1.Stmt : Prop :=
+def Bool.and_.r_eq_neq.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Term) (a : Term) (t__4 : Ty) (kanon__7 : Term) (y : Term) (t__9 : Ty),
-  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Eq x a) t__4) (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) t__9))
+  ((decide (a = kanon__7)) && (Bool.sure_neq x y)) = true →
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Eq x a) t__4) (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) t__9))
   (v_false)
 
-def b_and.r_eq_neq.swap1_swap2.Stmt : Prop :=
+def Bool.and_.r_eq_neq.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Term) (a : Term) (t__4 : Ty) (y : Term) (kanon__7 : Term) (t__9 : Ty),
-  ((decide (a = kanon__7)) && (sure_neq x y)) = true →
-  Refines (b_and.spec (Term.mk (Kind.Op2 Op2.Eq x a) t__4) (Term.mk (Kind.Op2 Op2.Eq y kanon__7) t__9))
+  ((decide (a = kanon__7)) && (Bool.sure_neq x y)) = true →
+  Refines (Bool.and_.spec (Term.mk (Kind.Op2 Op2.Eq x a) t__4) (Term.mk (Kind.Op2 Op2.Eq y kanon__7) t__9))
   (v_false)
 
-def b_and.r_default.main.Stmt : Prop :=
+def Bool.and_.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (b_and.spec v1 v2)
+  Refines (Bool.and_.spec v1 v2)
   ((Term.mk (mk_commut_binop O Op2.And v1 v2) Ty.TBool))
 
-def b_or.r_same.Stmt : Prop :=
+def Bool.or_.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_same O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_same O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_true_.Stmt : Prop :=
+def Bool.or_.r_true_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_true_ O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_true_ O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_false_.Stmt : Prop :=
+def Bool.or_.r_false_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_false_ O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_false_ O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_not.Stmt : Prop :=
+def Bool.or_.r_not.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_not O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_not O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_or_.Stmt : Prop :=
+def Bool.or_.r_or_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_or_ O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_or_ O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_and_.Stmt : Prop :=
+def Bool.or_.r_and_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_and_ O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_and_ O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_default.Stmt : Prop :=
+def Bool.or_.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), b_or.r_default O v1 v2 = some res →
-  Refines (b_or.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.or_.r_default O v1 v2 = some res →
+  Refines (Bool.or_.spec v1 v2) res
 
-def b_or.r_same.main.Stmt : Prop :=
+def Bool.or_.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   (decide (v1 = v2)) = true →
-  Refines (b_or.spec v1 v2)
+  Refines (Bool.or_.spec v1 v2)
   (v1)
 
-def b_or.r_true_.main.Stmt : Prop :=
+def Bool.or_.r_true_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (b_or.spec (Term.mk (Kind.Bool true) t__2) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Bool true) t__2) v2)
   (v_true)
 
-def b_or.r_true_.swap.Stmt : Prop :=
+def Bool.or_.r_true_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (b_or.spec v1 (Term.mk (Kind.Bool true) t__2))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Bool true) t__2))
   (v_true)
 
-def b_or.r_false_.main.Stmt : Prop :=
+def Bool.or_.r_false_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (b_or.spec (Term.mk (Kind.Bool false) t__2) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Bool false) t__2) v2)
   (v2)
 
-def b_or.r_false_.swap.Stmt : Prop :=
+def Bool.or_.r_false_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (b_or.spec v1 (Term.mk (Kind.Bool false) t__2))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Bool false) t__2))
   (v1)
 
-def b_or.r_not.main.Stmt : Prop :=
+def Bool.or_.r_not.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__3 : Term) (t__4 : Ty),
   (decide (v1 = kanon__3)) = true →
-  Refines (b_or.spec v1 (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4))
   (v_true)
 
-def b_or.r_not.swap.Stmt : Prop :=
+def Bool.or_.r_not.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__3 : Term) (t__4 : Ty),
   (decide (v2 = kanon__3)) = true →
-  Refines (b_or.spec (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Op1 Op1.Not kanon__3) t__4) v2)
   (v_true)
 
-def b_or.r_or_.main.Stmt : Prop :=
+def Bool.or_.r_or_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_or.spec (Term.mk (Kind.Op2 Op2.Or a w__3) t__4) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Op2 Op2.Or a w__3) t__4) v2)
   ((Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
 
-def b_or.r_or_.swap1.Stmt : Prop :=
+def Bool.or_.r_or_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_or.spec (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4) v2)
   ((Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
 
-def b_or.r_or_.swap2.Stmt : Prop :=
+def Bool.or_.r_or_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_or.spec v1 (Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
   ((Term.mk (Kind.Op2 Op2.Or a w__3) t__4))
 
-def b_or.r_or_.swap1_swap2.Stmt : Prop :=
+def Bool.or_.r_or_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_or.spec v1 (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
   ((Term.mk (Kind.Op2 Op2.Or w__3 a) t__4))
 
-def b_or.r_and_.main.Stmt : Prop :=
+def Bool.or_.r_and_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_or.spec (Term.mk (Kind.Op2 Op2.And a w__3) t__4) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Op2 Op2.And a w__3) t__4) v2)
   (a)
 
-def b_or.r_and_.swap1.Stmt : Prop :=
+def Bool.or_.r_and_.swap1.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v2)) = true →
-  Refines (b_or.spec (Term.mk (Kind.Op2 Op2.And w__3 a) t__4) v2)
+  Refines (Bool.or_.spec (Term.mk (Kind.Op2 Op2.And w__3 a) t__4) v2)
   (a)
 
-def b_or.r_and_.swap2.Stmt : Prop :=
+def Bool.or_.r_and_.swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (a : Term) (w__3 : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_or.spec v1 (Term.mk (Kind.Op2 Op2.And a w__3) t__4))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Op2 Op2.And a w__3) t__4))
   (a)
 
-def b_or.r_and_.swap1_swap2.Stmt : Prop :=
+def Bool.or_.r_and_.swap1_swap2.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (w__3 : Term) (a : Term) (t__4 : Ty),
   (decide (a = v1)) = true →
-  Refines (b_or.spec v1 (Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
+  Refines (Bool.or_.spec v1 (Term.mk (Kind.Op2 Op2.And w__3 a) t__4))
   (a)
 
-def b_or.r_default.main.Stmt : Prop :=
+def Bool.or_.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (b_or.spec v1 v2)
+  Refines (Bool.or_.spec v1 v2)
   ((Term.mk (mk_commut_binop O Op2.Or v1 v2) Ty.TBool))
 
-def b_not.r_true_.Stmt : Prop :=
+def Bool.not_.r_true_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_true_ O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_true_ O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_false_.Stmt : Prop :=
+def Bool.not_.r_false_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_false_ O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_false_ O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_not.Stmt : Prop :=
+def Bool.not_.r_not.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_not O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_not O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_or_.Stmt : Prop :=
+def Bool.not_.r_or_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_or_ O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_or_ O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_and_.Stmt : Prop :=
+def Bool.not_.r_and_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_and_ O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_and_ O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_ite.Stmt : Prop :=
+def Bool.not_.r_ite.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_ite O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_ite O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_distinct.Stmt : Prop :=
+def Bool.not_.r_distinct.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_distinct O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_distinct O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_default.Stmt : Prop :=
+def Bool.not_.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (sv : Term) (res : Term), b_not.r_default O sv = some res →
-  Refines (b_not.spec sv) res
+  ∀ (sv : Term) (res : Term), Bool.not_.r_default O sv = some res →
+  Refines (Bool.not_.spec sv) res
 
-def b_not.r_true_.main.Stmt : Prop :=
+def Bool.not_.r_true_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (t__2 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Bool true) t__2))
+  Refines (Bool.not_.spec (Term.mk (Kind.Bool true) t__2))
   (v_false)
 
-def b_not.r_false_.main.Stmt : Prop :=
+def Bool.not_.r_false_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (t__2 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Bool false) t__2))
+  Refines (Bool.not_.spec (Term.mk (Kind.Bool false) t__2))
   (v_true)
 
-def b_not.r_not.main.Stmt : Prop :=
+def Bool.not_.r_not.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (sv : Term) (t__3 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Op1 Op1.Not sv) t__3))
+  Refines (Bool.not_.spec (Term.mk (Kind.Op1 Op1.Not sv) t__3))
   (sv)
 
-def b_not.r_or_.main.Stmt : Prop :=
+def Bool.not_.r_or_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term) (t__4 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Op2 Op2.Or v1 v2) t__4))
-  ((O.b_and (O.b_not v1) (O.b_not v2)))
+  Refines (Bool.not_.spec (Term.mk (Kind.Op2 Op2.Or v1 v2) t__4))
+  ((O.bool_and_ (O.bool_not_ v1) (O.bool_not_ v2)))
 
-def b_not.r_and_.main.Stmt : Prop :=
+def Bool.not_.r_and_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term) (t__4 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Op2 Op2.And v1 v2) t__4))
-  ((O.b_or (O.b_not v1) (O.b_not v2)))
+  Refines (Bool.not_.spec (Term.mk (Kind.Op2 Op2.And v1 v2) t__4))
+  ((O.bool_or_ (O.bool_not_ v1) (O.bool_not_ v2)))
 
-def b_not.r_ite.main.Stmt : Prop :=
+def Bool.not_.r_ite.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (g : Term) (a : Term) (b : Term) (t__5 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.Op3 Op3.Ite g a b) t__5))
-  ((O.b_ite g (O.b_not a) (O.b_not b)))
+  Refines (Bool.not_.spec (Term.mk (Kind.Op3 Op3.Ite g a b) t__5))
+  ((O.bool_ite g (O.bool_not_ a) (O.bool_not_ b)))
 
-def b_not.r_distinct.main.Stmt : Prop :=
+def Bool.not_.r_distinct.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (l : Term) (r : Term) (t__7 : Ty),
-  Refines (b_not.spec (Term.mk (Kind.OpN OpN.Distinct (l :: (r :: []))) t__7))
-  ((O.sem_eq l r))
+  Refines (Bool.not_.spec (Term.mk (Kind.OpN OpN.Distinct (l :: (r :: []))) t__7))
+  ((O.bool_eq l r))
 
-def b_not.r_default.main.Stmt : Prop :=
+def Bool.not_.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (sv : Term),
-  Refines (b_not.spec sv)
+  Refines (Bool.not_.spec sv)
   ((Term.mk (Kind.Op1 Op1.Not sv) Ty.TBool))
 
-def b_ite.r_true_.Stmt : Prop :=
+def Bool.ite.r_true_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_true_ O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_true_ O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_false_.Stmt : Prop :=
+def Bool.ite.r_false_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_false_ O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_false_ O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_bool.Stmt : Prop :=
+def Bool.ite.r_bool.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_bool O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_bool O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_not_bool.Stmt : Prop :=
+def Bool.ite.r_not_bool.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_not_bool O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_not_bool O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_false_then.Stmt : Prop :=
+def Bool.ite.r_false_then.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_false_then O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_false_then O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_true_then.Stmt : Prop :=
+def Bool.ite.r_true_then.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_true_then O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_true_then O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_false_else.Stmt : Prop :=
+def Bool.ite.r_false_else.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_false_else O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_false_else O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_true_else.Stmt : Prop :=
+def Bool.ite.r_true_else.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_true_else O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_true_else O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_not_guard.Stmt : Prop :=
+def Bool.ite.r_not_guard.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_not_guard O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_not_guard O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_guard_then.Stmt : Prop :=
+def Bool.ite.r_guard_then.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_guard_then O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_guard_then O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_guard_else.Stmt : Prop :=
+def Bool.ite.r_guard_else.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_guard_else O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_guard_else O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_ite_then.Stmt : Prop :=
+def Bool.ite.r_ite_then.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_ite_then O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_ite_then O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_ite_else.Stmt : Prop :=
+def Bool.ite.r_ite_else.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_ite_else O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_ite_else O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_and_ite_then.Stmt : Prop :=
+def Bool.ite.r_and_ite_then.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_and_ite_then O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_and_ite_then O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_or_ite_else.Stmt : Prop :=
+def Bool.ite.r_or_ite_else.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_or_ite_else O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_or_ite_else O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_same.Stmt : Prop :=
+def Bool.ite.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_same O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_same O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_default.Stmt : Prop :=
+def Bool.ite.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), b_ite.r_default O guard if_ else_ = some res →
-  Refines (b_ite.spec guard if_ else_) res
+  ∀ (guard : Term) (if_ : Term) (else_ : Term) (res : Term), Bool.ite.r_default O guard if_ else_ = some res →
+  Refines (Bool.ite.spec guard if_ else_) res
 
-def b_ite.r_true_.main.Stmt : Prop :=
+def Bool.ite.r_true_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (else_ : Term) (t__2 : Ty),
-  Refines (b_ite.spec (Term.mk (Kind.Bool true) t__2) if_ else_)
+  Refines (Bool.ite.spec (Term.mk (Kind.Bool true) t__2) if_ else_)
   (if_)
 
-def b_ite.r_false_.main.Stmt : Prop :=
+def Bool.ite.r_false_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (else_ : Term) (t__2 : Ty),
-  Refines (b_ite.spec (Term.mk (Kind.Bool false) t__2) if_ else_)
+  Refines (Bool.ite.spec (Term.mk (Kind.Bool false) t__2) if_ else_)
   (else_)
 
-def b_ite.r_bool.main.Stmt : Prop :=
+def Bool.ite.r_bool.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (t__3 : Ty) (t__5 : Ty),
-  Refines (b_ite.spec guard (Term.mk (Kind.Bool true) t__3) (Term.mk (Kind.Bool false) t__5))
+  Refines (Bool.ite.spec guard (Term.mk (Kind.Bool true) t__3) (Term.mk (Kind.Bool false) t__5))
   (guard)
 
-def b_ite.r_not_bool.main.Stmt : Prop :=
+def Bool.ite.r_not_bool.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (t__3 : Ty) (t__5 : Ty),
-  Refines (b_ite.spec guard (Term.mk (Kind.Bool false) t__3) (Term.mk (Kind.Bool true) t__5))
-  ((O.b_not guard))
+  Refines (Bool.ite.spec guard (Term.mk (Kind.Bool false) t__3) (Term.mk (Kind.Bool true) t__5))
+  ((O.bool_not_ guard))
 
-def b_ite.r_false_then.main.Stmt : Prop :=
+def Bool.ite.r_false_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (else_ : Term) (t__3 : Ty),
-  Refines (b_ite.spec guard (Term.mk (Kind.Bool false) t__3) else_)
-  ((O.b_and (O.b_not guard) else_))
+  Refines (Bool.ite.spec guard (Term.mk (Kind.Bool false) t__3) else_)
+  ((O.bool_and_ (O.bool_not_ guard) else_))
 
-def b_ite.r_true_then.main.Stmt : Prop :=
+def Bool.ite.r_true_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (else_ : Term) (t__3 : Ty),
-  Refines (b_ite.spec guard (Term.mk (Kind.Bool true) t__3) else_)
-  ((O.b_or guard else_))
+  Refines (Bool.ite.spec guard (Term.mk (Kind.Bool true) t__3) else_)
+  ((O.bool_or_ guard else_))
 
-def b_ite.r_false_else.main.Stmt : Prop :=
+def Bool.ite.r_false_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (t__4 : Ty),
-  Refines (b_ite.spec guard if_ (Term.mk (Kind.Bool false) t__4))
-  ((O.b_and guard if_))
+  Refines (Bool.ite.spec guard if_ (Term.mk (Kind.Bool false) t__4))
+  ((O.bool_and_ guard if_))
 
-def b_ite.r_true_else.main.Stmt : Prop :=
+def Bool.ite.r_true_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (t__4 : Ty),
-  Refines (b_ite.spec guard if_ (Term.mk (Kind.Bool true) t__4))
-  ((O.b_or (O.b_not guard) if_))
+  Refines (Bool.ite.spec guard if_ (Term.mk (Kind.Bool true) t__4))
+  ((O.bool_or_ (O.bool_not_ guard) if_))
 
-def b_ite.r_not_guard.main.Stmt : Prop :=
+def Bool.ite.r_not_guard.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (else_ : Term) (g : Term) (t__3 : Ty),
-  Refines (b_ite.spec (Term.mk (Kind.Op1 Op1.Not g) t__3) if_ else_)
-  ((O.b_ite g else_ if_))
+  Refines (Bool.ite.spec (Term.mk (Kind.Op1 Op1.Not g) t__3) if_ else_)
+  ((O.bool_ite g else_ if_))
 
-def b_ite.r_guard_then.main.Stmt : Prop :=
+def Bool.ite.r_guard_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
   (decide (guard = if_)) = true →
-  Refines (b_ite.spec guard if_ else_)
-  ((O.b_or guard else_))
+  Refines (Bool.ite.spec guard if_ else_)
+  ((O.bool_or_ guard else_))
 
-def b_ite.r_guard_else.main.Stmt : Prop :=
+def Bool.ite.r_guard_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
   (decide (guard = else_)) = true →
-  Refines (b_ite.spec guard if_ else_)
-  ((O.b_and guard if_))
+  Refines (Bool.ite.spec guard if_ else_)
+  ((O.bool_and_ guard if_))
 
-def b_ite.r_ite_then.main.Stmt : Prop :=
+def Bool.ite.r_ite_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (else_ : Term) (kanon__3 : Term) (x : Term) (w__5 : Term) (t__6 : Ty),
   (decide (guard = kanon__3)) = true →
-  Refines (b_ite.spec guard (Term.mk (Kind.Op3 Op3.Ite kanon__3 x w__5) t__6) else_)
-  ((O.b_ite guard x else_))
+  Refines (Bool.ite.spec guard (Term.mk (Kind.Op3 Op3.Ite kanon__3 x w__5) t__6) else_)
+  ((O.bool_ite guard x else_))
 
-def b_ite.r_ite_else.main.Stmt : Prop :=
+def Bool.ite.r_ite_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (kanon__4 : Term) (w__5 : Term) (y : Term) (t__7 : Ty),
   (decide (guard = kanon__4)) = true →
-  Refines (b_ite.spec guard if_ (Term.mk (Kind.Op3 Op3.Ite kanon__4 w__5 y) t__7))
-  ((O.b_ite guard if_ y))
+  Refines (Bool.ite.spec guard if_ (Term.mk (Kind.Op3 Op3.Ite kanon__4 w__5 y) t__7))
+  ((O.bool_ite guard if_ y))
 
-def b_ite.r_and_ite_then.main.Stmt : Prop :=
+def Bool.ite.r_and_ite_then.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (else_ : Term) (g : Term) (w__3 : Term) (t__4 : Ty) (kanon__7 : Term) (x : Term) (w__9 : Term) (t__10 : Ty),
   (decide (g = kanon__7)) = true →
-  Refines (b_ite.spec (Term.mk (Kind.Op2 Op2.And g w__3) t__4) (Term.mk (Kind.Op3 Op3.Ite kanon__7 x w__9) t__10) else_)
-  ((O.b_ite (Term.mk (Kind.Op2 Op2.And g w__3) t__4) x else_))
+  Refines (Bool.ite.spec (Term.mk (Kind.Op2 Op2.And g w__3) t__4) (Term.mk (Kind.Op3 Op3.Ite kanon__7 x w__9) t__10) else_)
+  ((O.bool_ite (Term.mk (Kind.Op2 Op2.And g w__3) t__4) x else_))
 
-def b_ite.r_and_ite_then.swap.Stmt : Prop :=
+def Bool.ite.r_and_ite_then.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (else_ : Term) (w__3 : Term) (g : Term) (t__4 : Ty) (kanon__7 : Term) (x : Term) (w__9 : Term) (t__10 : Ty),
   (decide (g = kanon__7)) = true →
-  Refines (b_ite.spec (Term.mk (Kind.Op2 Op2.And w__3 g) t__4) (Term.mk (Kind.Op3 Op3.Ite kanon__7 x w__9) t__10) else_)
-  ((O.b_ite (Term.mk (Kind.Op2 Op2.And w__3 g) t__4) x else_))
+  Refines (Bool.ite.spec (Term.mk (Kind.Op2 Op2.And w__3 g) t__4) (Term.mk (Kind.Op3 Op3.Ite kanon__7 x w__9) t__10) else_)
+  ((O.bool_ite (Term.mk (Kind.Op2 Op2.And w__3 g) t__4) x else_))
 
-def b_ite.r_or_ite_else.main.Stmt : Prop :=
+def Bool.ite.r_or_ite_else.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (g : Term) (w__3 : Term) (t__4 : Ty) (kanon__8 : Term) (w__9 : Term) (y : Term) (t__11 : Ty),
   (decide (g = kanon__8)) = true →
-  Refines (b_ite.spec (Term.mk (Kind.Op2 Op2.Or g w__3) t__4) if_ (Term.mk (Kind.Op3 Op3.Ite kanon__8 w__9 y) t__11))
-  ((O.b_ite (Term.mk (Kind.Op2 Op2.Or g w__3) t__4) if_ y))
+  Refines (Bool.ite.spec (Term.mk (Kind.Op2 Op2.Or g w__3) t__4) if_ (Term.mk (Kind.Op3 Op3.Ite kanon__8 w__9 y) t__11))
+  ((O.bool_ite (Term.mk (Kind.Op2 Op2.Or g w__3) t__4) if_ y))
 
-def b_ite.r_or_ite_else.swap.Stmt : Prop :=
+def Bool.ite.r_or_ite_else.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (if_ : Term) (w__3 : Term) (g : Term) (t__4 : Ty) (kanon__8 : Term) (w__9 : Term) (y : Term) (t__11 : Ty),
   (decide (g = kanon__8)) = true →
-  Refines (b_ite.spec (Term.mk (Kind.Op2 Op2.Or w__3 g) t__4) if_ (Term.mk (Kind.Op3 Op3.Ite kanon__8 w__9 y) t__11))
-  ((O.b_ite (Term.mk (Kind.Op2 Op2.Or w__3 g) t__4) if_ y))
+  Refines (Bool.ite.spec (Term.mk (Kind.Op2 Op2.Or w__3 g) t__4) if_ (Term.mk (Kind.Op3 Op3.Ite kanon__8 w__9 y) t__11))
+  ((O.bool_ite (Term.mk (Kind.Op2 Op2.Or w__3 g) t__4) if_ y))
 
-def b_ite.r_same.main.Stmt : Prop :=
+def Bool.ite.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
   (decide (if_ = else_)) = true →
-  Refines (b_ite.spec guard if_ else_)
+  Refines (Bool.ite.spec guard if_ else_)
   (if_)
 
-def b_ite.r_default.main.Stmt : Prop :=
+def Bool.ite.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (guard : Term) (if_ : Term) (else_ : Term),
-  Refines (b_ite.spec guard if_ else_)
+  Refines (Bool.ite.spec guard if_ else_)
   ((Term.mk (Kind.Op3 Op3.Ite guard if_ else_) (ty if_)))
 
-def sem_eq.r_ints.Stmt : Prop :=
+def Bool.eq.r_ints.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_ints O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_ints O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_same.Stmt : Prop :=
+def Bool.eq.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_same O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_same O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_bools.Stmt : Prop :=
+def Bool.eq.r_bools.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_bools O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_bools O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_ite_ite.Stmt : Prop :=
+def Bool.eq.r_ite_ite.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_ite_ite O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_ite_ite O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_false_.Stmt : Prop :=
+def Bool.eq.r_false_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_false_ O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_false_ O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_true_.Stmt : Prop :=
+def Bool.eq.r_true_.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_true_ O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_true_ O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_nots.Stmt : Prop :=
+def Bool.eq.r_nots.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_nots O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_nots O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_default.Stmt : Prop :=
+def Bool.eq.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq.r_default O v1 v2 = some res →
-  Refines (sem_eq.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq.r_default O v1 v2 = some res →
+  Refines (Bool.eq.spec v1 v2) res
 
-def sem_eq.r_ints.main.Stmt : Prop :=
+def Bool.eq.r_ints.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Int) (t__2 : Ty) (y : Int) (t__4 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
-  ((of_bool (decide (x = y))))
+  Refines (Bool.eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
+  ((Bool.of_bool (decide (x = y))))
 
-def sem_eq.r_same.main.Stmt : Prop :=
+def Bool.eq.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   (decide (v1 = v2)) = true →
-  Refines (sem_eq.spec v1 v2)
+  Refines (Bool.eq.spec v1 v2)
   (v_true)
 
-def sem_eq.r_bools.main.Stmt : Prop :=
+def Bool.eq.r_bools.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (b1 : Bool) (t__2 : Ty) (b2 : Bool) (t__4 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Bool b1) t__2) (Term.mk (Kind.Bool b2) t__4))
-  ((of_bool (decide (b1 = b2))))
+  Refines (Bool.eq.spec (Term.mk (Kind.Bool b1) t__2) (Term.mk (Kind.Bool b2) t__4))
+  ((Bool.of_bool (decide (b1 = b2))))
 
-def sem_eq.r_ite_ite.main.Stmt : Prop :=
+def Bool.eq.r_ite_ite.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (b : Term) (l : Term) (r : Term) (t__5 : Ty) (kanon__7 : Term) (l' : Term) (r' : Term) (t__10 : Ty),
   (decide (b = kanon__7)) = true →
-  Refines (sem_eq.spec (Term.mk (Kind.Op3 Op3.Ite b l r) t__5) (Term.mk (Kind.Op3 Op3.Ite kanon__7 l' r') t__10))
-  ((O.b_ite b (O.sem_eq l l') (O.sem_eq r r')))
+  Refines (Bool.eq.spec (Term.mk (Kind.Op3 Op3.Ite b l r) t__5) (Term.mk (Kind.Op3 Op3.Ite kanon__7 l' r') t__10))
+  ((O.bool_ite b (O.bool_eq l l') (O.bool_eq r r')))
 
-def sem_eq.r_false_.main.Stmt : Prop :=
+def Bool.eq.r_false_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Bool false) t__2) v2)
-  ((O.b_not v2))
+  Refines (Bool.eq.spec (Term.mk (Kind.Bool false) t__2) v2)
+  ((O.bool_not_ v2))
 
-def sem_eq.r_false_.swap.Stmt : Prop :=
+def Bool.eq.r_false_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (sem_eq.spec v1 (Term.mk (Kind.Bool false) t__2))
-  ((O.b_not v1))
+  Refines (Bool.eq.spec v1 (Term.mk (Kind.Bool false) t__2))
+  ((O.bool_not_ v1))
 
-def sem_eq.r_true_.main.Stmt : Prop :=
+def Bool.eq.r_true_.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (t__2 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Bool true) t__2) v2)
+  Refines (Bool.eq.spec (Term.mk (Kind.Bool true) t__2) v2)
   (v2)
 
-def sem_eq.r_true_.swap.Stmt : Prop :=
+def Bool.eq.r_true_.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (t__2 : Ty),
-  Refines (sem_eq.spec v1 (Term.mk (Kind.Bool true) t__2))
+  Refines (Bool.eq.spec v1 (Term.mk (Kind.Bool true) t__2))
   (v1)
 
-def sem_eq.r_nots.main.Stmt : Prop :=
+def Bool.eq.r_nots.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (b : Term) (t__3 : Ty) (c : Term) (t__6 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Op1 Op1.Not b) t__3) (Term.mk (Kind.Op1 Op1.Not c) t__6))
-  ((O.sem_eq b c))
+  Refines (Bool.eq.spec (Term.mk (Kind.Op1 Op1.Not b) t__3) (Term.mk (Kind.Op1 Op1.Not c) t__6))
+  ((O.bool_eq b c))
 
-def sem_eq.r_default.main.Stmt : Prop :=
+def Bool.eq.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (sem_eq.spec v1 v2)
+  Refines (Bool.eq.spec v1 v2)
   ((Term.mk (mk_commut_binop O Op2.Eq v1 v2) Ty.TBool))
 
-def sem_eq_untyped.r_ill_typed.Stmt : Prop :=
+def Bool.eq_untyped.r_ill_typed.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq_untyped.r_ill_typed O v1 v2 = some res →
-  Refines (sem_eq_untyped.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq_untyped.r_ill_typed O v1 v2 = some res →
+  Refines (Bool.eq_untyped.spec v1 v2) res
 
-def sem_eq_untyped.r_typed.Stmt : Prop :=
+def Bool.eq_untyped.r_typed.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), sem_eq_untyped.r_typed O v1 v2 = some res →
-  Refines (sem_eq_untyped.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Bool.eq_untyped.r_typed O v1 v2 = some res →
+  Refines (Bool.eq_untyped.spec v1 v2) res
 
-def sem_eq_untyped.r_ill_typed.main.Stmt : Prop :=
+def Bool.eq_untyped.r_ill_typed.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   (! (decide ((ty v1) = (ty v2)))) = true →
-  Refines (sem_eq_untyped.spec v1 v2)
+  Refines (Bool.eq_untyped.spec v1 v2)
   (v_false)
 
-def sem_eq_untyped.r_typed.main.Stmt : Prop :=
+def Bool.eq_untyped.r_typed.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (sem_eq_untyped.spec v1 v2)
-  ((O.sem_eq v1 v2))
+  Refines (Bool.eq_untyped.spec v1 v2)
+  ((O.bool_eq v1 v2))
 
-def b_distinct.r_small.Stmt : Prop :=
+def Bool.distinct.r_small.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (l : (List Term)) (res : Term), b_distinct.r_small O l = some res →
-  Refines (b_distinct.spec l) res
+  ∀ (l : (List Term)) (res : Term), Bool.distinct.r_small O l = some res →
+  Refines (Bool.distinct.spec l) res
 
-def b_distinct.r_distinct.Stmt : Prop :=
+def Bool.distinct.r_distinct.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (l : (List Term)) (res : Term), b_distinct.r_distinct O l = some res →
-  Refines (b_distinct.spec l) res
+  ∀ (l : (List Term)) (res : Term), Bool.distinct.r_distinct O l = some res →
+  Refines (Bool.distinct.spec l) res
 
-def b_distinct.r_not_distinct.Stmt : Prop :=
+def Bool.distinct.r_not_distinct.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (l : (List Term)) (res : Term), b_distinct.r_not_distinct O l = some res →
-  Refines (b_distinct.spec l) res
+  ∀ (l : (List Term)) (res : Term), Bool.distinct.r_not_distinct O l = some res →
+  Refines (Bool.distinct.spec l) res
 
-def b_distinct.r_default.Stmt : Prop :=
+def Bool.distinct.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (l : (List Term)) (res : Term), b_distinct.r_default O l = some res →
-  Refines (b_distinct.spec l) res
+  ∀ (l : (List Term)) (res : Term), Bool.distinct.r_default O l = some res →
+  Refines (Bool.distinct.spec l) res
 
-def b_distinct.r_small.main.Stmt : Prop :=
+def Bool.distinct.r_small.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (l : (List Term)),
-  (at_most_one l) = true →
-  Refines (b_distinct.spec l)
+  (Bool.at_most_one l) = true →
+  Refines (Bool.distinct.spec l)
   (v_true)
 
-def b_distinct.r_distinct.main.Stmt : Prop :=
+def Bool.distinct.r_distinct.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (l : (List Term)),
-  (decide ((distinct_check l) = (some true))) = true →
-  Refines (b_distinct.spec l)
+  (decide ((Bool.distinct_check l) = (some true))) = true →
+  Refines (Bool.distinct.spec l)
   (v_true)
 
-def b_distinct.r_not_distinct.main.Stmt : Prop :=
+def Bool.distinct.r_not_distinct.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (l : (List Term)),
-  (decide ((distinct_check l) = (some false))) = true →
-  Refines (b_distinct.spec l)
+  (decide ((Bool.distinct_check l) = (some false))) = true →
+  Refines (Bool.distinct.spec l)
   (v_false)
 
-def b_distinct.r_default.main.Stmt : Prop :=
+def Bool.distinct.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (l : (List Term)),
-  Refines (b_distinct.spec l)
+  Refines (Bool.distinct.spec l)
   ((Term.mk (Kind.OpN OpN.Distinct (O.orc.sort_by_tag l)) Ty.TBool))
 
-def plus.r_lits.Stmt : Prop :=
+def Int.plus.r_lits.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_lits O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_lits O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_unit_zero.Stmt : Prop :=
+def Int.plus.r_unit_zero.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_unit_zero O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_unit_zero O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_default.Stmt : Prop :=
+def Int.plus.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), plus.r_default O v1 v2 = some res →
-  Refines (plus.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.plus.r_default O v1 v2 = some res →
+  Refines (Int.plus.spec v1 v2) res
 
-def plus.r_lits.main.Stmt : Prop :=
+def Int.plus.r_lits.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (i1 : Int) (t__2 : Ty) (i2 : Int) (t__4 : Ty),
-  Refines (plus.spec (Term.mk (Kind.Int i1) t__2) (Term.mk (Kind.Int i2) t__4))
-  ((Term.mk (Kind.Int (add i1 i2)) Ty.TInt))
+  Refines (Int.plus.spec (Term.mk (Kind.Int i1) t__2) (Term.mk (Kind.Int i2) t__4))
+  ((Term.mk (Kind.Int (Int.add i1 i2)) Ty.TInt))
 
-def plus.r_unit_zero.main.Stmt : Prop :=
+def Int.plus.r_unit_zero.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (kanon__2 : Int) (t__3 : Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  Refines (plus.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
+  Refines (Int.plus.spec v1 (Term.mk (Kind.Int kanon__2) t__3))
   (v1)
 
-def plus.r_unit_zero.swap.Stmt : Prop :=
+def Int.plus.r_unit_zero.swap.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v2 : Term) (kanon__2 : Int) (t__3 : Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  Refines (plus.spec (Term.mk (Kind.Int kanon__2) t__3) v2)
+  Refines (Int.plus.spec (Term.mk (Kind.Int kanon__2) t__3) v2)
   (v2)
 
-def plus.r_default.main.Stmt : Prop :=
+def Int.plus.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (plus.spec v1 v2)
+  Refines (Int.plus.spec v1 v2)
   ((Term.mk (mk_commut_binop O Op2.Plus v1 v2) Ty.TInt))
 
-def int_lt.r_lits.Stmt : Prop :=
+def Int.int_lt.r_lits.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), int_lt.r_lits O v1 v2 = some res →
-  Refines (int_lt.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.int_lt.r_lits O v1 v2 = some res →
+  Refines (Int.int_lt.spec v1 v2) res
 
-def int_lt.r_same.Stmt : Prop :=
+def Int.int_lt.r_same.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), int_lt.r_same O v1 v2 = some res →
-  Refines (int_lt.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.int_lt.r_same O v1 v2 = some res →
+  Refines (Int.int_lt.spec v1 v2) res
 
-def int_lt.r_default.Stmt : Prop :=
+def Int.int_lt.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
-  ∀ (v1 : Term) (v2 : Term) (res : Term), int_lt.r_default O v1 v2 = some res →
-  Refines (int_lt.spec v1 v2) res
+  ∀ (v1 : Term) (v2 : Term) (res : Term), Int.int_lt.r_default O v1 v2 = some res →
+  Refines (Int.int_lt.spec v1 v2) res
 
-def int_lt.r_lits.main.Stmt : Prop :=
+def Int.int_lt.r_lits.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Int) (t__2 : Ty) (y : Int) (t__4 : Ty),
-  Refines (int_lt.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
-  ((of_bool (decide (x < y))))
+  Refines (Int.int_lt.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
+  ((Bool.of_bool (decide (x < y))))
 
-def int_lt.r_same.main.Stmt : Prop :=
+def Int.int_lt.r_same.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
   (decide (v1 = v2)) = true →
-  Refines (int_lt.spec v1 v2)
+  Refines (Int.int_lt.spec v1 v2)
   (v_false)
 
-def int_lt.r_default.main.Stmt : Prop :=
+def Int.int_lt.r_default.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (v1 : Term) (v2 : Term),
-  Refines (int_lt.spec v1 v2)
+  Refines (Int.int_lt.spec v1 v2)
   ((Term.mk (Kind.Op2 Op2.Lt v1 v2) Ty.TBool))
 
 end IntsExample

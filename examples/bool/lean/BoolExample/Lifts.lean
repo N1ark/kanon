@@ -14,45 +14,45 @@ namespace Lib
 
 variable {O : Ops}
 
-theorem lift_b_and (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
+theorem lift_bool_and_ (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') :
-  Refines (b_and.spec v1 v2) (O.b_and v1' v2') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.b_and v1' v2')
+  Refines (Bool.and_.spec v1 v2) (O.bool_and_ v1' v2') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_and_ v1' v2')
 
-theorem lift_b_or (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
+theorem lift_bool_or_ (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') :
-  Refines (b_or.spec v1 v2) (O.b_or v1' v2') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.b_or v1' v2')
+  Refines (Bool.or_.spec v1 v2) (O.bool_or_ v1' v2') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_or_ v1' v2')
 
-theorem lift_b_not (hO : O.Sound) {sv sv' : Term}
+theorem lift_bool_not_ (hO : O.Sound) {sv sv' : Term}
   (h_sv : Refines sv sv') :
-  Refines (b_not.spec sv) (O.b_not sv') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.b_not sv')
+  Refines (Bool.not_.spec sv) (O.bool_not_ sv') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_not_ sv')
 
-theorem lift_b_ite (hO : O.Sound) {guard guard' : Term} {if_ if_' : Term} {else_ else_' : Term}
+theorem lift_bool_ite (hO : O.Sound) {guard guard' : Term} {if_ if_' : Term} {else_ else_' : Term}
   (h_guard : Refines guard guard')
   (h_if_ : Refines if_ if_')
   (h_else_ : Refines else_ else_') :
-  Refines (b_ite.spec guard if_ else_) (O.b_ite guard' if_' else_') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.b_ite guard' if_' else_')
+  Refines (Bool.ite.spec guard if_ else_) (O.bool_ite guard' if_' else_') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_ite guard' if_' else_')
 
-theorem lift_sem_eq (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
+theorem lift_bool_eq (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') :
-  Refines (sem_eq.spec v1 v2) (O.sem_eq v1' v2') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.sem_eq v1' v2')
+  Refines (Bool.eq.spec v1 v2) (O.bool_eq v1' v2') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_eq v1' v2')
 
-theorem lift_sem_eq_untyped (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
+theorem lift_bool_eq_untyped (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') :
-  Refines (sem_eq_untyped.spec v1 v2) (O.sem_eq_untyped v1' v2') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.sem_eq_untyped v1' v2')
+  Refines (Bool.eq_untyped.spec v1 v2) (O.bool_eq_untyped v1' v2') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bool_eq_untyped v1' v2')
 
-theorem lift_b_distinct (hO : O.Sound) {l : (List Term)} :
-  Refines (b_distinct.spec l) (O.b_distinct l) :=
-  hO.b_distinct l
+theorem lift_bool_distinct (hO : O.Sound) {l : (List Term)} :
+  Refines (Bool.distinct.spec l) (O.bool_distinct l) :=
+  hO.bool_distinct l
 
 end Lib
 

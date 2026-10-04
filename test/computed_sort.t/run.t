@@ -42,23 +42,23 @@ to arguments, `(Tuple vs : TTuple (types_of vs))`, or any expression of type
 OCaml: the sort is the expression.
 
   $ kanon ocaml lang.knl | grep -n 'node'
-  29:    (node (Tuple (vs)) (TTuple ((types_of vs))))
-  31:let[@inline] mk_var (x : var) (s : ty) : t = (node (Var (x)) s)
-  33:let[@inline] mk_var_of (x : var) : t = (node (Var (x)) (Prims.var_ty x))
-  36:    (node (Field (i, v)) (field_ty v i))
-  39:    (node (Field (i, v)) (nth_ty (types_of (v :: [])) i))
-  47:    | _ -> (node (Op1 ((Proj (i)), v)) (field_ty v i))
+  29:    (node (Tuple (vs)) (TTuple ((rules_types_of vs))))
+  31:let[@inline] rules_mk_var (x : var) (s : ty) : t = (node (Var (x)) s)
+  34:    (node (Var (x)) (Prims.var_ty x))
+  37:    (node (Field (i, v)) (rules_field_ty v i))
+  40:    (node (Field (i, v)) (rules_nth_ty (rules_types_of (v :: [])) i))
+  48:    | _ -> (node (Op1 ((Proj (i)), v)) (rules_field_ty v i))
 
 Lean: the sort is the translated expression.
 
   $ kanon lean-model lang.knl | grep -n 'Term.mk'
-  43:  (Term.mk (Kind.Tuple vs) (Ty.TTuple (types_of vs)))
-  46:  (Term.mk (Kind.Var x) s)
-  49:  (Term.mk (Kind.Var x) (var_ty x))
-  52:  (Term.mk (Kind.Field i v) (field_ty v i))
-  55:  (Term.mk (Kind.Field i v) (nth_ty (types_of (v :: [])) i))
-  63:  (Term.mk (Kind.Op1 (Op1.Proj i) v) Ty.TInt)
-  68:    (whenSome true ((Term.mk (Kind.Op1 (Op1.Proj i) v) (field_ty v i)))))
+  50:  (Term.mk (Kind.Tuple vs) (Ty.TTuple (Rules.types_of vs)))
+  53:  (Term.mk (Kind.Var x) s)
+  56:  (Term.mk (Kind.Var x) (var_ty x))
+  59:  (Term.mk (Kind.Field i v) (Rules.field_ty v i))
+  62:  (Term.mk (Kind.Field i v) (Rules.nth_ty (Rules.types_of (v :: [])) i))
+  70:  (Term.mk (Kind.Op1 (Op1.Proj i) v) Ty.TInt)
+  76:    ((Term.mk (Kind.Op1 (Op1.Proj i) v) (Rules.field_ty v i)))))
 
 The ocaml-typed backend types a rule by the typing of its node, not by the sort
 that its body builds: `proj` returns a `tint`.
@@ -68,7 +68,7 @@ that its body builds: `proj` returns a `tint`.
 
 The sort of a node is a `ty`: anything else is an error at the sort.
 
-  $ for sort in 'x' '1' 'types_of []' 'sorrt' '(types_of [])'; do
+  $ for sort in 'x' '1' 'Rules.types_of []' 'sorrt' '(Rules.types_of [])'; do
   >   cat > bad.kn <<EOF
   > fn bad (x : var) : t = (Var x : $sort)
   > EOF
@@ -79,11 +79,11 @@ The sort of a node is a `ty`: anything else is an error at the sort.
   bad.kn:1:32: type mismatch: expected ty, got var
   === 1
   bad.kn:1:32: type mismatch: expected ty, got int
-  === types_of []
+  === Rules.types_of []
   bad.kn:1:32: type mismatch: expected ty, got ty list
   === sorrt
   bad.kn:1:32: unbound variable sorrt
-  === (types_of [])
+  === (Rules.types_of [])
   bad.kn:1:33: type mismatch: expected ty, got ty list
   [1]
 

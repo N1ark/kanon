@@ -12,10 +12,15 @@ open Ppxlib
 
 let mkloc (s, e) = { loc_start = s; loc_end = e; loc_ghost = false }
 let lid loc s = { txt = Lident s; loc }
+(* [x], or [M.x] if it is qualified *)
+let qlid loc s =
+  match String.index_opt s '.' with
+  | Some i when s <> "" && s.[0] >= 'A' && s.[0] <= 'Z' -> { txt = Ldot (Lident (String.sub s 0 i), String.sub s (i + 1) (String.length s - i - 1)); loc }
+  | _ -> { txt = Lident s; loc }
 let exp loc d = { pexp_desc = d; pexp_loc = loc; pexp_loc_stack = []; pexp_attributes = [] }
 let pat loc d = { ppat_desc = d; ppat_loc = loc; ppat_loc_stack = []; ppat_attributes = [] }
 let typ loc d = { ptyp_desc = d; ptyp_loc = loc; ptyp_loc_stack = []; ptyp_attributes = [] }
-let ident loc s = exp loc (Pexp_ident (lid loc s))
+let ident loc s = exp loc (Pexp_ident (qlid loc s))
 let apply loc f args = exp loc (Pexp_apply (f, List.map (fun a -> (Nolabel, a)) args))
 
 (** Whether [s] is a word, which an infix operator may be. *)
@@ -180,6 +185,8 @@ let neg loc oploc (e : expression) =
 %}
 
 %token <string> LID UID INT STRING INFIXWORD
+(* a qualified name, [Bitvec.add]: a module and a name, with no space *)
+%token <string> QLID
 (* the text of a doc comment [(** ... *)], which documents the item that follows *)
 %token <string> DOC
 (* the operators, by precedence (see the lexer) *)
@@ -231,7 +238,7 @@ other_item:
      [path.kn] (see [Main]) *)
   | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
   | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
-  | EXTEND fn = extended x = LID before = option(before) EQ BAR? cs = cases
+  | EXTEND fn = extended x = fn_name before = option(before) EQ BAR? cs = cases
     { let loc = mkloc $loc in
       (* the payloads are at the names of the function and of the rule *)
       let attrs =
@@ -332,6 +339,11 @@ decl_attr:
 attr_string:
   | s = STRING { (s, unquote $loc) }
 
+(* the name of a function, qualified or not *)
+fn_name:
+  | x = LID { x }
+  | x = QLID { x }
+
 constant_name:
   | s = attr_string { s }
   | s = LID { (s, $loc) }
@@ -344,6 +356,7 @@ constant_name:
 attr_arg:
   | s = attr_string { s }
   | s = LID { (s, $loc) }
+  | s = QLID { (s, $loc) }
   | s = UID { (s, $loc) }
   | i = INT { (i, $loc) }
   | TRUE { ("true", $loc) }
@@ -562,13 +575,13 @@ unary_expr:
 
 app_expr:
   | e = simple_expr { e }
-  | f = LID args = nonempty_list(simple_expr) { apply (mkloc $loc) (ident (mkloc $loc(f)) f) args }
+  | f = fn_name args = nonempty_list(simple_expr) { apply (mkloc $loc) (ident (mkloc $loc(f)) f) args }
   | c = UID arg = simple_expr { econstr ~cloc:(mkloc $loc(c)) (mkloc $loc) c (Some arg) }
   | ASSERT e = simple_expr { exp (mkloc $loc) (Pexp_assert e) }
   | op = NOT e = simple_expr { apply (mkloc $loc) (ident (mkloc $loc(op)) "not") [ e ] }
 
 simple_expr:
-  | x = LID { ident (mkloc $loc) x }
+  | x = fn_name { ident (mkloc $loc) x }
   | c = UID { econstr (mkloc $loc) c None }
   | TRUE { econstr (mkloc $loc) "true" None }
   | FALSE { econstr (mkloc $loc) "false" None }

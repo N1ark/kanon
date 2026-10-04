@@ -114,6 +114,7 @@ rule token = parse
       match List.assoc_opt s keywords with
       | Some k -> k
       | None -> if Hashtbl.mem Syntax.infix_words s then INFIXWORD s else LID s }
+  | uid '.' lid as s { QLID s }
   | uid as s { UID s }
   | op_char+ (['a'-'z'] ident_char*)? {
       let s = Lexing.lexeme lexbuf in

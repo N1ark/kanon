@@ -26,9 +26,9 @@ it does not exist in the Lean files.
 
   $ kanon ocaml lang.knl rules.kn | grep "hidden"
     val p_hidden : Z.t -> Z.t
-  let[@inline] size_hidden (x : Z.t) : Z.t =
-  let[@inline] hidden_helper (x : Z.t) : Z.t =
-      (Z.add (Prims.p_hidden (lean_helper x)) (size_hidden x))
+  let[@inline] rules_size_hidden (x : Z.t) : Z.t =
+  let[@inline] rules_hidden_helper (x : Z.t) : Z.t =
+      (Z.add (Prims.p_hidden (rules_lean_helper x)) (rules_size_hidden x))
   $ kanon ocaml-typed lang.knl rules.kn | grep -c "hidden"
   0
   [1]
@@ -47,7 +47,7 @@ it does not exist in the Lean files.
   >   kanon lean-$b lang.knl rules.kn | grep "p_lean\|lean_helper"
   > done
   example : Int → Int := p_lean
-  def lean_helper (x : Int) : Int :=
+  def Rules.lean_helper (x : Int) : Int :=
     (p_lean x)
 
 A `[@no_lean]` function may call anything. A function or a rule that Lean models
@@ -60,7 +60,7 @@ the typing of a node.
   > fn caller (x : int) : int = hidden_helper x
   > KN
   $ kanon ocaml lang.knl bad.kn
-  bad.kn:3:28: fn caller calls hidden_helper, which is [@no_lean]
+  bad.kn:3:28: fn Bad.caller calls Bad.hidden_helper, which is [@no_lean]
   [1]
 
   $ cat > bad.kn <<'KN'
@@ -68,7 +68,7 @@ the typing of a node.
   > fn caller (x : int) : int = p_hidden x
   > KN
   $ kanon lean-model lang.knl bad.kn
-  bad.kn:2:28: fn caller calls p_hidden, which is [@no_lean]
+  bad.kn:2:28: fn Bad.caller calls Bad.p_hidden, which is [@no_lean]
   [1]
 
   $ cat > bad.kn <<'KN'
@@ -77,7 +77,7 @@ the typing of a node.
   >   | zero: 0, x when hidden_helper 1 = 1 -> x
   > KN
   $ kanon ocaml lang.knl bad.kn
-  bad.kn:3:20: rule add calls hidden_helper, which is [@no_lean]
+  bad.kn:3:20: rule Bad.add calls Bad.hidden_helper, which is [@no_lean]
   [1]
 
   $ cat > bad.kn <<'KN'
@@ -102,11 +102,11 @@ the typing of a node.
   > rule add : Add (v1, v2)
   > KN
   $ kanon ocaml bad.knl bad.kn
-  bad.knl:4:32: rule add calls add_z, which is [@no_lean]
+  bad.knl:4:32: rule Bad.add calls Bad.add_z, which is [@no_lean]
   [1]
   $ sed -i 's/ \[@fold add_z\]//' bad.knl
   $ kanon ocaml bad.knl bad.kn
-  bad.knl:5:40: the typing of Pos calls ok, which is [@no_lean]
+  bad.knl:5:40: the typing of Pos calls Bad.ok, which is [@no_lean]
   [1]
 
 `extend fn` on a `[@no_lean]` function adds cases to the same function, which
@@ -120,7 +120,7 @@ are not modelled either, and may call other `[@no_lean]` functions.
   > KN
   $ cat > ext.kn <<'KN'
   > fn other (x : int) : int [@no_lean] = x
-  > extend fn hidden_helper =
+  > extend fn Base.hidden_helper =
   >   | 3 -> other 4
   > KN
   $ kanon ocaml lang.knl base.kn ext.kn | grep -c "other"
@@ -163,7 +163,7 @@ Only `fn` and `prim` items can be `[@no_lean]`, and unknown attributes on
   
   [@@@warning "-a+11"]
   
-  let[@inline] f (v : t) : Z.t = (Z.of_int (3))
+  let[@inline] bad_f (v : t) : Z.t = (Z.of_int (3))
   
   let as_int (t : t) =
     match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None

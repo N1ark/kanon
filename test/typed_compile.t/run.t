@@ -22,14 +22,14 @@ nodes: they are added by hand.
   > KN
   $ cat > bitvec.kn <<'KN'
   > prim size : t -> int
-  > rule bv_div : Div (v1, v2)
+  > rule div : Div (v1, v2)
   > KN
   $ cat > cmp.knl <<'KN'
   > sort TBool
   > node Ult : TBitVector n -> TBitVector n -> TBool
   > KN
   $ cat > cmp.kn <<'KN'
-  > rule bv_ult : Ult (v1, v2)
+  > rule ult : Ult (v1, v2)
   > KN
   $ cat > sub_prims.ml <<'ML'
   > let size (t : Sub_types.t) =
@@ -61,21 +61,21 @@ A divisor that is a bit-vector is not known to be non-zero, nor is a zero. A
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
   > let x = Bitvec.mk_bv Z.one 8
-  > let _ = Bitvec.bv_div x x
+  > let _ = Bitvec.div x x
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TBitVector, `TZero
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let _ = Bitvec.bv_div (Bitvec.mk_bv Z.one 8) (Bitvec.mk_zero 8)
+  > let _ = Bitvec.div (Bitvec.mk_bv Z.one 8) (Bitvec.mk_zero 8)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TZero
   $ cat > good.ml <<'ML'
   > open Impl.Typed
   > let x = Bitvec.mk_bv Z.one 8
-  > let ok = Bitvec.bv_div x (cast x)
-  > let () = assert (untyped ok == untyped (Bitvec.bv_div x (type_ (untyped x))))
+  > let ok = Bitvec.div x (cast x)
+  > let () = assert (untyped ok == untyped (Bitvec.div x (type_ (untyped x))))
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c good.ml
 
@@ -85,8 +85,8 @@ too:
   $ cat > good.ml <<'ML'
   > open Impl.Typed
   > let z = Bitvec.mk_zero 8
-  > let _ = Bitvec.bv_div z (cast z)
-  > let _ = Cmp.bv_ult z z
+  > let _ = Bitvec.div z (cast z)
+  > let _ = Cmp.ult z z
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c good.ml
 
@@ -96,14 +96,14 @@ one: `S` hides that the typed terms are the untyped ones.
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
   > let x = Bitvec.mk_bv Z.one 8
-  > let _ = Cmp.bv_ult x (untyped x)
+  > let _ = Cmp.ult x (untyped x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'This expression has type.*'
   This expression has type Impl.Typed.raw = Sub_types.t
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
   > let x = Bitvec.mk_bv Z.one 8
-  > let _ = Cmp.bv_ult x (Cmp.bv_ult x x)
+  > let _ = Cmp.ult x (Cmp.ult x x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TBool
@@ -116,6 +116,6 @@ group of tags, which is the user's:
   > open Impl.Typed
   > let is_node (t : [< scalar ] t) = Bitvec.is_div t || Cmp.is_ult t
   > let x = Bitvec.mk_bv Z.one 8
-  > let _ = is_node x && is_node (Cmp.bv_ult x x)
+  > let _ = is_node x && is_node (Cmp.ult x x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c group.ml

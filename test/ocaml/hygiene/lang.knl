@@ -8,6 +8,6 @@ use "rules"
 
 node Int of int : TInt
 notation Int
-node Mix of int * int * int * int * bool * int (i, j, i1, i2, b, z) : TInt -> TInt -> TInt [@fold mix_lits]
-node Neg of int (i) : TInt -> TInt [@fold neg_lit]
+node Mix of int * int * int * int * bool * int (i, j, i1, i2, b, z) : TInt -> TInt -> TInt [@fold Rules.mix_lits]
+node Neg of int (i) : TInt -> TInt [@fold Rules.neg_lit]
 sort TInt

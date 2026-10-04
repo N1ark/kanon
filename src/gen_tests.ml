@@ -96,7 +96,7 @@ let rule_fn ctx ft (f : fn) (spec : expr) draws =
     (rule_names f.body);
   List.iter2 (fun (x, _) d -> pf ft "let %s = %t in@ " x d) f.params draws;
   pf ft "@[<v 2>{@ spec = (fun () -> %a);@ " (Gen_ocaml.expr ctx) spec;
-  pf ft "call = (fun () -> %s%a);@ " f.name
+  pf ft "call = (fun () -> %s%a);@ " (flat_name f.name)
     (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
     f.params;
   pf ft "fired = (fun () -> %a);@]@ })@]" (fired ctx) f.body

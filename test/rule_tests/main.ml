@@ -28,9 +28,9 @@ let src : source =
 let () =
   let names n = List.map (fun (m, rs, _) -> (m, rs)) rule_fns |> List.assoc n in
   check "annotated spec lists its rules"
-    (names "bv_ext" = [ "full"; "neg"; "default" ]);
+    (names "Rules.ext" = [ "full"; "neg"; "default" ]);
   check "plain spec lists its rules"
-    (names "bv_ext_plain" = [ "full"; "neg"; "default" ]);
+    (names "Rules.ext_plain" = [ "full"; "neg"; "default" ]);
   List.iter
     (fun (name, rules, mk) ->
       let rec run tries =
@@ -46,4 +46,4 @@ let () =
         run 0
       done)
     rule_fns;
-  check "nat" (Z.equal (clamp (Z.of_int 3) (Z.of_int 2)) (Z.of_int 2))
+  check "nat" (Z.equal (rules_clamp (Z.of_int 3) (Z.of_int 2)) (Z.of_int 2))

@@ -14,35 +14,35 @@ open Classical Kanon
 structure Oracle where
   tag_le : Term → Term → Bool
 
-def add (x : Int) (y : Int) : Int :=
+def Int.add (x : Int) (y : Int) : Int :=
   (x + y)
 
 /-- The rule functions, as used by the rules. -/
 structure Ops where
   orc : Oracle
-  plus : Term → Term → Term
+  int_plus : Term → Term → Term
   int_div : Term → Term → Term
-  sq1 : Term → Term
+  int_sq1 : Term → Term
 
 def mk_commut_binop (O : Ops) (op : Op2) (l : Term) (r : Term) : Kind :=
   (if (O.orc.tag_le l r) then (Kind.Op2 op l r) else (Kind.Op2 op r l))
 
-@[kanon_spec] def plus.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Int.plus.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Plus v1 v2) Ty.TInt)
 
-@[kanon_spec] def int_div.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Int.div.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Div v1 v2) Ty.TInt)
 
-@[kanon_spec] def sq1.spec (v : Term) : Term :=
+@[kanon_spec] def Int.sq1.spec (v : Term) : Term :=
   (Term.mk (Kind.Op1 Op1.Sq1 v) Ty.TInt)
 
-def plus.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Int.plus.r_lits (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Int i1) _), (Term.mk (Kind.Int i2) _) =>
-    (whenSome true ((Term.mk (Kind.Int (add i1 i2)) Ty.TInt)))
+    (whenSome true ((Term.mk (Kind.Int (Int.add i1 i2)) Ty.TInt)))
     | _, _ => none)
 
-def plus.r_unit_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Int.plus.r_unit_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x, (Term.mk (Kind.Int kanon__2) _) =>
     (whenSome (decide (kanon__2 = (0 : Int))) (x))
@@ -52,46 +52,46 @@ def plus.r_unit_zero (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (kanon__2 = (0 : Int))) (x))
         | _, _ => none)
 
-def plus.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Int.plus.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome true ((Term.mk (mk_commut_binop O Op2.Plus v1 v2) Ty.TInt))))
 
-def plus.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [plus.r_lits O v1 v2, plus.r_unit_zero O v1 v2, plus.r_default O v1 v2]).getD (plus.spec v1 v2)
+def Int.plus.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Int.plus.r_lits O v1 v2, Int.plus.r_unit_zero O v1 v2, Int.plus.r_default O v1 v2]).getD (Int.plus.spec v1 v2)
 
-def int_div.r_self (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Int.div.r_self (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x, y =>
     (whenSome (decide (x = y)) ((Term.mk (Kind.Int (1 : Int)) Ty.TInt))))
 
-def int_div.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Int.div.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome true ((Term.mk (Kind.Op2 Op2.Div v1 v2) Ty.TInt))))
 
-def int_div.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [int_div.r_self O v1 v2, int_div.r_default O v1 v2]).getD (int_div.spec v1 v2)
+def Int.div.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Int.div.r_self O v1 v2, Int.div.r_default O v1 v2]).getD (Int.div.spec v1 v2)
 
-def sq1.r_default (O : Ops) (v : Term) : Option Term :=
+def Int.sq1.r_default (O : Ops) (v : Term) : Option Term :=
   (match v with
     | _ =>
     (whenSome true ((Term.mk (Kind.Op1 Op1.Sq1 v) Ty.TInt))))
 
-def sq1.step (O : Ops) (v : Term) : Term :=
-  (firstSome [sq1.r_default O v]).getD (sq1.spec v)
+def Int.sq1.step (O : Ops) (v : Term) : Term :=
+  (firstSome [Int.sq1.r_default O v]).getD (Int.sq1.spec v)
 
 def opsRaw (orc : Oracle) : Ops :=
   { orc := orc,
-    plus := fun v1 v2 => plus.spec v1 v2,
-    int_div := fun v1 v2 => int_div.spec v1 v2,
-    sq1 := fun v => sq1.spec v }
+    int_plus := fun v1 v2 => Int.plus.spec v1 v2,
+    int_div := fun v1 v2 => Int.div.spec v1 v2,
+    int_sq1 := fun v => Int.sq1.spec v }
 
 def opsStep (O : Ops) : Ops :=
   { orc := O.orc,
-    plus := plus.step O,
-    int_div := int_div.step O,
-    sq1 := sq1.step O }
+    int_plus := Int.plus.step O,
+    int_div := Int.div.step O,
+    int_sq1 := Int.sq1.step O }
 
 def opsN (orc : Oracle) : Nat → Ops
   | 0 => opsRaw orc

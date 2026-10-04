@@ -9,7 +9,7 @@ and `extend rule` go before it, and a rule function that ends with one has no
   > node Int of int : TInt
   > node Add : TInt -> TInt -> TInt
   > notation Int
-  > infix "+" = Add, add
+  > infix "+" = Add, Base.add
   > KN
 
 A helper over three scrutinees ends with `_`, `_, _, _` or `(_, _), _`, and over
@@ -17,7 +17,7 @@ a pair of pairs. The added case is in the OCaml and in the Lean model, before
 the last case.
 
   $ cat > ext.kn <<'KN'
-  > extend fn f =
+  > extend fn Base.f =
   >   | 3, _, _ -> 7
   > KN
 
@@ -46,7 +46,7 @@ the last case.
   25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
 
   $ cat > ext.kn <<'KN'
-  > extend fn g =
+  > extend fn Base.g =
   >   | (3, _), _ -> 7
   > KN
 
@@ -84,7 +84,7 @@ the last case.
 reached, which is an error, not a silent omission.
 
   $ cat > ext.kn <<'KN'
-  > extend fn f =
+  > extend fn Base.f =
   >   | 3, _, _ -> 7
   > KN
 
@@ -100,11 +100,11 @@ reached, which is an error, not a silent omission.
   >   kanon lean-model lang.knl base.kn ext.kn
   > done
   === x, _, _ -> 0
-  ext.kn:2:4: extend f: this case is unreachable (an earlier case of f matches everything it does), so it was not added
-  ext.kn:2:4: extend f: this case is unreachable (an earlier case of f matches everything it does), so it was not added
+  ext.kn:2:4: extend Base.f: this case is unreachable (an earlier case of Base.f matches everything it does), so it was not added
+  ext.kn:2:4: extend Base.f: this case is unreachable (an earlier case of Base.f matches everything it does), so it was not added
   === (_ as x), _, _ -> 0
-  ext.kn:2:4: extend f: this case is unreachable (an earlier case of f matches everything it does), so it was not added
-  ext.kn:2:4: extend f: this case is unreachable (an earlier case of f matches everything it does), so it was not added
+  ext.kn:2:4: extend Base.f: this case is unreachable (an earlier case of Base.f matches everything it does), so it was not added
+  ext.kn:2:4: extend Base.f: this case is unreachable (an earlier case of Base.f matches everything it does), so it was not added
   [1]
 
 Likewise for a rule function: the cases added by `extend rule` go before a last
@@ -112,7 +112,7 @@ rule `_` or `_, _` (which is then the final catch-all: there is no `default`).
 Without one, they are before `default`.
 
   $ cat > ext.kn <<'KN'
-  > extend rule add =
+  > extend rule Base.add =
   >   | one: 1, x -> x
   > KN
 
@@ -127,16 +127,16 @@ Without one, they are before `default`.
   >   kanon ocaml lang.knl base.kn ext.kn | grep -c 'Z.one'
   > done
   === | fin: _ -> v1
-    (firstSome [add.r_zero O v1 v2, add.r_one O v1 v2, add.r_«fin» O v1 v2]).getD (add.spec v1 v2)
+    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_«fin» O v1 v2]).getD (Base.add.spec v1 v2)
   1
   === | fin: _, _ -> v1
-    (firstSome [add.r_zero O v1 v2, add.r_one O v1 v2, add.r_«fin» O v1 v2]).getD (add.spec v1 v2)
+    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_«fin» O v1 v2]).getD (Base.add.spec v1 v2)
   1
   === 
-    (firstSome [add.r_zero O v1 v2, add.r_one O v1 v2, add.r_default O v1 v2]).getD (add.spec v1 v2)
+    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_default O v1 v2]).getD (Base.add.spec v1 v2)
   1
 
-`extend rule f before r` and a rule that is not a catch-all, `x, _`: the
+`extend rule Base.f before r` and a rule that is not a catch-all, `x, _`: the
 added rule cannot be reached, which is an error.
 
   $ cat > base.kn <<'KN'
@@ -145,7 +145,7 @@ added rule cannot be reached, which is an error.
   >   | fin: x, _ -> v1
   > KN
   $ kanon ocaml lang.knl base.kn ext.kn
-  ext.kn:2:9: extend add: this case is unreachable (an earlier case of add matches everything it does), so it was not added
+  ext.kn:2:9: extend Base.add: this case is unreachable (an earlier case of Base.add matches everything it does), so it was not added
   [1]
 
 A case written after `_, _` is unreachable exactly as after `_`: it is left out.
@@ -179,9 +179,9 @@ without a guard matches all that it matches) is an error, also for a rule.
   >   | _, _ -> 0
   > KN
   $ cat > ext.kn <<'KN'
-  > extend fn g =
+  > extend fn Base.g =
   >   | 3, _ -> 7
   > KN
   $ kanon ocaml lang.knl base.kn ext.kn
-  ext.kn:2:4: extend g: this case is unreachable (an earlier case of g matches everything it does), so it was not added
+  ext.kn:2:4: extend Base.g: this case is unreachable (an earlier case of Base.g matches everything it does), so it was not added
   [1]

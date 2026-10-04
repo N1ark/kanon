@@ -14,22 +14,22 @@ namespace Lib
 
 variable {O : Ops}
 
-theorem lift_plus (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
+theorem lift_int_plus (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') :
-  Refines (plus.spec v1 v2) (O.plus v1' v2') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.plus v1' v2')
+  Refines (Int.plus.spec v1 v2) (O.int_plus v1' v2') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_plus v1' v2')
 
 theorem lift_int_div (hO : O.Sound) {v1 v1' : Term} {v2 v2' : Term}
   (h_v1 : Refines v1 v1')
   (h_v2 : Refines v2 v2') (hs_v2 : Nonzero v2') :
-  Refines (int_div.spec v1 v2) (O.int_div v1' v2') :=
+  Refines (Int.div.spec v1 v2) (O.int_div v1' v2') :=
   Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_div v1' v2' hs_v2)
 
-theorem lift_sq1 (hO : O.Sound) {v v' : Term}
+theorem lift_int_sq1 (hO : O.Sound) {v v' : Term}
   (h_v : Refines v v') :
-  Refines (sq1.spec v) (O.sq1 v') :=
-  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.sq1 v')
+  Refines (Int.sq1.spec v) (O.int_sq1 v') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_sq1 v')
 
 end Lib
 

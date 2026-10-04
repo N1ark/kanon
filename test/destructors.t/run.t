@@ -64,14 +64,15 @@ the rules.
   
   
 
-A function or a primitive may not have the name of a destructor, nor may two
+A function (the function `add` of the module `Is` is `is_add` in OCaml) or a
+primitive may not have the name of a destructor, nor may two
 constructors that differ by their case have the same one:
 
-  $ cat > clash.kn <<'KN'
-  > fn is_add (x : int) : int = x
+  $ cat > is.kn <<'KN'
+  > fn add (x : int) : int = x
   > KN
-  $ kanon ocaml lang.knl rules.kn clash.kn
-  clash.kn:1:0: is_add is the destructor of Add: rename the function
+  $ kanon ocaml lang.knl rules.kn is.kn
+  is.kn:1:0: is_add is the destructor of Add: rename the function
   [1]
   $ cat > clash.kn <<'KN'
   > prim as_not : int -> int

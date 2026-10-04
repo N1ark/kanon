@@ -13,16 +13,16 @@ open Classical Kanon
 /-- The primitives that the model is parameterised by. -/
 structure Oracle where
 
-def in_bounds (a : (Array Int)) (i : Int) : Bool :=
+def Vec.in_bounds (a : (Array Int)) (i : Int) : Bool :=
   ((decide ((0 : Int) ≤ i)) && (decide (i < (arrayLength a))))
 
-def same_vec (a : (Array Int)) (b : (Array Int)) : Bool :=
+def Vec.same (a : (Array Int)) (b : (Array Int)) : Bool :=
   (decide (a = b))
 
-def vec_of_list (l : (List Int)) : Term :=
+def Vec.of_list (l : (List Int)) : Term :=
   (Term.mk (Kind.Vec (List.toArray l)) Ty.TVec)
 
-def elements (v : Term) : (List Int) :=
+def Vec.elements (v : Term) : (List Int) :=
   ((firstSome [(match v with
                  | (Term.mk (Kind.Vec a) _) =>
                  some ((Array.toList a))
@@ -32,79 +32,80 @@ def elements (v : Term) : (List Int) :=
 /-- The rule functions, as used by the rules. -/
 structure Ops where
   orc : Oracle
-  len : Term → Term
-  get : Term → Term → Term
-  set : Term → Term → Term → Term
+  vec_len : Term → Term
+  vec_get : Term → Term → Term
+  vec_set : Term → Term → Term → Term
 
-@[kanon_spec] def len.spec (v : Term) : Term :=
+@[kanon_spec] def Vec.len.spec (v : Term) : Term :=
   (Term.mk (Kind.Op1 Op1.Len v) Ty.TInt)
 
-@[kanon_spec] def get.spec (v : Term) (i : Term) : Term :=
+@[kanon_spec] def Vec.get.spec (v : Term) (i : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Get v i) Ty.TInt)
 
-@[kanon_spec] def set.spec (v : Term) (i : Term) (x : Term) : Term :=
+@[kanon_spec] def Vec.set.spec (v : Term) (i : Term) (x : Term) : Term :=
   (Term.mk (Kind.Op3 Op3.Set v i x) Ty.TVec)
 
-def len.r_lit (O : Ops) (v : Term) : Option Term :=
+def Vec.len.r_lit (O : Ops) (v : Term) : Option Term :=
   (match v with
     | (Term.mk (Kind.Vec a) _) =>
     (whenSome true ((Term.mk (Kind.Int (arrayLength a)) Ty.TInt)))
     | _ => none)
 
-def len.r_default (O : Ops) (v : Term) : Option Term :=
+def Vec.len.r_default (O : Ops) (v : Term) : Option Term :=
   (match v with
     | _ =>
     (whenSome true ((Term.mk (Kind.Op1 Op1.Len v) Ty.TInt))))
 
-def len.step (O : Ops) (v : Term) : Term :=
-  (firstSome [len.r_lit O v, len.r_default O v]).getD (len.spec v)
+def Vec.len.step (O : Ops) (v : Term) : Term :=
+  (firstSome [Vec.len.r_lit O v, Vec.len.r_default O v]).getD (Vec.len.spec v)
 
-def get.r_lit (O : Ops) (v : Term) (i : Term) : Option Term :=
+def Vec.get.r_lit (O : Ops) (v : Term) (i : Term) : Option Term :=
   (match v, i with
     | (Term.mk (Kind.Vec a) _), (Term.mk (Kind.Int k) _) =>
-    (whenSome (in_bounds a k) ((Term.mk (Kind.Int (arrayGet a k)) Ty.TInt)))
+    (whenSome (Vec.in_bounds a k)
+    ((Term.mk (Kind.Int (arrayGet a k)) Ty.TInt)))
     | _, _ => none)
 
-def get.r_set_same (O : Ops) (v : Term) (i : Term) : Option Term :=
+def Vec.get.r_set_same (O : Ops) (v : Term) (i : Term) : Option Term :=
   (match v, i with
     | (Term.mk (Kind.Op3 Op3.Set _ j x) _), k =>
     (whenSome (decide (j = k)) (x))
     | _, _ => none)
 
-def get.r_default (O : Ops) (v : Term) (i : Term) : Option Term :=
+def Vec.get.r_default (O : Ops) (v : Term) (i : Term) : Option Term :=
   (match v, i with
     | _, _ =>
     (whenSome true ((Term.mk (Kind.Op2 Op2.Get v i) Ty.TInt))))
 
-def get.step (O : Ops) (v : Term) (i : Term) : Term :=
-  (firstSome [get.r_lit O v i, get.r_set_same O v i, get.r_default O v i]).getD (get.spec v i)
+def Vec.get.step (O : Ops) (v : Term) (i : Term) : Term :=
+  (firstSome [Vec.get.r_lit O v i, Vec.get.r_set_same O v i, Vec.get.r_default O v i]).getD (Vec.get.spec v i)
 
-def set.r_lit (O : Ops) (v : Term) (i : Term) (x : Term) : Option Term :=
+def Vec.set.r_lit (O : Ops) (v : Term) (i : Term) (x : Term) : Option Term :=
   (match v, i, x with
     | (Term.mk (Kind.Vec a) _), (Term.mk (Kind.Int k) _), (Term.mk (Kind.Int y) _) =>
-    (whenSome (in_bounds a k)
+    (whenSome (Vec.in_bounds a k)
     ((Term.mk (Kind.Vec (arraySet a k y)) Ty.TVec)))
     | _, _, _ => none)
 
-def set.r_default (O : Ops) (v : Term) (i : Term) (x : Term) : Option Term :=
+def Vec.set.r_default (O : Ops) (v : Term) (i : Term) (x : Term) : Option Term :=
   (match v, i, x with
     | _, _, _ =>
     (whenSome true ((Term.mk (Kind.Op3 Op3.Set v i x) Ty.TVec))))
 
-def set.step (O : Ops) (v : Term) (i : Term) (x : Term) : Term :=
-  (firstSome [set.r_lit O v i x, set.r_default O v i x]).getD (set.spec v i x)
+def Vec.set.step (O : Ops) (v : Term) (i : Term) (x : Term) : Term :=
+  (firstSome [Vec.set.r_lit O v i x, Vec.set.r_default O v i x]).getD (Vec.set.spec v i x)
 
 def opsRaw (orc : Oracle) : Ops :=
   { orc := orc,
-    len := fun v => len.spec v,
-    get := fun v i => get.spec v i,
-    set := fun v i x => set.spec v i x }
+    vec_len := fun v => Vec.len.spec v,
+    vec_get := fun v i => Vec.get.spec v i,
+    vec_set := fun v i x => Vec.set.spec v i x }
 
 def opsStep (O : Ops) : Ops :=
   { orc := O.orc,
-    len := len.step O,
-    get := get.step O,
-    set := set.step O }
+    vec_len := Vec.len.step O,
+    vec_get := Vec.get.step O,
+    vec_set := Vec.set.step O }
 
 def opsN (orc : Oracle) : Nat → Ops
   | 0 => opsRaw orc

@@ -5,7 +5,7 @@ variables of the sorts, and an operand of another sort fails its assertion.
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
   > use "rules"
-  > sort TBv of nat [@get size]
+  > sort TBv of nat [@get Rules.size]
   > node Bv of int * nat (v, n) : TBv n
   > node Neg : TBv n -> TBv n
   > node Ext of nat * nat (from', to') : TBv n -> TBv (to' - from' + 1) when 0 <= from' && from' <= to' && to' < n
@@ -20,7 +20,7 @@ variables of the sorts, and an operand of another sort fails its assertion.
   > KN
   $ kanon ocaml-tests lang.knl | sed -n '/^let rule_fns/,$p'
   let rule_fns : (string * string list * (source -> test)) list = [
-    ( "bv_ext",
+    ( "Rules.bv_ext",
       [ "full"; "neg"; "default" ],
       fun src ->
       let from' = (src.int ()) in
@@ -28,8 +28,8 @@ variables of the sorts, and an operand of another sort fails its assertion.
       let v' = (src.term ()) in
       {
         spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (TBv ((Z.to_int (Z.add (Z.sub to' from') Z.one))))));
-        call = (fun () -> bv_ext from' to' v');
-        fired = (fun () -> (let sz' = (size v') in
+        call = (fun () -> rules_bv_ext from' to' v');
+        fired = (fun () -> (let sz' = (rules_size v') in
                            (assert (match v'.ty with
                                    | (TBv (kanon__n))
                                      when (let kanon__n = Z.of_int kanon__n in
@@ -54,17 +54,17 @@ variables of the sorts, and an operand of another sort fails its assertion.
 Lean.
 
   $ kanon ocaml lang.knl | grep -A1 "clamp"
-  let[@inline] clamp (n : Z.t) (m : Z.t) : Z.t = (if (Z.lt n m) then n else m)
-  
-  $ kanon lean-model lang.knl | grep -A1 "def clamp"
-  def clamp (n : Int) (m : Int) : Int :=
+  let[@inline] rules_clamp (n : Z.t) (m : Z.t) : Z.t =
+      (if (Z.lt n m) then n else m)
+  $ kanon lean-model lang.knl | grep -A1 "def Rules.clamp"
+  def Rules.clamp (n : Int) (m : Int) : Int :=
     (if (decide (n < m)) then n else m)
 
 Identifiers may have primes, and a user type may still be called `nat`.
 
-  $ kanon lean-model lang.knl | grep "def bv_ext.r_neg" -A3
-  def bv_ext.r_neg (O : Ops) (from' : Int) (to' : Int) (v' : Term) : Option Term :=
-    let sz' := (size v');
+  $ kanon lean-model lang.knl | grep "def Rules.bv_ext.r_neg" -A3
+  def Rules.bv_ext.r_neg (O : Ops) (from' : Int) (to' : Int) (v' : Term) : Option Term :=
+    let sz' := (Rules.size v');
     (match v' with
       | (Term.mk (Kind.Op1 Op1.Neg x') _) =>
   $ cat > lang2.knl <<'KN'
@@ -75,4 +75,4 @@ Identifiers may have primes, and a user type may still be called `nat`.
   > fn succ (n : nat) : nat = n
   > KN
   $ kanon ocaml lang2.knl | grep "succ"
-  let[@inline] succ (n : nat) : nat = n
+  let[@inline] rules2_succ (n : nat) : nat = n

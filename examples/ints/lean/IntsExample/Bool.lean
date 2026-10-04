@@ -6,10 +6,10 @@ import IntsExample.Semantics
 
 Kanon's library proves the rules of the bool module once (`Kanon.BoolMod`), for
 any language that gives the terms of its nodes, its booleans and the helper
-`sure_neq`, with their laws: a `BoolMod.Lang` of its semantics, `boolLang`.
+`Bool.sure_neq`, with their laws: a `BoolMod.Lang` of its semantics, `boolLang`.
 The laws are mostly unfoldings of `Term.WT` and `ev`; the two that need a proof
 are that well-typed booleans evaluate to booleans (from `ev_ty`) and that the
-terms that `sure_neq` tells apart, which the int module extends with integer
+terms that `Bool.sure_neq` tells apart, which the int module extends with integer
 literals, have different values (`sure_neq_sound`).
 -/
 
@@ -81,9 +81,9 @@ theorem ev_ty (ρ : Env) : ∀ (t : Term) (v : Val), t.WT → ev ρ t = some v �
     obtain ⟨_, -, rfl⟩ := e
     rfl
 
-/-- The terms that `sure_neq` tells apart: terms of different types, and
+/-- The terms that `Bool.sure_neq` tells apart: terms of different types, and
 different literals. -/
-theorem sure_neq_cases {a b : Term} (h : sure_neq a b = true) :
+theorem sure_neq_cases {a b : Term} (h : Bool.sure_neq a b = true) :
     a.ty ≠ b.ty ∨
       (∃ x y t t', a = .mk (.Bool x) t ∧ b = .mk (.Bool y) t' ∧ x ≠ y) ∨
       (∃ x y t t', a = .mk (.Int x) t ∧ b = .mk (.Int y) t' ∧ x ≠ y) := by
@@ -91,7 +91,7 @@ theorem sure_neq_cases {a b : Term} (h : sure_neq a b = true) :
   · right
     rcases a with ⟨ka, ta⟩; rcases b with ⟨kb, tb⟩
     simp only [Term.ty_mk] at hty; subst hty
-    cases ka <;> cases kb <;> simp_all [sure_neq, ty, firstSome]
+    cases ka <;> cases kb <;> simp_all [Bool.sure_neq, ty, firstSome]
   · exact .inl hty
 
 /-- The language, for the bool module. -/
@@ -107,7 +107,7 @@ noncomputable def boolLang : BoolMod.Lang sem where
   iteK g a b := .Op3 .Ite g a b
   distinctK l := .OpN .Distinct l
   vbool := .bool
-  sure_neq := sure_neq
+  sure_neq := Bool.sure_neq
   ty_mk _ _ := rfl
   WT_lit _ _ := by simp [Term.WT]
   WT_not _ _ := by simp [Term.WT, Op1.WT, and_assoc]

@@ -65,6 +65,58 @@ let pp_loc ft (loc : Location.t) =
     which may name the type of kinds. *)
 let kanon_file = "<kanon>"
 
+(* ---------------------------------------------------------------- *)
+(* Modules and scoped names *)
+
+(** A name as written: [x] or [M.x], without the parentheses that
+    {!Longident.name} puts around operators. *)
+let name_of_lid = function
+  | Lident x -> x
+  | Ldot (Lident m, x) -> m ^ "." ^ x
+  | l -> Longident.name l
+
+(** The module of the file [file], if it has one: its name, capitalised, without
+    its extension ([bitvec.kn] and [bitvec.knl] are [Bitvec];
+    [use builtin "bool"] is [Bool]). The functions that Kanon gives the language
+    have none. [loc] is where an invalid name is reported. *)
+let module_of_file ~loc file =
+  if file = kanon_file || file = "" || file = "_none_" then None
+  else
+    let stem = Filename.remove_extension (Filename.basename file) in
+    let stem =
+      if String.starts_with ~prefix:"+" stem then
+        String.sub stem 1 (String.length stem - 1)
+      else stem
+    in
+    let valid =
+      stem <> ""
+      && (match stem.[0] with 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false)
+      && String.for_all
+           (function
+             | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true
+             | _ -> false)
+           stem
+    in
+    if not valid then
+      error loc "%s: the name of a file of a module is an OCaml module name"
+        file;
+    Some (String.capitalize_ascii stem)
+
+let module_of_loc (loc : Location.t) =
+  module_of_file ~loc loc.loc_start.pos_fname
+
+(** The canonical name of the function, primitive or constant [x] that a file
+    defines, at [loc]: [Module.x]. *)
+let define loc x =
+  match module_of_loc loc with Some m -> m ^ "." ^ x | None -> x
+
+(** The canonical name of [x], written at [loc]: [x] as written if it is
+    qualified or built in, else the name [x] of the module of the file of [loc].
+    A module sees its own names, and those of Kanon, not those of the modules
+    that it uses. *)
+let resolve loc x =
+  if String.contains x '.' || List.mem x builtin_names then x else define loc x
+
 (** The type of the declaration [name] of the language. *)
 let ty_of_decl = function "kind" -> TKind | "ty" -> TSty | s -> TData s
 
@@ -136,10 +188,31 @@ type env = {
   globals : (string * sig_) list;  (** functions and primitives *)
 }
 
-let find_global env loc name =
+(** The canonical name and the signature of the function or primitive [written],
+    as written at [loc]. *)
+let lookup_global env loc written =
+  let name = resolve loc written in
   match List.assoc_opt name env.globals with
-  | Some s -> s
-  | None -> error loc "unknown function %s" name
+  | Some s -> (name, s)
+  | None -> (
+      let elsewhere =
+        List.filter_map
+          (fun (g, _) ->
+            if split_name g <> None && plain_name g = written && g <> name then
+              Some g
+            else None)
+          env.globals
+      in
+      match elsewhere with
+      | g :: _ when not (String.contains written '.') ->
+          error loc
+            "unknown function %s: %s is declared in another module, write it \
+             qualified"
+            written g
+      | _ -> error loc "unknown function %s" written)
+
+(** The signature of the function or primitive [name], which is canonical. *)
+let find_global env loc name = snd (lookup_global env loc name)
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -594,7 +667,7 @@ and binders (p : Syntax.pat) : (string * (Syntax.ty * bool)) list =
 let sort_vars : (string * Syntax.expr) list ref = ref []
 
 let no_shadow env loc x =
-  if List.mem_assoc x env.globals then
+  if List.mem_assoc (resolve loc x) env.globals then
     error loc "%s shadows a global function" x;
   if List.mem_assoc x !sort_vars then
     error loc "%s shadows a variable of the sort of an operand" x
@@ -1223,9 +1296,14 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
       match List.assoc_opt x env.vars with
       | Some t -> mk t (EVar x)
       | None -> (
-          match List.assoc_opt x env.globals with
-          | Some { args = []; ret } -> mk ret (ECall (x, []))
+          match List.assoc_opt (resolve loc x) env.globals with
+          | Some { args = []; ret } -> mk ret (ECall (resolve loc x, []))
           | _ -> error loc "unbound variable %s" x))
+  | Pexp_ident { txt = Ldot _ as id; _ } -> (
+      let q = name_of_lid id in
+      match lookup_global env loc q with
+      | g, { args = []; ret } -> mk ret (ECall (g, []))
+      | _ -> error loc "%s is a function: it needs arguments" q)
   | Pexp_constant (Pconst_integer (s, None)) -> mk TInt (EInt (Z.of_string s))
   | Pexp_construct ({ txt = Lident (("true" | "false") as b); _ }, None) ->
       mk TBool (EBool (b = "true"))
@@ -1370,8 +1448,13 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
               error cloc "%s is a sort, not a node" name
           | _ -> mk c.c_res (EConstr (c, args))))
   | Pexp_apply
-      ({ pexp_desc = Pexp_ident { txt = Lident op; loc = fn_loc }; _ }, args)
-    -> (
+      ( {
+          pexp_desc =
+            Pexp_ident { txt = (Lident _ | Ldot _) as id; loc = fn_loc };
+          _;
+        },
+        args ) -> (
+      let op = name_of_lid id in
       let args =
         List.map
           (function
@@ -1427,8 +1510,8 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
           match List.assoc_opt f env.locals with
           | Some s -> mk s.ret (ELocalCall (f, check_args s))
           | None ->
-              let s = find_global env fn_loc f in
-              mk s.ret (ECall (f, check_args s))))
+              let g, s = lookup_global env fn_loc f in
+              mk s.ret (ECall (g, check_args s))))
   | Pexp_ifthenelse (c, a, Some b) ->
       let c = expr env ~expected:TBool c in
       let a = expr env ?expected a in
@@ -1554,7 +1637,7 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
          match sortexpr_of e with
          | { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ } -> (
              List.mem_assoc x env.vars
-             || List.mem_assoc x env.globals
+             || List.mem_assoc (resolve loc x) env.globals
              || List.mem_assoc x !sort_vars
              ||
                try
@@ -2167,7 +2250,7 @@ let law_notation loc n c =
     [n]: a literal has a notation, and a named constant is declared. *)
 let law_literal loc n c =
   if is_literal c then ignore (law_notation loc n c)
-  else if not (List.mem_assoc c !lang.constants) then
+  else if not (List.mem_assoc (resolve loc c) !lang.constants) then
     error loc
       "expected the literal 0, 1, true or false, or a constant: %s is not \
        declared"
@@ -2457,7 +2540,10 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | Some a -> (
         match (res, args, strings_attr a) with
         | TSty, [ _ ], [ f ] ->
-            { l with sort_getters = l.sort_getters @ [ (name, f) ] }
+            {
+              l with
+              sort_getters = l.sort_getters @ [ (name, resolve a.attr_loc f) ];
+            }
         | _ -> error a.attr_loc "[@get f] applies to sorts with one argument")
     | None -> l
   in
@@ -2486,7 +2572,8 @@ let operator ((e : expression), (a : attribute), op_doc) =
     error sym_loc "operator %s is declared twice" (op_name ~arity sym);
   let ident (e : expression) =
     match e.pexp_desc with
-    | Pexp_ident { txt = Lident f; _ } -> f
+    | Pexp_ident { txt = (Lident _ | Ldot _) as id; loc } ->
+        resolve loc (name_of_lid id)
     | _ -> error e.pexp_loc "expected a function name"
   in
   let node, smart, on_value =
@@ -2888,6 +2975,7 @@ let language (str : structure) =
              match a.attr_name.txt with
              | "constant" ->
                  let c, cloc = string_attr_loc a in
+                 let c = define cloc c in
                  if List.mem_assoc c !lang.constants then
                    error cloc "constant %s is declared twice" c;
                  let constant =
@@ -3114,7 +3202,7 @@ let raw_fn (vb : value_binding) =
   let rname_loc = vb.pvb_pat.ppat_loc in
   let rname =
     match vb.pvb_pat.ppat_desc with
-    | Ppat_var { txt; _ } -> txt
+    | Ppat_var { txt; _ } -> define rname_loc txt
     | _ -> error rname_loc "expected a function name"
   in
   let rdoc, rattrs = take_doc vb.pvb_attributes in
@@ -3345,7 +3433,11 @@ let law_cases globals raws =
     let params = List.map fst r.rparams in
     let node_params = List.filteri (fun i _ -> i < nparams) params in
     let operands = List.filteri (fun i _ -> i >= nparams) params in
-    let lit_name = function "0" -> "zero" | "1" -> "one" | c -> c in
+    let lit_name = function
+      | "0" -> "zero"
+      | "1" -> "one"
+      | c -> plain_name c
+    in
     let case (law, loc, arg_loc) =
       let var x = evar ~loc x in
       let app f args = eapply ~loc (var f) args in
@@ -3376,7 +3468,7 @@ let law_cases globals raws =
       (* the term of the literal or constant [c]: its constant, at the sort of
          the operand [at], or else its node *)
       let lit_term ?(at = v1) c =
-        match List.assoc_opt c !lang.constants with
+        match List.assoc_opt (resolve arg_loc c) !lang.constants with
         | Some (None, e) -> e
         | Some (Some v, e) ->
             object
@@ -3428,7 +3520,7 @@ let law_cases globals raws =
         | Fold (g, lift) ->
             let what = Printf.sprintf "[@fold %s]" g in
             let s =
-              match List.assoc_opt g globals with
+              match List.assoc_opt (resolve arg_loc g) globals with
               | Some s -> s
               | None -> error arg_loc "[@fold]: unknown function %s" g
             in
@@ -3501,7 +3593,9 @@ let law_cases globals raws =
             let body =
               match lift with
               | None -> e
-              | Some l when match l.[0] with 'A' .. 'Z' -> true | _ -> false ->
+              | Some l
+                when (not (String.contains l '.'))
+                     && match l.[0] with 'A' .. 'Z' -> true | _ -> false ->
                   node_at l e
               | Some f -> app f [ e ]
             in
@@ -3526,13 +3620,13 @@ let law_cases globals raws =
             let comm = is_commutative n in
             match law with
             | Unit _ ->
-                ( "unit_" ^ c,
+                ( "unit_" ^ plain_name c,
                   [ pvar ~loc "x"; pvar ~loc "y" ],
                   is_constant c "y" "x",
                   comm,
                   var "x" )
             | _ ->
-                ( "zero_" ^ c,
+                ( "zero_" ^ plain_name c,
                   [ ppat_any ~loc; pvar ~loc "y" ],
                   is_constant c "y" "y",
                   comm,
@@ -3546,7 +3640,7 @@ let law_cases globals raws =
         | Unit c ->
             ("unit_" ^ lit_name c, [ ppat_any ~loc; lit_pat c ], None, false, v1)
         | Zero c -> (
-            match List.assoc_opt c !lang.constants with
+            match List.assoc_opt (resolve arg_loc c) !lang.constants with
             | Some (Some _, _) ->
                 (* the constant at the sort of the literal, which is that of
                    either operand *)
@@ -3668,7 +3762,8 @@ let typing env0 ~nparams (c : constr) (rt : raw_typing) : typing =
   in
   let vars = ref [] in
   let is_free x =
-    (not (List.mem_assoc x penv)) && not (List.mem_assoc x env0.globals)
+    (not (List.mem_assoc x penv))
+    && not (List.mem_assoc (resolve rt.rt_loc x) env0.globals)
   in
   let var loc x t =
     (match List.assoc_opt x !vars with
@@ -3800,12 +3895,13 @@ let extend_rules (str : structure) =
       when has_attr "extend" attrs ->
         (* at the name of the extended function *)
         let f, loc = string_attr_loc (Option.get (find_attr "extend" attrs)) in
+        let f = resolve loc f in
         let before = Option.map string_attr_loc (find_attr "before" attrs) in
         let fn = has_attr "fn" attrs in
         let rec go = function
           | ({ pstr_desc = Pstr_value (r, [ vb ]); _ } as item) :: items
             when (match vb.pvb_pat.ppat_desc with
-                   | Ppat_var { txt; _ } -> txt = f
+                   | Ppat_var { txt; _ } -> define vb.pvb_pat.ppat_loc txt = f
                    | _ -> false)
                  && Option.is_some (spec_of_attrs vb.pvb_attributes) <> fn -> (
               match vb.pvb_expr.pexp_desc with
@@ -3865,7 +3961,7 @@ let spec_check globals (r : raw_fn) (spec : expression option) :
   in
   (* operators and global functions are not variables *)
   let is_global x =
-    List.mem_assoc x globals
+    List.mem_assoc (resolve r.rname_loc x) globals
     || not (match x.[0] with 'a' .. 'z' | '_' -> true | _ -> false)
   in
   (* the pattern of the sort [s], whose variables [is_var] are named [name]
@@ -4032,7 +4128,7 @@ let sort_binds env (r : raw_fn) =
       let rec to_pat (s : expression) : pattern =
         match s.pexp_desc with
         | Pexp_ident { txt = Lident x; _ }
-          when not (List.mem_assoc x env.globals) ->
+          when not (List.mem_assoc (resolve loc x) env.globals) ->
             pvar ~loc x
         | Pexp_construct (c, arg) ->
             ppat_construct ~loc c
@@ -4554,9 +4650,14 @@ let program (str : structure) : program =
         | None ->
             (match si.pstr_desc with
             | Pstr_value
-                (_, [ { pvb_pat = { ppat_desc = Ppat_var { txt; _ }; _ }; _ } ])
-              ->
-                skip := txt :: !skip
+                ( _,
+                  [
+                    {
+                      pvb_pat = { ppat_desc = Ppat_var { txt; _ }; ppat_loc; _ };
+                      _;
+                    };
+                  ] ) ->
+                skip := define ppat_loc txt :: !skip
             | _ -> ());
             si)
       str
@@ -4571,7 +4672,7 @@ let program (str : structure) : program =
                | Pstr_primitive vd ->
                    let pargs, pret = arrow_of_core vd.pval_type in
                    ( ( {
-                         pname = vd.pval_name.txt;
+                         pname = define vd.pval_name.loc vd.pval_name.txt;
                          pargs;
                          pret;
                          oracle = vd.pval_prim = [ "oracle" ];
@@ -4626,8 +4727,8 @@ let program (str : structure) : program =
           (List.find_index (fun (m, _) -> m = b) defs)));
   List.iter
     (fun (n, loc) ->
-      if List.mem n array_builtins then
-        ignore (attempt (fun () -> error loc "%s is built in" n)))
+      if split_name n <> None && List.mem (plain_name n) builtin_names then
+        ignore (attempt (fun () -> error loc "%s is built in" (plain_name n))))
     defs;
   let prims = List.map fst prims in
   checkpoint_since start;

@@ -15,31 +15,31 @@ structure Oracle where
   tag_le : Term → Term → Bool
   sort_by_tag : (List Term) → (List Term)
 
-def of_bool (b : Bool) : Term :=
+def Bool.of_bool (b : Bool) : Term :=
   (if b then v_true else v_false)
 
-def sure_neq (a : Term) (b : Term) : Bool :=
+def Bool.sure_neq (a : Term) (b : Term) : Bool :=
   ((! (decide ((ty a) = (ty b)))) || ((firstSome [(match a, b with
                                                     | (Term.mk (Kind.Bool a) _), (Term.mk (Kind.Bool b) _) =>
                                                     some ((! (decide (a = b))))
                                                     | _, _ => none)]).getD
                                        (match a, b with | _, _ => false)))
 
-def at_most_one (l : (List Term)) : Bool :=
+def Bool.at_most_one (l : (List Term)) : Bool :=
   ((firstSome [(match l with | [] => some (true) | _ => none),
     (match l with | (_ :: []) => some (true) | _ => none)]).getD
     (match l with | _ => false))
 
 mutual
 
-def distinct_check_one (a : Term) (rest : (List Term)) : (Option Bool) :=
+def Bool.distinct_check_one (a : Term) (rest : (List Term)) : (Option Bool) :=
   ((firstSome [(match rest with | [] => some ((some true)) | _ => none),
     (match rest with
       | (b :: rest) =>
       some ((if (decide (a = b))
             then (some false)
-            else (if (sure_neq a b)
-                 then (distinct_check_one a rest)
+            else (if (Bool.sure_neq a b)
+                 then (Bool.distinct_check_one a rest)
                  else none)))
       | _ => none)]).getD
     Inhabited.default)
@@ -50,15 +50,15 @@ end
 
 mutual
 
-def distinct_check (l : (List Term)) : (Option Bool) :=
+def Bool.distinct_check (l : (List Term)) : (Option Bool) :=
   ((firstSome [(match l with | [] => some ((some true)) | _ => none),
     (match l with
       | (a :: rest) =>
-      some (((firstSome [(match (distinct_check_one a rest) with
+      some (((firstSome [(match (Bool.distinct_check_one a rest) with
                            | (some true) =>
-                           some ((distinct_check rest))
+                           some ((Bool.distinct_check rest))
                            | _ => none)]).getD
-              (match (distinct_check_one a rest) with | r => r)))
+              (match (Bool.distinct_check_one a rest) with | r => r)))
       | _ => none)]).getD
     Inhabited.default)
 termination_by sizeOf l
@@ -69,42 +69,42 @@ end
 /-- The rule functions, as used by the rules. -/
 structure Ops where
   orc : Oracle
-  b_and : Term → Term → Term
-  b_or : Term → Term → Term
-  b_not : Term → Term
-  b_ite : Term → Term → Term → Term
-  sem_eq : Term → Term → Term
-  sem_eq_untyped : Term → Term → Term
-  b_distinct : (List Term) → Term
+  bool_and_ : Term → Term → Term
+  bool_or_ : Term → Term → Term
+  bool_not_ : Term → Term
+  bool_ite : Term → Term → Term → Term
+  bool_eq : Term → Term → Term
+  bool_eq_untyped : Term → Term → Term
+  bool_distinct : (List Term) → Term
 
 def mk_commut_binop (O : Ops) (op : Op2) (l : Term) (r : Term) : Kind :=
   (if (O.orc.tag_le l r) then (Kind.Op2 op l r) else (Kind.Op2 op r l))
 
-@[kanon_spec] def b_and.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Bool.and_.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.And v1 v2) Ty.TBool)
 
-@[kanon_spec] def b_or.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Bool.or_.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Or v1 v2) Ty.TBool)
 
-@[kanon_spec] def b_not.spec (sv : Term) : Term :=
+@[kanon_spec] def Bool.not_.spec (sv : Term) : Term :=
   (Term.mk (Kind.Op1 Op1.Not sv) Ty.TBool)
 
-@[kanon_spec] def b_ite.spec (guard : Term) (if_ : Term) (else_ : Term) : Term :=
+@[kanon_spec] def Bool.ite.spec (guard : Term) (if_ : Term) (else_ : Term) : Term :=
   (Term.mk (Kind.Op3 Op3.Ite guard if_ else_) (ty if_))
 
-@[kanon_spec] def sem_eq.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Bool.eq.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Eq v1 v2) Ty.TBool)
 
-@[kanon_spec] def sem_eq_untyped.spec (v1 : Term) (v2 : Term) : Term :=
+@[kanon_spec] def Bool.eq_untyped.spec (v1 : Term) (v2 : Term) : Term :=
   (Term.mk (Kind.Op2 Op2.Eq v1 v2) Ty.TBool)
 
-@[kanon_spec] def b_distinct.spec (l : (List Term)) : Term :=
+@[kanon_spec] def Bool.distinct.spec (l : (List Term)) : Term :=
   (Term.mk (Kind.OpN OpN.Distinct l) Ty.TBool)
 
-def b_and.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with | v, kanon__2 => (whenSome (decide (v = kanon__2)) (v)))
 
-def b_and.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool false) _), _ =>
     (whenSome true (v_false))
@@ -114,7 +114,7 @@ def b_and.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome true (v_false))
         | _, _ => none)
 
-def b_and.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool true) _), x =>
     (whenSome true (x))
@@ -124,7 +124,7 @@ def b_and.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome true (x))
         | _, _ => none)
 
-def b_and.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | p, (Term.mk (Kind.Op1 Op1.Not kanon__3) _) =>
     (whenSome (decide (p = kanon__3)) (v_false))
@@ -134,7 +134,7 @@ def b_and.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (p = kanon__3)) (v_false))
         | _, _ => none)
 
-def b_and.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x@(Term.mk (Kind.Op2 Op2.And a _) _), kanon__7 =>
     (whenSome (decide (a = kanon__7)) (x))
@@ -152,7 +152,7 @@ def b_and.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
 
-def b_and.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Op2 Op2.Or a _) _), kanon__6 =>
     (whenSome (decide (a = kanon__6)) (a))
@@ -170,36 +170,36 @@ def b_and.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
 
-def b_and.r_eq_neq (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_eq_neq (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Op2 Op2.Eq a x) _), (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) _) =>
-    (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
+    (whenSome ((decide (a = kanon__7)) && (Bool.sure_neq x y)) (v_false))
     | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Op2 Op2.Eq a x) _), (Term.mk (Kind.Op2 Op2.Eq y kanon__7) _) =>
-        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (Bool.sure_neq x y)) (v_false))
         | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Op2 Op2.Eq x a) _), (Term.mk (Kind.Op2 Op2.Eq kanon__7 y) _) =>
-        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (Bool.sure_neq x y)) (v_false))
         | _, _ => none)
   <|> (match v1, v2 with
         | (Term.mk (Kind.Op2 Op2.Eq x a) _), (Term.mk (Kind.Op2 Op2.Eq y kanon__7) _) =>
-        (whenSome ((decide (a = kanon__7)) && (sure_neq x y)) (v_false))
+        (whenSome ((decide (a = kanon__7)) && (Bool.sure_neq x y)) (v_false))
         | _, _ => none)
 
-def b_and.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.and_.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome true ((Term.mk (mk_commut_binop O Op2.And v1 v2) Ty.TBool))))
 
-def b_and.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [b_and.r_same O v1 v2, b_and.r_false_ O v1 v2, b_and.r_true_ O v1 v2, b_and.r_not O v1 v2, b_and.r_and_ O v1 v2, b_and.r_or_ O v1 v2, b_and.r_eq_neq O v1 v2, b_and.r_default O v1 v2]).getD (b_and.spec v1 v2)
+def Bool.and_.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Bool.and_.r_same O v1 v2, Bool.and_.r_false_ O v1 v2, Bool.and_.r_true_ O v1 v2, Bool.and_.r_not O v1 v2, Bool.and_.r_and_ O v1 v2, Bool.and_.r_or_ O v1 v2, Bool.and_.r_eq_neq O v1 v2, Bool.and_.r_default O v1 v2]).getD (Bool.and_.spec v1 v2)
 
-def b_or.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with | v, kanon__2 => (whenSome (decide (v = kanon__2)) (v)))
 
-def b_or.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool true) _), _ =>
     (whenSome true (v_true))
@@ -209,7 +209,7 @@ def b_or.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome true (v_true))
         | _, _ => none)
 
-def b_or.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool false) _), x =>
     (whenSome true (x))
@@ -219,7 +219,7 @@ def b_or.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome true (x))
         | _, _ => none)
 
-def b_or.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | p, (Term.mk (Kind.Op1 Op1.Not kanon__3) _) =>
     (whenSome (decide (p = kanon__3)) (v_true))
@@ -229,7 +229,7 @@ def b_or.r_not (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (p = kanon__3)) (v_true))
         | _, _ => none)
 
-def b_or.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | x@(Term.mk (Kind.Op2 Op2.Or a _) _), kanon__7 =>
     (whenSome (decide (a = kanon__7)) (x))
@@ -247,7 +247,7 @@ def b_or.r_or_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (a = kanon__7)) (x))
         | _, _ => none)
 
-def b_or.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Op2 Op2.And a _) _), kanon__6 =>
     (whenSome (decide (a = kanon__6)) (a))
@@ -265,202 +265,202 @@ def b_or.r_and_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome (decide (a = kanon__6)) (a))
         | _, _ => none)
 
-def b_or.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.or_.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome true ((Term.mk (mk_commut_binop O Op2.Or v1 v2) Ty.TBool))))
 
-def b_or.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [b_or.r_same O v1 v2, b_or.r_true_ O v1 v2, b_or.r_false_ O v1 v2, b_or.r_not O v1 v2, b_or.r_or_ O v1 v2, b_or.r_and_ O v1 v2, b_or.r_default O v1 v2]).getD (b_or.spec v1 v2)
+def Bool.or_.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Bool.or_.r_same O v1 v2, Bool.or_.r_true_ O v1 v2, Bool.or_.r_false_ O v1 v2, Bool.or_.r_not O v1 v2, Bool.or_.r_or_ O v1 v2, Bool.or_.r_and_ O v1 v2, Bool.or_.r_default O v1 v2]).getD (Bool.or_.spec v1 v2)
 
-def b_not.r_true_ (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_true_ (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Bool true) _) =>
     (whenSome true (v_false))
     | _ => none)
 
-def b_not.r_false_ (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_false_ (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Bool false) _) =>
     (whenSome true (v_true))
     | _ => none)
 
-def b_not.r_not (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_not (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Op1 Op1.Not sv) _) =>
     (whenSome true (sv))
     | _ => none)
 
-def b_not.r_or_ (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_or_ (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Op2 Op2.Or v1 v2) _) =>
-    (whenSome true ((O.b_and (O.b_not v1) (O.b_not v2))))
+    (whenSome true ((O.bool_and_ (O.bool_not_ v1) (O.bool_not_ v2))))
     | _ => none)
 
-def b_not.r_and_ (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_and_ (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Op2 Op2.And v1 v2) _) =>
-    (whenSome true ((O.b_or (O.b_not v1) (O.b_not v2))))
+    (whenSome true ((O.bool_or_ (O.bool_not_ v1) (O.bool_not_ v2))))
     | _ => none)
 
-def b_not.r_ite (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_ite (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.Op3 Op3.Ite g a b) _) =>
-    (whenSome true ((O.b_ite g (O.b_not a) (O.b_not b))))
+    (whenSome true ((O.bool_ite g (O.bool_not_ a) (O.bool_not_ b))))
     | _ => none)
 
-def b_not.r_distinct (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_distinct (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | (Term.mk (Kind.OpN OpN.Distinct (l :: (r :: []))) _) =>
-    (whenSome true ((O.sem_eq l r)))
+    (whenSome true ((O.bool_eq l r)))
     | _ => none)
 
-def b_not.r_default (O : Ops) (sv : Term) : Option Term :=
+def Bool.not_.r_default (O : Ops) (sv : Term) : Option Term :=
   (match sv with
     | _ =>
     (whenSome true ((Term.mk (Kind.Op1 Op1.Not sv) Ty.TBool))))
 
-def b_not.step (O : Ops) (sv : Term) : Term :=
-  (firstSome [b_not.r_true_ O sv, b_not.r_false_ O sv, b_not.r_not O sv, b_not.r_or_ O sv, b_not.r_and_ O sv, b_not.r_ite O sv, b_not.r_distinct O sv, b_not.r_default O sv]).getD (b_not.spec sv)
+def Bool.not_.step (O : Ops) (sv : Term) : Term :=
+  (firstSome [Bool.not_.r_true_ O sv, Bool.not_.r_false_ O sv, Bool.not_.r_not O sv, Bool.not_.r_or_ O sv, Bool.not_.r_and_ O sv, Bool.not_.r_ite O sv, Bool.not_.r_distinct O sv, Bool.not_.r_default O sv]).getD (Bool.not_.spec sv)
 
-def b_ite.r_true_ (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_true_ (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Bool true) _), _, _ =>
     (whenSome true (if_))
     | _, _, _ => none)
 
-def b_ite.r_false_ (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_false_ (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Bool false) _), _, _ =>
     (whenSome true (else_))
     | _, _, _ => none)
 
-def b_ite.r_bool (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_bool (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, (Term.mk (Kind.Bool true) _), (Term.mk (Kind.Bool false) _) =>
     (whenSome true (guard))
     | _, _, _ => none)
 
-def b_ite.r_not_bool (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_not_bool (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, (Term.mk (Kind.Bool false) _), (Term.mk (Kind.Bool true) _) =>
-    (whenSome true ((O.b_not guard)))
+    (whenSome true ((O.bool_not_ guard)))
     | _, _, _ => none)
 
-def b_ite.r_false_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_false_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, (Term.mk (Kind.Bool false) _), _ =>
-    (whenSome true ((O.b_and (O.b_not guard) else_)))
+    (whenSome true ((O.bool_and_ (O.bool_not_ guard) else_)))
     | _, _, _ => none)
 
-def b_ite.r_true_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_true_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, (Term.mk (Kind.Bool true) _), _ =>
-    (whenSome true ((O.b_or guard else_)))
+    (whenSome true ((O.bool_or_ guard else_)))
     | _, _, _ => none)
 
-def b_ite.r_false_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_false_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, _, (Term.mk (Kind.Bool false) _) =>
-    (whenSome true ((O.b_and guard if_)))
+    (whenSome true ((O.bool_and_ guard if_)))
     | _, _, _ => none)
 
-def b_ite.r_true_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_true_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, _, (Term.mk (Kind.Bool true) _) =>
-    (whenSome true ((O.b_or (O.b_not guard) if_)))
+    (whenSome true ((O.bool_or_ (O.bool_not_ guard) if_)))
     | _, _, _ => none)
 
-def b_ite.r_not_guard (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_not_guard (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Op1 Op1.Not g) _), _, _ =>
-    (whenSome true ((O.b_ite g else_ if_)))
+    (whenSome true ((O.bool_ite g else_ if_)))
     | _, _, _ => none)
 
-def b_ite.r_guard_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_guard_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, kanon__2, _ =>
-    (whenSome (decide (g = kanon__2)) ((O.b_or guard else_))))
+    (whenSome (decide (g = kanon__2)) ((O.bool_or_ guard else_))))
 
-def b_ite.r_guard_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_guard_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, _, kanon__3 =>
-    (whenSome (decide (g = kanon__3)) ((O.b_and guard if_))))
+    (whenSome (decide (g = kanon__3)) ((O.bool_and_ guard if_))))
 
-def b_ite.r_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, (Term.mk (Kind.Op3 Op3.Ite kanon__3 x _) _), _ =>
-    (whenSome (decide (g = kanon__3)) ((O.b_ite guard x else_)))
+    (whenSome (decide (g = kanon__3)) ((O.bool_ite guard x else_)))
     | _, _, _ => none)
 
-def b_ite.r_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | g, _, (Term.mk (Kind.Op3 Op3.Ite kanon__4 _ y) _) =>
-    (whenSome (decide (g = kanon__4)) ((O.b_ite guard if_ y)))
+    (whenSome (decide (g = kanon__4)) ((O.bool_ite guard if_ y)))
     | _, _, _ => none)
 
-def b_ite.r_and_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_and_ite_then (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Op2 Op2.And g _) _), (Term.mk (Kind.Op3 Op3.Ite kanon__7 x _) _), _ =>
-    (whenSome (decide (g = kanon__7)) ((O.b_ite guard x else_)))
+    (whenSome (decide (g = kanon__7)) ((O.bool_ite guard x else_)))
     | _, _, _ => none)
   <|> (match guard, if_, else_ with
         | (Term.mk (Kind.Op2 Op2.And _ g) _), (Term.mk (Kind.Op3 Op3.Ite kanon__7 x _) _), _ =>
-        (whenSome (decide (g = kanon__7)) ((O.b_ite guard x else_)))
+        (whenSome (decide (g = kanon__7)) ((O.bool_ite guard x else_)))
         | _, _, _ => none)
 
-def b_ite.r_or_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_or_ite_else (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | (Term.mk (Kind.Op2 Op2.Or g _) _), _, (Term.mk (Kind.Op3 Op3.Ite kanon__8 _ y) _) =>
-    (whenSome (decide (g = kanon__8)) ((O.b_ite guard if_ y)))
+    (whenSome (decide (g = kanon__8)) ((O.bool_ite guard if_ y)))
     | _, _, _ => none)
   <|> (match guard, if_, else_ with
         | (Term.mk (Kind.Op2 Op2.Or _ g) _), _, (Term.mk (Kind.Op3 Op3.Ite kanon__8 _ y) _) =>
-        (whenSome (decide (g = kanon__8)) ((O.b_ite guard if_ y)))
+        (whenSome (decide (g = kanon__8)) ((O.bool_ite guard if_ y)))
         | _, _, _ => none)
 
-def b_ite.r_same (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_same (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, x, kanon__3 =>
     (whenSome (decide (x = kanon__3)) (if_)))
 
-def b_ite.r_default (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
+def Bool.ite.r_default (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Option Term :=
   (match guard, if_, else_ with
     | _, _, _ =>
     (whenSome true ((Term.mk (Kind.Op3 Op3.Ite guard if_ else_) (ty if_)))))
 
-def b_ite.step (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Term :=
-  (firstSome [b_ite.r_true_ O guard if_ else_, b_ite.r_false_ O guard if_ else_, b_ite.r_bool O guard if_ else_, b_ite.r_not_bool O guard if_ else_, b_ite.r_false_then O guard if_ else_, b_ite.r_true_then O guard if_ else_, b_ite.r_false_else O guard if_ else_, b_ite.r_true_else O guard if_ else_, b_ite.r_not_guard O guard if_ else_, b_ite.r_guard_then O guard if_ else_, b_ite.r_guard_else O guard if_ else_, b_ite.r_ite_then O guard if_ else_, b_ite.r_ite_else O guard if_ else_, b_ite.r_and_ite_then O guard if_ else_, b_ite.r_or_ite_else O guard if_ else_, b_ite.r_same O guard if_ else_, b_ite.r_default O guard if_ else_]).getD (b_ite.spec guard if_ else_)
+def Bool.ite.step (O : Ops) (guard : Term) (if_ : Term) (else_ : Term) : Term :=
+  (firstSome [Bool.ite.r_true_ O guard if_ else_, Bool.ite.r_false_ O guard if_ else_, Bool.ite.r_bool O guard if_ else_, Bool.ite.r_not_bool O guard if_ else_, Bool.ite.r_false_then O guard if_ else_, Bool.ite.r_true_then O guard if_ else_, Bool.ite.r_false_else O guard if_ else_, Bool.ite.r_true_else O guard if_ else_, Bool.ite.r_not_guard O guard if_ else_, Bool.ite.r_guard_then O guard if_ else_, Bool.ite.r_guard_else O guard if_ else_, Bool.ite.r_ite_then O guard if_ else_, Bool.ite.r_ite_else O guard if_ else_, Bool.ite.r_and_ite_then O guard if_ else_, Bool.ite.r_or_ite_else O guard if_ else_, Bool.ite.r_same O guard if_ else_, Bool.ite.r_default O guard if_ else_]).getD (Bool.ite.spec guard if_ else_)
 
-def sem_eq.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_same (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | v, kanon__2 =>
     (whenSome (decide (v = kanon__2)) (v_true)))
 
-def sem_eq.r_bools (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_bools (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool b1) _), (Term.mk (Kind.Bool b2) _) =>
-    (whenSome true ((of_bool (decide (b1 = b2)))))
+    (whenSome true ((Bool.of_bool (decide (b1 = b2)))))
     | _, _ => none)
 
-def sem_eq.r_ite_ite (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_ite_ite (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Op3 Op3.Ite b l r) _), (Term.mk (Kind.Op3 Op3.Ite kanon__7 l' r') _) =>
     (whenSome (decide (b = kanon__7))
-    ((O.b_ite b (O.sem_eq l l') (O.sem_eq r r'))))
+    ((O.bool_ite b (O.bool_eq l l') (O.bool_eq r r'))))
     | _, _ => none)
 
-def sem_eq.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_false_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool false) _), x =>
-    (whenSome true ((O.b_not x)))
+    (whenSome true ((O.bool_not_ x)))
     | _, _ => none)
   <|> (match v1, v2 with
         | x, (Term.mk (Kind.Bool false) _) =>
-        (whenSome true ((O.b_not x)))
+        (whenSome true ((O.bool_not_ x)))
         | _, _ => none)
 
-def sem_eq.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Bool true) _), x =>
     (whenSome true (x))
@@ -470,72 +470,72 @@ def sem_eq.r_true_ (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
         (whenSome true (x))
         | _, _ => none)
 
-def sem_eq.r_nots (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_nots (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | (Term.mk (Kind.Op1 Op1.Not b) _), (Term.mk (Kind.Op1 Op1.Not c) _) =>
-    (whenSome true ((O.sem_eq b c)))
+    (whenSome true ((O.bool_eq b c)))
     | _, _ => none)
 
-def sem_eq.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq.r_default (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome true ((Term.mk (mk_commut_binop O Op2.Eq v1 v2) Ty.TBool))))
 
-def sem_eq.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [sem_eq.r_same O v1 v2, sem_eq.r_bools O v1 v2, sem_eq.r_ite_ite O v1 v2, sem_eq.r_false_ O v1 v2, sem_eq.r_true_ O v1 v2, sem_eq.r_nots O v1 v2, sem_eq.r_default O v1 v2]).getD (sem_eq.spec v1 v2)
+def Bool.eq.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Bool.eq.r_same O v1 v2, Bool.eq.r_bools O v1 v2, Bool.eq.r_ite_ite O v1 v2, Bool.eq.r_false_ O v1 v2, Bool.eq.r_true_ O v1 v2, Bool.eq.r_nots O v1 v2, Bool.eq.r_default O v1 v2]).getD (Bool.eq.spec v1 v2)
 
-def sem_eq_untyped.r_ill_typed (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+def Bool.eq_untyped.r_ill_typed (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | _, _ =>
     (whenSome (! (decide ((ty v1) = (ty v2)))) (v_false)))
 
-def sem_eq_untyped.r_typed (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
-  (match v1, v2 with | _, _ => (whenSome true ((O.sem_eq v1 v2))))
+def Bool.eq_untyped.r_typed (O : Ops) (v1 : Term) (v2 : Term) : Option Term :=
+  (match v1, v2 with | _, _ => (whenSome true ((O.bool_eq v1 v2))))
 
-def sem_eq_untyped.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [sem_eq_untyped.r_ill_typed O v1 v2, sem_eq_untyped.r_typed O v1 v2]).getD (sem_eq_untyped.spec v1 v2)
+def Bool.eq_untyped.step (O : Ops) (v1 : Term) (v2 : Term) : Term :=
+  (firstSome [Bool.eq_untyped.r_ill_typed O v1 v2, Bool.eq_untyped.r_typed O v1 v2]).getD (Bool.eq_untyped.spec v1 v2)
 
-def b_distinct.r_small (O : Ops) (l : (List Term)) : Option Term :=
-  (match l with | _ => (whenSome (at_most_one l) (v_true)))
+def Bool.distinct.r_small (O : Ops) (l : (List Term)) : Option Term :=
+  (match l with | _ => (whenSome (Bool.at_most_one l) (v_true)))
 
-def b_distinct.r_distinct (O : Ops) (l : (List Term)) : Option Term :=
+def Bool.distinct.r_distinct (O : Ops) (l : (List Term)) : Option Term :=
   (match l with
     | _ =>
-    (whenSome (decide ((distinct_check l) = (some true))) (v_true)))
+    (whenSome (decide ((Bool.distinct_check l) = (some true))) (v_true)))
 
-def b_distinct.r_not_distinct (O : Ops) (l : (List Term)) : Option Term :=
+def Bool.distinct.r_not_distinct (O : Ops) (l : (List Term)) : Option Term :=
   (match l with
     | _ =>
-    (whenSome (decide ((distinct_check l) = (some false))) (v_false)))
+    (whenSome (decide ((Bool.distinct_check l) = (some false))) (v_false)))
 
-def b_distinct.r_default (O : Ops) (l : (List Term)) : Option Term :=
+def Bool.distinct.r_default (O : Ops) (l : (List Term)) : Option Term :=
   (match l with
     | _ =>
     (whenSome true
     ((Term.mk (Kind.OpN OpN.Distinct (O.orc.sort_by_tag l)) Ty.TBool))))
 
-def b_distinct.step (O : Ops) (l : (List Term)) : Term :=
-  (firstSome [b_distinct.r_small O l, b_distinct.r_distinct O l, b_distinct.r_not_distinct O l, b_distinct.r_default O l]).getD (b_distinct.spec l)
+def Bool.distinct.step (O : Ops) (l : (List Term)) : Term :=
+  (firstSome [Bool.distinct.r_small O l, Bool.distinct.r_distinct O l, Bool.distinct.r_not_distinct O l, Bool.distinct.r_default O l]).getD (Bool.distinct.spec l)
 
 def opsRaw (orc : Oracle) : Ops :=
   { orc := orc,
-    b_and := fun v1 v2 => b_and.spec v1 v2,
-    b_or := fun v1 v2 => b_or.spec v1 v2,
-    b_not := fun sv => b_not.spec sv,
-    b_ite := fun guard if_ else_ => b_ite.spec guard if_ else_,
-    sem_eq := fun v1 v2 => sem_eq.spec v1 v2,
-    sem_eq_untyped := fun v1 v2 => sem_eq_untyped.spec v1 v2,
-    b_distinct := fun l => b_distinct.spec l }
+    bool_and_ := fun v1 v2 => Bool.and_.spec v1 v2,
+    bool_or_ := fun v1 v2 => Bool.or_.spec v1 v2,
+    bool_not_ := fun sv => Bool.not_.spec sv,
+    bool_ite := fun guard if_ else_ => Bool.ite.spec guard if_ else_,
+    bool_eq := fun v1 v2 => Bool.eq.spec v1 v2,
+    bool_eq_untyped := fun v1 v2 => Bool.eq_untyped.spec v1 v2,
+    bool_distinct := fun l => Bool.distinct.spec l }
 
 def opsStep (O : Ops) : Ops :=
   { orc := O.orc,
-    b_and := b_and.step O,
-    b_or := b_or.step O,
-    b_not := b_not.step O,
-    b_ite := b_ite.step O,
-    sem_eq := sem_eq.step O,
-    sem_eq_untyped := sem_eq_untyped.step O,
-    b_distinct := b_distinct.step O }
+    bool_and_ := Bool.and_.step O,
+    bool_or_ := Bool.or_.step O,
+    bool_not_ := Bool.not_.step O,
+    bool_ite := Bool.ite.step O,
+    bool_eq := Bool.eq.step O,
+    bool_eq_untyped := Bool.eq_untyped.step O,
+    bool_distinct := Bool.distinct.step O }
 
 def opsN (orc : Oracle) : Nat → Ops
   | 0 => opsRaw orc

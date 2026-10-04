@@ -33,9 +33,9 @@ files, and implemented by the rules.
   > KN
   $ cat > bitvec.kn <<'KN'
   > (** Adds two bit-vectors. *)
-  > rule bv_add : Add (c, v1, v2)
-  > rule bv_div : Div (v1, v2)
-  > rule bv_ult : Ult (v1, v2)
+  > rule add : Add (c, v1, v2)
+  > rule div : Div (v1, v2)
+  > rule ult : Ult (v1, v2)
   > KN
   $ cat > seq.knl <<'KN'
   > (** Sequences of terms of a sort. *)
@@ -96,14 +96,13 @@ files, and implemented by the rules.
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       
       (** Adds two bit-vectors. *)
-      val bv_add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t ->
+      val add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t ->
         [> Tag.tbitvec ] t
       
       (** Division: the divisor is known to be non-zero. *)
-      val bv_div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t ->
-        [> Tag.tbitvec ] t
+      val div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
       
-      val bv_ult : [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbool ] t
+      val ult : [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbool ] t
       val as_bitvec : _ t -> (Z.t * int) option
       val is_bitvec : _ t -> bool
       val as_zero : _ t -> int option
@@ -160,12 +159,12 @@ files, and implemented by the rules.
       let t_bitvec = fun a1 -> TBitVec (a1)
       
       (** Adds two bit-vectors. *)
-      let bv_add = Kanon_rules.bv_add
+      let add = Kanon_rules.bitvec_add
       
       (** Division: the divisor is known to be non-zero. *)
-      let bv_div = Kanon_rules.bv_div
+      let div = Kanon_rules.bitvec_div
       
-      let bv_ult = Kanon_rules.bv_ult
+      let ult = Kanon_rules.bitvec_ult
       let as_bitvec = Kanon_rules.as_bitvec
       let is_bitvec = Kanon_rules.is_bitvec
       let as_zero = Kanon_rules.as_zero
@@ -188,7 +187,7 @@ files, and implemented by the rules.
       (** Sequences of terms of a sort. *)
       let t_seq = fun a1 -> TSeq (a1)
       
-      let len = Kanon_rules.len
+      let len = Kanon_rules.seq_len
       let as_seq = Kanon_rules.as_seq
       let is_seq = Kanon_rules.is_seq
       let as_len = Kanon_rules.as_len
@@ -202,8 +201,8 @@ A sort has a tag type, the lowercase name of its constructor, in `Tag`: the
 variant of its name, and for a sort that has subsorts, their tag types. A term
 of a subsort is accepted wherever its parent sort is, and not the reverse: an
 operand `[< tbitvec ] t` accepts any bit-vector, `[< tnonzero ] t` (the divisor
-of `bv_div`) only those that are known to be non-zero. A result is `[> tag ] t`:
-`bv_add` builds a `tbitvec`, which has to be cast to be a divisor. The docs of
+of `div`) only those that are known to be non-zero. A result is `[> tag ] t`:
+`add` builds a `tbitvec`, which has to be cast to be a divisor. The docs of
 the rule or, failing that, of the node, are carried to the `val`. Parameters
 are plain arguments. A node without a rule function (a leaf node, which no
 rule builds, like `BitVec` and `Zero`) has no `val`, but it has its
@@ -212,7 +211,7 @@ n) (TBitVec n)`), and gives them their tag with `type_`. A `val` is in the
 module of the file of its declaration: the rule function, the sort, or the
 rule; a module that has nothing to declare has no module.
 
-`S` is the signature. `Derived` implements it with the rules, `let bv_add =
+`S` is the signature. `Derived` implements it with the rules, `let add =
 Kanon_rules.bv_add`.
 
 A sort variable is shared by the operands and the result (`b_ite`), and a
@@ -313,14 +312,15 @@ type (two sorts would have the same destructors):
   kanon: TInt and TINT have the same tag type, tint
   [1]
 
-The destructors share their names with the functions of the rules, which they
-may not take (see the `ocaml` backend):
+The destructors share their names with the functions of their module, which
+they may not take (the functions of another module are in another module of the
+interface, and have another name in the rules):
 
-  $ cat > clash.kn <<'KN'
+  $ cat > any.kn <<'KN'
   > rule is_cast : Cast v
   > KN
-  $ kanon ocaml-typed any.knl clash.kn
-  clash.kn:1:0: is_cast is the destructor of Cast: rename the function
+  $ kanon ocaml-typed any.knl any.kn
+  any.kn:1:0: Any.is_cast: the module has two items of this name (a function of the module has the name of a destructor or of a sort): rename the function
   [1]
 
 The implementation is made of the rules, whose OCaml module the language names,
