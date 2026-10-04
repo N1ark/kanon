@@ -243,7 +243,7 @@ const diagnostics = (msgs, f) =>
 clear();
 copy(lspDir, root);
 const imp = fs.readFileSync(path.join(lspDir, "imp.kn"), "utf8");
-const fixed = imp.replace("b_not 1", "b_not a");
+const fixed = imp.replace("Bool.not_ 1", "Bool.not_ a");
 
 const init = request("initialize", {
   rootUri: `file://${root}`,
@@ -274,8 +274,8 @@ same(
     [
       {
         range: {
-          start: { line: 1, character: 27 },
-          end: { line: 1, character: 28 },
+          start: { line: 1, character: 31 },
+          end: { line: 1, character: 32 },
         },
         severity: 1,
         source: "kanon",
@@ -298,7 +298,7 @@ same(
 );
 
 // a definition in the bool module, built into kanon
-let r = at("definition", "imp.kn", 1, 23);
+let r = at("definition", "imp.kn", 1, 27);
 const loc = r.result?.[0];
 check(
   loc?.uri?.startsWith("file:///") && loc.uri.endsWith("/bool.kn"),
@@ -307,7 +307,7 @@ check(
 );
 same(
   loc?.range,
-  { start: { line: 50, character: 5 }, end: { line: 50, character: 10 } },
+  { start: { line: 50, character: 5 }, end: { line: 50, character: 9 } },
   "range of the definition in bool.kn",
 );
 const builtinPath = decodeURIComponent(loc?.uri?.slice(7) ?? "");
@@ -329,22 +329,22 @@ same(
   ],
   "definition of neg",
 );
-r = at("hover", "imp.kn", 1, 23);
+r = at("hover", "imp.kn", 1, 27);
 same(
   r.result?.contents?.value,
-  "```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*",
-  "hover of b_not",
+  "```kanon\nrule not_ : Not sv\n```\n\n*bool.kn*",
+  "hover of Bool.not_",
 );
 r = at("completion", "imp.kn", 6, 0);
 const labels = (
   Array.isArray(r.result) ? r.result : (r.result?.items ?? [])
 ).map((i) => i.label);
-for (const l of ["neg", "b_imp", "b_not", "Imp", "implies", "rule"])
+for (const l of ["neg", "b_imp", "Bool.not_", "Imp", "implies", "rule"])
   check(labels.includes(l), `completion offers ${l}`, labels.join(" "));
 r = request("textDocument/documentSymbol", {
   textDocument: { uri: uri("more.kn") },
 });
-same(r.result?.[0]?.name, "extend b_imp", "documentSymbol");
+same(r.result?.[0]?.name, "extend Imp.b_imp", "documentSymbol");
 r = request("kanon/unknown", {});
 same(r.error?.code, -32601, "unknown method");
 same(lsp({ jsonrpc: "2.0", method: "exit" }), [], "exit is ignored");
@@ -421,7 +421,7 @@ check(
       fs.readFileSync(path.join(lspDir, "more.kn"), "utf8"),
     ),
   );
-  req("hover", "more.kn", 0, 26);
+  req("hover", "more.kn", 0, 30);
   both(open(uri("imp.kn"), imp), open(nuri("imp.kn"), imp));
   req("hover", "imp.kn", 6, 29);
   const change = (f, text) => ({
@@ -433,14 +433,14 @@ check(
     },
   });
   both(change(uri("imp.kn"), fixed), change(nuri("imp.kn"), fixed));
-  req("definition", "imp.kn", 1, 23);
-  req("hover", "imp.kn", 1, 23);
+  req("definition", "imp.kn", 1, 27);
+  req("hover", "imp.kn", 1, 27);
   req("definition", "imp.kn", 3, 14);
-  req("definition", "more.kn", 0, 26);
+  req("definition", "more.kn", 0, 30);
   req("completion", "imp.kn", 6, 0);
   both(
-    change(uri("imp.kn"), fixed.replace("b_not a", "b_not a in")),
-    change(nuri("imp.kn"), fixed.replace("b_not a", "b_not a in")),
+    change(uri("imp.kn"), fixed.replace("Bool.not_ a", "Bool.not_ a in")),
+    change(nuri("imp.kn"), fixed.replace("Bool.not_ a", "Bool.not_ a in")),
   );
   req("hover", "imp.kn", 3, 14);
   n++;

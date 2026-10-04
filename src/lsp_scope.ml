@@ -102,6 +102,16 @@ let written_sym = function "~-" -> "-" | s -> s
 *)
 let parsed_sym ~prefix op = if prefix && op = "-" then "~-" else op
 
+(** The canonical name of the function or constant [x] written at [loc] (see
+    {!Check.resolve}), as written if its module has no valid name. *)
+let canon loc x = try Check.resolve loc x with Check.Error _ -> x
+
+(** The canonical name of the function or primitive [x] defined at [loc]. *)
+let canon_def loc x = try Check.define loc x with Check.Error _ -> x
+
+(** The identifier written [x] or [M.x]. *)
+let name_of_lid = Check.name_of_lid
+
 let is_upper s = s <> "" && match s.[0] with 'A' .. 'Z' -> true | _ -> false
 
 let is_word s =
@@ -159,7 +169,7 @@ let analyze ctx (str : structure) : occ list =
   let ident env x loc =
     match lookup env x with
     | Some b -> add loc (Local b)
-    | None -> global loc (Value x)
+    | None -> global loc (Value (canon loc x))
   in
   let constr ?in_pattern c loc =
     if not (List.mem c builtin_constrs) then
@@ -234,11 +244,19 @@ let analyze ctx (str : structure) : occ list =
   let rec expr env (e : expression) =
     match e.pexp_desc with
     | Pexp_ident { txt = Lident x; loc } -> ident env x loc
+    | Pexp_ident { txt = Ldot _ as id; loc } ->
+        global loc (Value (name_of_lid id))
     | Pexp_construct ({ txt = Lident c; loc }, arg) ->
         constr c loc;
         Option.iter (expr env) arg
     | Pexp_apply
-        ({ pexp_desc = Pexp_ident { txt = Lident f; loc = floc }; _ }, args) ->
+        ( {
+            pexp_desc =
+              Pexp_ident { txt = (Lident _ | Ldot _) as id; loc = floc };
+            _;
+          },
+          args ) ->
+        let f = name_of_lid id in
         let args = List.map snd args in
         (match operator f floc args with
         | Some (sym, arity) -> global floc (Op (sym, arity))
@@ -246,7 +264,7 @@ let analyze ctx (str : structure) : occ list =
         | None -> (
             match lookup_fn env f with
             | Some b -> add floc (Local b)
-            | None -> global floc (Value f)));
+            | None -> global floc (Value (canon floc f))));
         List.iter (expr env) args
     | Pexp_apply (f, args) ->
         expr env f;
@@ -323,7 +341,8 @@ let analyze ctx (str : structure) : occ list =
         in
         match sortexpr with
         | Some { pexp_desc = Pexp_ident { txt = Lident x; _ }; _ }
-          when lookup env x = None && not (ctx.is_global x) ->
+          when lookup env x = None && not (ctx.is_global (canon e.pexp_loc x))
+          ->
             typ t
         | Some s -> expr env s
         | None -> typ t)
@@ -371,7 +390,8 @@ let analyze ctx (str : structure) : occ list =
     | Pexp_ident { txt = Lident x; loc } -> (
         match lookup (!bound @ env) x with
         | Some b -> add loc (Local b)
-        | None when ctx.is_global x -> global loc (Value x)
+        | None when ctx.is_global (canon loc x) ->
+            global loc (Value (canon loc x))
         | None ->
             let ty = Option.value ty ~default:"ty" in
             bound := (x, binder ~ty (Sort_var what) x loc) :: !bound)
@@ -391,13 +411,21 @@ let analyze ctx (str : structure) : occ list =
             let ty = Option.map arg_type (List.nth_opt tys i) in
             sort ~what ~bound ~env ?ty a)
           args
+    | Pexp_ident { txt = Ldot _ as id; loc } ->
+        global loc (Value (name_of_lid id))
     | Pexp_apply
-        ({ pexp_desc = Pexp_ident { txt = Lident f; loc = floc }; _ }, args) ->
+        ( {
+            pexp_desc =
+              Pexp_ident { txt = (Lident _ | Ldot _) as id; loc = floc };
+            _;
+          },
+          args ) ->
+        let f = name_of_lid id in
         let args = List.map snd args in
         (match operator f floc args with
         | Some (sym, arity) -> global floc (Op (sym, arity))
         | None when List.mem f builtin_ops -> ()
-        | None -> global floc (Value f));
+        | None -> global floc (Value (canon floc f)));
         List.iter (sort ~what ~bound ~env ~ty:"int") args
     | Pexp_tuple l -> List.iter (sort ~what ~bound ~env ?ty) l
     | _ -> expr (!bound @ env) e
@@ -425,8 +453,9 @@ let analyze ctx (str : structure) : occ list =
             (* functions, and the nodes that lift the results of [[@fold]] *)
             List.iter
               (fun (s, loc) ->
-                if is_upper s then global loc (Constr s)
-                else if is_word s then global loc (Value s))
+                if String.contains s '.' then global loc (Value s)
+                else if is_upper s then global loc (Constr s)
+                else if is_word s then global loc (Value (canon loc s)))
               names
         | _ -> ())
       attrs
@@ -508,6 +537,7 @@ let analyze ctx (str : structure) : occ list =
           | Ppat_var { txt; loc } -> (txt, loc)
           | _ -> ("", vb.pvb_pat.ppat_loc)
         in
+        let name = canon_def nloc name in
         global ~decl:true nloc (Value name);
         let spec =
           List.find_map
@@ -596,7 +626,8 @@ let analyze ctx (str : structure) : occ list =
         global pexp_loc
           (Module (snd (Loader.module_files (Filename.dirname ctx.file) m)))
     | Pstr_primitive vd ->
-        global ~decl:true vd.pval_name.loc (Value vd.pval_name.txt);
+        global ~decl:true vd.pval_name.loc
+          (Value (canon_def vd.pval_name.loc vd.pval_name.txt));
         typ vd.pval_type
     | Pstr_type
         ( _,
@@ -654,6 +685,7 @@ let analyze ctx (str : structure) : occ list =
                 expr [ (v.txt, b) ] body
             | _ -> expr [] e)
         | None, None, Some (f, floc) -> (
+            let f = canon floc f in
             global floc (Value f);
             let is_rule =
               not
@@ -745,8 +777,8 @@ let fn_binders ctx (str : structure) f =
     (fun (si : structure_item) ->
       match si.pstr_desc with
       | Pstr_value
-          (_, [ { pvb_pat = { ppat_desc = Ppat_var { txt; _ }; _ }; _ } ])
-        when txt = f ->
+          (_, [ { pvb_pat = { ppat_desc = Ppat_var { txt; loc }; _ }; _ } ])
+        when canon_def loc txt = f ->
           Some
             (List.filter_map
                (fun o ->

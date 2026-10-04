@@ -1,7 +1,7 @@
 (* [neg a] is the negation of [a]. *)
-fn neg (a : t) : t = b_not 1
+fn neg (a : t) : t = Bool.not_ 1
 
 rule b_imp : Imp (v1, v2) =
-  | false_: false implies _ -> v_true
+  | false_: false implies _ -> Bool.v_true
   | true_: true implies x -> x
   | not_: x implies false -> neg x
