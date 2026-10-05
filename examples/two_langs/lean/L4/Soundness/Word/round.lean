@@ -17,6 +17,17 @@ namespace L4
 open Classical Kanon
 
 set_option maxHeartbeats 400000 in
+theorem Word.round.r_check.main.ok : Word.round.r_check.main.Stmt :=
+  fun O hO => WordMod.Word.round.r_check.main.ok (S := sem) wordSyntax
+  (Ops.toWord O) (Ops.Sound.toWord hO)
+
+theorem Word.round.r_check.proof : Word.round.r_check.Stmt := by
+  intro O hO m n v res h
+  simp only [Word.round.r_check] at h
+  repeat' rcases orElse_some h with h | h
+  · kanon_arm h (Word.round.r_check.main.ok O hO)
+
+set_option maxHeartbeats 400000 in
 theorem Word.round.r_keep.main.ok : Word.round.r_keep.main.Stmt :=
   fun O hO => WordMod.Word.round.r_keep.main.ok (S := sem) wordSyntax
   (Ops.toWord O) (Ops.Sound.toWord hO)
@@ -41,6 +52,7 @@ theorem Word.round.r_default.proof : Word.round.r_default.Stmt := by
 theorem Word.round.step_sound (O : Ops) (hO : O.Sound) (m : CfgMod.Rounding) (n : Int) (v : Term) :
   Refines (Word.round.spec m n v) (Word.round.step O m n v) := by
   unfold Word.round.step
+  refine Refinement.firstSome_cons (fun res h => Word.round.r_check.proof O hO m n v res h) ?_
   refine Refinement.firstSome_cons (fun res h => Word.round.r_keep.proof O hO m n v res h) ?_
   refine Refinement.firstSome_cons (fun res h => Word.round.r_default.proof O hO m n v res h) ?_
   exact Refinement.firstSome_nil

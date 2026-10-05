@@ -10,6 +10,20 @@ namespace WordMod
 
 open Classical Kanon
 
+def Word.round.r_check.main.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (O : Ops L), O.Sound →
+  ∀ (m : CfgMod.Rounding) (n : Int) (z : Int) (w__2 : Int) (t__3 : S.Ty),
+  S.Refines (WordMod.Word.round.spec L m n (B.node (L.WdK z w__2) t__3))
+  (((firstSome [(match (O.word_wcheck z) with
+                  | (some _) =>
+                  some ((B.node (L.WRoundK m n (B.node (L.WdK z w__2) t__3)) (L.TWord n)))
+                  | _ => none),
+     (match (O.word_wcheck z) with
+       | none =>
+       some ((B.node (L.WRoundK m n (B.node (L.WdK z w__2) t__3)) (L.TWord n)))
+       | _ => none)]).getD
+     Inhabited.default))
+
 def Word.round.r_keep.main.Stmt : Prop :=
   ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (O : Ops L), O.Sound →
   ∀ (m : CfgMod.Rounding) (n : Int) (v : S.Term),

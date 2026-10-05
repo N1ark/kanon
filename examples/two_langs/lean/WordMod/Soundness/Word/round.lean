@@ -13,6 +13,10 @@ namespace WordMod
 open Classical Kanon
 
 set_option maxHeartbeats 400000 in
+theorem Word.round.r_check.main.ok : Word.round.r_check.main.Stmt :=
+  no_implicit_lambda% (kanon_proof% Word.round.r_check.main)
+
+set_option maxHeartbeats 400000 in
 theorem Word.round.r_keep.main.ok : Word.round.r_keep.main.Stmt :=
   no_implicit_lambda% (kanon_proof% Word.round.r_keep.main)
 

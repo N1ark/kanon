@@ -436,7 +436,9 @@
     <li>
       <code>Kanon.Sem</code>, the semantics of a language: its terms, types, values and
       environments, with <code>ty</code>, <code>WT</code> (typing) and <code>ev</code> (evaluation,
-      assuming typing). From them, <code>Sem.eval</code> (poison, <code>none</code>, for ill-typed
+      assuming typing), and an instance <code>Inhabited Term</code> (the generated one), which
+      gives the result of a <code>match</code> that no case covers, also over the interface of a
+      module. From them, <code>Sem.eval</code> (poison, <code>none</code>, for ill-typed
       terms) and <code>{`Sem.Refines spec r{:lean}`}</code>: <code>r</code> is well-typed, of the
       type of <code>spec</code>, when <code>spec</code> is, and has its value when <code>spec</code>
       has one. With their lemmas (<code>Sem.Refines.refl</code>, <code>trans</code>,

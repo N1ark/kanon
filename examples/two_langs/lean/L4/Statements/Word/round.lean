@@ -11,6 +11,11 @@ namespace L4
 
 open Classical Kanon
 
+def Word.round.r_check.Stmt : Prop :=
+  ∀ (O : Ops), O.Sound →
+  ∀ (m : CfgMod.Rounding) (n : Int) (v : Term) (res : Term), Word.round.r_check O m n v = some res →
+  Refines (Word.round.spec m n v) res
+
 def Word.round.r_keep.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (m : CfgMod.Rounding) (n : Int) (v : Term) (res : Term), Word.round.r_keep O m n v = some res →
@@ -20,6 +25,20 @@ def Word.round.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (m : CfgMod.Rounding) (n : Int) (v : Term) (res : Term), Word.round.r_default O m n v = some res →
   Refines (Word.round.spec m n v) res
+
+def Word.round.r_check.main.Stmt : Prop :=
+  ∀ (O : Ops), O.Sound →
+  ∀ (m : CfgMod.Rounding) (n : Int) (z : Int) (w__2 : Int) (t__3 : Ty),
+  Refines (Word.round.spec m n (Term.mk (Kind.Wd z w__2) t__3))
+  (((firstSome [(match (O.orc.wcheck z) with
+                  | (some _) =>
+                  some ((Term.mk (Kind.Op1 (Op1.WRound m n) (Term.mk (Kind.Wd z w__2) t__3)) (Ty.TWord n)))
+                  | _ => none),
+     (match (O.orc.wcheck z) with
+       | none =>
+       some ((Term.mk (Kind.Op1 (Op1.WRound m n) (Term.mk (Kind.Wd z w__2) t__3)) (Ty.TWord n)))
+       | _ => none)]).getD
+     Inhabited.default))
 
 def Word.round.r_keep.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →

@@ -15,7 +15,7 @@ noncomputable instance wordSem : WordMod.Sem (S := sem) wordSyntax where
 
 /-- What the word module assumes of the oracles, from those of the language. -/
 theorem Oracle.Compat.word {orc : Oracle} (h : orc.Compat) :
-    WordMod.Oracle.Compat (S := sem) wordSyntax orc.wsum :=
+    WordMod.Oracle.Compat (S := sem) wordSyntax orc.wsum orc.wcheck :=
   { wsum := fun x y => by rw [h.wsum]; rfl }
 
 end L4

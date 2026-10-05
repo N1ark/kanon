@@ -30,6 +30,10 @@ structure Sem where
   WT : Term → Prop
   /-- Evaluation, assuming well-typedness; `none` for poison. -/
   ev : Env → Term → Option Val
+  /-- A term: the result of a `match` that no case covers. -/
+  [inhabited : Inhabited Term]
+
+attribute [instance] Sem.inhabited
 
 namespace Sem
 

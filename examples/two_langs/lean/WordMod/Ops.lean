@@ -45,6 +45,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
   word_double : Int → S.Term → S.Term
   word_double_closed : Int → S.Term → S.Term
   word_wsum : Int → Int → Int
+  word_wcheck : Int → (Option Int)
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
@@ -55,6 +56,6 @@ structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B :
   word_choose : ∀ (g : S.Term) (a : S.Term) (b : S.Term), S.Refines (WordMod.Word.choose.spec L g a b) (O.word_choose g a b)
   word_double : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double.spec L n v) (O.word_double n v)
   word_double_closed : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double_closed.spec L n v) (O.word_double_closed n v)
-  word_orc : Oracle.Compat L O.word_wsum
+  word_orc : Oracle.Compat L O.word_wsum O.word_wcheck
 
 end WordMod

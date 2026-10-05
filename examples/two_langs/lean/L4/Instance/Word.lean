@@ -32,6 +32,7 @@ def Ops.toWord (O : Ops) : WordMod.Ops (S := sem) wordSyntax where
   word_double := O.word_double
   word_double_closed := O.word_double_closed
   word_wsum := O.orc.wsum
+  word_wcheck := O.orc.wcheck
 
 theorem Ops.Sound.toWord {O : Ops} (hO : O.Sound) : (Ops.toWord O).Sound where
   bool_and_ := hO.bool_and_

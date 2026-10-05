@@ -12,6 +12,23 @@ namespace L4
 
 open Classical Kanon
 
+def Word.round.r_check (O : Ops) (m : CfgMod.Rounding) (n : Int) (v : Term) : Option Term :=
+  (match v with
+    | x@(Term.mk (Kind.Wd z _) _) =>
+    (whenSome true
+    (((firstSome [(match (O.orc.wcheck z) with
+                    | (some _) =>
+                    (whenSome true
+                    ((Term.mk (Kind.Op1 (Op1.WRound m n) x) (Ty.TWord n))))
+                    | _ => none),
+       (match (O.orc.wcheck z) with
+         | none =>
+         (whenSome true
+         ((Term.mk (Kind.Op1 (Op1.WRound m n) x) (Ty.TWord n))))
+         | _ => none)]).getD
+       Inhabited.default)))
+    | _ => none)
+
 def Word.round.r_keep (O : Ops) (m : CfgMod.Rounding) (n : Int) (v : Term) : Option Term :=
   (match v with
     | x =>
@@ -24,6 +41,6 @@ def Word.round.r_default (O : Ops) (m : CfgMod.Rounding) (n : Int) (v : Term) : 
     (whenSome true ((Term.mk (Kind.Op1 (Op1.WRound m n) v) (Ty.TWord n)))))
 
 def Word.round.step (O : Ops) (m : CfgMod.Rounding) (n : Int) (v : Term) : Term :=
-  (firstSome [Word.round.r_keep O m n v, Word.round.r_default O m n v]).getD (Word.round.spec m n v)
+  (firstSome [Word.round.r_check O m n v, Word.round.r_keep O m n v, Word.round.r_default O m n v]).getD (Word.round.spec m n v)
 
 end L4
