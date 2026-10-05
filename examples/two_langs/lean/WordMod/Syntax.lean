@@ -32,6 +32,12 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   WRoundK : CfgMod.Rounding → Int → S.Term → B.Kind
   /-- A word, widened by `k` bits. -/
   WExtK : Int → S.Term → B.Kind
+  WdK_name : ∀ (x1 : Int) (n : Int), B.kindName (WdK x1 n) = "Wd"
+  WBlobK_name : ∀ (x1 : CfgMod.Blob) (x2 : String), B.kindName (WBlobK x1 x2) = "WBlob"
+  WFitK_name : ∀ (z : Int), B.kindName (WFitK z) = "WFit"
+  WAddK_name : ∀ (x1 : CfgMod.Flags) (n : Int) (a1 : S.Term) (a2 : S.Term), B.kindName (WAddK x1 n a1 a2) = "WAdd"
+  WRoundK_name : ∀ (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term), B.kindName (WRoundK x1 n a1) = "WRound"
+  WExtK_name : ∀ (k : Int) (a1 : S.Term), B.kindName (WExtK k a1) = "WExt"
   /-- The invariant of the terms of `WBlob`, `WFit`. -/
   word_wf : S.Term → Prop
   word_fit : Int → Int
@@ -51,26 +57,32 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asWd : S.Term → Option (Int × Int)
   asWd_node : ∀ (x1 : Int) (n : Int) (t : S.Ty), asWd (B.node (WdK x1 n) t) = some (x1, n)
   asWd_sound : ∀ (v : S.Term) (x1 : Int) (n : Int), asWd v = some (x1, n) → v = (B.node (WdK x1 n) (S.ty v))
+  asWd_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Wd" → asWd (B.node k t) = none
   /-- The arguments of a `WBlob` node. -/
   asWBlob : S.Term → Option (CfgMod.Blob × String)
   asWBlob_node : ∀ (x1 : CfgMod.Blob) (x2 : String) (t : S.Ty), asWBlob (B.node (WBlobK x1 x2) t) = some (x1, x2)
   asWBlob_sound : ∀ (v : S.Term) (x1 : CfgMod.Blob) (x2 : String), asWBlob v = some (x1, x2) → v = (B.node (WBlobK x1 x2) (S.ty v))
+  asWBlob_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "WBlob" → asWBlob (B.node k t) = none
   /-- The arguments of a `WFit` node. -/
   asWFit : S.Term → Option Int
   asWFit_node : ∀ (z : Int) (t : S.Ty), asWFit (B.node (WFitK z) t) = some z
   asWFit_sound : ∀ (v : S.Term) (z : Int), asWFit v = some z → v = (B.node (WFitK z) (S.ty v))
+  asWFit_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "WFit" → asWFit (B.node k t) = none
   /-- The arguments of a `WAdd` node. -/
   asWAdd : S.Term → Option (CfgMod.Flags × Int × S.Term × S.Term)
   asWAdd_node : ∀ (x1 : CfgMod.Flags) (n : Int) (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asWAdd (B.node (WAddK x1 n a1 a2) t) = some (x1, n, a1, a2)
   asWAdd_sound : ∀ (v : S.Term) (x1 : CfgMod.Flags) (n : Int) (a1 : S.Term) (a2 : S.Term), asWAdd v = some (x1, n, a1, a2) → v = (B.node (WAddK x1 n a1 a2) (S.ty v))
+  asWAdd_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "WAdd" → asWAdd (B.node k t) = none
   /-- The arguments of a `WRound` node. -/
   asWRound : S.Term → Option (CfgMod.Rounding × Int × S.Term)
   asWRound_node : ∀ (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term) (t : S.Ty), asWRound (B.node (WRoundK x1 n a1) t) = some (x1, n, a1)
   asWRound_sound : ∀ (v : S.Term) (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term), asWRound v = some (x1, n, a1) → v = (B.node (WRoundK x1 n a1) (S.ty v))
+  asWRound_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "WRound" → asWRound (B.node k t) = none
   /-- The arguments of a `WExt` node. -/
   asWExt : S.Term → Option (Int × S.Term)
   asWExt_node : ∀ (k : Int) (a1 : S.Term) (t : S.Ty), asWExt (B.node (WExtK k a1) t) = some (k, a1)
   asWExt_sound : ∀ (v : S.Term) (k : Int) (a1 : S.Term), asWExt v = some (k, a1) → v = (B.node (WExtK k a1) (S.ty v))
+  asWExt_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "WExt" → asWExt (B.node k t) = none
   /-- The arguments of the sort `TWord`. -/
   asTWord : S.Ty → Option Int
   asTWord_sort : ∀ (x1 : Int), asTWord (TWord x1) = some x1
@@ -102,5 +114,19 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
         Inhabited.default)
   word_twice_eq : ∀ (n : Int) (v : S.Term), (word_twice n v) =
       (B.node (WAddK word_plain n v v) (TWord n))
+
+attribute [kanon_law]
+  Syntax.WdK_name
+  Syntax.asWd_other
+  Syntax.WBlobK_name
+  Syntax.asWBlob_other
+  Syntax.WFitK_name
+  Syntax.asWFit_other
+  Syntax.WAddK_name
+  Syntax.asWAdd_other
+  Syntax.WRoundK_name
+  Syntax.asWRound_other
+  Syntax.WExtK_name
+  Syntax.asWExt_other
 
 end WordMod

@@ -22,6 +22,8 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   EvK : Int → B.Kind
   /-- The remainder of an even integer by 2. -/
   Rem2K : S.Term → B.Kind
+  EvK_name : ∀ (x1 : Int), B.kindName (EvK x1) = "Ev"
+  Rem2K_name : ∀ (a1 : S.Term), B.kindName (Rem2K a1) = "Rem2"
   /-- The invariant of the terms of `TEven`. -/
   even_inv : S.Term → Prop
   even_is_ev : S.Term → Bool
@@ -31,10 +33,12 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asEv : S.Term → Option Int
   asEv_node : ∀ (x1 : Int) (t : S.Ty), asEv (B.node (EvK x1) t) = some x1
   asEv_sound : ∀ (v : S.Term) (x1 : Int), asEv v = some x1 → v = (B.node (EvK x1) (S.ty v))
+  asEv_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Ev" → asEv (B.node k t) = none
   /-- The arguments of a `Rem2` node. -/
   asRem2 : S.Term → Option S.Term
   asRem2_node : ∀ (a1 : S.Term) (t : S.Ty), asRem2 (B.node (Rem2K a1) t) = some a1
   asRem2_sound : ∀ (v : S.Term) (a1 : S.Term), asRem2 v = some a1 → v = (B.node (Rem2K a1) (S.ty v))
+  asRem2_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Rem2" → asRem2 (B.node k t) = none
   /-- The arguments of the sort `TEven`. -/
   asTEven : S.Ty → Option Unit
   asTEven_sort : asTEven TEven = some ()
@@ -42,5 +46,11 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   even_is_ev_eq : ∀ (v : S.Term), (even_is_ev v) =
       ((firstSome [(match (asEv v) with | some _ => some (true) | _ => none)]).getD
         (match v with | _ => false))
+
+attribute [kanon_law]
+  Syntax.EvK_name
+  Syntax.asEv_other
+  Syntax.Rem2K_name
+  Syntax.asRem2_other
 
 end EvenMod

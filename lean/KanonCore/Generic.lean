@@ -35,6 +35,9 @@ structure Base (S : Sem) where
   /-- The term of a kind, at a sort. -/
   node : Kind → S.Ty → S.Term
   ty_node : ∀ k t, S.ty (node k t) = t
+  /-- The name of the node of a kind, so that the kinds of different nodes
+  differ (`XK_name`), and a matcher fails on the other nodes (`asX_other`). -/
+  kindName : Kind → String
 
 /-- What the rule functions of every module may use: the oracle `tag_le`. -/
 structure OpsBase (S : Sem) where
@@ -137,6 +140,17 @@ elab "kanon_bridge " f:ident : tactic => do
   bridge 16
 
 end Kanon.Generic
+
+/-- Proves the law `asX_other` of the interface of a module for a language: the
+matcher `asX` fails on the nodes of other names. -/
+macro "kanon_other" : tactic => `(tactic| (
+  intro k t h
+  dsimp only
+  split
+  · rename_i heq
+    cases heq
+    exact absurd rfl h
+  · rfl))
 
 /-- Proves a law of the interface of a module for a language: by definition,
 or once the definitions of the language are unfolded at its nodes, with the

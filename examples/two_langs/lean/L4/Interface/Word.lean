@@ -31,33 +31,45 @@ def wordSyntax : WordMod.Syntax (S := sem) modBase boolSyntax cfgSyntax where
   WdK := fun x1 n => (Kind.Wd x1 n)
   WT_Wd := by intros; first | exact Iff.rfl | kanon_law
   asWd := fun v => match v with | Term.mk (Kind.Wd x1 n) _ => some (x1, n) | _ => none
+  WdK_name := by intros; rfl
   asWd_node := by intros; rfl
   asWd_sound := by intro v x1 n h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWd_other := by kanon_other
   WBlobK := fun x1 x2 => (Kind.WBlob x1 x2)
   WT_WBlob := by intros; first | exact Iff.rfl | kanon_law
   asWBlob := fun v => match v with | Term.mk (Kind.WBlob x1 x2) _ => some (x1, x2) | _ => none
+  WBlobK_name := by intros; rfl
   asWBlob_node := by intros; rfl
   asWBlob_sound := by intro v x1 x2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWBlob_other := by kanon_other
   WFitK := fun z => (Kind.WFit z)
   WT_WFit := by intros; first | exact Iff.rfl | kanon_law
   asWFit := fun v => match v with | Term.mk (Kind.WFit z) _ => some z | _ => none
+  WFitK_name := by intros; rfl
   asWFit_node := by intros; rfl
   asWFit_sound := by intro v z h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWFit_other := by kanon_other
   WAddK := fun x1 n a1 a2 => (Kind.Op2 (Op2.WAdd x1 n) a1 a2)
   WT_WAdd := by intros; first | exact Iff.rfl | kanon_law
   asWAdd := fun v => match v with | Term.mk (Kind.Op2 (Op2.WAdd x1 n) a1 a2) _ => some (x1, n, a1, a2) | _ => none
+  WAddK_name := by intros; rfl
   asWAdd_node := by intros; rfl
   asWAdd_sound := by intro v x1 n a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWAdd_other := by kanon_other
   WRoundK := fun x1 n a1 => (Kind.Op1 (Op1.WRound x1 n) a1)
   WT_WRound := by intros; first | exact Iff.rfl | kanon_law
   asWRound := fun v => match v with | Term.mk (Kind.Op1 (Op1.WRound x1 n) a1) _ => some (x1, n, a1) | _ => none
+  WRoundK_name := by intros; rfl
   asWRound_node := by intros; rfl
   asWRound_sound := by intro v x1 n a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWRound_other := by kanon_other
   WExtK := fun k a1 => (Kind.Op1 (Op1.WExt k) a1)
   WT_WExt := by intros; first | exact Iff.rfl | kanon_law
   asWExt := fun v => match v with | Term.mk (Kind.Op1 (Op1.WExt k) a1) _ => some (k, a1) | _ => none
+  WExtK_name := by intros; rfl
   asWExt_node := by intros; rfl
   asWExt_sound := by intro v k a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asWExt_other := by kanon_other
   word_fit := fit
   word_first := Word.first
   word_first_eq := by kanon_bridge Word.first

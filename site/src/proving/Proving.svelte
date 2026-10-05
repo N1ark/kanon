@@ -223,8 +223,11 @@
           kinds of its nodes (<code>PlusK</code>), the invariants of its sorts and nodes
           (see <a href="#invariants">Invariants</a>), its primitives and its helpers, which the
           typings may use, the typing of its nodes (<code>WT_Plus</code>), a matcher
-          for each node (<code>asPlus</code>, with <code>asPlus_node</code> and
-          <code>asPlus_sound</code>) and for each sort (<code>asTInt</code>, with
+          for each node (<code>asPlus</code>, with <code>asPlus_node</code>,
+          <code>asPlus_sound</code> and <code>asPlus_other</code>: it fails on the kinds whose
+          name, <code>B.kindName</code>, is not <code>"Plus"</code>, which
+          <code>PlusK_name</code> gives of its own; with them, <code>{`simp [kanon_law]{:lean}`}</code>
+          proves that a matcher fails on another node, of any module) and for each sort (<code>asTInt</code>, with
           <code>asTInt_sort</code> and <code>asTInt_sound</code>), the predicates of its subsorts,
           and the law of the body of each helper (<code>int_add_eq</code>
           for the primitive <code>int_add</code>; <code>bool_of_bool_eq</code> in

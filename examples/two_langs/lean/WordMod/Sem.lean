@@ -41,6 +41,14 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Bas
     addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
   ev_WRound : ∀ ρ m n a t, S.ev ρ (B.node (L.WRoundK m n a) t) = S.ev ρ a := by kanon_law
 
+/-- A matcher fails on the other nodes, of the module or of those it uses: by the
+names of their kinds (`kanon_law`). -/
+example {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S}
+    {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : Syntax B LBool LCfg)
+    (m : CfgMod.Rounding) (n : Int) (a : S.Term) (t : S.Ty) :
+    L.asWAdd (B.node (L.WRoundK m n a) t) = none ∧ L.asWd (B.node (LBool.NotK a) t) = none := by
+  simp [kanon_law]
+
 /-- What the rules assume of the oracles `wsum` and `wcheck`, for the interface
 `L`: `wsum` is the sum of the semantics. -/
 structure Oracle.Compat {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S}

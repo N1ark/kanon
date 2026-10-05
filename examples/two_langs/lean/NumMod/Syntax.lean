@@ -22,6 +22,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   LtK : S.Term → S.Term → B.Kind
   /-- The maximum of two integers. -/
   MaxK : S.Term → S.Term → B.Kind
+  NumK_name : ∀ (x1 : Int), B.kindName (NumK x1) = "Num"
+  AddK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (AddK a1 a2) = "Add"
+  LtK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (LtK a1 a2) = "Lt"
+  MaxK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (MaxK a1 a2) = "Max"
   num_is_pos : S.Term → Bool
   WT_Num : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (NumK x1) t) ↔ t = TNum
   WT_Add : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (AddK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
@@ -31,18 +35,22 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asNum : S.Term → Option Int
   asNum_node : ∀ (x1 : Int) (t : S.Ty), asNum (B.node (NumK x1) t) = some x1
   asNum_sound : ∀ (v : S.Term) (x1 : Int), asNum v = some x1 → v = (B.node (NumK x1) (S.ty v))
+  asNum_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Num" → asNum (B.node k t) = none
   /-- The arguments of a `Add` node. -/
   asAdd : S.Term → Option (S.Term × S.Term)
   asAdd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAdd (B.node (AddK a1 a2) t) = some (a1, a2)
   asAdd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAdd v = some (a1, a2) → v = (B.node (AddK a1 a2) (S.ty v))
+  asAdd_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Add" → asAdd (B.node k t) = none
   /-- The arguments of a `Lt` node. -/
   asLt : S.Term → Option (S.Term × S.Term)
   asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (B.node (LtK a1 a2) t) = some (a1, a2)
   asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (B.node (LtK a1 a2) (S.ty v))
+  asLt_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Lt" → asLt (B.node k t) = none
   /-- The arguments of a `Max` node. -/
   asMax : S.Term → Option (S.Term × S.Term)
   asMax_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asMax (B.node (MaxK a1 a2) t) = some (a1, a2)
   asMax_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asMax v = some (a1, a2) → v = (B.node (MaxK a1 a2) (S.ty v))
+  asMax_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Max" → asMax (B.node k t) = none
   /-- The arguments of the sort `TNum`. -/
   asTNum : S.Ty → Option Unit
   asTNum_sort : asTNum TNum = some ()
@@ -53,5 +61,15 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
                      some ((decide ((0 : Int) < z)))
                      | _ => none)]).getD
         (match v with | _ => false))
+
+attribute [kanon_law]
+  Syntax.NumK_name
+  Syntax.asNum_other
+  Syntax.AddK_name
+  Syntax.asAdd_other
+  Syntax.LtK_name
+  Syntax.asLt_other
+  Syntax.MaxK_name
+  Syntax.asMax_other
 
 end NumMod

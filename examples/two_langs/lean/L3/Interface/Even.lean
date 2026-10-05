@@ -26,13 +26,17 @@ def evenSyntax : EvenMod.Syntax (S := sem) modBase boolSyntax numSyntax where
   EvK := fun x1 => (Kind.Ev x1)
   WT_Ev := by intros; first | exact Iff.rfl | kanon_law
   asEv := fun v => match v with | Term.mk (Kind.Ev x1) _ => some x1 | _ => none
+  EvK_name := by intros; rfl
   asEv_node := by intros; rfl
   asEv_sound := by intro v x1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asEv_other := by kanon_other
   Rem2K := fun a1 => (Kind.Op1 Op1.Rem2 a1)
   WT_Rem2 := by intros; first | exact Iff.rfl | kanon_law
   asRem2 := fun v => match v with | Term.mk (Kind.Op1 Op1.Rem2 a1) _ => some a1 | _ => none
+  Rem2K_name := by intros; rfl
   asRem2_node := by intros; rfl
   asRem2_sound := by intro v a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asRem2_other := by kanon_other
   even_is_ev := Even.is_ev
   even_is_ev_eq := by kanon_bridge Even.is_ev
 

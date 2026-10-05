@@ -20,6 +20,9 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   IntK : Int → B.Kind
   PlusK : S.Term → S.Term → B.Kind
   LtK : S.Term → S.Term → B.Kind
+  IntK_name : ∀ (x1 : Int), B.kindName (IntK x1) = "Int"
+  PlusK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (PlusK a1 a2) = "Plus"
+  LtK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (LtK a1 a2) = "Lt"
   int_add : Int → Int → Int
   WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
   WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
@@ -28,18 +31,29 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asInt : S.Term → Option Int
   asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (B.node (IntK x1) t) = some x1
   asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (B.node (IntK x1) (S.ty v))
+  asInt_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Int" → asInt (B.node k t) = none
   /-- The arguments of a `Plus` node. -/
   asPlus : S.Term → Option (S.Term × S.Term)
   asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (B.node (PlusK a1 a2) t) = some (a1, a2)
   asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (B.node (PlusK a1 a2) (S.ty v))
+  asPlus_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Plus" → asPlus (B.node k t) = none
   /-- The arguments of a `Lt` node. -/
   asLt : S.Term → Option (S.Term × S.Term)
   asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (B.node (LtK a1 a2) t) = some (a1, a2)
   asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (B.node (LtK a1 a2) (S.ty v))
+  asLt_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Lt" → asLt (B.node k t) = none
   /-- The arguments of the sort `TInt`. -/
   asTInt : S.Ty → Option Unit
   asTInt_sort : asTInt TInt = some ()
   asTInt_sound : ∀ (s : S.Ty), asTInt s = some () → s = TInt
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
+
+attribute [kanon_law]
+  Syntax.IntK_name
+  Syntax.asInt_other
+  Syntax.PlusK_name
+  Syntax.asPlus_other
+  Syntax.LtK_name
+  Syntax.asLt_other
 
 end IntMod

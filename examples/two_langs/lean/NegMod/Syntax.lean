@@ -16,10 +16,14 @@ modules that it uses have the interfaces of the parameters: Kanon generates it, 
 language that uses the module gives it, by definition. -/
 structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) (LBool : KanonBool.Syntax B) (LNum : NumMod.Syntax B LBool) where
   NegK : S.Term → B.Kind
+  NegK_name : ∀ (a1 : S.Term), B.kindName (NegK a1) = "Neg"
   WT_Neg : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (NegK a1) t) ↔ ((S.ty a1) = LNum.TNum ∧ t = LNum.TNum) ∧ S.WT a1
   /-- The arguments of a `Neg` node. -/
   asNeg : S.Term → Option S.Term
   asNeg_node : ∀ (a1 : S.Term) (t : S.Ty), asNeg (B.node (NegK a1) t) = some a1
   asNeg_sound : ∀ (v : S.Term) (a1 : S.Term), asNeg v = some a1 → v = (B.node (NegK a1) (S.ty v))
+  asNeg_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Neg" → asNeg (B.node k t) = none
+
+attribute [kanon_law] Syntax.NegK_name Syntax.asNeg_other
 
 end NegMod

@@ -11,11 +11,30 @@ namespace L3
 
 open Classical Kanon
 
+/-- The name of the node of a kind. -/
+def kindName : Kind → String
+  | (Kind.Var _) => "Var"
+  | (Kind.Bool _) => "Bool"
+  | (Kind.Num _) => "Num"
+  | (Kind.Ev _) => "Ev"
+  | (Kind.Op1 Op1.Not _) => "Not"
+  | (Kind.Op2 Op2.And _ _) => "And"
+  | (Kind.Op2 Op2.Or _ _) => "Or"
+  | (Kind.Op2 Op2.Eq _ _) => "Eq"
+  | (Kind.Op3 Op3.Ite _ _ _) => "Ite"
+  | (Kind.OpN OpN.Distinct _) => "Distinct"
+  | (Kind.Op2 Op2.Add _ _) => "Add"
+  | (Kind.Op2 Op2.Lt _ _) => "Lt"
+  | (Kind.Op2 Op2.Max _ _) => "Max"
+  | (Kind.Op1 Op1.Neg _) => "Neg"
+  | (Kind.Op1 Op1.Rem2 _) => "Rem2"
+
 /-- The terms of the language, for the interfaces of its modules. -/
 def modBase : Kanon.Base sem where
   Kind := Kind
   node := Term.mk
   ty_node _ _ := rfl
+  kindName := kindName
 
 attribute [kanon_law] modBase
 

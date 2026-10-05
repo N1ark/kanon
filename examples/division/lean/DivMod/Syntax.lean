@@ -21,6 +21,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   DivK : S.Term → S.Term → B.Kind
   /-- The square of an integer plus one, which is not zero. -/
   Sq1K : S.Term → B.Kind
+  IntK_name : ∀ (x1 : Int), B.kindName (IntK x1) = "Int"
+  PlusK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (PlusK a1 a2) = "Plus"
+  DivK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (DivK a1 a2) = "Div"
+  Sq1K_name : ∀ (a1 : S.Term), B.kindName (Sq1K a1) = "Sq1"
   int_add : Int → Int → Int
   WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
   WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
@@ -30,18 +34,22 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asInt : S.Term → Option Int
   asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (B.node (IntK x1) t) = some x1
   asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (B.node (IntK x1) (S.ty v))
+  asInt_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Int" → asInt (B.node k t) = none
   /-- The arguments of a `Plus` node. -/
   asPlus : S.Term → Option (S.Term × S.Term)
   asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (B.node (PlusK a1 a2) t) = some (a1, a2)
   asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (B.node (PlusK a1 a2) (S.ty v))
+  asPlus_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Plus" → asPlus (B.node k t) = none
   /-- The arguments of a `Div` node. -/
   asDiv : S.Term → Option (S.Term × S.Term)
   asDiv_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asDiv (B.node (DivK a1 a2) t) = some (a1, a2)
   asDiv_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asDiv v = some (a1, a2) → v = (B.node (DivK a1 a2) (S.ty v))
+  asDiv_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Div" → asDiv (B.node k t) = none
   /-- The arguments of a `Sq1` node. -/
   asSq1 : S.Term → Option S.Term
   asSq1_node : ∀ (a1 : S.Term) (t : S.Ty), asSq1 (B.node (Sq1K a1) t) = some a1
   asSq1_sound : ∀ (v : S.Term) (a1 : S.Term), asSq1 v = some a1 → v = (B.node (Sq1K a1) (S.ty v))
+  asSq1_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Sq1" → asSq1 (B.node k t) = none
   /-- The arguments of the sort `TInt`. -/
   asTInt : S.Ty → Option Unit
   asTInt_sort : asTInt TInt = some ()
@@ -51,5 +59,15 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
       language defines it, in `Semantics.lean`). -/
   Nonzero : S.Term → Prop
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
+
+attribute [kanon_law]
+  Syntax.IntK_name
+  Syntax.asInt_other
+  Syntax.PlusK_name
+  Syntax.asPlus_other
+  Syntax.DivK_name
+  Syntax.asDiv_other
+  Syntax.Sq1K_name
+  Syntax.asSq1_other
 
 end DivMod

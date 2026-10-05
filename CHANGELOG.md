@@ -20,6 +20,7 @@
 - `[@extensible]` marks helpers that other modules extend.
 - Backends `lean-interface` and `lean-modules`.
 - `kanon_law` and `kanon_bridge` prove the laws of interfaces.
+- Interface matchers fail on other nodes: `asX_other`, by kind names.
 - Example `two_langs`: languages share modules proved once, with a diamond.
 - Module interfaces are unbundled, so that diamonds of modules work.
 - Modules proved once that use each other are an error.

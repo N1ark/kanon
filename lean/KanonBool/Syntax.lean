@@ -22,6 +22,13 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   EqK : S.Term → S.Term → B.Kind
   IteK : S.Term → S.Term → S.Term → B.Kind
   DistinctK : (List S.Term) → B.Kind
+  BoolK_name : ∀ (x1 : Bool), B.kindName (BoolK x1) = "Bool"
+  NotK_name : ∀ (a1 : S.Term), B.kindName (NotK a1) = "Not"
+  AndK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (AndK a1 a2) = "And"
+  OrK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (OrK a1 a2) = "Or"
+  EqK_name : ∀ (a1 : S.Term) (a2 : S.Term), B.kindName (EqK a1 a2) = "Eq"
+  IteK_name : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term), B.kindName (IteK a1 a2 a3) = "Ite"
+  DistinctK_name : ∀ (l1 : (List S.Term)), B.kindName (DistinctK l1) = "Distinct"
   bool_v_true : S.Term
   bool_v_false : S.Term
   bool_of_bool : Bool → S.Term
@@ -40,30 +47,37 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asBool : S.Term → Option Bool
   asBool_node : ∀ (x1 : Bool) (t : S.Ty), asBool (B.node (BoolK x1) t) = some x1
   asBool_sound : ∀ (v : S.Term) (x1 : Bool), asBool v = some x1 → v = (B.node (BoolK x1) (S.ty v))
+  asBool_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Bool" → asBool (B.node k t) = none
   /-- The arguments of a `Not` node. -/
   asNot : S.Term → Option S.Term
   asNot_node : ∀ (a1 : S.Term) (t : S.Ty), asNot (B.node (NotK a1) t) = some a1
   asNot_sound : ∀ (v : S.Term) (a1 : S.Term), asNot v = some a1 → v = (B.node (NotK a1) (S.ty v))
+  asNot_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Not" → asNot (B.node k t) = none
   /-- The arguments of a `And` node. -/
   asAnd : S.Term → Option (S.Term × S.Term)
   asAnd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAnd (B.node (AndK a1 a2) t) = some (a1, a2)
   asAnd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAnd v = some (a1, a2) → v = (B.node (AndK a1 a2) (S.ty v))
+  asAnd_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "And" → asAnd (B.node k t) = none
   /-- The arguments of a `Or` node. -/
   asOr : S.Term → Option (S.Term × S.Term)
   asOr_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asOr (B.node (OrK a1 a2) t) = some (a1, a2)
   asOr_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asOr v = some (a1, a2) → v = (B.node (OrK a1 a2) (S.ty v))
+  asOr_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Or" → asOr (B.node k t) = none
   /-- The arguments of a `Eq` node. -/
   asEq : S.Term → Option (S.Term × S.Term)
   asEq_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asEq (B.node (EqK a1 a2) t) = some (a1, a2)
   asEq_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asEq v = some (a1, a2) → v = (B.node (EqK a1 a2) (S.ty v))
+  asEq_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Eq" → asEq (B.node k t) = none
   /-- The arguments of a `Ite` node. -/
   asIte : S.Term → Option (S.Term × S.Term × S.Term)
   asIte_node : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term) (t : S.Ty), asIte (B.node (IteK a1 a2 a3) t) = some (a1, a2, a3)
   asIte_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term) (a3 : S.Term), asIte v = some (a1, a2, a3) → v = (B.node (IteK a1 a2 a3) (S.ty v))
+  asIte_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Ite" → asIte (B.node k t) = none
   /-- The arguments of a `Distinct` node. -/
   asDistinct : S.Term → Option (List S.Term)
   asDistinct_node : ∀ (l1 : (List S.Term)) (t : S.Ty), asDistinct (B.node (DistinctK l1) t) = some l1
   asDistinct_sound : ∀ (v : S.Term) (l1 : (List S.Term)), asDistinct v = some l1 → v = (B.node (DistinctK l1) (S.ty v))
+  asDistinct_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ "Distinct" → asDistinct (B.node k t) = none
   /-- The arguments of the sort `TBool`. -/
   asTBool : S.Ty → Option Unit
   asTBool_sort : asTBool TBool = some ()
@@ -96,5 +110,21 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
                   (match (bool_distinct_check_one a rest) with | r => r)))
           | _ => none)]).getD
         Inhabited.default)
+
+attribute [kanon_law]
+  Syntax.BoolK_name
+  Syntax.asBool_other
+  Syntax.NotK_name
+  Syntax.asNot_other
+  Syntax.AndK_name
+  Syntax.asAnd_other
+  Syntax.OrK_name
+  Syntax.asOr_other
+  Syntax.EqK_name
+  Syntax.asEq_other
+  Syntax.IteK_name
+  Syntax.asIte_other
+  Syntax.DistinctK_name
+  Syntax.asDistinct_other
 
 end KanonBool

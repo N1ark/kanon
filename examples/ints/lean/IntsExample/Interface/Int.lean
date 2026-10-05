@@ -23,18 +23,24 @@ def intSyntax : IntMod.Syntax (S := sem) modBase boolSyntax where
   IntK := fun x1 => (Kind.Int x1)
   WT_Int := by intros; first | exact Iff.rfl | kanon_law
   asInt := fun v => match v with | Term.mk (Kind.Int x1) _ => some x1 | _ => none
+  IntK_name := by intros; rfl
   asInt_node := by intros; rfl
   asInt_sound := by intro v x1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asInt_other := by kanon_other
   PlusK := fun a1 a2 => (Kind.Op2 Op2.Plus a1 a2)
   WT_Plus := by intros; first | exact Iff.rfl | kanon_law
   asPlus := fun v => match v with | Term.mk (Kind.Op2 Op2.Plus a1 a2) _ => some (a1, a2) | _ => none
+  PlusK_name := by intros; rfl
   asPlus_node := by intros; rfl
   asPlus_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asPlus_other := by kanon_other
   LtK := fun a1 a2 => (Kind.Op2 Op2.Lt a1 a2)
   WT_Lt := by intros; first | exact Iff.rfl | kanon_law
   asLt := fun v => match v with | Term.mk (Kind.Op2 Op2.Lt a1 a2) _ => some (a1, a2) | _ => none
+  LtK_name := by intros; rfl
   asLt_node := by intros; rfl
   asLt_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asLt_other := by kanon_other
   int_add := Int.add
   int_add_eq := by kanon_bridge Int.add
 

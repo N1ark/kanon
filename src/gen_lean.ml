@@ -3191,6 +3191,10 @@ let matcher_fields (p : program) (n : gnode) =
     Printf.sprintf "as%s_sound : ∀ (v : S.Term) %s, as%s v = some %s → v = %s" c
       bs c (tuple args)
       (gnode_term n args "(S.ty v)");
+    Printf.sprintf
+      "as%s_other : ∀ (k : B.Kind) (t : S.Ty), B.kindName k ≠ \"%s\" → as%s \
+       (B.node k t) = none"
+      c c c;
   ]
 
 (** The fields of the matcher of the sort [c] (of the interface of its module),
@@ -3316,6 +3320,21 @@ let syntax_file ctx (p : program) m =
            () (gfield_of None "Kind")))
     nodes;
   List.iter
+    (fun n ->
+      let xs, os = node_names p n in
+      let args = xs @ os in
+      field
+        (Printf.sprintf "%s_name : %sB.kindName %s = \"%s\""
+           (kind_field n.gc.c_name)
+           (if args = [] then ""
+            else
+              "∀ "
+              ^ binders (List.combine args (n.gpayload @ n.goperands))
+              ^ ", ")
+           (app (kind_field n.gc.c_name) args)
+           n.gc.c_name))
+    nodes;
+  List.iter
     (fun (cs, q) ->
       pf ft "  /-- The invariant of the terms of %s. -/@ "
         (String.concat ", "
@@ -3347,7 +3366,14 @@ let syntax_file ctx (p : program) m =
   List.iter
     (fun (f : fn) -> if not f.extensible then helper_eq ctx ~o:false ft f)
     helpers;
-  pf ft "@ "
+  pf ft "@ ";
+  if nodes <> [] then
+    pf ft "@[<hv 2>attribute [kanon_law]%a@]@ @ "
+      (fun ft ->
+        List.iter (fun n ->
+            pf ft "@ Syntax.%s_name@ Syntax.as%s_other" (kind_field n.gc.c_name)
+              n.gc.c_name))
+      nodes
 
 (* ---- Ops.lean ---- *)
 
@@ -3724,13 +3750,23 @@ let interface_file ~sources =
   lean_file ~sources [ "Interface" ] [ "KanonCore.Generic"; md "Semantics" ]
   @@ fun ft ->
   lines ft
+    [ "/-- The name of the node of a kind. -/"; "def kindName : Kind → String" ];
+  List.iter
+    (fun n ->
+      let k = List.length n.gpayload and o = List.length n.goperands in
+      let blank i = List.init i (fun _ -> "_") in
+      pf ft "  | %s => \"%s\"@ " (closed_kind n (blank k) (blank o)) n.gc.c_name)
+    (gnodes ());
+  lines ft
     [
+      "";
       "/-- The terms of the language, for the interfaces of its modules. -/";
       Printf.sprintf "def modBase %s: Kanon.Base %s where" (sem_binders ())
         (with_sem_args "sem");
       "  Kind := Kind";
       "  node := Term.mk";
       "  ty_node _ _ := rfl";
+      "  kindName := kindName";
       "";
       "attribute [kanon_law] modBase";
       "";
@@ -3813,13 +3849,15 @@ let module_interface_file ~sources ctx (p : program) m =
         (Printf.sprintf
            "as%s := fun v => match v with | Term.mk %s _ => some %s | _ => none"
            c (closed_kind n xs os) (tuple args));
+      field (Printf.sprintf "%s_name := by intros; rfl" (kind_field c));
       field (Printf.sprintf "as%s_node := by intros; rfl" c);
       field
         (Printf.sprintf
            "as%s_sound := by intro v%s h; dsimp only at h; split at h <;> \
             cases h <;> rfl"
            c
-           (String.concat "" (List.map (fun x -> " " ^ x) args))))
+           (String.concat "" (List.map (fun x -> " " ^ x) args)));
+      field (Printf.sprintf "as%s_other := by kanon_other" c))
     (module_nodes m);
   List.iter
     (fun ss ->

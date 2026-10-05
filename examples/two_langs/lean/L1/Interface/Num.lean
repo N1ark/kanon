@@ -23,23 +23,31 @@ def numSyntax : NumMod.Syntax (S := sem) modBase boolSyntax where
   NumK := fun x1 => (Kind.Num x1)
   WT_Num := by intros; first | exact Iff.rfl | kanon_law
   asNum := fun v => match v with | Term.mk (Kind.Num x1) _ => some x1 | _ => none
+  NumK_name := by intros; rfl
   asNum_node := by intros; rfl
   asNum_sound := by intro v x1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asNum_other := by kanon_other
   AddK := fun a1 a2 => (Kind.Op2 Op2.Add a1 a2)
   WT_Add := by intros; first | exact Iff.rfl | kanon_law
   asAdd := fun v => match v with | Term.mk (Kind.Op2 Op2.Add a1 a2) _ => some (a1, a2) | _ => none
+  AddK_name := by intros; rfl
   asAdd_node := by intros; rfl
   asAdd_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asAdd_other := by kanon_other
   LtK := fun a1 a2 => (Kind.Op2 Op2.Lt a1 a2)
   WT_Lt := by intros; first | exact Iff.rfl | kanon_law
   asLt := fun v => match v with | Term.mk (Kind.Op2 Op2.Lt a1 a2) _ => some (a1, a2) | _ => none
+  LtK_name := by intros; rfl
   asLt_node := by intros; rfl
   asLt_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asLt_other := by kanon_other
   MaxK := fun a1 a2 => (Kind.Op2 Op2.Max a1 a2)
   WT_Max := by intros; first | exact Iff.rfl | kanon_law
   asMax := fun v => match v with | Term.mk (Kind.Op2 Op2.Max a1 a2) _ => some (a1, a2) | _ => none
+  MaxK_name := by intros; rfl
   asMax_node := by intros; rfl
   asMax_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asMax_other := by kanon_other
   num_is_pos := Num.is_pos
   num_is_pos_eq := by kanon_bridge Num.is_pos
 

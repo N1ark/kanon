@@ -18,8 +18,10 @@ def negSyntax : NegMod.Syntax (S := sem) modBase boolSyntax numSyntax where
   NegK := fun a1 => (Kind.Op1 Op1.Neg a1)
   WT_Neg := by intros; first | exact Iff.rfl | kanon_law
   asNeg := fun v => match v with | Term.mk (Kind.Op1 Op1.Neg a1) _ => some a1 | _ => none
+  NegK_name := by intros; rfl
   asNeg_node := by intros; rfl
   asNeg_sound := by intro v a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  asNeg_other := by kanon_other
 
 attribute [kanon_law] negSyntax
 
