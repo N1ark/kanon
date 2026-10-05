@@ -27,17 +27,19 @@ syntax "kanon_congr" : tactic
 proof of that alternative: splits its match (unless its pattern always matches,
 so that the conditionals of its body are not split instead), takes its guard
 (`whenSome`, also for unguarded alternatives), and applies `p`, whose conclusion
-must then match the goal. -/
+must then match the goal. The cases where the pattern does not match are closed
+by `cases` (`h : none = some res`), else by `simp`. -/
 macro "kanon_arm " h:ident p:term : tactic => `(tactic| first
   | (obtain ⟨hg, heq⟩ := Kanon.whenSome_eq_some $h:ident
      subst heq
      apply $p <;> assumption)
   | ((try split at $h:ident)
      all_goals first
-       | (simp at $h:ident; done)
+       | (cases $h:ident; done)
        | (obtain ⟨hg, heq⟩ := Kanon.whenSome_eq_some $h:ident
           subst heq
-          apply $p <;> assumption)))
+          apply $p <;> assumption)
+       | (simp at $h:ident; done)))
 
 open Lean in
 /-- The closest namespace, enclosing `ns`, of the statement of the arm `x`. -/

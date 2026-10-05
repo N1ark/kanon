@@ -536,8 +536,7 @@ macro "kanon_sem_core" : tactic => `(tactic| (
 /-- Closes a goal on integers and booleans (with the `kanon_close_simp` lemmas),
 or by a `kanon_close_lemma`. -/
 macro "kanon_close" : tactic => `(tactic| first
-  | (simp_all [kanon_close_simp]; done)
-  | (simp_all [kanon_close_simp]; omega)
+  | (simp_all [kanon_close_simp]; first | done | omega)
   | omega
   | kanon_close_lemmas)
 
