@@ -263,7 +263,10 @@ elab "kanon_lift_body" : tactic => do
   let lift : TacticM (List MVarId × List MVarId) := do
     evalTactic (← `(tactic| apply Kanon.Sem.Refines.of_lift))
     let gs ← getGoals
-    let some hl ← gs.findM? (fun g => return (← g.getTag) == `hl)
+    -- under a tagged goal (after `split`: `isTrue`), the tag is `isTrue.hl`
+    let some hl ← gs.findM? fun g => return match (← g.getTag) with
+        | .str _ "hl" => true
+        | _ => false
       | throwError "kanon_lift_body: no goal"
     setGoals [hl]
     let side ← liftGoal
@@ -286,6 +289,10 @@ elab "kanon_on_refines " tac:tactic : tactic => do
 
 /-! ## Congruence -/
 
+/-- Proves `Refines s s` by reflexivity, up to reducible definitions only: on
+different terms, it fails without evaluating them. -/
+macro "kanon_refl" : tactic => `(tactic| with_reducible exact Kanon.Sem.Refines.refl)
+
 /-- `kanon_apply_lemmas [a, …] tac`: applies the first lemma of the attributes
 `a, …` (in turn) after which `tac` succeeds on all the new goals. -/
 elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
@@ -295,7 +302,8 @@ elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
     for n in kanonLemmas env a.getId.eraseMacroScopes do
       let s ← saveState
       try
-        let gs ← g.apply (← mkConstWithFreshMVarLevels n)
+        -- reducible: a failed unification must not evaluate the terms
+        let gs ← withReducible <| g.apply (← mkConstWithFreshMVarLevels n)
         let mut out := []
         for g' in gs do
           unless ← g'.isAssigned do
@@ -321,11 +329,11 @@ syntax "kanon_congr_pre" : tactic
 by terms that refine them (hypotheses of the context). -/
 macro_rules
   | `(tactic| kanon_congr) => `(tactic| first
-      | exact Kanon.Sem.Refines.refl
+      | kanon_refl
       | assumption
       | ((try kanon_congr_pre)
          first
-           | exact Kanon.Sem.Refines.refl
+           | kanon_refl
            | kanon_apply_lemmas [kanon_congr_lemma]
                (first
                  | (intro _; rfl)
@@ -340,8 +348,15 @@ elab "kanon_swap_lemmas " tac:tactic : tactic => do
   for n in kanonLemmas (← getEnv) `kanon_comm_lemma do
     let s ← saveState
     try
-      setGoals [g]
-      evalTactic (← `(tactic| refine Kanon.Sem.Refines.trans ($(mkCIdent n) ..) ?_))
+      let h1 :: h2 :: _ ← g.apply (← mkConstWithFreshMVarLevels ``Kanon.Sem.Refines.trans)
+        | throwError "kanon_swap_lemmas: trans"
+      -- the statement of the lemma (`X.comm.Stmt`), unfolded to its `∀`
+      let c ← mkConstWithFreshMVarLevels n
+      let c ← mkExpectedTypeHint c (← whnfD (← inferType c))
+      -- reducible: a failed unification must not evaluate the terms
+      let hs ← withReducible <| h1.apply c
+      unless hs.isEmpty do throwError "kanon_swap_lemmas: hypotheses"
+      setGoals [h2]
       evalTactic tac
       setGoals ((← getGoals) ++ rest)
       return
@@ -356,14 +371,14 @@ operands of commutative operators: by congruence (`kanon_congr_lemma`) and the
 commutativity of the operators (`kanon_comm_lemma`). -/
 macro_rules
   | `(tactic| kanon_comm) => `(tactic| first
-      | exact Kanon.Sem.Refines.refl
+      | kanon_refl
       | kanon_apply_lemmas [kanon_congr_lemma]
           (first
             | (intro _; rfl)
             | (kanon_congr_side; done)
             | kanon_comm)
       | kanon_swap_lemmas (first
-          | exact Kanon.Sem.Refines.refl
+          | kanon_refl
           | kanon_apply_lemmas [kanon_congr_lemma]
               (first
                 | (intro _; rfl)
@@ -501,7 +516,7 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
   all_goals (try kanon_lift_body)
   all_goals (try simp only [kanon_spec, kanon_body])
   all_goals (try first
-    | exact Kanon.Sem.Refines.refl
+    | kanon_refl
     | (kanon_comm; done)
     | kanon_rule_close
     | kanon_close_lemmas)))
