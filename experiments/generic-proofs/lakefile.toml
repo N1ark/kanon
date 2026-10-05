@@ -1,0 +1,9 @@
+name = "kanon_generic_exp"
+defaultTargets = ["Exp"]
+
+[[require]]
+name = "kanon"
+path = "../../lean"
+
+[[lean_lib]]
+name = "Exp"
