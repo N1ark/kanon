@@ -83,7 +83,8 @@
           The types of the language: <code>Kind</code>, with the leaves and <code>Op1</code>,
           <code>Op2</code>, … of the operators, the sorts <code>Ty</code>, the terms
           <code>{`Term.mk kind ty{:lean}`}</code>, and which operators commute, with the documentation
-          comments of the nodes and the sorts.
+          comments of the nodes and the sorts. The data types of the modules proved once are
+          theirs (see <a href="#data">Data types</a>).
         </td>
       </tr>
       <tr>
@@ -119,13 +120,14 @@
         </td>
       </tr>
       <tr>
-        <td><code>Interface.lean</code>, <code>Instance.lean</code></td>
+        <td><code>Interface.lean</code>, <code>Interface/M.lean</code>, <code>Instance/M.lean</code></td>
         <td>
           The language as an instance of the modules proved once that it uses: its terms
-          (<code>modBase</code>) and their interfaces (<code>boolSyntax : KanonBool.Syntax
-          modBase</code>, <code>intSyntax : IntMod.Syntax modBase boolSyntax</code>), whose laws
-          hold by definition; then the model of the language for each (<code>Ops.toInt O :
-          IntMod.Ops intSyntax</code>, with <code>Ops.Sound.toInt</code>).
+          (<code>modBase</code>, in <code>Interface.lean</code>) and, in a file per module, their
+          interfaces (<code>Interface/Int.lean</code>: <code>intSyntax : IntMod.Syntax modBase
+          boolSyntax</code>), whose laws hold by definition, and the model of the language
+          (<code>Instance/Int.lean</code>: <code>Ops.toInt O : IntMod.Ops intSyntax</code>, with
+          <code>Ops.Sound.toInt</code>), which only the proofs of its arms import.
         </td>
       </tr>
       <tr>
@@ -139,15 +141,19 @@
         </td>
       </tr>
       <tr>
-        <td><code>Soundness/Laws.lean</code>, <code>Soundness/M/f.lean</code>, <code>Soundness.lean</code></td>
+        <td><code>Soundness/Laws/Op/C.lean</code>, <code>Soundness/M/f.lean</code>, <code>Soundness.lean</code></td>
         <td>
-          The proof of the commutativity of the operators, then for each rule function the proof
-          of each arm (each with its own bound on heartbeats, see
+          The proof of the commutativity of each operator (<code>Soundness/Laws/Op2/Plus.lean</code>),
+          then for each rule function the proof of each arm (each with its own bound on heartbeats, see
           <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), of
           each rule from its arms and of the function from its rules, and
           <code>opsN_sound</code>: the whole simplifier is sound. An arm of a module proved once is
           its theorem, applied to the language
           (<code>{`fun O hO => IntMod.….ok (S := sem) intSyntax (Ops.toInt O) (Ops.Sound.toInt hO){:lean}`}</code>).
+          The proofs of a function import the commutativity of the operators that its arms may
+          meet only (those that its spec, its body, and the functions they call build or match), and
+          the instances of the modules that prove its arms only: a change to an interface or to
+          <code>Lang.lean</code> rebuilds the proofs that use them, not those of the language.
         </td>
       </tr>
     </tbody>
@@ -170,7 +176,13 @@
         <td>
           What the modules proved once need of the semantics, an instance of the
           <code>Sem</code> class of each (<code>{`instance : IntMod.Sem (S := sem) intSyntax{:lean}`}</code>):
-          its values, and the laws that do not hold by definition.
+          its values, and the laws that do not hold by definition. It imports the interfaces
+          (<code>Interface/Int</code>). The instance of a module <code>M</code> may be in
+          <code>Lang/M.lean</code> instead, which the generated proofs over its interface then
+          import, with those of the modules it uses, rather than <code>Lang.lean</code>: a change
+          to the interface of a module then rebuilds only the proofs that use it
+          (<code>L4</code> of <code>examples/two_langs</code> has <code>Lang/Bool.lean</code>,
+          <code>Lang/Cfg.lean</code> and <code>Lang/Word.lean</code>).
         </td>
       </tr>
       <tr>
@@ -196,6 +208,10 @@
     <thead><tr><th>File</th><th>Contents</th></tr></thead>
     <tbody>
       <tr>
+        <td><code>Types.lean</code></td>
+        <td>Its data types, if it declares some (see <a href="#data">Data types</a>).</td>
+      </tr>
+      <tr>
         <td><code>Syntax.lean</code></td>
         <td>
           <code>{`structure Syntax (B : Kanon.Base S) (LBool : KanonBool.Syntax B){:lean}`}</code>,
@@ -207,8 +223,13 @@
           kinds of its nodes (<code>PlusK</code>), the invariants of its sorts and nodes
           (see <a href="#invariants">Invariants</a>), their typing (<code>WT_Plus</code>), a matcher
           for each node (<code>asPlus</code>, with <code>asPlus_node</code> and
-          <code>asPlus_sound</code>), the predicates of its subsorts, its primitives, and its
-          helpers, each with the law of its body (<code>int_add_eq</code> for the primitive <code>int_add</code>; <code>bool_of_bool_eq</code> in <code>KanonBool.Syntax</code>).
+          <code>asPlus_sound</code>) and for each sort (<code>asTInt</code>, with
+          <code>asTInt_sort</code> and <code>asTInt_sound</code>), the predicates of its subsorts,
+          its primitives, and its helpers, each with the law of its body (<code>int_add_eq</code>
+          for the primitive <code>int_add</code>; <code>bool_of_bool_eq</code> in
+          <code>KanonBool.Syntax</code>). The bodies match the nodes and the sorts with their
+          matchers, the nodes inside nodes by nested matches (<code>{`match L.asAdd v with | some (_, kanon__n1) => match L.asInt kanon__n1 with …{:lean}`}</code>),
+          and the data as they are.
         </td>
       </tr>
       <tr>
@@ -250,6 +271,7 @@
           proofs assume of its oracles, if it has some.
         </td>
       </tr>
+      <tr><td><code>Abstract.lean</code></td><td>Only if it declares abstract types: their Lean types (see <a href="#data">Data types</a>).</td></tr>
       <tr><td><code>Lib/Lift.lean</code></td><td>The congruence of refinement for its nodes, for <code>kanon_congr</code>.</td></tr>
       <tr><td><code>Lib/Rule.lean</code></td><td>The tactics of the proofs of its arms (<code>kanon_auto</code>).</td></tr>
       <tr><td><code>Proofs/M/f.lean</code>, <code>Proofs/Laws.lean</code></td><td>The proofs that the tactics do not find.</td></tr>
@@ -272,6 +294,24 @@
     of the module's. The <code>Oracle.Compat</code> of a language
     has a field for each module proved once whose rules call oracles, named after it in lowercase
     (<code>{`bool : KanonBool.Oracle.Compat orc.sort_by_tag{:lean}`}</code>).
+  </p>
+
+  <Heading level={3} id="data">Data types</Heading>
+  <p>
+    The records and variants that a module proved once declares (<code>{`type flags = { wrap : bool; strict : bool }{:kanon}`}</code>)
+    are defined once, for every language, in its generated <code>Types.lean</code>, under its
+    namespace: <code>CfgMod.Flags</code>, or the name that <code>{`[@lean "Name"]{:kanon}`}</code>
+    gives (<code>{`type mode [@lean "Rounding"] = Down | Up{:kanon}`}</code> is
+    <code>CfgMod.Rounding</code>). Its abstract types are defined by hand, in its
+    <code>Abstract.lean</code>, which may use those of <code>Types.lean</code> (but those that
+    <code>{`[@lean]{:kanon}`}</code> names, which are existing Lean types,
+    <code>{`type label [@lean "String"]{:kanon}`}</code>). A type of such a module cannot hold terms,
+    nor use one of its abstract types. The languages, and the modules, that use these types use
+    these definitions (their <code>Types.lean</code> and <code>Syntax.lean</code> import them), so
+    that nodes take them as arguments in the interfaces (<code>{`WAddK : CfgMod.Flags → Int → S.Term → S.Term → B.Kind{:lean}`}</code>),
+    and the rules build and match them. In <code>examples/two_langs</code>, the cfg module declares
+    data types only, which the nodes of the word module take, and the language <code>L4</code>
+    uses both.
   </p>
 
   <Heading level={3} id="closed">Proving with the language</Heading>
@@ -424,7 +464,7 @@
       helper is refined by its body. <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
       proves refinement up to the order of the operands of commutative operators, with the
       congruence lemmas and the commutativity of the operators, which
-      <code>Soundness/Laws.lean</code> tags <code>kanon_comm_lemma</code>.
+      <code>Soundness/Laws/Op/C.lean</code> tags <code>kanon_comm_lemma</code>.
     </li>
     <li>
       The language gives these tactics its lemmas by attributes: the simp sets
@@ -473,8 +513,9 @@
     <strong><code>Prims</code></strong> → <code>Signatures</code>, <code>Typing</code> →
     <code>Ops</code> → <code>Model/M/f</code> → <code>Model</code>;
     <code>Ops</code> → <strong><code>Semantics</code></strong> → <code>Statements</code> →
-    <code>Interface</code> → <strong><code>Lang</code></strong> → <code>Instance</code> →
-    <code>Soundness/Laws</code>; <code>Statements</code>, <code>Model/M/f</code> →
+    <code>Interface</code> → <code>Interface/M</code> → <code>Instance/M</code>;
+    <code>Interface/M</code> → <strong><code>Lang</code></strong> →
+    <code>Soundness/Laws/Op/C</code>; <code>Statements</code>, <code>Model/M/f</code> →
     <code>Statements/M/f</code> → <code>Soundness/M/f</code> → <code>Soundness</code>
   </p>
   <p>And those of the int module:</p>

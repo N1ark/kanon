@@ -331,8 +331,11 @@
         <td><code>{`[@lean "A"]{:kanon}`}</code></td>
         <td>
           The Lean type, if it is not the Kanon name, CamelCased (<code>ext_ty</code> is
-          <code>ExtTy</code>). An abstract type is defined by hand in Lean, unless
-          <code>{`[@lean]{:kanon}`}</code> names an existing type.
+          <code>ExtTy</code>): the name of the generated record or variant, or of an existing type.
+          An abstract type is defined by hand in Lean (<code>Abstract.lean</code>), unless
+          <code>{`[@lean]{:kanon}`}</code> names an existing type. The types of a module with
+          <code>{`[@@@lean_module "M"]{:kanon}`}</code> are defined once, under <code>M</code>, and
+          named <code>M.Name</code> (see <a href="proving.html#data">Data types</a>).
         </td>
       </tr>
       <tr>
@@ -1283,25 +1286,29 @@ end`}
       <tr>
         <td><code>lean-interface</code></td>
         <td>
-          <code>Interface.lean</code> (<code>modBase</code>, the terms of the language, and the
-          interfaces of the modules proved once for them, <code>mSyntax</code> for the module
-          <code>M</code>) and <code>Instance.lean</code> (the model of the language for each:
-          <code>Ops.toM</code>, <code>Ops.Sound.toM</code>), when the language uses such modules
+          <code>Interface.lean</code> (<code>modBase</code>, the terms of the language), and for
+          each module proved once <code>M</code> that the language uses,
+          <code>Interface/M.lean</code> (its interface for these terms, <code>mSyntax</code>) and
+          <code>Instance/M.lean</code> (the model of the language for it: <code>Ops.toM</code>,
+          <code>Ops.Sound.toM</code>)
         </td>
       </tr>
       <tr>
         <td><code>lean-soundness</code></td>
         <td>
-          <code>Soundness/Laws.lean</code> (the commutativity of the operators),
-          <code>Soundness/M/f.lean</code> for each rule function (its arms, rules and step), and
-          <code>Soundness.lean</code> (<code>opsN_sound</code>)
+          <code>Soundness/Laws/Op/C.lean</code> for each commutative operator
+          <code>Op.C</code>, <code>Soundness/M/f.lean</code> for each rule function (its arms,
+          rules and step, importing the commutativity of the operators that it may meet and the
+          instances of the modules that prove its arms only), and <code>Soundness.lean</code>
+          (<code>opsN_sound</code>)
         </td>
       </tr>
       <tr>
         <td><code>lean-modules</code></td>
         <td>
-          For each module proved once, under <code>M/</code>: <code>Syntax.lean</code> (its
-          interface), <code>Ops.lean</code>, <code>Statements.lean</code>,
+          For each module proved once, under <code>M/</code>: <code>Types.lean</code> (its data
+          types, if it declares some), <code>Syntax.lean</code> (its interface),
+          <code>Ops.lean</code>, <code>Statements.lean</code>,
           <code>Statements/N/f.lean</code>, <code>Lifts.lean</code>,
           <code>Soundness/Laws.lean</code> and <code>Soundness/N/f.lean</code>, over any language
           <code>{`L : M.Syntax B L1 … Ln{:lean}`}</code> with <code>{`[M.Sem L]{:lean}`}</code>, over the
