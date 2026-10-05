@@ -138,7 +138,7 @@ module.exports = grammar({
       'fn',
       field('name', $.identifier),
       repeat(field('parameter', $.parameter)),
-      optional(seq(':', field('return_type', $._type))),
+      optional(seq(':', choice(field('return_type', $._type), field('return_sort', $._sort_annotation)))),
       repeat($.attribute),
       '=',
       field('body', $._sequence_or_expression),

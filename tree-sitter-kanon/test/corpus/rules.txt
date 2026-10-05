@@ -683,3 +683,40 @@ extend rule Bool.eq before same =
               (identifier)
               (operator)
               (identifier))))))))
+
+================================================================================
+A function whose result has a sort
+================================================================================
+
+fn wrapping_add (a b : TBitVector n) : TBitVector n = add false a b
+fn size_of (v : t) : TBv [@no_lean] = v
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (identifier)
+      (constructor_expression
+        (constructor)
+        (identifier)))
+    (constructor_expression
+      (constructor)
+      (identifier))
+    (application_expression
+      (identifier)
+      (boolean)
+      (identifier)
+      (identifier)))
+  (function_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type_identifier))
+    (constructor)
+    (attribute
+      (attribute_name
+        (identifier)))
+    (identifier)))

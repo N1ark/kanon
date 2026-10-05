@@ -585,6 +585,18 @@ let analyze ctx (str : structure) : occ list =
                   ptyp_attributes
             | _ -> ())
           params;
+        (* the sort of the result, [: TBitVector n], over the same variables *)
+        (match ret with
+        | Some (Pconstraint { ptyp_attributes; _ }) ->
+            List.iter
+              (fun (a : attribute) ->
+                match a.attr_payload with
+                | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+                  when a.attr_name.txt = "kanon.sort" ->
+                    sort ~what:"the sort of the result" ~bound ~env:[] s
+                | _ -> ())
+              ptyp_attributes
+        | _ -> ());
         let env = List.rev ps @ List.rev !bound in
         let env =
           match spec with

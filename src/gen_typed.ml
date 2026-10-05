@@ -129,6 +129,24 @@ let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
       arrow (params @ operands) (fun ft -> term ~operand:false ~t:"t" ft res);
   }
 
+(** The item of a function whose result is annotated with a sort,
+    [fn f (a : S n) (x : int) : T m]: its parameters in order, the terms with
+    the tag of their sort if they have one, else any, and the result with the
+    tag of its sort. *)
+let typed_fn (f : fn) (res : string) =
+  let param (x, t) ft =
+    match (t, List.assoc_opt x f.param_sorts) with
+    | TTerm, Some c -> term ~operand:true ~t:"t" ft (Tag (tag_name c))
+    | _ -> value_ty ft t
+  in
+  {
+    name = plain_name f.name;
+    doc = f.fdoc;
+    sig_ =
+      arrow (List.map param f.params) (fun ft ->
+          term ~operand:false ~t:"t" ft (Tag (tag_name res)));
+  }
+
 (** The tag types of the sorts, in the module [Tag]: one for each subsort, the
     variant of its name, and one for each sort, the variant of its name and the
     tag types of its subsorts, which come first. Two sorts whose names differ by
@@ -283,6 +301,12 @@ let modules (p : program) =
         in
         add ~loc:f.floc (module_of f.floc)
           (smart ~doc ~name:f.name params ~operands (ops, res)))
+    p.fns;
+  List.iter
+    (fun (f : fn) ->
+      match (f.spec, f.ret_sort) with
+      | None, Some res -> add ~loc:f.floc (module_of f.floc) (typed_fn f res)
+      | _ -> ())
     p.fns;
   List.iter
     (fun (c : constr) ->
