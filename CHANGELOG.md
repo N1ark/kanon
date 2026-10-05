@@ -22,6 +22,10 @@
 - `Kanon_flat` is a reserved module name.
 - `Foo.x` is a qualified name, not a field access.
 
+### Fixed
+
+- `kanon_proof%` finds the `kanon_tactic` of qualified functions.
+
 ## 0.3.0 (2026-10-04)
 
 ### Added

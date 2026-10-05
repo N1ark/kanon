@@ -475,7 +475,9 @@ lake env lean check_axioms.lean
       arms and its step and lifting lemmas, and of <code>Ops.Sound</code>. The proofs that Kanon
       generates thread it, and <code>kanon_auto</code> proves an arm that does not need it. An arm
       that does, like <code>a / a = 1</code> (the quotient by zero is zero), is proved by hand,
-      using the hypothesis (<code>hs</code> below).
+      using the hypothesis (<code>hs</code> below): here by a tactic given to its function
+      (<code>{`attribute [kanon_tactic "kanon_div_self"] Int.div.spec{:lean}`}</code>), which the
+      arms of <code>Int.div</code> try before <code>kanon_auto</code>.
     </li>
     <li>
       <strong>What it proves.</strong> A rule function whose node returns a subsort has to prove
