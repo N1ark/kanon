@@ -182,6 +182,9 @@ type lang = {
           its modules *)
   lean_params : (string * string) list;
       (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
+  lean_heartbeats : int;
+      (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
+          generated proof of an arm, unless its function has one *)
   ocaml_types : string option;
       (** [[@@@ocaml_types "M"]]: the OCaml module of the types, which the rules
           open *)
@@ -216,6 +219,7 @@ let lang =
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
+      lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;
       ocaml_rules = None;
@@ -411,6 +415,9 @@ type fn = {
       (** the head constructor of the sort of the result, if it is annotated
           with one: [fn f (v : t) : TBitVector n]. Such a function is typed by
           [ocaml-typed] *)
+  heartbeats : int option;
+      (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
+          generated proof of its arms in Lean *)
 }
 
 type prim = {

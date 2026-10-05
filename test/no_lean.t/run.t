@@ -49,6 +49,7 @@ it does not exist in the Lean files.
   >   kanon lean-$b lang.knl rules.kn | grep "p_lean\|lean_helper"
   > done
   example : Int → Int := p_lean
+  -- Kanon/Model/Rules/lean_helper.lean
   def Rules.lean_helper (x : Int) : Int :=
     (p_lean x)
 

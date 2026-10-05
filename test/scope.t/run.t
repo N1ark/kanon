@@ -60,10 +60,10 @@ module (its structures have flat fields):
       val plus : [< Tag.tint ] t -> [< Tag.tint ] t -> [> Tag.tint ] t
       val badd : [< Tag.tbv ] t -> [< Tag.tbv ] t -> [> Tag.tbv ] t
   $ kanon lean-model lang.knl | grep "def Int.add\|def Bitvec.add\|^    int_plus :\|^    bitvec_badd :"
-  def Int.add (x : Int) (y : Int) : Int :=
-  def Bitvec.add (n : Int) (x : Int) (y : Int) : Int :=
       int_plus := fun v1 v2 => Int.plus.spec v1 v2,
       bitvec_badd := fun v1 v2 => Bitvec.badd.spec v1 v2 }
+  def Int.add (x : Int) (y : Int) : Int :=
+  def Bitvec.add (n : Int) (x : Int) (y : Int) : Int :=
       int_plus := Int.plus.step O,
       bitvec_badd := Bitvec.badd.step O }
 
