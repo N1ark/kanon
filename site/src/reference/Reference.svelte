@@ -150,7 +150,15 @@
       A helper. All functions can call each other. A parameter of type <code>t</code> may be
       annotated with its sort instead (<code>{`(v : TBitVector n){:kanon}`}</code>): it binds the
       variables of the sort in the body, the generated OCaml asserts it on entry, and literals in
-      patterns on <code>v</code> resolve with it.
+      patterns on <code>v</code> resolve with it. The result may be annotated with a sort too
+      (<code>{`fn wrapping_add (a b : TBitVector n) : TBitVector n = add unchecked a b{:kanon}`}</code>):
+      its sort is a sort constructor applied to expressions over the variables that the parameters
+      bind (not a subsort), and the function must return a term of that sort. The generated OCaml
+      asserts it on exit, as it asserts the sorts of the parameters on entry, and
+      <code>ocaml-typed</code> types the function with the tags of its sorts (see
+      <a href="#typed">Typed OCaml</a>); Lean does not model the annotation (the model of the
+      function is the same, and the proofs assume and prove nothing about its sort). A function whose
+      result is not annotated is untyped.
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>
@@ -919,7 +927,21 @@ end`}
           <code>as_foo : _ t -> (args) option</code>, whose operands are <code>[&gt; tag ] t</code>
           (the tags of the typing of <code>Foo</code>), and <code>is_foo : _ t -> bool</code>, for
           every node, and <code>as_tfoo</code>, <code>is_tfoo</code> for every sort (not subsort), on
-          <code>_ ty</code>.
+          <code>_ ty</code>;
+        </li>
+        <li>
+          a <code>val</code> for a <code>fn</code> whose result is annotated with a sort
+          (<code>{`fn wrapping_add (a b : TBitVector n) : TBitVector n{:kanon}`}</code>), in the order
+          of its parameters, with the tag of the sort of each annotated parameter
+          (<code>[&lt; Tag.tbitvector ] t</code>), any tag for the other terms, the types of the
+          others (<code>Z.t</code> for an <code>int</code>), and the tag of its result sort
+          (<code>[&gt; Tag.tbitvector ] t</code>):
+          <code>val wrapping_add : [&lt; Tag.tbitvector ] t -&gt; [&lt; Tag.tbitvector ] t -&gt; [&gt; Tag.tbitvector ] t</code>,
+          implemented by <code>Rules.Bitvec.wrapping_add</code>, of the rules module. So a derived
+          helper (<code>wrapping_add</code>, with a rule function <code>add</code> that receives the
+          flags) is in the interface with the right tags, defined in Kanon, and the tag of its result
+          is trusted, as the subsorts are: the generated rules assert the sort, not the subsort. A
+          function without an annotated result has no <code>val</code>.
         </li>
       </ul>
     </li>

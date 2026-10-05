@@ -374,6 +374,13 @@ type fn = {
   no_lean : bool;
       (** [[@no_lean]]: a helper that is generated in OCaml but not modelled in
           Lean *)
+  param_sorts : (string * string) list;
+      (** the head constructor of the sort of each parameter that is annotated
+          with one, [(v : TBitVector n)] *)
+  ret_sort : string option;
+      (** the head constructor of the sort of the result, if it is annotated
+          with one: [fn f (v : t) : TBitVector n]. Such a function is typed by
+          [ocaml-typed] *)
 }
 
 type prim = {

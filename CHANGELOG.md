@@ -7,6 +7,7 @@
 - [Scoped names](https://n1ark.github.io/kanon/reference.html#names): `Bitvec.add` from another module.
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
+- [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 
 ### Changed
 

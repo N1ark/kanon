@@ -3154,6 +3154,8 @@ type raw_fn = {
   rsorts : (string * expression) list;
       (** the sorts of the operands of the spec and of the parameters of
           functions, [(v : s)] *)
+  rret_sort : expression option;
+      (** the sort of the result of a function, [: S args] *)
   runtyped : bool;
       (** [[@untyped]]: the rule also simplifies ill-typed specs, so the sorts
           of their operands are not asserted *)
@@ -3196,6 +3198,20 @@ let spec_sorts (spec : expression) =
   in
   let spec = strip#expression spec in
   (spec, !sorts)
+
+(** The sort of the result of a function, [: S args], which the parser keeps as
+    an attribute of its type [t]. *)
+let ret_sort = function
+  | Pconstraint { ptyp_attributes; _ } ->
+      List.find_map
+        (fun (a : attribute) ->
+          match a.attr_payload with
+          | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ]
+            when a.attr_name.txt = "kanon.sort" ->
+              Some s
+          | _ -> None)
+        ptyp_attributes
+  | Pcoerce _ -> None
 
 let raw_fn (vb : value_binding) =
   let loc = vb.pvb_loc in
@@ -3272,6 +3288,7 @@ let raw_fn (vb : value_binding) =
         rty_only;
         rbody;
         rsorts;
+        rret_sort = ret_sort ret;
         runtyped;
         rloc = loc;
         rname_loc;
@@ -3311,6 +3328,7 @@ let raw_fn (vb : value_binding) =
             rty_only;
             rbody = body rparams vb.pvb_expr;
             rsorts;
+            rret_sort = None;
             runtyped;
             rloc = loc;
             rname_loc;
@@ -4394,6 +4412,10 @@ let rec uses x (e : Syntax.expr) =
              Option.fold ~none:false ~some:go c.guard || go c.body)
            cases
 
+(** Whether [c] is a sort. *)
+let is_sort_constr c =
+  match find_constr c with Some c -> c.c_res = TSty | None -> false
+
 (** Checks the raw function [r], in the global environment [env0]. *)
 let check_fn env0 globals r =
   atom_counter := 0;
@@ -4446,6 +4468,27 @@ let check_fn env0 globals r =
   ordered := Option.is_some spec;
   sort_vars :=
     List.map (fun (x, (v : Syntax.expr)) -> (x, { v with e = EVar x })) binds;
+  let rbody =
+    (* the sort of the result, asserted on exit like those of the parameters *)
+    match r.rret_sort with
+    | None -> rbody
+    | Some s ->
+        let open Ast_builder.Default in
+        let loc = { s.pexp_loc with loc_ghost = true } in
+        let res = evar ~loc "kanon__result" in
+        pexp_let ~loc Nonrecursive
+          [ value_binding ~loc ~pat:(pvar ~loc "kanon__result") ~expr:rbody ]
+          (pexp_sequence ~loc
+             (pexp_assert ~loc
+                (pexp_apply ~loc (evar ~loc "=")
+                   [
+                     ( Nolabel,
+                       pexp_apply ~loc (evar ~loc "type_of") [ (Nolabel, res) ]
+                     );
+                     (Nolabel, s);
+                   ]))
+             res)
+  in
   let body = expr env ~expected:r.rret rbody in
   let body =
     let bind (body : Syntax.expr) =
@@ -4479,6 +4522,28 @@ let check_fn env0 globals r =
     floc = r.rloc;
     fdoc = r.rdoc;
     no_lean = has_attr "no_lean" r.rattrs;
+    param_sorts =
+      List.filter_map
+        (fun (x, (s : expression)) ->
+          match s.pexp_desc with
+          | Pexp_construct ({ txt = Lident c; _ }, _)
+            when List.mem_assoc x r.rparams && is_sort_constr c ->
+              Some (x, c)
+          | _ -> None)
+        r.rsorts;
+    ret_sort =
+      Option.map
+        (fun (s : expression) ->
+          match s.pexp_desc with
+          | Pexp_construct ({ txt = Lident c; _ }, _) when is_sort_constr c -> c
+          | Pexp_construct ({ txt = Lident c; _ }, _)
+            when Option.is_some (find_subsort c) ->
+              error s.pexp_loc "%s is a subsort: the sort of a result is a sort"
+                c
+          | _ ->
+              error s.pexp_loc "%s: the result is annotated with a sort, S args"
+                r.rname)
+        r.rret_sort;
   }
 
 (** The outermost node of the spec of a rule function, with its parameters and
