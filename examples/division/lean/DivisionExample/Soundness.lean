@@ -14,84 +14,84 @@ open Classical Kanon
 
 @[kanon_comm_lemma] theorem Op2.Plus.comm.ok : Op2.Plus.comm.Stmt := kanon_proof% Op2.Plus.comm
 
-theorem plus.r_lits.main.ok : plus.r_lits.main.Stmt := kanon_proof% plus.r_lits.main
+theorem Int.plus.r_lits.main.ok : Int.plus.r_lits.main.Stmt := kanon_proof% Int.plus.r_lits.main
 
-theorem plus.r_lits.proof : plus.r_lits.Stmt := by
+theorem Int.plus.r_lits.proof : Int.plus.r_lits.Stmt := by
   intro O hO v1 v2 res h
-  simp only [plus.r_lits] at h
+  simp only [Int.plus.r_lits] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (plus.r_lits.main.ok O hO)
+  · kanon_arm h (Int.plus.r_lits.main.ok O hO)
 
-theorem plus.r_unit_zero.main.ok : plus.r_unit_zero.main.Stmt := kanon_proof% plus.r_unit_zero.main
+theorem Int.plus.r_unit_zero.main.ok : Int.plus.r_unit_zero.main.Stmt := kanon_proof% Int.plus.r_unit_zero.main
 
-theorem plus.r_unit_zero.swap.ok : plus.r_unit_zero.swap.Stmt := by
+theorem Int.plus.r_unit_zero.swap.ok : Int.plus.r_unit_zero.swap.Stmt := by
   intro O hO v2 kanon__2 t__3 hg
   refine Refinement.trans ?_
-    (plus.r_unit_zero.main.ok O hO v2 kanon__2 t__3 hg)
-  simp only [plus.spec]
+    (Int.plus.r_unit_zero.main.ok O hO v2 kanon__2 t__3 hg)
+  simp only [Int.plus.spec]
   refine Refinement.trans (Op2.Plus.comm.ok ..) ?_
   kanon_congr
 
-theorem plus.r_unit_zero.proof : plus.r_unit_zero.Stmt := by
+theorem Int.plus.r_unit_zero.proof : Int.plus.r_unit_zero.Stmt := by
   intro O hO v1 v2 res h
-  simp only [plus.r_unit_zero] at h
+  simp only [Int.plus.r_unit_zero] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (plus.r_unit_zero.main.ok O hO)
-  · kanon_arm h (plus.r_unit_zero.swap.ok O hO)
+  · kanon_arm h (Int.plus.r_unit_zero.main.ok O hO)
+  · kanon_arm h (Int.plus.r_unit_zero.swap.ok O hO)
 
-theorem plus.r_default.main.ok : plus.r_default.main.Stmt := kanon_proof% plus.r_default.main
+theorem Int.plus.r_default.main.ok : Int.plus.r_default.main.Stmt := kanon_proof% Int.plus.r_default.main
 
-theorem plus.r_default.proof : plus.r_default.Stmt := by
+theorem Int.plus.r_default.proof : Int.plus.r_default.Stmt := by
   intro O hO v1 v2 res h
-  simp only [plus.r_default] at h
+  simp only [Int.plus.r_default] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (plus.r_default.main.ok O hO)
+  · kanon_arm h (Int.plus.r_default.main.ok O hO)
 
-theorem int_div.r_self.main.ok : int_div.r_self.main.Stmt := kanon_proof% int_div.r_self.main
+theorem Int.div.r_self.main.ok : Int.div.r_self.main.Stmt := kanon_proof% Int.div.r_self.main
 
-theorem int_div.r_self.proof : int_div.r_self.Stmt := by
+theorem Int.div.r_self.proof : Int.div.r_self.Stmt := by
   intro O hO v1 v2 res hs_v2 h
-  simp only [int_div.r_self] at h
+  simp only [Int.div.r_self] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (int_div.r_self.main.ok O hO)
+  · kanon_arm h (Int.div.r_self.main.ok O hO)
 
-theorem int_div.r_default.main.ok : int_div.r_default.main.Stmt := kanon_proof% int_div.r_default.main
+theorem Int.div.r_default.main.ok : Int.div.r_default.main.Stmt := kanon_proof% Int.div.r_default.main
 
-theorem int_div.r_default.proof : int_div.r_default.Stmt := by
+theorem Int.div.r_default.proof : Int.div.r_default.Stmt := by
   intro O hO v1 v2 res hs_v2 h
-  simp only [int_div.r_default] at h
+  simp only [Int.div.r_default] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (int_div.r_default.main.ok O hO)
+  · kanon_arm h (Int.div.r_default.main.ok O hO)
 
-theorem sq1.r_default.main.ok : sq1.r_default.main.Stmt := kanon_proof% sq1.r_default.main
+theorem Int.sq1.r_default.main.ok : Int.sq1.r_default.main.Stmt := kanon_proof% Int.sq1.r_default.main
 
-theorem sq1.r_default.proof : sq1.r_default.Stmt := by
+theorem Int.sq1.r_default.proof : Int.sq1.r_default.Stmt := by
   intro O hO v res h
-  simp only [sq1.r_default] at h
+  simp only [Int.sq1.r_default] at h
   repeat' rcases orElse_some h with h | h
-  · kanon_arm h (sq1.r_default.main.ok O hO)
+  · kanon_arm h (Int.sq1.r_default.main.ok O hO)
 
-theorem sq1.post.main.ok : sq1.post.main.Stmt := kanon_proof% sq1.post.main
+theorem Int.sq1.post.main.ok : Int.sq1.post.main.Stmt := kanon_proof% Int.sq1.post.main
 
-theorem plus.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
-  Refines (plus.spec v1 v2) (plus.step O v1 v2) := by
-  unfold plus.step
-  refine Refinement.firstSome_cons (fun res h => plus.r_lits.proof O hO v1 v2 res h) ?_
-  refine Refinement.firstSome_cons (fun res h => plus.r_unit_zero.proof O hO v1 v2 res h) ?_
-  refine Refinement.firstSome_cons (fun res h => plus.r_default.proof O hO v1 v2 res h) ?_
+theorem Int.plus.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) :
+  Refines (Int.plus.spec v1 v2) (Int.plus.step O v1 v2) := by
+  unfold Int.plus.step
+  refine Refinement.firstSome_cons (fun res h => Int.plus.r_lits.proof O hO v1 v2 res h) ?_
+  refine Refinement.firstSome_cons (fun res h => Int.plus.r_unit_zero.proof O hO v1 v2 res h) ?_
+  refine Refinement.firstSome_cons (fun res h => Int.plus.r_default.proof O hO v1 v2 res h) ?_
   exact Refinement.firstSome_nil
 
-theorem int_div.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) (hs_v2 : Nonzero v2) :
-  Refines (int_div.spec v1 v2) (int_div.step O v1 v2) := by
-  unfold int_div.step
-  refine Refinement.firstSome_cons (fun res h => int_div.r_self.proof O hO v1 v2 res hs_v2 h) ?_
-  refine Refinement.firstSome_cons (fun res h => int_div.r_default.proof O hO v1 v2 res hs_v2 h) ?_
+theorem Int.div.step_sound (O : Ops) (hO : O.Sound) (v1 : Term) (v2 : Term) (hs_v2 : Nonzero v2) :
+  Refines (Int.div.spec v1 v2) (Int.div.step O v1 v2) := by
+  unfold Int.div.step
+  refine Refinement.firstSome_cons (fun res h => Int.div.r_self.proof O hO v1 v2 res hs_v2 h) ?_
+  refine Refinement.firstSome_cons (fun res h => Int.div.r_default.proof O hO v1 v2 res hs_v2 h) ?_
   exact Refinement.firstSome_nil
 
-theorem sq1.step_sound (O : Ops) (hO : O.Sound) (v : Term) :
-  Refines (sq1.spec v) (sq1.step O v) := by
-  unfold sq1.step
-  refine Refinement.firstSome_cons (fun res h => sq1.r_default.proof O hO v res h) ?_
+theorem Int.sq1.step_sound (O : Ops) (hO : O.Sound) (v : Term) :
+  Refines (Int.sq1.spec v) (Int.sq1.step O v) := by
+  unfold Int.sq1.step
+  refine Refinement.firstSome_cons (fun res h => Int.sq1.r_default.proof O hO v res h) ?_
   exact Refinement.firstSome_nil
 
 /-- Every rule function refines its spec, for any amount of fuel. -/
@@ -99,14 +99,14 @@ theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
   ∀ n, (opsN orc n).Sound
   | 0 =>
     { orc := h,
-      plus := fun v1 v2 => Refinement.refl,
+      int_plus := fun v1 v2 => Refinement.refl,
       int_div := fun v1 v2 hs_v2 => Refinement.refl,
-      sq1 := fun v => Refinement.refl }
+      int_sq1 := fun v => Refinement.refl }
   | n + 1 =>
     have hO := opsN_sound orc h n
     { orc := hO.orc,
-      plus := plus.step_sound _ hO,
-      int_div := int_div.step_sound _ hO,
-      sq1 := sq1.step_sound _ hO }
+      int_plus := Int.plus.step_sound _ hO,
+      int_div := Int.div.step_sound _ hO,
+      int_sq1 := Int.sq1.step_sound _ hO }
 
 end DivisionExample

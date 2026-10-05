@@ -15,17 +15,18 @@ let () =
   check "a zero has the sort of its parent"
     ((node (Zero 8) (TBitVector 8)).ty = TBitVector 8);
   check "a division has the sort of its dividend"
-    ((bv_div false x y).ty = TBitVector 8);
-  check "the rules apply" (bv_div false x x == Sub_prims.one (Z.of_int 8));
-  check "no rule" ((bv_div false x y).kind = Op2 (Div false, x, y));
-  check "ult" (bv_ult x x == Sub_prims.one Z.zero);
+    ((Sub_rules.Bitvec.div false x y).ty = TBitVector 8);
+  check "the rules apply"
+    (Sub_rules.Bitvec.div false x x == Sub_prims.one (Z.of_int 8));
+  check "no rule" ((Sub_rules.Bitvec.div false x y).kind = Op2 (Div false, x, y));
+  check "ult" (Sub_rules.Cmp.ult x x == Sub_prims.one Z.zero);
   (* a term of TZero, erased, is a divisor like another: nothing is checked *)
   check "destructors"
-    (as_div (bv_div true x y) = Some (true, x, y)
-    && is_zero (node (Zero 8) (TBitVector 8)));
+    (Bitvec.as_div (Sub_rules.Bitvec.div true x y) = Some (true, x, y)
+    && Bitvec.is_zero (node (Zero 8) (TBitVector 8)));
   check "the subsorts have no destructor"
-    (as_tbitvector x.ty = Some 8
-    && is_tbool (node (Zero 8) (TBitVector 8)).ty = false)
+    (Bitvec.as_tbitvector x.ty = Some 8
+    && Cmp.is_tbool (node (Zero 8) (TBitVector 8)).ty = false)
 
 (* The typed interface, over the types and the rules above: [Sub_typed.S] is
    implemented by [Sub_typed.Derived], which has no constructor for the leaf
@@ -62,12 +63,12 @@ let () =
     && untype_type Cmp.t_bool = TBool);
   check "type_type" (type_type (TBitVector 8) = Bitvec.t_bitvector 8);
   (* a zero is a bit-vector, and a divisor once cast *)
-  let d = Bitvec.bv_div false x (cast z) in
+  let d = Bitvec.div false x (cast z) in
   check "typed rule"
-    (untyped d == Sub_rules.bv_div false (untyped x) (untyped z));
-  let c = Cmp.bv_ult x z in
+    (untyped d == Sub_rules.Bitvec.div false (untyped x) (untyped z));
+  let c = Cmp.ult x z in
   check "typed rule of another module"
-    (untyped c == Sub_rules.bv_ult (untyped x) (untyped z));
+    (untyped c == Sub_rules.Cmp.ult (untyped x) (untyped z));
   check "typed destructors"
     (Bitvec.as_div d = Some (false, x, cast z)
     && Bitvec.is_div d

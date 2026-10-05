@@ -1,5 +1,5 @@
 (* The bool module, at the bottom of every language: booleans, equality, [Ite]
-   and [Distinct]. See the README of Kanon for the syntax. *)
+   and [Distinct]. See the reference of Kanon for the syntax. *)
 
 node Bool of bool : TBool
 notation Bool
@@ -11,10 +11,10 @@ node Ite : TBool -> a -> a -> a
 node Distinct : a list -> TBool
 sort TBool
 
-infix "&&" = And, b_and
-infix "||" = Or, b_or
-infix "==" = Eq, sem_eq
-prefix "not" = Not, b_not
+infix "&&" = And, and_
+infix "||" = Or, or_
+infix "==" = Eq, eq
+prefix "not" = Not, not_
 
 constant true = v_true
 constant false = v_false

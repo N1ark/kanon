@@ -186,7 +186,14 @@
       type of <code>spec</code>, when <code>spec</code> is, and has its value when <code>spec</code>
       has one. With their lemmas (<code>Sem.Refines.refl</code>, <code>trans</code>,
       <code>intro</code>, …) and <code>Sem.refinement</code>, the instance of
-      <code>Refinement</code>.
+      <code>Refinement</code>. The generic lemmas are <code>Sem.Refines.refl</code>,
+      <code>trans</code>, <code>syn</code>, <code>sem</code>, <code>ev</code>, <code>intro</code>,
+      <code>intro_eval</code>, <code>of_WT</code> and <code>of_lift</code>, and
+      <code>Sem.eval_WT</code>, <code>Sem.eval_eq_ev</code> and <code>Sem.ty_refines</code>. The
+      language defines <code>{`@[reducible] def sem : Kanon.Sem{:lean}`}</code>,
+      <code>{`abbrev eval := sem.eval{:lean}`}</code>,
+      <code>{`abbrev Refines := sem.Refines{:lean}`}</code> and
+      <code>{`instance : Refinement Refines := Sem.refinement{:lean}`}</code>.
     </li>
     <li>
       The tactics of arms. <code>kanon_rule_lift</code> takes the guard of an arm, unfolds its
@@ -194,7 +201,15 @@
       <code>Lifts.lean</code>), and closes the refinements that are reflexivity or commutativity.
       <code>kanon_rule</code> then proves the typing half of the refinement and splits its value
       half on the values of the atoms, closing what <code>simp_all</code> and <code>omega</code>
-      can.
+      can. They are made of smaller ones, which are also available: <code>kanon_split</code>,
+      <code>kanon_cases</code>, <code>kanon_lift</code> (which lifts a call <code>O.f args</code>
+      with the lemma <code>R.Lib.lift_f</code> of <code>Lifts.lean</code>),
+      <code>kanon_lift_body</code>, <code>kanon_guards</code>, <code>kanon_lits</code>,
+      <code>kanon_wt</code>, <code>kanon_sem_core</code>, <code>kanon_sem</code> and
+      <code>kanon_close</code>. <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
+      proves refinement up to the order of the operands of commutative operators, with the
+      congruence lemmas and the commutativity of the operators, which <code>Soundness.lean</code>
+      tags <code>kanon_comm_lemma</code>.
     </li>
     <li>
       The language gives these tactics its lemmas by attributes: the simp sets
@@ -210,15 +225,59 @@
 
   <Heading level={3} id="boolmod">KanonCore.BoolMod</Heading>
   <p>
-    The rules of the bool module, proved once, for any language that uses it. The language gives a
-    <code>BoolMod.Lang</code> of its semantics: the terms of the nodes of the module (definitionally
-    equal to those of the generated statements), its booleans (<code>vbool</code>), its
-    <code>sure_neq</code>, and their laws (typing, evaluation by the operations of
-    <code>KanonCore.BoolMod.Val</code>, …). <code>Soundness.lean</code> then proves each arm of the
-    module by the library's theorem, applied to the language, and the commutativity of
-    <code>And</code>, <code>Or</code> and <code>Eq</code> by the library's lemmas. The arms that
-    other modules add to its rule functions (<code>extend rule</code>) are the language's, proved
-    as the others.
+    The rules of the bool module, proved once, for any language that uses it (namespace
+    <code>Kanon.BoolMod</code>). The arms that other modules add to its rule functions
+    (<code>extend rule</code>) are the language's, proved as the others.
+  </p>
+  <ul>
+    <li>
+      <code>BoolMod.Lang S</code>, for the semantics <code>S : Kanon.Sem</code> of a language, is
+      what the language gives: the kinds of its terms (<code>Kind</code>, with
+      <code>mk : Kind → Ty → Term</code>, the <code>Term.mk</code> of the language), the kinds of the
+      nodes of the module (<code>litK</code>, <code>notK</code>, <code>andK</code>,
+      <code>orK</code>, <code>eqK</code>, <code>iteK</code>, <code>distinctK</code>) and the type
+      <code>tbool</code>, such that the terms of the generated statements are definitionally equal
+      to them (<code>{`Term.mk (Kind.Op2 Op2.And a b) Ty.TBool{:lean}`}</code> to
+      <code>mk (andK a b) tbool</code>); its booleans (<code>vbool : Bool → Val</code>); the helper
+      <code>sure_neq</code> (which the modules above extend); and their laws: the typing of the nodes
+      (<code>WT_and</code>, …), their evaluation by the operations of
+      <code>KanonCore.BoolMod.Val</code> (<code>ev_and</code>, …, with <code>pand</code>,
+      <code>por</code>, <code>pnot</code>, <code>peq</code>, <code>pite</code> and
+      <code>pdistinct</code>, which the language may use in its own <code>ev</code>), that
+      well-typed booleans evaluate to booleans (<code>ev_bool</code>), that <code>vbool</code> is
+      injective, and that surely different terms of the same type have different values
+      (<code>sure_neq_sound</code>). The language defines it as
+      <code>R.boolLang : BoolMod.Lang R.sem</code> (<code>R.boolLang x</code> for the parameters
+      <code>x</code> of <code>{`[@@@lean_param]{:kanon}`}</code>), in a module that
+      <code>R.Proofs</code> imports.
+    </li>
+    <li>
+      <code>BoolMod.Ops L</code> is the bool module in the model of the language (its rule
+      functions, the oracles <code>tag_le</code> and <code>sort_by_tag</code>, and the helpers
+      <code>at_most_one</code>, <code>distinct_check_one</code> and <code>distinct_check</code>), and
+      <code>BoolMod.Ops.Sound</code> what the rules assume of them.
+    </li>
+    <li>
+      <code>KanonCore.BoolMod.Rules</code> proves, for every arm
+      <code>Bool.f.r_rule.arm</code> of the module (with those derived from the laws of
+      <code>bool.knl</code> and from the swaps of commutative operands), the theorem
+      <code>Kanon.BoolMod.Bool.f.r_rule.arm L B hB</code>, whose statement is that of the arm, for any
+      <code>L</code>, <code>B</code> and <code>hB : B.Sound</code>. Most are proved by the tactic
+      <code>kanon_bool</code> (<code>KanonCore.BoolMod.Tactic</code>).
+    </li>
+    <li>
+      <code>Soundness.lean</code> proves each arm by that theorem
+      (<code>fun O hO => BoolMod.Bool.f.r_rule.arm boolLang O.bool hO.bool</code>), the commutativity
+      of <code>And</code>, <code>Or</code> and <code>Eq</code> by
+      <code>BoolMod.Lang.refines_and_comm</code>, …, and defines the bool module of the model,
+      <code>Ops.bool O : BoolMod.Ops boolLang</code>, with the proof
+      <code>Ops.Sound.bool : O.Sound → O.bool.Sound</code> (which uses the field
+      <code>sort_by_tag</code> of the language's <code>Oracle.Compat</code>).
+    </li>
+  </ul>
+  <p>
+    <code>KanonCore.Lang</code>, in the library, is a trial of a generic core: terms, their
+    evaluation and their refinement, for any language.
   </p>
 
   <Heading level={2} id="steps">Step by step</Heading>
@@ -317,8 +376,8 @@
   <p>
     The proofs of the arms that <code>kanon_auto</code> does not find, tagged
     <code>{`@[kanon_arm]{:lean}`}</code>. Here <code>kanon_auto</code> proves every arm of the
-    language's rules (<code>plus</code>, <code>int_lt</code>, the <code>ints</code> rule added to
-    <code>sem_eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
+    language's rules (<code>Int.plus</code>, <code>Int.int_lt</code>, the <code>ints</code> rule added to
+    <code>Bool.eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
     proof of the commutativity of <code>+</code> shows how one replaces <code>kanon_auto</code>.
   </p>
   <Code lang="lean" code={file("lean/IntsExample/Proofs.lean")} />
@@ -329,18 +388,18 @@
       <p>
         <code>lake build</code>. <code>Soundness.lean</code> proves each arm <code>X</code> by
         <code>{`theorem X.ok : X.Stmt := kanon_proof% X{:lean}`}</code>; an arm that its tactic does
-        not prove is an error there, which names it. Without <code>of_bool</code> in
+        not prove is an error there, which names it. Without <code>Bool.of_bool</code> in
         <code>kanon_body</code>, two arms fail:
       </p>
       <Code
         lang="text"
         code={`error: IntsExample/Soundness.lean:509:59: unsolved goals
-⊢ (of_bool (decide (x✝ = y✝))).WT ∧ (of_bool (decide (x✝ = y✝))).ty = Ty.TBool
+⊢ (Bool.of_bool (decide (x✝ = y✝))).WT ∧ (Bool.of_bool (decide (x✝ = y✝))).ty = Ty.TBool
 error: IntsExample/Soundness.lean:675:59: unsolved goals`}
       />
       <Code
         lang="lean"
-        code={`theorem sem_eq.r_ints.main.ok : sem_eq.r_ints.main.Stmt := kanon_proof% sem_eq.r_ints.main`}
+        code={`theorem Bool.eq.r_ints.main.ok : Bool.eq.r_ints.main.Stmt := kanon_proof% Bool.eq.r_ints.main`}
       />
     </li>
     <li>
@@ -350,27 +409,27 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
       </p>
       <Code
         lang="lean"
-        code={`def sem_eq.r_ints.main.Stmt : Prop :=
+        code={`def Bool.eq.r_ints.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (x : Int) (t__2 : Ty) (y : Int) (t__4 : Ty),
-  Refines (sem_eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
-  ((of_bool (decide (x = y))))`}
+  Refines (Bool.eq.spec (Term.mk (Kind.Int x) t__2) (Term.mk (Kind.Int y) t__4))
+  ((Bool.of_bool (decide (x = y))))`}
       />
     </li>
     <li>
       <p>
-        Give the tactics the lemma they miss (here, <code>of_bool</code> in
+        Give the tactics the lemma they miss (here, <code>Bool.of_bool</code> in
         <code>kanon_body</code>, as <code>Lib/Rule.lean</code> does), or a function a tactic of its
         own, which its arms try before <code>kanon_auto</code>:
       </p>
       <Code
         lang="lean"
-        code={`attribute [kanon_tactic "(intro O hO; simp only [of_bool]; revert O hO; kanon_rule)"]
-  sem_eq.spec int_lt.spec`}
+        code={`attribute [kanon_tactic "(intro O hO; simp only [Bool.of_bool]; revert O hO; kanon_rule)"]
+  Bool.eq.spec Int.int_lt.spec`}
       />
       <p>
         or prove the arm by hand, in <code>Proofs.lean</code>: an
-        <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>sem_eq.r_ints.main.Stmt</code>.
+        <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>Bool.eq.r_ints.main.Stmt</code>.
       </p>
     </li>
     <li>
@@ -428,10 +487,24 @@ lake env lean check_axioms.lean
       <strong>Lifting.</strong> The lifting lemma of a function with a subsort operand assumes the
       predicate of its argument, which <code>kanon_lift</code> cannot discharge: if the body of a
       rule calls such a function, the goal <code>Nonzero v'</code> is left for the hand proof of
-      that rule. Functions have no sorts, so only rules assume or prove anything.
+      that rule, from what that rule knows of <code>v'</code>. Functions have no sorts, so only
+      rules assume or prove anything.
+    </li>
+    <li>
+      <strong>Swaps.</strong> The arms that are derived from another by commutativity are proved as
+      the others when there are assumptions, since their operands are other terms than those of the
+      arm that they come from. The elements of a list of operands each satisfy the predicate
+      (<code>∀ y ∈ vs, Nonzero y</code>).
     </li>
   </ul>
   <Code lang="lean" code={divisionProofs} />
+  <p>It is built and checked like the others:</p>
+  <Code
+    lang="text"
+    code={`cd examples/division/lean
+lake build
+lake env lean check_axioms.lean  # must not mention sorryAx`}
+  />
 
   <Heading level={2} id="pitfalls">Pitfalls</Heading>
   <p>The proof of <code>examples/ints</code> ran into these:</p>
@@ -460,13 +533,13 @@ lake env lean check_axioms.lean
       <code>{`simp_all [sure_neq, ty, firstSome]{:lean}`}</code>.
     </li>
     <li>
-      <strong>Helpers with conditionals.</strong> Put helpers such as <code>of_bool</code> in
+      <strong>Helpers with conditionals.</strong> Put helpers such as <code>Bool.of_bool</code> in
       <code>kanon_body</code>, not <code>kanon_lits</code>, so that <code>kanon_rule_lift</code>
       splits their <code>if</code>s.
     </li>
     <li>
       <strong>The sort of <code>ite</code>.</strong> State its congruence lemma at the sort that the
-      spec of <code>b_ite</code> writes, <code>{`ty b{:lean}`}</code> (the sort of the first
+      spec of <code>Bool.ite</code> writes, <code>{`ty b{:lean}`}</code> (the sort of the first
       branch), so that <code>kanon_congr</code> has no side goal (or give one to
       <code>kanon_congr_side</code>, with <code>macro_rules</code>).
     </li>

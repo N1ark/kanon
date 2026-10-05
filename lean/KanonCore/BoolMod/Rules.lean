@@ -152,108 +152,108 @@ set_option linter.unusedSectionVars false
 variable {S : Sem} (L : Lang S) (B : Ops L) (hB : B.Sound)
 include hB
 
-theorem b_and.r_same.main :
+theorem Bool.and_.r_same.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     (decide (v1 = v2)) = true →
     S.Refines (L.mkAnd v1 v2)
     (v1) := by
   kanon_bool
 
-theorem b_and.r_false_.main :
+theorem Bool.and_.r_false_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkAnd (L.mk (L.litK false) t__2) v2)
     (L.vfalse) := by
   kanon_bool
 
-theorem b_and.r_false_.swap :
+theorem Bool.and_.r_false_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkAnd v1 (L.mk (L.litK false) t__2))
     (L.vfalse) := by
   kanon_bool
 
-theorem b_and.r_true_.main :
+theorem Bool.and_.r_true_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkAnd (L.mk (L.litK true) t__2) v2)
     (v2) := by
   kanon_bool
 
-theorem b_and.r_true_.swap :
+theorem Bool.and_.r_true_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkAnd v1 (L.mk (L.litK true) t__2))
     (v1) := by
   kanon_bool
 
-theorem b_and.r_not.main :
+theorem Bool.and_.r_not.main :
     ∀ (v1 : S.Term) (kanon__3 : S.Term) (t__4 : S.Ty),
     (decide (v1 = kanon__3)) = true →
     S.Refines (L.mkAnd v1 (L.mk (L.notK kanon__3) t__4))
     (L.vfalse) := by
   kanon_bool
 
-theorem b_and.r_not.swap :
+theorem Bool.and_.r_not.swap :
     ∀ (v2 : S.Term) (kanon__3 : S.Term) (t__4 : S.Ty),
     (decide (v2 = kanon__3)) = true →
     S.Refines (L.mkAnd (L.mk (L.notK kanon__3) t__4) v2)
     (L.vfalse) := by
   kanon_bool
 
-theorem b_and.r_and_.main :
+theorem Bool.and_.r_and_.main :
     ∀ (v2 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkAnd (L.mk (L.andK a w__3) t__4) v2)
     ((L.mk (L.andK a w__3) t__4)) := by
   kanon_bool
 
-theorem b_and.r_and_.swap1 :
+theorem Bool.and_.r_and_.swap1 :
     ∀ (v2 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkAnd (L.mk (L.andK w__3 a) t__4) v2)
     ((L.mk (L.andK w__3 a) t__4)) := by
   kanon_bool
 
-theorem b_and.r_and_.swap2 :
+theorem Bool.and_.r_and_.swap2 :
     ∀ (v1 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkAnd v1 (L.mk (L.andK a w__3) t__4))
     ((L.mk (L.andK a w__3) t__4)) := by
   kanon_bool
 
-theorem b_and.r_and_.swap1_swap2 :
+theorem Bool.and_.r_and_.swap1_swap2 :
     ∀ (v1 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkAnd v1 (L.mk (L.andK w__3 a) t__4))
     ((L.mk (L.andK w__3 a) t__4)) := by
   kanon_bool
 
-theorem b_and.r_or_.main :
+theorem Bool.and_.r_or_.main :
     ∀ (v2 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkAnd (L.mk (L.orK a w__3) t__4) v2)
     (a) := by
   kanon_bool
 
-theorem b_and.r_or_.swap1 :
+theorem Bool.and_.r_or_.swap1 :
     ∀ (v2 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkAnd (L.mk (L.orK w__3 a) t__4) v2)
     (a) := by
   kanon_bool
 
-theorem b_and.r_or_.swap2 :
+theorem Bool.and_.r_or_.swap2 :
     ∀ (v1 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkAnd v1 (L.mk (L.orK a w__3) t__4))
     (a) := by
   kanon_bool
 
-theorem b_and.r_or_.swap1_swap2 :
+theorem Bool.and_.r_or_.swap1_swap2 :
     ∀ (v1 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkAnd v1 (L.mk (L.orK w__3 a) t__4))
     (a) := by
   kanon_bool
 
-theorem b_and.r_eq_neq.main :
+theorem Bool.and_.r_eq_neq.main :
     ∀ (a : S.Term) (x : S.Term) (t__4 : S.Ty) (kanon__7 : S.Term) (y : S.Term) (t__9 : S.Ty),
     ((decide (a = kanon__7)) && (L.sure_neq x y)) = true →
     S.Refines (L.mkAnd (L.mk (L.eqK a x) t__4) (L.mk (L.eqK kanon__7 y) t__9))
@@ -264,7 +264,7 @@ theorem b_and.r_eq_neq.main :
   cases of_decide_eq_true h1
   exact refines_and_eq_neq (.inl ⟨rfl, rfl⟩) (.inl ⟨rfl, rfl⟩) h2
 
-theorem b_and.r_eq_neq.swap2 :
+theorem Bool.and_.r_eq_neq.swap2 :
     ∀ (a : S.Term) (x : S.Term) (t__4 : S.Ty) (y : S.Term) (kanon__7 : S.Term) (t__9 : S.Ty),
     ((decide (a = kanon__7)) && (L.sure_neq x y)) = true →
     S.Refines (L.mkAnd (L.mk (L.eqK a x) t__4) (L.mk (L.eqK y kanon__7) t__9))
@@ -275,7 +275,7 @@ theorem b_and.r_eq_neq.swap2 :
   cases of_decide_eq_true h1
   exact refines_and_eq_neq (.inl ⟨rfl, rfl⟩) (.inr ⟨rfl, rfl⟩) h2
 
-theorem b_and.r_eq_neq.swap1 :
+theorem Bool.and_.r_eq_neq.swap1 :
     ∀ (x : S.Term) (a : S.Term) (t__4 : S.Ty) (kanon__7 : S.Term) (y : S.Term) (t__9 : S.Ty),
     ((decide (a = kanon__7)) && (L.sure_neq x y)) = true →
     S.Refines (L.mkAnd (L.mk (L.eqK x a) t__4) (L.mk (L.eqK kanon__7 y) t__9))
@@ -286,7 +286,7 @@ theorem b_and.r_eq_neq.swap1 :
   cases of_decide_eq_true h1
   exact refines_and_eq_neq (.inr ⟨rfl, rfl⟩) (.inl ⟨rfl, rfl⟩) h2
 
-theorem b_and.r_eq_neq.swap1_swap2 :
+theorem Bool.and_.r_eq_neq.swap1_swap2 :
     ∀ (x : S.Term) (a : S.Term) (t__4 : S.Ty) (y : S.Term) (kanon__7 : S.Term) (t__9 : S.Ty),
     ((decide (a = kanon__7)) && (L.sure_neq x y)) = true →
     S.Refines (L.mkAnd (L.mk (L.eqK x a) t__4) (L.mk (L.eqK y kanon__7) t__9))
@@ -297,360 +297,360 @@ theorem b_and.r_eq_neq.swap1_swap2 :
   cases of_decide_eq_true h1
   exact refines_and_eq_neq (.inr ⟨rfl, rfl⟩) (.inr ⟨rfl, rfl⟩) h2
 
-theorem b_and.r_default.main :
+theorem Bool.and_.r_default.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     S.Refines (L.mkAnd v1 v2)
     ((L.mk (if B.tag_le v1 v2 then L.andK v1 v2 else L.andK v2 v1) L.tbool)) := by
   kanon_bool
 
-theorem b_or.r_same.main :
+theorem Bool.or_.r_same.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     (decide (v1 = v2)) = true →
     S.Refines (L.mkOr v1 v2)
     (v1) := by
   kanon_bool
 
-theorem b_or.r_true_.main :
+theorem Bool.or_.r_true_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkOr (L.mk (L.litK true) t__2) v2)
     (L.vtrue) := by
   kanon_bool
 
-theorem b_or.r_true_.swap :
+theorem Bool.or_.r_true_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkOr v1 (L.mk (L.litK true) t__2))
     (L.vtrue) := by
   kanon_bool
 
-theorem b_or.r_false_.main :
+theorem Bool.or_.r_false_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkOr (L.mk (L.litK false) t__2) v2)
     (v2) := by
   kanon_bool
 
-theorem b_or.r_false_.swap :
+theorem Bool.or_.r_false_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkOr v1 (L.mk (L.litK false) t__2))
     (v1) := by
   kanon_bool
 
-theorem b_or.r_not.main :
+theorem Bool.or_.r_not.main :
     ∀ (v1 : S.Term) (kanon__3 : S.Term) (t__4 : S.Ty),
     (decide (v1 = kanon__3)) = true →
     S.Refines (L.mkOr v1 (L.mk (L.notK kanon__3) t__4))
     (L.vtrue) := by
   kanon_bool
 
-theorem b_or.r_not.swap :
+theorem Bool.or_.r_not.swap :
     ∀ (v2 : S.Term) (kanon__3 : S.Term) (t__4 : S.Ty),
     (decide (v2 = kanon__3)) = true →
     S.Refines (L.mkOr (L.mk (L.notK kanon__3) t__4) v2)
     (L.vtrue) := by
   kanon_bool
 
-theorem b_or.r_or_.main :
+theorem Bool.or_.r_or_.main :
     ∀ (v2 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkOr (L.mk (L.orK a w__3) t__4) v2)
     ((L.mk (L.orK a w__3) t__4)) := by
   kanon_bool
 
-theorem b_or.r_or_.swap1 :
+theorem Bool.or_.r_or_.swap1 :
     ∀ (v2 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkOr (L.mk (L.orK w__3 a) t__4) v2)
     ((L.mk (L.orK w__3 a) t__4)) := by
   kanon_bool
 
-theorem b_or.r_or_.swap2 :
+theorem Bool.or_.r_or_.swap2 :
     ∀ (v1 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkOr v1 (L.mk (L.orK a w__3) t__4))
     ((L.mk (L.orK a w__3) t__4)) := by
   kanon_bool
 
-theorem b_or.r_or_.swap1_swap2 :
+theorem Bool.or_.r_or_.swap1_swap2 :
     ∀ (v1 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkOr v1 (L.mk (L.orK w__3 a) t__4))
     ((L.mk (L.orK w__3 a) t__4)) := by
   kanon_bool
 
-theorem b_or.r_and_.main :
+theorem Bool.or_.r_and_.main :
     ∀ (v2 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkOr (L.mk (L.andK a w__3) t__4) v2)
     (a) := by
   kanon_bool
 
-theorem b_or.r_and_.swap1 :
+theorem Bool.or_.r_and_.swap1 :
     ∀ (v2 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v2)) = true →
     S.Refines (L.mkOr (L.mk (L.andK w__3 a) t__4) v2)
     (a) := by
   kanon_bool
 
-theorem b_or.r_and_.swap2 :
+theorem Bool.or_.r_and_.swap2 :
     ∀ (v1 : S.Term) (a : S.Term) (w__3 : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkOr v1 (L.mk (L.andK a w__3) t__4))
     (a) := by
   kanon_bool
 
-theorem b_or.r_and_.swap1_swap2 :
+theorem Bool.or_.r_and_.swap1_swap2 :
     ∀ (v1 : S.Term) (w__3 : S.Term) (a : S.Term) (t__4 : S.Ty),
     (decide (a = v1)) = true →
     S.Refines (L.mkOr v1 (L.mk (L.andK w__3 a) t__4))
     (a) := by
   kanon_bool
 
-theorem b_or.r_default.main :
+theorem Bool.or_.r_default.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     S.Refines (L.mkOr v1 v2)
     ((L.mk (if B.tag_le v1 v2 then L.orK v1 v2 else L.orK v2 v1) L.tbool)) := by
   kanon_bool
 
-theorem b_not.r_true_.main :
+theorem Bool.not_.r_true_.main :
     ∀ (t__2 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.litK true) t__2))
     (L.vfalse) := by
   kanon_bool
 
-theorem b_not.r_false_.main :
+theorem Bool.not_.r_false_.main :
     ∀ (t__2 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.litK false) t__2))
     (L.vtrue) := by
   kanon_bool
 
-theorem b_not.r_not.main :
+theorem Bool.not_.r_not.main :
     ∀ (sv : S.Term) (t__3 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.notK sv) t__3))
     (sv) := by
   kanon_bool
 
-theorem b_not.r_or_.main :
+theorem Bool.not_.r_or_.main :
     ∀ (v1 : S.Term) (v2 : S.Term) (t__4 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.orK v1 v2) t__4))
     ((B.b_and (B.b_not v1) (B.b_not v2))) := by
   kanon_bool
 
-theorem b_not.r_and_.main :
+theorem Bool.not_.r_and_.main :
     ∀ (v1 : S.Term) (v2 : S.Term) (t__4 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.andK v1 v2) t__4))
     ((B.b_or (B.b_not v1) (B.b_not v2))) := by
   kanon_bool
 
-theorem b_not.r_ite.main :
+theorem Bool.not_.r_ite.main :
     ∀ (g : S.Term) (a : S.Term) (b : S.Term) (t__4 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.iteK g a b) t__4))
     ((B.b_ite g (B.b_not a) (B.b_not b))) := by
   kanon_bool
 
-theorem b_not.r_distinct.main :
+theorem Bool.not_.r_distinct.main :
     ∀ (l : S.Term) (r : S.Term) (t__7 : S.Ty),
     S.Refines (L.mkNot (L.mk (L.distinctK (l :: (r :: []))) t__7))
     ((B.sem_eq l r)) := by
   kanon_bool
 
-theorem b_not.r_default.main :
+theorem Bool.not_.r_default.main :
     ∀ (sv : S.Term),
     S.Refines (L.mkNot sv)
     ((L.mk (L.notK sv) L.tbool)) := by
   kanon_bool
 
-theorem b_ite.r_true_.main :
+theorem Bool.ite.r_true_.main :
     ∀ (if_ : S.Term) (else_ : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkIte (L.mk (L.litK true) t__2) if_ else_)
     (if_) := by
   kanon_bool
 
-theorem b_ite.r_false_.main :
+theorem Bool.ite.r_false_.main :
     ∀ (if_ : S.Term) (else_ : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkIte (L.mk (L.litK false) t__2) if_ else_)
     (else_) := by
   kanon_bool
 
-theorem b_ite.r_bool.main :
+theorem Bool.ite.r_bool.main :
     ∀ (guard : S.Term) (t__3 : S.Ty) (t__5 : S.Ty),
     S.Refines (L.mkIte guard (L.mk (L.litK true) t__3) (L.mk (L.litK false) t__5))
     (guard) := by
   kanon_bool
 
-theorem b_ite.r_not_bool.main :
+theorem Bool.ite.r_not_bool.main :
     ∀ (guard : S.Term) (t__3 : S.Ty) (t__5 : S.Ty),
     S.Refines (L.mkIte guard (L.mk (L.litK false) t__3) (L.mk (L.litK true) t__5))
     ((B.b_not guard)) := by
   kanon_bool
 
-theorem b_ite.r_false_then.main :
+theorem Bool.ite.r_false_then.main :
     ∀ (guard : S.Term) (else_ : S.Term) (t__3 : S.Ty),
     S.Refines (L.mkIte guard (L.mk (L.litK false) t__3) else_)
     ((B.b_and (B.b_not guard) else_)) := by
   kanon_bool
 
-theorem b_ite.r_true_then.main :
+theorem Bool.ite.r_true_then.main :
     ∀ (guard : S.Term) (else_ : S.Term) (t__3 : S.Ty),
     S.Refines (L.mkIte guard (L.mk (L.litK true) t__3) else_)
     ((B.b_or guard else_)) := by
   kanon_bool
 
-theorem b_ite.r_false_else.main :
+theorem Bool.ite.r_false_else.main :
     ∀ (guard : S.Term) (if_ : S.Term) (t__4 : S.Ty),
     S.Refines (L.mkIte guard if_ (L.mk (L.litK false) t__4))
     ((B.b_and guard if_)) := by
   kanon_bool
 
-theorem b_ite.r_true_else.main :
+theorem Bool.ite.r_true_else.main :
     ∀ (guard : S.Term) (if_ : S.Term) (t__4 : S.Ty),
     S.Refines (L.mkIte guard if_ (L.mk (L.litK true) t__4))
     ((B.b_or (B.b_not guard) if_)) := by
   kanon_bool
 
-theorem b_ite.r_not_guard.main :
+theorem Bool.ite.r_not_guard.main :
     ∀ (if_ : S.Term) (else_ : S.Term) (g : S.Term) (t__3 : S.Ty),
     S.Refines (L.mkIte (L.mk (L.notK g) t__3) if_ else_)
     ((B.b_ite g else_ if_)) := by
   kanon_bool
 
-theorem b_ite.r_guard_then.main :
+theorem Bool.ite.r_guard_then.main :
     ∀ (guard : S.Term) (if_ : S.Term) (else_ : S.Term),
     (decide (guard = if_)) = true →
     S.Refines (L.mkIte guard if_ else_)
     ((B.b_or guard else_)) := by
   kanon_bool
 
-theorem b_ite.r_guard_else.main :
+theorem Bool.ite.r_guard_else.main :
     ∀ (guard : S.Term) (if_ : S.Term) (else_ : S.Term),
     (decide (guard = else_)) = true →
     S.Refines (L.mkIte guard if_ else_)
     ((B.b_and guard if_)) := by
   kanon_bool
 
-theorem b_ite.r_ite_then.main :
+theorem Bool.ite.r_ite_then.main :
     ∀ (guard : S.Term) (else_ : S.Term) (kanon__2 : S.Term) (x : S.Term) (w__4 : S.Term) (t__5 : S.Ty),
     (decide (guard = kanon__2)) = true →
     S.Refines (L.mkIte guard (L.mk (L.iteK kanon__2 x w__4) t__5) else_)
     ((B.b_ite guard x else_)) := by
   kanon_bool
 
-theorem b_ite.r_ite_else.main :
+theorem Bool.ite.r_ite_else.main :
     ∀ (guard : S.Term) (if_ : S.Term) (kanon__3 : S.Term) (w__4 : S.Term) (y : S.Term) (t__6 : S.Ty),
     (decide (guard = kanon__3)) = true →
     S.Refines (L.mkIte guard if_ (L.mk (L.iteK kanon__3 w__4 y) t__6))
     ((B.b_ite guard if_ y)) := by
   kanon_bool
 
-theorem b_ite.r_and_ite_then.main :
+theorem Bool.ite.r_and_ite_then.main :
     ∀ (else_ : S.Term) (g : S.Term) (w__3 : S.Term) (t__4 : S.Ty) (kanon__6 : S.Term) (x : S.Term) (w__8 : S.Term) (t__9 : S.Ty),
     (decide (g = kanon__6)) = true →
     S.Refines (L.mkIte (L.mk (L.andK g w__3) t__4) (L.mk (L.iteK kanon__6 x w__8) t__9) else_)
     ((B.b_ite (L.mk (L.andK g w__3) t__4) x else_)) := by
   kanon_bool
 
-theorem b_ite.r_and_ite_then.swap :
+theorem Bool.ite.r_and_ite_then.swap :
     ∀ (else_ : S.Term) (w__3 : S.Term) (g : S.Term) (t__4 : S.Ty) (kanon__6 : S.Term) (x : S.Term) (w__8 : S.Term) (t__9 : S.Ty),
     (decide (g = kanon__6)) = true →
     S.Refines (L.mkIte (L.mk (L.andK w__3 g) t__4) (L.mk (L.iteK kanon__6 x w__8) t__9) else_)
     ((B.b_ite (L.mk (L.andK w__3 g) t__4) x else_)) := by
   kanon_bool
 
-theorem b_ite.r_or_ite_else.main :
+theorem Bool.ite.r_or_ite_else.main :
     ∀ (if_ : S.Term) (g : S.Term) (w__3 : S.Term) (t__4 : S.Ty) (kanon__7 : S.Term) (w__8 : S.Term) (y : S.Term) (t__10 : S.Ty),
     (decide (g = kanon__7)) = true →
     S.Refines (L.mkIte (L.mk (L.orK g w__3) t__4) if_ (L.mk (L.iteK kanon__7 w__8 y) t__10))
     ((B.b_ite (L.mk (L.orK g w__3) t__4) if_ y)) := by
   kanon_bool
 
-theorem b_ite.r_or_ite_else.swap :
+theorem Bool.ite.r_or_ite_else.swap :
     ∀ (if_ : S.Term) (w__3 : S.Term) (g : S.Term) (t__4 : S.Ty) (kanon__7 : S.Term) (w__8 : S.Term) (y : S.Term) (t__10 : S.Ty),
     (decide (g = kanon__7)) = true →
     S.Refines (L.mkIte (L.mk (L.orK w__3 g) t__4) if_ (L.mk (L.iteK kanon__7 w__8 y) t__10))
     ((B.b_ite (L.mk (L.orK w__3 g) t__4) if_ y)) := by
   kanon_bool
 
-theorem b_ite.r_same.main :
+theorem Bool.ite.r_same.main :
     ∀ (guard : S.Term) (if_ : S.Term) (else_ : S.Term),
     (decide (if_ = else_)) = true →
     S.Refines (L.mkIte guard if_ else_)
     (if_) := by
   kanon_bool
 
-theorem b_ite.r_default.main :
+theorem Bool.ite.r_default.main :
     ∀ (guard : S.Term) (if_ : S.Term) (else_ : S.Term),
     S.Refines (L.mkIte guard if_ else_)
     ((L.mk (L.iteK guard if_ else_) (S.ty if_))) := by
   kanon_bool
 
-theorem sem_eq.r_same.main :
+theorem Bool.eq.r_same.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     (decide (v1 = v2)) = true →
     S.Refines (L.mkEq v1 v2)
     (L.vtrue) := by
   kanon_bool
 
-theorem sem_eq.r_bools.main :
+theorem Bool.eq.r_bools.main :
     ∀ (b1 : Bool) (t__2 : S.Ty) (b2 : Bool) (t__4 : S.Ty),
     S.Refines (L.mkEq (L.mk (L.litK b1) t__2) (L.mk (L.litK b2) t__4))
     ((L.of_bool (decide (b1 = b2)))) := by
   kanon_bool
 
-theorem sem_eq.r_ite_ite.main :
+theorem Bool.eq.r_ite_ite.main :
     ∀ (b : S.Term) (l : S.Term) (r : S.Term) (t__4 : S.Ty) (kanon__5 : S.Term) (l' : S.Term) (r' : S.Term) (t__8 : S.Ty),
     (decide (b = kanon__5)) = true →
     S.Refines (L.mkEq (L.mk (L.iteK b l r) t__4) (L.mk (L.iteK kanon__5 l' r') t__8))
     ((B.b_ite b (B.sem_eq l l') (B.sem_eq r r'))) := by
   kanon_bool
 
-theorem sem_eq.r_false_.main :
+theorem Bool.eq.r_false_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkEq (L.mk (L.litK false) t__2) v2)
     ((B.b_not v2)) := by
   kanon_bool
 
-theorem sem_eq.r_false_.swap :
+theorem Bool.eq.r_false_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkEq v1 (L.mk (L.litK false) t__2))
     ((B.b_not v1)) := by
   kanon_bool
 
-theorem sem_eq.r_true_.main :
+theorem Bool.eq.r_true_.main :
     ∀ (v2 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkEq (L.mk (L.litK true) t__2) v2)
     (v2) := by
   kanon_bool
 
-theorem sem_eq.r_true_.swap :
+theorem Bool.eq.r_true_.swap :
     ∀ (v1 : S.Term) (t__2 : S.Ty),
     S.Refines (L.mkEq v1 (L.mk (L.litK true) t__2))
     (v1) := by
   kanon_bool
 
-theorem sem_eq.r_nots.main :
+theorem Bool.eq.r_nots.main :
     ∀ (b : S.Term) (t__3 : S.Ty) (c : S.Term) (t__6 : S.Ty),
     S.Refines (L.mkEq (L.mk (L.notK b) t__3) (L.mk (L.notK c) t__6))
     ((B.sem_eq b c)) := by
   kanon_bool
 
-theorem sem_eq.r_default.main :
+theorem Bool.eq.r_default.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     S.Refines (L.mkEq v1 v2)
     ((L.mk (if B.tag_le v1 v2 then L.eqK v1 v2 else L.eqK v2 v1) L.tbool)) := by
   kanon_bool
 
-theorem sem_eq_untyped.r_ill_typed.main [DecidableEq S.Ty] :
+theorem Bool.eq_untyped.r_ill_typed.main [DecidableEq S.Ty] :
     ∀ (v1 : S.Term) (v2 : S.Term),
     (! (decide ((S.ty v1) = (S.ty v2)))) = true →
     S.Refines (L.mkEq v1 v2)
     (L.vfalse) := by
   kanon_bool
 
-theorem sem_eq_untyped.r_typed.main :
+theorem Bool.eq_untyped.r_typed.main :
     ∀ (v1 : S.Term) (v2 : S.Term),
     S.Refines (L.mkEq v1 v2)
     ((B.sem_eq v1 v2)) := by
   kanon_bool
 
-theorem b_distinct.r_small.main :
+theorem Bool.distinct.r_small.main :
     ∀ (l : List S.Term),
     (B.at_most_one l) = true →
     S.Refines (L.mkDistinct l)
@@ -660,7 +660,7 @@ theorem b_distinct.r_small.main :
   | [], _ | [_], _ => kanon_bool
   | _ :: _ :: _, h => rw [hB.at_most_one] at h; cases h
 
-theorem b_distinct.r_distinct.main :
+theorem Bool.distinct.r_distinct.main :
     ∀ (l : List S.Term),
     (decide ((B.distinct_check l) = (some true))) = true →
     S.Refines (L.mkDistinct l)
@@ -681,7 +681,7 @@ theorem b_distinct.r_distinct.main :
       (hE b hb).2 hu hu'
   simp [L.ev_lit, this]
 
-theorem b_distinct.r_not_distinct.main :
+theorem Bool.distinct.r_not_distinct.main :
     ∀ (l : List S.Term),
     (decide ((B.distinct_check l) = (some false))) = true →
     S.Refines (L.mkDistinct l)
@@ -695,7 +695,7 @@ theorem b_distinct.r_not_distinct.main :
     fun h' => distinct_check_false hB h (List.Pairwise.of_map _ (fun _ _ hne he => hne (he ▸ rfl)) h')
   simp [L.ev_lit, this]
 
-theorem b_distinct.r_default.main :
+theorem Bool.distinct.r_default.main :
     ∀ (l : List S.Term),
     S.Refines (L.mkDistinct l)
     ((L.mk (L.distinctK (B.sort_by_tag l)) L.tbool)) := by

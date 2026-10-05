@@ -4,15 +4,14 @@
   import Code from "../components/Code.svelte";
   import DocPage from "../components/DocPage.svelte";
 
-  const README = "https://github.com/N1ark/kanon#readme";
 </script>
 
 <DocPage page="reference" headings="h2, h3">
   <h1>Reference</h1>
   <p class="lede">
-    The declarations, attributes and operators of Kanon, in brief. The <a href="./">tutorial</a>
-    introduces them on an example; the <a href={README}>README</a> details the generated code and
-    the proofs.
+    The declarations, attributes, operators and rules of Kanon, the code that its backends
+    generate, and its language server. The <a href="./">tutorial</a> introduces them on an example,
+    and the <a href="proving.html">guide to proofs</a> shows how to prove the generated Lean.
   </p>
 
   <Heading level={2} id="declarations">Declarations</Heading>
@@ -35,12 +34,19 @@
     <code>notation</code>, a floating attribute, a case, or at the end of a file) it is an error.
   </p>
   <dl>
-    <dt><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
+    <dt id="use"><code>{`use "path"{:kanon}`}</code>, <code>{`use builtin "name"{:kanon}`}</code></dt>
     <dd>
       Uses the module <code>path</code>, relative to the directory of the file, or the module
       <code>name</code> built into <code>kanon</code> (<code>{`use builtin "bool"{:kanon}`}</code>).
-      A module is read once; the declarations of a file come before those of the modules it uses,
-      and its rules after theirs.
+      A module is read once, where it is first used; the declarations of a file come before those of
+      the modules it uses, and its rules after theirs. <code>{`use builtin "bool"{:kanon}`}</code>
+      reads <code>modules/bool.knl</code> and <code>modules/bool.kn</code> from the binary, as
+      <code>bool.knl</code> and <code>bool.kn</code> (in the locations of errors and the headers of
+      the generated files); see <a href="#bool-module">The bool module</a>. A language
+      <code>lang.knl</code> that starts with <code>{`use builtin "bool"{:kanon}`}</code> and
+      <code>{`use "int"{:kanon}`}</code> is made of the bool module and of the module <code>int</code>
+      (<code>int.knl</code> and <code>int.kn</code>), and <code>kanon ocaml lang.knl</code>
+      generates its rules.
     </dd>
 
     <dt><code>type x attrs</code>, <code>type x attrs = | C of a * b | …</code>, <code>type x attrs = {"{ f : a; … }"}</code></dt>
@@ -53,13 +59,18 @@
       <code>int</code>; it is also accepted in the signatures of functions, rules and primitives, as a
       synonym of <code>int</code> (<code>Z.t</code> in OCaml, not checked to be non-negative).
       <code>t</code>, the type of terms, and <code>ty</code>, the type of their
-      sorts, are generated from the nodes and the sorts, and cannot be declared.
+      sorts, are generated from the nodes and the sorts, and cannot be declared. A type declared
+      <code>nat</code> is used instead of the built-in one. Identifiers may have primes after their
+      first character (<code>l'</code>, <code>x''</code>).
     </dd>
 
     <dt><code>sort S attrs</code>, <code>sort S of a * b attrs</code></dt>
-    <dd>A sort, the type of a term: a constructor of <code>ty</code>.</dd>
+    <dd>
+      A sort, the type of a term: a constructor of <code>ty</code>. Sorts and nodes are
+      constructors of different types, so their names differ.
+    </dd>
 
-    <dt><code>{`subsort S of a * b : P x y attrs{:kanon}`}</code></dt>
+    <dt id="subsort"><code>{`subsort S of a * b : P x y attrs{:kanon}`}</code></dt>
     <dd>
       A subsort <code>S</code> of the sort <code>P</code>, such as
       <code>{`subsort TNonzero of nat : TBitVector n{:kanon}`}</code>. It has the arguments of its
@@ -108,7 +119,7 @@
     <dt><code>{`infix "op" = Node, f args, g{:kanon}`}</code>, <code>{`prefix "op" = Node, f args, g{:kanon}`}</code></dt>
     <dd>An operator on terms; <code>g</code> is optional (see <a href="#operators">Operators</a>).</dd>
 
-    <dt><code>{`constant c = e{:kanon}`}</code>, <code>{`constant c (v) = e{:kanon}`}</code></dt>
+    <dt id="constant"><code>{`constant c = e{:kanon}`}</code>, <code>{`constant c (v) = e{:kanon}`}</code></dt>
     <dd>
       The term of the constant <code>c</code>, at the sort of the term <code>v</code>, for the laws
       <code>{`[@unit c]{:kanon}`}</code> and <code>{`[@zero c]{:kanon}`}</code>. <code>c</code> is a
@@ -116,7 +127,10 @@
       <code>constant</code> is optional: Kanon otherwise builds the node of its notation, at the
       sort of the spec (<code>{`Bool false{:kanon}`}</code>, <code>{`Int 0{:kanon}`}</code>). Or
       <code>c</code> is a name, such as <code>ones</code> for the bit-vector of ones of a width:
-      <code>{`constant ones (v) = lit_ones (size v){:kanon}`}</code>.
+      <code>{`constant ones (v) = lit_ones (size v){:kanon}`}</code>. A constant belongs to its module
+      like a function: the <code>0</code> of <code>bitvec.knl</code> is <code>Bitvec.0</code>, and
+      <code>{`[@unit 0]{:kanon}`}</code> on a node of the module <code>Int</code> does not see it
+      (<code>{`[@unit Bitvec.ones]{:kanon}`}</code> names a named constant of another module).
     </dd>
 
     <dt><code>{`[@@@name "arg" …]{:kanon}`}</code></dt>
@@ -145,12 +159,17 @@
       match the operands of the spec and are its rules, named by their labels, tried in order after
       the rules derived from the laws of the spec; it ends with the rule <code>default</code>,
       which builds the spec, unless its last case matches anything. When the spec is a node over
-      variables, they are its parameters.
+      variables, <code>C (x1, …, xn)</code>, they are the parameters of the function, at the types
+      of the arguments of <code>C</code>; otherwise the function declares its parameters. A rule
+      function may instead have an expression as its body, <code>rule f : e = expr</code>, with no
+      rules; one without a body only has the rules derived from the laws of its spec, and
+      <code>default</code>. See <a href="#rules">Rules</a>.
     </dd>
 
-    <dt><code>{`extend rule f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn f = | p -> e | …{:kanon}`}</code></dt>
+    <dt><code>{`extend rule M.f before r = | r': p -> e | …{:kanon}`}</code>, <code>{`extend fn M.f = | p -> e | …{:kanon}`}</code></dt>
     <dd>
-      Adds rules to the rule function <code>f</code> of a module below, last but before its final
+      Adds rules to the rule function <code>M.f</code> of a module below (qualified, as everywhere
+      outside its own module: see <a href="#names">Names and modules</a>), last but before its final
       catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
       <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
       rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
@@ -159,8 +178,7 @@
   </dl>
   <p>
     Kanon generates the type <code>t</code> of terms, in OCaml hash-consed records
-    <code>{`{ kind; ty; tag }{:ocaml}`}</code> (whose table is not safe to use from several OCaml 5
-    domains at once, a known limitation). Their <code>kind</code> has the leaves, in the order of
+    <code>{`{ kind; ty; tag }{:ocaml}`}</code>. Their <code>kind</code> has the leaves, in the order of
     their declarations, then, for each arity of operators, <code>{`Op1 of op1 * t{:ocaml}`}</code>,
     <code>{`Op2 of op2 * t * t{:ocaml}`}</code>, …, and
     <code>{`OpN of opn * t list{:ocaml}`}</code>, where the type <code>opk</code> has the operators
@@ -169,20 +187,59 @@
     <code>{`And (a, b){:kanon}`}</code>, or <code>{`a && b{:kanon}`}</code>.
   </p>
   <p>
-    In expressions, <code>{`(C x : S args){:kanon}`}</code> builds the node
-    <code>{`C x{:kanon}`}</code> at the sort <code>{`S args{:kanon}`}</code>, which its typing must
-    allow: a leaf whose sort its arguments do not determine
-    (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is built this way. The sort may be
-    any expression of type <code>ty</code>: <code>{`(Field (i, v) : field_ty v i){:kanon}`}</code>; the typing of an
-    operator is then not checked against it.
-  </p>
-  <p>
     <code>use</code>, <code>builtin</code>, <code>type</code>, <code>sort</code>,
     <code>subsort</code>, <code>notation</code>, <code>of</code>, <code>node</code>, <code>infix</code>,
     <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
   </p>
+
+  <Heading level={3} id="names">Names and modules</Heading>
+  <p>
+    A module is a file: <code>bitvec.knl</code> and <code>bitvec.kn</code> are the module
+    <code>Bitvec</code>, and <code>{`use builtin "bool"{:kanon}`}</code> is <code>Bool</code>: the
+    name of a module is that of its file without its extension, capitalised, and must make an OCaml
+    module name; two files of the same name, in different directories, are one module. The
+    names of the functions, rule functions, primitives and constants are scoped by module, so that
+    an <code>Int.add</code> and a <code>Bitvec.add</code> live in the same language. Nodes, sorts,
+    subsorts, types, their constructors and fields, and the labels of rules are not: they are those
+    of the terms that Kanon generates.
+  </p>
+  <ul>
+    <li>
+      In its module, a name is <em>plain</em> (<code>add</code>); from another module it is
+      <em>qualified</em>: <code>{`Bitvec.add a b{:kanon}`}</code>, an uppercase name, a dot and a
+      lowercase name, with no space (a bare constructor directly followed by <code>.x</code> is read
+      as a qualified name). A definition (<code>fn</code>, <code>rule</code>, <code>prim</code>,
+      <code>constant</code>) is always plain.
+    </li>
+    <li>
+      A plain name is that of the module of the file where it is written, and never that of a
+      module that it uses (there is no implicit opening, so no ambiguity): in a
+      <code>extend</code> of another module's function, the cases call their own module's names,
+      and <code>Bool.of_bool</code> for the bool module's. The error of an unknown name that another
+      module declares says so (<code>unknown function add: Int.add is declared in another module,
+      write it qualified</code>). A variable may not have the name of a function of its module, but
+      may have that of another module's.
+    </li>
+    <li>
+      The names that Kanon provides, <code>type_of</code>, the functions on arrays,
+      <code>tag_le</code> and <code>mk_commut_binop</code>, are never qualified, and no module can
+      define them.
+    </li>
+    <li>
+      The attributes (<code>{`[@fold Int.add]{:kanon}`}</code>, <code>{`[@get size]{:kanon}`}</code>,
+      <code>{`[@unit ones]{:kanon}`}</code>), <code>infix</code>, <code>prefix</code> and
+      <code>extend</code> name functions and constants in the same way. A literal constant belongs
+      to its module (<code>Bitvec.0</code>).
+    </li>
+    <li>
+      The backends nest the names the same way: Lean defines <code>Bitvec.add</code> in the
+      namespace <code>Bitvec</code>, the typed interface has a module <code>Bitvec</code>, and the
+      OCaml rules module has the same modules, <code>Rules.Bitvec.add</code>. Primitives keep their plain
+      name in the module of the primitives.
+    </li>
+  </ul>
 
   <Heading level={3} id="arrays">Arrays</Heading>
   <p>
@@ -223,8 +280,15 @@
     and Lean's total operations (<code>arrayGet</code> and <code>arraySet</code>, in
     <code>KanonCore.Array</code>, with their lemmas) return <code>default</code> and the array
     itself, which must not be relied on, so a rule tests the index first
-    (<code>{`Vec a, #k when 0 <= k && k < array_length a -> …{:kanon}`}</code>). The generated OCaml
-    uses the standard <code>Iarray</code> (OCaml 5.4) and needs nothing else.
+    (<code>{`Vec a, #k when 0 <= k && k < array_length a -> …{:kanon}`}</code>); an index is an
+    <code>int</code> (<code>Z.t</code> in OCaml: one that does not fit an OCaml <code>int</code>
+    raises). The generated OCaml uses the standard <code>Iarray</code> (OCaml 5.4) and needs nothing
+    else: <code>ocaml-types</code> generates the equality and the hash of the types that hold an
+    array, with <code>Iarray.equal</code> and <code>Iarray.fold_left</code>.
+    <a href="https://github.com/N1ark/kanon/tree/main/examples/arrays"><code>examples/arrays</code></a>
+    is a small language of integers and arrays of integers (<code>Vec of int array</code>,
+    <code>Len</code>, <code>Get</code>, <code>Set</code>): its OCaml is compiled and run by the
+    tests, and its Lean model has no proofs, only the generated files.
   </p>
 
   <Heading level={2} id="attributes">Attributes</Heading>
@@ -468,6 +532,11 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
     </tbody>
   </table>
+  <p>
+    <code>{`[@ty_only]{:kanon}`}</code> on a rule is an error, and so are the other attributes on
+    <code>fn</code>, <code>prim</code> and <code>rule</code> (a rule has
+    <code>{`[@untyped]{:kanon}`}</code>).
+  </p>
 
   <Heading level={3} id="floating">Floating attributes</Heading>
   <p>In <code>.knl</code> files, on their own.</p>
@@ -493,7 +562,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td><code>{`[@@@ocaml_rules "M"]{:kanon}`}</code></td>
         <td>
           The OCaml module of the rules (the output of <code>ocaml</code>), which the
-          implementation of <code>ocaml-typed</code> is made of (<code>M.f</code>). Required by
+          implementation of <code>ocaml-typed</code> includes. Required by
           <code>ocaml-typed</code>.
         </td>
       </tr>
@@ -511,58 +580,487 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     </tbody>
   </table>
 
+  <Heading level={2} id="rules">Rules, terms and patterns</Heading>
+  <p>
+    The bodies of the <code>.kn</code> files: what a rule function may do, how terms are built, and
+    what patterns match.
+  </p>
+
+  <Heading level={3} id="rule-cases">Rules</Heading>
+  <ul>
+    <li>The pattern variables of a rule may not shadow the parameters of its function.</li>
+    <li>
+      A case that an earlier case without a guard already matches can never be taken: Kanon leaves
+      it out. It does not look into guards, so a case with a guard, or with a repeated variable or
+      an integer literal, which are checks too, covers nothing. The generated OCaml enables the
+      warning on unused match cases, which would report any it missed.
+    </li>
+    <li>
+      When the spec of a rule is a commutative node over <code>v1, v2</code> (e.g.
+      <code>{`And (v1, v2){:kanon}`}</code>), the cases match them in either order, unless the
+      pattern is symmetric (the same once swapped, up to renaming), so
+      <code>{`| true_: true, x -> x{:kanon}`}</code> covers both <code>{`true && x{:kanon}`}</code>
+      and <code>{`x && true{:kanon}`}</code>. The cases must then name the operands rather than use
+      <code>v1</code> and <code>v2</code> (other than as the argument of <code>type_of</code> and
+      <code>{`[@ty_only]{:kanon}`}</code> helpers).
+    </li>
+    <li>
+      The cases of a rule whose spec is a binary operator may also be written with the operator: in
+      <code>{`rule sub : Sub (checked, v1, v2){:kanon}`}</code>,
+      <code>{`| sub_sub: l - (l - r) -> r{:kanon}`}</code> stands for
+      <code>{`| sub_sub: l, (l - r) -> r{:kanon}`}</code>.
+    </li>
+    <li>
+      The operands of a spec have the sorts that the typing of its node gives them, which the
+      generated OCaml asserts on entry to the rule function (the assertion is compiled out with
+      <code>-noassert</code>), and the proofs assume. An operand may be annotated with its sort,
+      <code>{`(v : TBitVector n){:kanon}`}</code>, to also assert it and bind its variables in the
+      rules: <code>{`rule extract : BvExtract (from_, to_, (v : TBitVector sz)){:kanon}`}</code>
+      uses <code>sz</code> for the width of <code>v</code>. A rule that also simplifies ill-typed
+      specs is marked <code>{`[@untyped]{:kanon}`}</code> after its spec
+      (<code>{`rule eq_untyped : Eq (v1, v2) [@untyped]{:kanon}`}</code>), and asserts nothing.
+    </li>
+  </ul>
+
+  <Heading level={3} id="terms">Terms</Heading>
+  <ul>
+    <li>
+      Nodes build raw terms, without simplification: <code>{`BvNot v{:kanon}`}</code>,
+      <code>{`Add (c, l, r){:kanon}`}</code>. Their sort is inferred from their typing: the sort of
+      their result when it only depends on their parameters (<code>TBool</code>), else the sort of
+      an operand that has the same sort (<code>type_of v</code> for <code>{`BvNot v{:kanon}`}</code>),
+      else the result over the sorts of the operands (<code>{`TBitVector (n + m){:kanon}`}</code> for
+      <code>{`BvConcat (l, r){:kanon}`}</code>, from the sorts <code>{`TBitVector n{:kanon}`}</code>
+      and <code>{`TBitVector m{:kanon}`}</code> of <code>l</code> and <code>r</code>).
+    </li>
+    <li>
+      <code>type_of v</code> is the sort of the term <code>v</code> (<code>v.ty</code> in OCaml).
+    </li>
+    <li>
+      In rule functions, the operands of commutative operators are put in the hash-consing order:
+      <code>{`And (v1, v2){:kanon}`}</code> is the node of <code>mk_commut_binop And v1 v2</code>,
+      which puts the operand with the smallest tag on the left. A language with commutative
+      operators gets this helper and the oracle <code>tag_le</code> (the hash-consing order,
+      compiled to a comparison of the tags in OCaml).
+    </li>
+    <li>
+      <code>{`(C x : S args){:kanon}`}</code> builds the node <code>{`C x{:kanon}`}</code> at the
+      sort <code>{`S args{:kanon}`}</code>, which its typing must allow: a leaf whose sort its
+      arguments do not determine (<code>{`node BitVec of int : TBitVector n{:kanon}`}</code>) is
+      built this way.
+    </li>
+    <li>
+      The sort may also be computed: <code>{`(C x : e){:kanon}`}</code>, for any expression
+      <code>e</code> of type <code>ty</code> (a variable, a call of a function or of a primitive, or
+      a parenthesised expression such as an <code>if</code> or a <code>match</code>), builds
+      <code>{`C x{:kanon}`}</code> at the sort <code>e</code>:
+      <code>{`(Tuple vs : TTuple (types_of vs)){:kanon}`}</code> (a sort constructor applied to
+      arguments, as above), <code>{`(Var x : s){:kanon}`}</code> for a parameter
+      <code>{`s : ty{:kanon}`}</code>, <code>{`(Field (i, v) : field_ty v i){:kanon}`}</code>. A
+      computed sort is not checked against the typing of <code>C</code>, which the sort-constructor
+      form checks for an operator (a leaf has no operands to check), so it is up to the function to
+      build <code>C</code> at a sort that its typing allows. In a rule, the Lean spec of the rule is
+      built at the sort of the typing of its node, not at the computed sort, and the
+      <code>ocaml-typed</code> backend does not constrain the tag of the result. A constructor-led
+      sort is a sort constructor (<code>{`S args{:kanon}`}</code>); <code>{`(C x : t){:kanon}`}</code>
+      with the name of a type <code>t</code> is a type annotation. A type annotation
+      <code>{`(e : t){:kanon}`}</code> with a parenthesised type or an arrow
+      (<code>{`(e : (a * b) list){:kanon}`}</code>) is a syntax error: put the type on a
+      <code>let</code>.
+    </li>
+  </ul>
+
+  <Heading level={3} id="patterns">Patterns</Heading>
+  <ul>
+    <li>
+      Patterns match the kind of a term directly: <code>{`Int z{:kanon}`}</code>,
+      <code>{`Add (c, l, r){:kanon}`}</code>. The <a href="#notation">notations</a> of the language
+      give literal patterns, which stand for their nodes (<code>true</code>, <code>0</code>,
+      <code>#x</code>).
+    </li>
+    <li>
+      A repeated variable matches equal terms (<code>=</code>):
+      <code>{`| p, not p -> Bool.v_false{:kanon}`}</code>.
+    </li>
+    <li>
+      The operands of commutative operators match in either order: <code>{`x + #k{:kanon}`}</code>
+      also matches <code>{`#k + x{:kanon}`}</code>. The swap is left out when both operands are
+      wildcards or variables bound nowhere else, as it matches the same terms.
+    </li>
+    <li>
+      <code>{`p [@comm]{:kanon}`}</code> also matches the components of the pair <code>p</code>
+      swapped (the arguments of the rule function): <code>{`(1, ~v) [@comm]{:kanon}`}</code> matches
+      both <code>{`1, ~v{:kanon}`}</code> and <code>{`~v, 1{:kanon}`}</code>.
+    </li>
+    <li>
+      Or-patterns, <code>as</code>, <code>when</code> guards, <code>Some</code>/<code>None</code>,
+      lists and partial records (<code>{`{ unsigned = true; _ }{:kanon}`}</code>) are supported. Each
+      alternative of an or-pattern is tried in turn, together with the guard.
+    </li>
+  </ul>
+
   <Heading level={2} id="backends">Backends</Heading>
   <p>
     <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
-    <code>.knl</code> file, and writes the generated code on standard output.
+    <code>.knl</code> file, with the modules it uses (see <a href="#use"><code>use</code></a>), and
+    writes the generated code on standard output. <code>kanon --version</code> prints the version of
+    Kanon, and <code>kanon lsp</code> runs the <a href="#lsp">language server</a>.
   </p>
   <table>
     <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
     <tbody>
-      <tr><td><code>ocaml-types</code></td><td>The OCaml types of the language and its hash-consed terms.</td></tr>
+      <tr>
+        <td><code>ocaml-types</code></td>
+        <td>
+          The OCaml types of the language and its hash-consed terms: a standalone OCaml file that
+          only needs Zarith (see <a href="#ocaml">OCaml</a>).
+        </td>
+      </tr>
       <tr>
         <td><code>ocaml</code></td>
         <td>
-          The OCaml rule functions and helpers, then the destructors and tests of the nodes and the
-          sorts. For a node <code>BvAdd</code>, <code>as_bvadd</code> returns its arguments in an
-          option (the parameters, then the operands) and <code>is_bvadd</code> tests it; for a sort
-          <code>TInt</code>, <code>as_tint</code> returns the arguments of the sort and
-          <code>is_tint</code> tests it. Their names are <code>as_</code> and <code>is_</code>
-          followed by the name of the constructor in lowercase, with no other change: a function or a
-          primitive cannot have such a name.
+          The OCaml rule functions and helpers, which need the types in scope, then the destructors
+          and tests of the nodes and the sorts (see <a href="#ocaml">OCaml</a>).
         </td>
       </tr>
       <tr>
         <td><code>ocaml-typed</code></td>
         <td>
-          The typed interface of the smart constructors, where a term <code>'a t</code> has a
-          phantom parameter, a tag, that says what Kanon knows of it: the module
-          <code>Tag</code>, with a polymorphic variant type per sort and subsort (they may be
-          joined into groups of tags: <code>{`[ Tag.tbitvec | Tag.tfloat ]{:ocaml}`}</code>);
-          the signature <code>S</code>, with the types <code>'a t</code> and <code>'a ty</code>,
-          the escape hatches <code>untyped</code>, <code>type_</code> and <code>cast</code> (and
-          <code>untype_type</code>, <code>type_type</code> on sorts), and a module per Kanon module
-          (per file: <code>bitvec.kn</code> and <code>bitvec.knl</code> give <code>Bitvec</code>)
-          that has a function for each sort, rule function and destructor declared in it, typed by
-          the tags; and <code>Derived</code>, the implementation of <code>S</code> from the rules
-          (module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>), with <code>{`type 'a t = raw{:ocaml}`}</code>
-          visible, which <code>S</code> hides. A leaf node, which no rule builds, has no function in
-          either: a program builds it from the types and gives it its tag with <code>type_</code>. The parameters of a rule function have the types that it declares, as in
-          <code>ocaml</code> (a <code>nat</code> is a <code>Z.t</code>).
+          The typed interface of the smart constructors, and its implementation from the rules (see
+          <a href="#typed">Typed OCaml</a>).
         </td>
       </tr>
-      <tr><td><code>ocaml-tests</code></td><td>OCaml differential tests of the rule functions.</td></tr>
+      <tr>
+        <td><code>ocaml-tests</code></td>
+        <td>OCaml differential tests of the rule functions (see <a href="#tests">Tests</a>).</td>
+      </tr>
       <tr>
         <td>
           <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
           <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
           <code>lean-lifts</code>, <code>lean-soundness</code>
         </td>
-        <td>The Lean files of the model and its proofs (see the <a href="proving.html">guide</a>).</td>
+        <td>
+          The Lean files of the model and its proofs (see <a href="#lean">Lean</a> and the
+          <a href="proving.html">guide</a>).
+        </td>
       </tr>
       <tr><td><code>lean-all</code></td><td>Each Lean file, as <code>F.lean.gen</code>, in the current directory.</td></tr>
     </tbody>
   </table>
+  <p>
+    The ppx <code>kanon.ppx_include_file</code> includes the generated OCaml:
+    <code>{`[%%include_file "rules.gen.ml"]{:ocaml}`}</code> is the structure of
+    <code>rules.gen.ml</code>, a file next to the current one, as
+    <code>{`include struct … end{:ocaml}`}</code>, so that it is compiled along with the types it
+    needs.
+  </p>
+
+  <Heading level={3} id="ocaml">OCaml</Heading>
+  <p>
+    <code>kanon ocaml-types lang.knl</code> generates the types of the language, in one recursive
+    group, with their Kanon names, and its terms:
+  </p>
+  <Code lang="ocaml" code={`type t = { kind : kind; ty : ty; tag : int }`} />
+  <p>
+    where <code>kind</code> has the leaves and the <code>Op1</code>, <code>Op2</code>, … of the
+    operators, and <code>ty</code> the sorts. <code>node : kind -> ty -> t</code> hash-conses a term:
+    a table of ephemerons, keyed on the kind and the sort of the term, gives the term already
+    built, or the new one, with the next tag. <code>equal_x</code> and <code>hash_x</code> compare
+    and hash the values of each type: structurally, terms by their tags, and the abstract types with
+    their <code>{`[@equal]{:kanon}`}</code> and <code>{`[@hash]{:kanon}`}</code>. It only needs
+    Zarith (<code>int</code> is <code>Z.t</code>), and the standard <code>Iarray</code> (OCaml 5.4)
+    if the language has arrays. The table is not safe to use from several OCaml 5 domains at once: a
+    known limitation.
+  </p>
+  <p>
+    <code>kanon ocaml lang.knl</code> generates the rule functions and helpers, which need those
+    types in scope: included next to them (<code>{`[%%include_file]{:ocaml}`}</code>), or in the
+    module of <code>{`[@@@ocaml_types "Lang_types"]{:kanon}`}</code>, which they open. They call the
+    primitives in the module of <code>{`[@@@ocaml_prims "Lang_prims"]{:kanon}`}</code>, which they
+    check against the declarations (<code>{`module _ : sig … end = Lang_prims{:ocaml}`}</code>). On
+    terms, <code>=</code> compares their tags.
+  </p>
+  <p>
+    The generated module has the structure of the language: a module per Kanon module, that is per
+    file (see <a href="#names">Names and modules</a>), with the plain names: the function
+    <code>add</code> of <code>bitvec.kn</code> is <code>Bitvec.add</code>, in the output as a
+    program, which calls <code>Lang_rules.Bitvec.add</code>. The generated code calls the standard
+    library as <code>Stdlib.Int</code>, <code>Stdlib.Bool</code>, …, so a Kanon module named
+    <code>Int</code> or <code>Bool</code> does not hide it. A module has:
+  </p>
+  <ul>
+    <li>its functions: every <code>fn</code> and <code>rule</code> (the zero-parameter ones are values, computed once);</li>
+    <li>
+      the function <code>t_foo</code> of each sort <code>TFoo</code> declared in its files
+      (<code>t_bitvec</code>: a <code>nat</code> is an <code>int</code>), which makes the sort from
+      its arguments;
+    </li>
+    <li>the destructors of the nodes and sorts declared in its files (below).</li>
+  </ul>
+  <p>
+    Primitives are not in it: they stay in the module of <code>{`[@@@ocaml_prims]{:kanon}`}</code>,
+    under their plain name, whichever module declares them, so two primitives of different modules
+    may not have the same name (rename one). The types, <code>node</code>, the terms and the names
+    that Kanon provides are not in a module; the destructors are.
+  </p>
+  <p>
+    The functions call each other freely, across modules (an <code>extend</code> calls the functions
+    of later modules, and they call back), so they are one recursive group in a module
+    <code>Kanon_flat</code>, in the order of their dependencies, under a flat name
+    (<code>bitvec_add</code>: the module in lowercase, an underscore, the name; two functions with
+    the same flat name are an error); and
+    <code>{`module Bitvec = struct let add = Kanon_flat.bitvec_add … end{:ocaml}`}</code> names them.
+    A module of <code>Lang_rules</code> is then an alias of the functions of the group: a call of
+    <code>Bitvec.add</code> is a direct call of the function, which OCaml inlines when it is small,
+    as with flat names. <code>Kanon_flat</code> is not for use, and a module cannot be named
+    <code>Kanon_flat</code>.
+  </p>
+  <p id="destructors">
+    <strong>Destructors.</strong> The <code>ocaml</code> backend generates a destructor
+    <code>as_foo</code> and a test <code>is_foo</code> for every node and every sort (not the kinds
+    that Kanon builds). For the node <code>Foo</code>, <code>as_foo : t -> (args) option</code> gives
+    its arguments, as a pattern would bind them: its parameters, then its operands (the list of an
+    n-ary node), in a tuple, or alone, or <code>()</code>; <code>is_foo : t -> bool</code> tells
+    whether a term is built by <code>Foo</code>. For a sort <code>{`TFoo of nat{:kanon}`}</code>,
+    <code>as_tfoo : ty -> int option</code> and <code>is_tfoo</code> read a <code>ty</code>. The name
+    is that of the constructor in lowercase (<code>BvAdd</code> gives <code>as_bvadd</code>), in the
+    module of the file that declares the node or the sort. A module may not have two items of the
+    same name: a function named like a destructor (<code>is_add</code>, in the module of
+    <code>Add</code>) or like the function of a sort, or two constructors that differ only by their
+    case: these are errors.
+  </p>
+
+  <Heading level={3} id="typed">Typed OCaml</Heading>
+  <p>
+    <code>kanon ocaml-typed lang.knl rules.kn</code> generates the typed interface of the language.
+    The terms of the generated OCaml are all of one type, <code>t</code>: nothing stops
+    <code>Bitvec.add</code> from being applied to a boolean, but for the assertions on its entry. In
+    the typed interface a term is a <code>'a t</code>, where <code>'a</code> is a <em>tag</em>, a
+    polymorphic variant that says what Kanon knows of the term, and OCaml rejects the ill-kinded
+    calls. The tag is a phantom type: it is only in the type, and a typed term is the same value as
+    the untyped one, at no cost. The tags come from the sorts, and the subsorts refine them. For
+  </p>
+  <Code
+    code={`sort TBitVec of nat
+subsort TNonzero of nat : TBitVec n
+node Add of checked (c) : TBitVec n -> TBitVec n -> TBitVec n
+node Div : TBitVec n -> TNonzero n -> TBitVec n`}
+  />
+  <p>
+    the rule functions <code>add</code> and <code>div</code> of <code>Add</code> and
+    <code>Div</code>, in a file <code>bitvec.knl</code> and <code>bitvec.kn</code>, give:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`module Tag : sig
+  type tnonzero = [ \`TNonzero ]
+  type tbitvec = [ \`TBitVec | tnonzero ]
+end
+
+module type S = sig
+  type +'a t
+  (* ... *)
+  module Bitvec : sig
+    val t_bitvec : int -> [> Tag.tbitvec ] ty
+    val add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
+    val div : [< Tag.tbitvec ] t -> [< Tag.tnonzero ] t -> [> Tag.tbitvec ] t
+  end
+end`}
+  />
+  <p>What is generated, in the file, for the language (nothing is a functor):</p>
+  <ul>
+    <li>
+      <code>Tag</code> has a tag type per sort and per subsort: the lowercase name of its
+      constructor, the variant of that name (<code>{`\`TNonzero`}</code>), and for a sort, the tag
+      types of its subsorts too (<code>tbitvec</code>). So an operand
+      <code>[&lt; Tag.tbitvec ] t</code> accepts any bit-vector, including a non-zero one
+      (<code>[&gt; Tag.tnonzero ] t</code>), and an operand <code>[&lt; Tag.tnonzero ] t</code> only
+      one that is known to be non-zero. Two sorts or subsorts that differ by their case have the same
+      tag type: an error. The tag types are plain polymorphic variant types, so that a program may
+      join them to make groups of tags of its own:
+      <code>{`type scalar = [ Tag.tbitvec | Tag.tfloat ]{:ocaml}`}</code>, and
+      <code>{`([< scalar ] as 'a) t{:ocaml}`}</code> for a function over them.
+    </li>
+    <li>
+      A term has the tag that its typing gives: a result is <code>[&gt; tag ] t</code> (the result of
+      <code>add</code> is a <code>tbitvec</code>, which is not known to be non-zero), and an operand
+      <code>[&lt; tag ] t</code>. A subsort is trusted: nothing proves it, and <code>cast</code> gives
+      a term the tag that it needs (<code>{`Bitvec.div x (cast y){:ocaml}`}</code>). The width, and
+      other values of a sort, are erased: Kanon does not check them. A sort variable
+      (<code>Eq</code>, <code>Ite</code>, <code>Distinct</code>) is shared by the operands and the
+      result, as <code>'a t</code>. A node without a typing has any tag, <code>_ t</code>.
+    </li>
+    <li>
+      <code>module type S</code>, the signature, with the types of the language and, for
+      <code>'a t</code> and the sorts <code>'a ty</code>, the escape hatches:
+      <code>untyped : 'a t -> raw</code> forgets the tag (<code>raw</code> is the term <code>t</code>
+      of the types of the language), <code>type_ : raw -> 'a t</code> trusts one and
+      <code>cast : 'a t -> 'b t</code> changes it, and <code>untype_type</code> and
+      <code>type_type</code> do the same for the sorts. They are the identity at run time. Then a
+      module per Kanon module, with:
+      <ul>
+        <li>
+          a <code>val t_s</code> per sort (not subsort), which makes the sorts of its terms from its
+          arguments, which are those of its constructor (a <code>nat</code> is an <code>int</code>);
+        </li>
+        <li>
+          a <code>val</code> per rule function, named after it, for the node that is its spec. A node
+          that no rule function is the spec of, in particular a leaf node (which has no operands to
+          build from), has none. The parameters of a rule function have the types that it declares,
+          which are those of the generated rules (a <code>nat</code> or an <code>int</code> is a
+          <code>Z.t</code>), then come the operands, and the result. Types of the language are those
+          of <code>ocaml-types</code>, opened from <code>{`[@@@ocaml_types]{:kanon}`}</code>, or else
+          in scope. The docs of the rule function or the node are carried onto the
+          <code>val</code>;
+        </li>
+        <li>
+          the destructors of the <code>ocaml</code> backend (see <a href="#destructors">above</a>):
+          <code>as_foo : _ t -> (args) option</code>, whose operands are <code>[&gt; tag ] t</code>
+          (the tags of the typing of <code>Foo</code>), and <code>is_foo : _ t -> bool</code>, for
+          every node, and <code>as_tfoo</code>, <code>is_tfoo</code> for every sort (not subsort), on
+          <code>_ ty</code>.
+        </li>
+      </ul>
+    </li>
+    <li>
+      A sort that is a parameter (<code>ty</code>) is a <code>raw_ty</code>, since its tag is not
+      known, and a term that is a parameter and not an operand (the body of
+      <code>{`Exists of (var * ty) list * t{:kanon}`}</code>) is <code>_ t</code>: any tag. A rule
+      function has a <code>val</code> whatever its spec. When the spec is a node over the parameters
+      of the function, it is typed as the node. Otherwise it is typed by the outermost node of the
+      spec: the result has its tag, a parameter that is one of its operands has the tag of that
+      operand, and any other parameter has any tag, <code>_ t</code>; a spec that is not a node (a
+      call of a function) has any tag everywhere. For instance
+      <code>{`rule to_bool (v : t) : Not (Eq (v, zero (size v))){:kanon}`}</code> is
+      <code>_ t -> [&gt; tbool ] t</code>.
+    </li>
+    <li>
+      <code>module Derived</code>, the implementation of <code>S</code>: <code>include Lang_rules</code>,
+      the module that names <code>{`[@@@ocaml_rules "Lang_rules"]{:kanon}`}</code> (required: the
+      output of <code>kanon ocaml</code>), which already has the modules of <code>S</code> with
+      their functions, the functions of the sorts and the destructors under the same names, and the
+      phantom types and the escape hatches, which are all that <code>Derived</code> adds. In
+      <code>Derived</code>, <code>{`type 'a t = raw{:ocaml}`}</code> is visible, so that the rules
+      have the types of <code>S</code>; <code>S</code> hides it, since a visible equality would make
+      every tag the same type, and OCaml would accept the division by a bit-vector that is not known
+      to be non-zero. The generated file checks <code>S</code> against the rules at compile time
+      (<code>{`module _ : S = Derived{:ocaml}`}</code>). <code>S</code> is thus a module type that the
+      rules module satisfies, once its types are given a phantom parameter; the rules have no tags,
+      and what is not in <code>S</code> (the functions that are not rule functions, the prims) is
+      simply not exported. There is no functor, so that the escape hatches, which are
+      <code>{`let[@inline] f x = x{:ocaml}`}</code>, are known functions to the compiler.
+    </li>
+  </ul>
+  <p>
+    The module of a <code>val</code> is that of the Kanon module of its declaration: the file of the
+    rule function, the sort or the node, without its extension and with a capital, in
+    <code>S</code>, in <code>Derived</code> and in the rules. A module that declares none of them has
+    no module in the interface. <code>Tag</code>, <code>S</code>, <code>Derived</code> and
+    <code>Kanon_flat</code> are the names of generated modules: a file may not have them. The tags,
+    which are not tied to a module, are all in <code>Tag</code>.
+  </p>
+  <p>
+    Leaf nodes have no constructor, in <code>S</code> nor in <code>Derived</code>: no rule builds
+    them, and Kanon does not generate one. A program builds them from the types, with the
+    hash-consing constructor <code>node</code> at the sort that the typing of the node gives, and
+    gives the term its tag with <code>type_</code>. The same goes for the other layers on top of
+    <code>Derived</code> (labelled arguments, a nesting of its own, groups of tags):
+  </p>
+  <Code
+    lang="ocaml"
+    code={`module Typed = struct
+  include (Lang_typed.Derived : Lang_typed.S)
+
+  module Bitvec = struct
+    include Bitvec
+
+    let mk_bv v n : [> Lang_typed.Tag.tbitvec ] t =
+      type_ (Lang_types.node (BitVec (v, n)) (TBitVec n))
+  end
+end`}
+  />
+  <p>
+    The constraint <code>(Derived : S)</code> makes the types abstract (<code>type +'a t</code>):
+    OCaml checks the rest of the program against the interface <code>S</code>.
+  </p>
+
+  <Heading level={3} id="tests">Tests</Heading>
+  <p>
+    <code>kanon ocaml-tests</code> generates, for every rule function, its spec, a call to it and the
+    name of the rule that fires, from random arguments, to be compared by evaluation (Soteria's
+    <code>soteria/tests/bv_rules/</code> does so for <code>Bv_values</code>). Every rule function is
+    listed with its rules, qualified by its module, including one whose spec annotates the sort of an
+    operand (<code>{`(v : TBv sz){:kanon}`}</code>): the generated test checks the sorts first, and
+    fails an assertion on operands of the wrong sort, so that the harness draws others (the generator
+    itself knows nothing of sorts). A rule function takes terms, so there is no array to draw.
+  </p>
+
+  <Heading level={3} id="lean">Lean</Heading>
+  <p>
+    The Lean files (see <a href="proving.html#files">the files</a> of the guide for what each one
+    holds) are generated in the namespace <code>R</code> of
+    <code>{`[@@@lean_root "R"]{:kanon}`}</code>. Their conventions:
+  </p>
+  <ul>
+    <li>
+      Terms are <code>Term.mk kind ty</code>, with <code>Kind.Var x</code>,
+      <code>Kind.Op2 Op2.And a b</code>, <code>Kind.OpN OpN.Distinct l</code>, …; the operators that
+      commute are <code>Op2.Comm</code>, from <code>{`[@comm]{:kanon}`}</code>. The typing of the
+      operators is <code>Op2.WT op a b t</code>, over the sorts of the operands and of the result,
+      and <code>OpN.WT op e t</code>, over the sort <code>e</code> of all the operands.
+    </li>
+    <li>
+      Functions are in the namespace of their module (see <a href="#names">Names and modules</a>): the
+      function <code>add</code> of <code>Bitvec</code> is <code>R.Bitvec.add</code>, its rules
+      <code>Bitvec.add.r_zero</code>, its spec <code>Bitvec.add.spec</code> and its step
+      <code>Bitvec.add.step</code>. The fields of the structures (<code>Ops</code>,
+      <code>Ops.Sound</code>), which cannot have a dot, have the flat name,
+      <code>bitvec_add</code> (<code>O.bitvec_add</code>), and the primitives and oracles their plain
+      name.
+    </li>
+    <li>
+      The arrays of the language are Lean's <code>Array</code>, and their operations
+      (<code>arrayLength</code>, <code>arrayGet</code>, <code>arraySet</code>) are defined, with their
+      lemmas (reading after a set, lengths, the conversions to and from lists), in
+      <code>KanonCore.Array</code>.
+    </li>
+    <li>
+      An <em>arm</em> is one case of a rule, after expanding its or-patterns and the swaps of
+      commutative operands; its statement is over the variables of its pattern, with its guard as a
+      hypothesis (<code>f.r_name.arm.Stmt</code>). An arm is named after the choices that produced
+      it, so that reordering patterns does not rename it: the head constructor (or operator) of each
+      or-pattern branch taken, with an index when both branches have the same head
+      (<code>lt_leq</code>, <code>lt1</code>), and <code>swap</code> for a swap (numbered when there
+      are several), prefixed by <code>cN</code> when the rule has several cases; an arm with no choice
+      is <code>main</code>.
+    </li>
+    <li>
+      An arm that only swaps commutative operands is proved from the unswapped one, if its guard and
+      body do not depend on the swaps: by the commutativity of the operators swapped
+      (<code>Op2.Plus.comm.ok</code>), with <code>kanon_congr</code> for the operands swapped below
+      the spec (and for the sort of a spec that is that of an operand, <code>type_of v1</code>, which
+      its typing makes equal to that of the other one, by <code>kanon_congr_side</code>).
+    </li>
+    <li>
+      Subsorts are erased in the types and typings, and have a meaning in the statements only through
+      <a href="#on-sorts"><code>{`[@lean "P"]{:kanon}`}</code></a>: <code>R.P : Term → Prop</code> is
+      written by hand, in a module that <code>R.Statements</code> imports, <code>R.Semantics</code>
+      (<code>{`def Nonzero (t : Term) : Prop := ∀ ρ z, eval ρ t = some (.int z) → z ≠ 0{:lean}`}</code>).
+      A subsort without it assumes and proves nothing. Kanon trusts the subsorts everywhere else, so
+      what <code>P</code> says is only checked by what proves the results of the rule functions. A
+      rule function whose spec is a node with an operand <code>v</code> at a subsort position is
+      stated for the terms that satisfy <code>P</code>: <code>Nonzero v →</code> before the guard of
+      its rules and arms, in <code>Ops.Sound</code>, in its step lemma and in its lifting lemma, where
+      it is on the arguments of the call. The elements of a list of operands each satisfy it
+      (<code>∀ y ∈ vs, P y</code>). One whose node has a subsort for its result must prove that what
+      it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
+      <code>Statements.lean</code> states <code>f.post.main.Stmt</code>
+      (<code>∀ O, O.Sound → ∀ args, hyps → P (f.step O args)</code>), which
+      <code>kanon_proof%</code> proves only from a hand-written proof
+      (<code>{`@[kanon_arm] theorem … : f.post.main.Stmt{:lean}`}</code>).
+    </li>
+  </ul>
 
   <Heading level={2} id="bitvectors">Example: bit-vectors</Heading>
   <p>
@@ -577,17 +1075,17 @@ sort TBitVector of nat [@get size]
 node Add of checked : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@fold z_add]
 node BitAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@fold z_and] [@zero 0]
 
-infix "+" = Add, bv_add unchecked
-infix "land" = BitAnd, bv_and, z_land
+infix "+" = Add, add unchecked
+infix "land" = BitAnd, and_, z_land
 
 fn z_add (s _ : ty) (l r : int) : int = wrap (size_of_ty s) (l + r)
 fn lit (n z : int) : t = (BitVec (wrap n z) : TBitVector n)
 
-rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
-  | add_const: Add (c, #k1, r) + #k2 -> bv_add checked (lit n (k1 + k2)) r`}
+rule add : Add (checked, (v1 : TBitVector n), v2) =
+  | add_const: Add (c, #k1, r) + #k2 -> add checked (lit n (k1 + k2)) r`}
   />
   <p>
-    In <code>bv_add</code>, <code>#k1</code> and <code>#k2</code> are bit-vector literals, which
+    In <code>add</code>, <code>#k1</code> and <code>#k2</code> are bit-vector literals, which
     bind their integers, and <code>n</code> is the width of the operands, from the annotation of
     the spec.
   </p>
@@ -658,18 +1156,18 @@ rule bv_add : Add (checked, (v1 : TBitVector n), v2) =
 
   <Heading level={3} id="declaring">Declaring an operator</Heading>
   <Code
-    code={`infix "&&" = And, b_and
-infix "+" = Add, bv_add unchecked, lit_add
-infix "urem" = Rem false, bv_rem false, lit_urem
-prefix "not" = Not, b_not`}
+    code={`infix "&&" = And, Bool.and_
+infix "+" = Add, add unchecked, lit_add
+infix "urem" = Rem false, rem false, lit_urem
+prefix "not" = Not, Bool.not_`}
   />
   <p>
     <code>{`infix "op" = Node, f args, g{:kanon}`}</code> declares what <code>a op b</code> builds
     and matches: in expressions, it calls the smart constructor <code>f</code> with the leading
-    arguments <code>args</code> (<code>{`bv_add unchecked a b{:kanon}`}</code>); in patterns, it
+    arguments <code>args</code> (<code>{`add unchecked a b{:kanon}`}</code>); in patterns, it
     matches the node (<code>{`Add (_, a, b){:kanon}`}</code>, whatever its parameters); on operands
     that are not terms, it is the function <code>g</code>, which is optional, when they have the
-    types of its arguments (<code>{`infix "land" = BitAnd, bv_and, z_land{:kanon}`}</code> makes
+    types of its arguments (<code>{`infix "land" = BitAnd, and_, z_land{:kanon}`}</code> makes
     <code>a land b</code> on integers <code>{`z_land a b{:kanon}`}</code>). <code>prefix</code> is
     the same for one operand.
   </p>
@@ -694,6 +1192,77 @@ prefix "not" = Not, b_not`}
       function <code>g</code> on that type.
     </li>
   </ul>
+
+  <Heading level={2} id="bool-module">The bool module</Heading>
+  <p>
+    <code>modules/bool.knl</code> and <code>modules/bool.kn</code> are an optional module of
+    booleans: boolean literals, <code>Not</code>, <code>And</code>, <code>Or</code>, equality
+    (<code>Eq</code>), conditionals (<code>Ite</code>) and <code>Distinct</code>, with their rules
+    (the rule functions <code>Bool.not_</code>, <code>and_</code>, <code>or_</code>,
+    <code>ite</code>, <code>eq</code>, <code>eq_untyped</code> and <code>distinct</code>). It is
+    built into <code>kanon</code>, as the module that <code>{`use builtin "bool"{:kanon}`}</code>
+    uses. The modules above it can add rules to its rule functions with <code>extend rule</code>, and
+    literals to its helper <code>sure_neq</code> with <code>extend fn</code>. It is the bool module
+    of Soteria's <code>Bv_values</code> and <code>Tiny_values</code>. Its Lean rules are proved once,
+    by the library (see <a href="proving.html#boolmod">KanonCore.BoolMod</a>).
+  </p>
+
+  <Heading level={2} id="lsp">Language server</Heading>
+  <p>
+    <code>kanon lsp</code> is a language server (LSP, over standard input and output) for editors.
+    As files are edited, it checks the whole language they belong to, as <code>kanon</code> does, and
+    reports its errors on the files where they are: all the errors of the functions of a module once
+    their signatures are known, and of the independent items of a declaration, rather than only the
+    first. It knows the names of the language, as Kanon scopes them:
+  </p>
+  <ul>
+    <li>
+      the global names: functions, primitives (written plain in their module, and qualified,
+      <code>Bitvec.add</code>, from another one, which renaming changes after the dot), nodes,
+      constructors, types, rules (<code>before r</code> goes to the rule <code>r</code> of the
+      extended function, or to the law that derives it, <code>{`[@unit 0]{:kanon}`}</code>) and
+      operators (<code>+</code>, <code>&amp;&amp;</code>, <code>not</code>, <code>urem</code>, …,
+      which go to their <code>infix</code> or <code>prefix</code> declaration, and whose hover says
+      what they build, match and compute);
+    </li>
+    <li>
+      the local names: parameters, operands of specs (<code>v1</code> in
+      <code>{`And (v1, v2){:kanon}`}</code>), variables of sorts (<code>sz</code> in
+      <code>{`(v : TBitVector sz){:kanon}`}</code>, <code>n</code> in a typing), pattern variables
+      (<code>x</code>, <code>#x</code>, <code>p as x</code>; a variable bound twice, or in each
+      alternative of an or-pattern, is bound where it first appears), <code>let</code>s and the
+      arguments of nodes in their typings.
+    </li>
+  </ul>
+  <p>
+    It gives their definitions; hovers with the header of a definition and the comment above it, or
+    with what a local is (its type, when the source gives it) and where it is bound; their references
+    and highlights (of a global, in the files of the language); their renaming, which refuses
+    operators, keywords, the names of the built-in modules and invalid new names (a function, a type
+    or a rule starts with a lowercase letter, a constructor with an uppercase one, and a function may
+    not take the name of another of its module); completion of the names of the language (the names
+    of the module of the file plain, those of other modules qualified, and after
+    <code>Bitvec.</code> those of <code>Bitvec</code>); and the symbols of a file and of the
+    workspace.
+  </p>
+  <p>
+    A <code>.kn</code> file is only meaningful in its language: the server checks a file with each
+    <em>root</em> of the workspace that uses it, the <code>.knl</code> files that no other file uses
+    (e.g. <code>lang.knl</code>), as <code>kanon ocaml lang.knl</code>; a file that no root uses is
+    checked with the only root of its directory, or else alone. In Kanon's own repository,
+    <code>modules/</code> stands for the built-in modules, so that they are checked with the
+    languages that use them. The files of the workspace are found when it is opened (or a folder
+    added), then from the files the editor opens, saves and, if it can watch files
+    (<code>workspace/didChangeWatchedFiles</code>), creates and deletes.
+  </p>
+  <p>
+    Limitations: the names come from the last parse of a file, so a file with a syntax error only has
+    its global names and operators, found by their text; rename is then refused. The fields of
+    records are not names. <code>extend</code> cases see the parameters of the function they extend,
+    but not its other locals. A rule derived from a law has no source, so <code>before</code> it goes
+    to the law (and the checker rejects it, as the derived rules are added after the
+    <code>extend</code>s).
+  </p>
 </DocPage>
 
 <style>

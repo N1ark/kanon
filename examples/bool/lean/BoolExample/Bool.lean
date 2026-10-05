@@ -6,7 +6,7 @@ import BoolExample.Semantics
 
 Kanon's library proves the rules of the bool module once (`Kanon.BoolMod`), for
 any language that gives the terms of its nodes, its booleans and the helper
-`sure_neq`, with their laws: a `BoolMod.Lang` of its semantics, `boolLang`.
+`Bool.sure_neq`, with their laws: a `BoolMod.Lang` of its semantics, `boolLang`.
 Here, the terms are variables and the nodes of the module, and the values are
 booleans.
 -/
@@ -29,10 +29,10 @@ theorem evList_eq (ρ : Env) : ∀ l, evList ρ l = l.mapM (ev ρ)
     cases ev ρ t <;> cases ts.mapM (ev ρ) <;> rfl
 
 theorem sure_neq_iff {a b : Term} :
-    sure_neq a b = true ↔
+    Bool.sure_neq a b = true ↔
       ∃ x y t t', a = .mk (.Bool x) t ∧ b = .mk (.Bool y) t' ∧ x ≠ y := by
   rcases a with ⟨ka, ta⟩; rcases b with ⟨kb, tb⟩
-  cases ka <;> cases kb <;> simp [sure_neq, ty, firstSome]
+  cases ka <;> cases kb <;> simp [Bool.sure_neq, ty, firstSome]
 
 /-- The language, for the bool module. -/
 noncomputable def boolLang : BoolMod.Lang sem where
@@ -47,7 +47,7 @@ noncomputable def boolLang : BoolMod.Lang sem where
   iteK g a b := .Op3 .Ite g a b
   distinctK l := .OpN .Distinct l
   vbool := id
-  sure_neq := sure_neq
+  sure_neq := Bool.sure_neq
   ty_mk _ _ := rfl
   WT_lit _ _ := by simp [Term.WT]
   WT_not _ _ := by simp [Term.WT, Op1.WT]

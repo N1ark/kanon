@@ -14,11 +14,11 @@ node Bool of bool : TBool
 (** An integer literal. *)
 node Int of int : TInt
 (** Negation. *)
-node Not : TBool -> TBool [@invol] [@fold negb]
+node Not : TBool -> TBool [@invol] [@fold Rules.negb]
 (** Conjunction. *)
 node And : TBool -> TBool -> TBool [@comm] [@idem] [@unit true] [@zero false]
 (** The sum of two integers. *)
-node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold Rules.add]
 (** Equality of two terms of any sort. *)
 node Eq : a -> a -> TBool [@comm]
 
@@ -30,7 +30,7 @@ sort TInt
 notation Bool
 notation Int
 
-infix "&&" = And, and_
-infix "+" = Plus, plus
-infix "==" = Eq, eq
-prefix "not" = Not, not_
+infix "&&" = And, Rules.and_
+infix "+" = Plus, Rules.plus
+infix "==" = Eq, Rules.eq
+prefix "not" = Not, Rules.not_

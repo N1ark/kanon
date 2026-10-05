@@ -24,55 +24,77 @@ equality.
 
 OCaml: the standard `Iarray`, with nothing else than the generated code.
 
-  $ kanon ocaml lang.knl | sed -n '/let\[@inline\] swap/,$p'
-  let[@inline] swap (a : (Z.t Iarray.t)) (i : Z.t) (j : Z.t) : (Z.t Iarray.t) =
-      (let a = (let a = a and i = Z.to_int i and v = (Iarray.get a (Z.to_int j)) in
-               let c = Iarray.to_array a in
-               c.(i) <- v;
-               Iarray.of_array c) and i = Z.to_int j and v = (Iarray.get a (Z.to_int i)) in
-      let c = Iarray.to_array a in
-      c.(i) <- v;
-      Iarray.of_array c)
+  $ kanon ocaml lang.knl | sed -n '/let\[@inline\] rules_swap/,$p'
+    let[@inline] rules_swap (a : (Z.t Iarray.t)) (i : Z.t) (j : Z.t) : (Z.t Iarray.t) =
+        (let a = (let a = a and i = Z.to_int i and v = (Stdlib.Iarray.get a (Z.to_int j)) in
+                 let c = Stdlib.Iarray.to_array a in
+                 c.(i) <- v;
+                 Stdlib.Iarray.of_array c) and i = Z.to_int j and v = (Stdlib.Iarray.get a (Z.to_int i)) in
+        let c = Stdlib.Iarray.to_array a in
+        c.(i) <- v;
+        Stdlib.Iarray.of_array c)
+    
+    let[@inline] rules_of_list (l : (Z.t list)) : (Z.t Iarray.t) =
+        (Stdlib.Iarray.of_list l)
+    
+    let[@inline] rules_to_list (a : (Z.t Iarray.t)) : (Z.t list) =
+        (Stdlib.Iarray.to_list a)
+    
+    let[@inline] rules_size (a : (((Z.t * bool) Iarray.t) Iarray.t)) : Z.t =
+        (Z.of_int (Stdlib.Iarray.length a))
+    
+    let[@inline] rules_lit (x : Z.t) : (Z.t Iarray.t) =
+        ([|x; (Z.add x Z.one)|] : _ Iarray.t)
+    
+    let[@inline] rules_empty (a : (Z.t Iarray.t)) : (Z.t Iarray.t) =
+        (if ((Z.equal (Z.of_int (Stdlib.Iarray.length a)) Z.zero))
+        then ([||] : _ Iarray.t)
+        else a)
+    
+    let[@inline] rules_same (a : (Z.t Iarray.t)) (b : (Z.t Iarray.t)) : bool =
+        ((((Stdlib.Iarray.equal Z.equal) a b)) && (not (not ((Stdlib.Iarray.equal Z.equal) a b))))
+  end
   
-  let[@inline] of_list (l : (Z.t list)) : (Z.t Iarray.t) = (Iarray.of_list l)
+  (** The Kanon module lang. *)
+  module Lang = struct
+    let t_int : ty = TInt
+    let t_vec : ty = TVec
+    
+    let as_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
+    
+    let is_int (t : t) =
+      match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
+    
+    let as_vec (t : t) =
+      match[@warning "-11"] t with { kind = Vec (p1); _ } -> Some p1 | _ -> None
+    
+    let is_vec (t : t) =
+      match[@warning "-11"] t with { kind = Vec (_); _ } -> true | _ -> false
+    
+    let as_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> Some () | _ -> None
+    
+    let is_tint (t : ty) =
+      match[@warning "-11"] t with TInt -> true | _ -> false
+    
+    let as_tvec (t : ty) =
+      match[@warning "-11"] t with TVec -> Some () | _ -> None
+    
+    let is_tvec (t : ty) =
+      match[@warning "-11"] t with TVec -> true | _ -> false
+  end
   
-  let[@inline] to_list (a : (Z.t Iarray.t)) : (Z.t list) = (Iarray.to_list a)
-  
-  let[@inline] size (a : (((Z.t * bool) Iarray.t) Iarray.t)) : Z.t =
-      (Z.of_int (Iarray.length a))
-  
-  let[@inline] lit (x : Z.t) : (Z.t Iarray.t) =
-      ([|x; (Z.add x Z.one)|] : _ Iarray.t)
-  
-  let[@inline] empty (a : (Z.t Iarray.t)) : (Z.t Iarray.t) =
-      (if ((Z.equal (Z.of_int (Iarray.length a)) Z.zero))
-      then ([||] : _ Iarray.t)
-      else a)
-  
-  let[@inline] same (a : (Z.t Iarray.t)) (b : (Z.t Iarray.t)) : bool =
-      ((((Iarray.equal Z.equal) a b)) && (not (not ((Iarray.equal Z.equal) a b))))
-  
-  let as_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
-  
-  let is_int (t : t) =
-    match[@warning "-11"] t with { kind = Int (_); _ } -> true | _ -> false
-  
-  let as_vec (t : t) =
-    match[@warning "-11"] t with { kind = Vec (p1); _ } -> Some p1 | _ -> None
-  
-  let is_vec (t : t) =
-    match[@warning "-11"] t with { kind = Vec (_); _ } -> true | _ -> false
-  
-  let as_tint (t : ty) =
-    match[@warning "-11"] t with TInt -> Some () | _ -> None
-  
-  let is_tint (t : ty) = match[@warning "-11"] t with TInt -> true | _ -> false
-  
-  let as_tvec (t : ty) =
-    match[@warning "-11"] t with TVec -> Some () | _ -> None
-  
-  let is_tvec (t : ty) = match[@warning "-11"] t with TVec -> true | _ -> false
+  (** The Kanon module rules. *)
+  module Rules = struct
+    let swap = Kanon_flat.rules_swap
+    let of_list = Kanon_flat.rules_of_list
+    let to_list = Kanon_flat.rules_to_list
+    let size = Kanon_flat.rules_size
+    let lit = Kanon_flat.rules_lit
+    let empty = Kanon_flat.rules_empty
+    let same = Kanon_flat.rules_same
+  end
   
   
 
@@ -88,33 +110,33 @@ argument.
 
   $ kanon ocaml-types lang.knl | grep -n "Iarray"
   7:  | Vec of (Z.t Iarray.t)
-  28:  | Vec a1, Vec b1 -> (Iarray.equal Z.equal) a1 b1
-  36:        ((Iarray.fold_left (fun acc x -> hash_combine acc (Z.hash x)) 0) a1)
+  28:  | Vec a1, Vec b1 -> (Stdlib.Iarray.equal Z.equal) a1 b1
+  36:        ((Stdlib.Iarray.fold_left (fun acc x -> hash_combine acc (Z.hash x)) 0) a1)
 
 Lean: `Array`, with the operations of Kanon's library (`KanonCore.Array`).
 
   $ kanon lean-types lang.knl | grep Array
     | Vec : (Array Int) → Kind
-  $ kanon lean-model lang.knl | sed -n '/^def swap/,/^\/-- The rule functions/p'
-  def swap (a : (Array Int)) (i : Int) (j : Int) : (Array Int) :=
+  $ kanon lean-model lang.knl | sed -n '/^def Rules.swap/,/^\/-- The rule functions/p'
+  def Rules.swap (a : (Array Int)) (i : Int) (j : Int) : (Array Int) :=
     (arraySet (arraySet a i (arrayGet a j)) j (arrayGet a i))
   
-  def of_list (l : (List Int)) : (Array Int) :=
+  def Rules.of_list (l : (List Int)) : (Array Int) :=
     (List.toArray l)
   
-  def to_list (a : (Array Int)) : (List Int) :=
+  def Rules.to_list (a : (Array Int)) : (List Int) :=
     (Array.toList a)
   
-  def size (a : (Array (Array (Int × Bool)))) : Int :=
+  def Rules.size (a : (Array (Array (Int × Bool)))) : Int :=
     (arrayLength a)
   
-  def lit (x : Int) : (Array Int) :=
+  def Rules.lit (x : Int) : (Array Int) :=
     #[x, (x + (1 : Int))]
   
-  def empty (a : (Array Int)) : (Array Int) :=
+  def Rules.empty (a : (Array Int)) : (Array Int) :=
     (if (decide ((arrayLength a) = (0 : Int))) then #[] else a)
   
-  def same (a : (Array Int)) (b : (Array Int)) : Bool :=
+  def Rules.same (a : (Array Int)) (b : (Array Int)) : Bool :=
     ((decide (a = b)) && (! (decide (a ≠ b))))
   
   /-- The rule functions, as used by the rules. -/

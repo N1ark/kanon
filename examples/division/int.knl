@@ -15,4 +15,4 @@ subsort TNonzero : TInt [@lean "Nonzero"]
 notation Int
 
 infix "+" = Plus, plus
-infix "/" = Div, int_div
+infix "/" = Div, div

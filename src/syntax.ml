@@ -221,6 +221,40 @@ let lang =
       laws = [];
     }
 
+(** The names that Kanon itself provides, which no module defines and which are
+    never qualified: [type_of], the functions on arrays, the oracle [tag_le] and
+    [mk_commut_binop]. *)
+let builtin_names =
+  [
+    "type_of";
+    "tag_le";
+    "mk_commut_binop";
+    "array_length";
+    "array_get";
+    "array_set";
+    "array_of_list";
+    "array_to_list";
+  ]
+
+(** A name of a function, a primitive or a constant is [Module.name], the
+    canonical form of the names that a module scopes ([Bitvec.add]); a built-in
+    name has no module. *)
+let split_name n =
+  match String.index_opt n '.' with
+  | Some i ->
+      Some (String.sub n 0 i, String.sub n (i + 1) (String.length n - i - 1))
+  | None -> None
+
+(** The name without its module. *)
+let plain_name n = match split_name n with Some (_, x) -> x | None -> n
+
+(** The name of [n] where a name cannot have a dot (OCaml functions of the rules
+    module, the fields of the Lean structures): [Bitvec.add] is [bitvec_add]. *)
+let flat_name n =
+  match split_name n with
+  | Some (m, x) -> String.lowercase_ascii m ^ "_" ^ x
+  | None -> n
+
 let find_constr name = List.find_opt (fun c -> c.c_name = name) !lang.constrs
 let find_subsort name = List.find_opt (fun s -> s.ss_name = name) !lang.subsorts
 let find_decl name = List.find_opt (fun d -> d.d_name = name) !lang.decls

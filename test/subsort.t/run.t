@@ -6,7 +6,7 @@ those of the parent, so that a subsort in a typing is the sort of its parent.
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
   > use "rules"
-  > sort TBitVector of nat [@get size]
+  > sort TBitVector of nat [@get Rules.size]
   > subsort TNonzero of nat : TBitVector n
   > subsort TZero of nat : TBitVector n
   > sort TBool
@@ -34,19 +34,20 @@ those of the parent, so that a subsort in a typing is the sort of its parent.
     | TBool
   
   and t = {
-  $ kanon ocaml lang.knl | sed -n '/let bv_div/,/^$/p'
-  let bv_div (signed : bool) (v1 : t) (v2 : t) : t =
-      (assert ((match v1.ty, v2.ty with
-               | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
-                 when (let kanon__n = Z.of_int kanon__n in
-                 let kanon__s1 = Z.of_int kanon__s1 in
-                 ((Z.equal kanon__s1 kanon__n))) ->
-                 true
-               | _ -> false
-               ) [@warning "-11"]);
-      (match v1, v2 with
-      | _ -> (node (Op2 ((Div (signed)), v1, v2)) v1.ty)
-      ))
+  $ kanon ocaml lang.knl | sed -n '/let rules_bv_div/,/^$/p'
+    let rules_bv_div (signed : bool) (v1 : t) (v2 : t) : t =
+        (assert ((match v1.ty, v2.ty with
+                 | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
+                   when (let kanon__n = Z.of_int kanon__n in
+                   let kanon__s1 = Z.of_int kanon__s1 in
+                   ((Z.equal kanon__s1 kanon__n))) ->
+                   true
+                 | _ -> false
+                 ) [@warning "-11"]);
+        (match v1, v2 with
+        | _ -> (node (Op2 ((Div (signed)), v1, v2)) v1.ty)
+        ))
+  end
   
 
 The checks of a subsort declaration: its arguments are those of its parent
@@ -103,7 +104,7 @@ subsort without a predicate assumes and proves nothing.
   $ cat > nonzero.knl <<'KN'
   > [@@@ocaml_prims "Prims"]
   > use "nonzero_rules"
-  > sort TBitVector of nat [@get size]
+  > sort TBitVector of nat [@get Nonzero_rules.size]
   > subsort TNonzero of nat : TBitVector n [@lean "Nonzero"]
   > subsort TZero of nat : TBitVector n
   > node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
@@ -119,44 +120,44 @@ subsort without a predicate assumes and proves nothing.
   > rule all : All vs
   > rule bv_mod : Mod (v1, v2)
   > KN
-  $ kanon lean-statements nonzero.knl | sed -n '/^structure/,/^$/p;/r_self.main.Stmt/,/^$/p;/^def all.r_default.main/,$p'
+  $ kanon lean-statements nonzero.knl | sed -n '/^structure/,/^$/p;/r_self.main.Stmt/,/^$/p;/^def Nonzero_rules.all.r_default.main/,$p'
   structure Ops.Sound (O : Ops) : Prop where
     orc : O.orc.Compat
-    bv_div : ∀ (s : Bool) (v1 : Term) (v2 : Term), Nonzero v2 → Refines (bv_div.spec s v1 v2) (O.bv_div s v1 v2)
-    pos : ∀ (v : Term), Refines (pos.spec v) (O.pos v)
-    all : ∀ (vs : (List Term)), (∀ y ∈ vs, Nonzero y) → Refines (all.spec vs) (O.all vs)
-    bv_mod : ∀ (v1 : Term) (v2 : Term), Refines (bv_mod.spec v1 v2) (O.bv_mod v1 v2)
+    nonzero_rules_bv_div : ∀ (s : Bool) (v1 : Term) (v2 : Term), Nonzero v2 → Refines (Nonzero_rules.bv_div.spec s v1 v2) (O.nonzero_rules_bv_div s v1 v2)
+    nonzero_rules_pos : ∀ (v : Term), Refines (Nonzero_rules.pos.spec v) (O.nonzero_rules_pos v)
+    nonzero_rules_all : ∀ (vs : (List Term)), (∀ y ∈ vs, Nonzero y) → Refines (Nonzero_rules.all.spec vs) (O.nonzero_rules_all vs)
+    nonzero_rules_bv_mod : ∀ (v1 : Term) (v2 : Term), Refines (Nonzero_rules.bv_mod.spec v1 v2) (O.nonzero_rules_bv_mod v1 v2)
   
-  def bv_div.r_self.main.Stmt : Prop :=
+  def Nonzero_rules.bv_div.r_self.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (s : Bool) (v1 : Term) (v2 : Term),
     Nonzero v2 →
     (decide (v1 = v2)) = true →
-    Refines (bv_div.spec s v1 v2)
+    Refines (Nonzero_rules.bv_div.spec s v1 v2)
     (v1)
   
-  def all.r_default.main.Stmt : Prop :=
+  def Nonzero_rules.all.r_default.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (vs : (List Term)),
     (∀ y ∈ vs, Nonzero y) →
-    Refines (all.spec vs)
+    Refines (Nonzero_rules.all.spec vs)
     ((Term.mk (Kind.OpN OpN.All vs) (Ty.TBitVector (8 : Int))))
   
-  def bv_mod.r_default.Stmt : Prop :=
+  def Nonzero_rules.bv_mod.r_default.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), bv_mod.r_default O v1 v2 = some res →
-    Refines (bv_mod.spec v1 v2) res
+    ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero_rules.bv_mod.r_default O v1 v2 = some res →
+    Refines (Nonzero_rules.bv_mod.spec v1 v2) res
   
-  def bv_mod.r_default.main.Stmt : Prop :=
+  def Nonzero_rules.bv_mod.r_default.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
     ∀ (v1 : Term) (v2 : Term),
-    Refines (bv_mod.spec v1 v2)
+    Refines (Nonzero_rules.bv_mod.spec v1 v2)
     ((Term.mk (Kind.Op2 Op2.Mod v1 v2) (ty v1)))
   
-  /-- What `pos` returns, a rule or its spec, satisfies `Nonzero`: to prove by hand, with `@[kanon_arm]`. -/
-  def pos.post.main.Stmt : Prop :=
+  /-- What `Nonzero_rules.pos` returns, a rule or its spec, satisfies `Nonzero`: to prove by hand, with `@[kanon_arm]`. -/
+  def Nonzero_rules.pos.post.main.Stmt : Prop :=
     ∀ (O : Ops), O.Sound →
-    ∀ (v : Term), Nonzero (pos.step O v)
+    ∀ (v : Term), Nonzero (Nonzero_rules.pos.step O v)
   
   end Kanon
 
@@ -169,19 +170,19 @@ are some. The post-condition has a proof that the language gives:
     intro O hO s v1 v2 res hs_v2 h
     intro O hO s v1 v2 res hs_v2 h
     intro O hO vs res hs_vs h
-  theorem pos.post.main.ok : pos.post.main.Stmt := kanon_proof% pos.post.main
-  theorem bv_div.step_sound (O : Ops) (hO : O.Sound) (s : Bool) (v1 : Term) (v2 : Term) (hs_v2 : Nonzero v2) :
-    refine Refinement.firstSome_cons (fun res h => bv_div.r_self.proof O hO s v1 v2 res hs_v2 h) ?_
-    refine Refinement.firstSome_cons (fun res h => bv_div.r_default.proof O hO s v1 v2 res hs_v2 h) ?_
-  theorem all.step_sound (O : Ops) (hO : O.Sound) (vs : (List Term)) (hs_vs : (∀ y ∈ vs, Nonzero y)) :
-    refine Refinement.firstSome_cons (fun res h => all.r_default.proof O hO vs res hs_vs h) ?_
-        bv_div := fun s v1 v2 hs_v2 => Refinement.refl,
-        all := fun vs hs_vs => Refinement.refl,
+  theorem Nonzero_rules.pos.post.main.ok : Nonzero_rules.pos.post.main.Stmt := kanon_proof% Nonzero_rules.pos.post.main
+  theorem Nonzero_rules.bv_div.step_sound (O : Ops) (hO : O.Sound) (s : Bool) (v1 : Term) (v2 : Term) (hs_v2 : Nonzero v2) :
+    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.bv_div.r_self.proof O hO s v1 v2 res hs_v2 h) ?_
+    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.bv_div.r_default.proof O hO s v1 v2 res hs_v2 h) ?_
+  theorem Nonzero_rules.all.step_sound (O : Ops) (hO : O.Sound) (vs : (List Term)) (hs_vs : (∀ y ∈ vs, Nonzero y)) :
+    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.all.r_default.proof O hO vs res hs_vs h) ?_
+        nonzero_rules_bv_div := fun s v1 v2 hs_v2 => Refinement.refl,
+        nonzero_rules_all := fun vs hs_vs => Refinement.refl,
   $ kanon lean-lifts nonzero.knl | grep "hs_"
     (h_v2 : Refines v2 v2') (hs_v2 : Nonzero v2') :
-    Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.bv_div s v1' v2' hs_v2)
-  theorem lift_all (hO : O.Sound) {vs : (List Term)} (hs_vs : (∀ y ∈ vs, Nonzero y)) :
-    hO.all vs hs_vs
+    Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.nonzero_rules_bv_div s v1' v2' hs_v2)
+  theorem lift_nonzero_rules_all (hO : O.Sound) {vs : (List Term)} (hs_vs : (∀ y ∈ vs, Nonzero y)) :
+    hO.nonzero_rules_all vs hs_vs
 
 The Lean files of the other backends do not see subsorts:
 

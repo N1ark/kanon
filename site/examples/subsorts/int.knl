@@ -17,4 +17,4 @@ node Sq1 : TInt -> TNonzero
 notation Int
 
 infix "+" = Plus, plus
-infix "/" = Div, int_div
+infix "/" = Div, div

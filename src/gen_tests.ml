@@ -96,7 +96,8 @@ let rule_fn ctx ft (f : fn) (spec : expr) draws =
     (rule_names f.body);
   List.iter2 (fun (x, _) d -> pf ft "let %s = %t in@ " x d) f.params draws;
   pf ft "@[<v 2>{@ spec = (fun () -> %a);@ " (Gen_ocaml.expr ctx) spec;
-  pf ft "call = (fun () -> %s%a);@ " f.name
+  pf ft "call = (fun () -> %s%a);@ "
+    (Gen_ocaml.fn_name ctx f.name)
     (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
     f.params;
   pf ft "fired = (fun () -> %a);@]@ })@]" (fired ctx) f.body
@@ -111,7 +112,13 @@ let program ~sources ft (p : program) =
         | _ -> [])
       (Gen_ocaml.sccs p.fns)
   in
-  let ctx = { Gen_ocaml.prims = List.map (fun p -> p.pname) p.prims; consts } in
+  let ctx =
+    {
+      Gen_ocaml.prims = List.map (fun p -> p.pname) p.prims;
+      consts;
+      public = true;
+    }
+  in
   let rules = List.filter (fun f -> Option.is_some f.spec) p.fns in
   let drawable (f : fn) = List.map (fun (_, t) -> draw t) f.params in
   let tested, skipped =

@@ -29,31 +29,31 @@ opened. Opening imp.kn with the error fixed clears it; a syntax error is
 reported on the word where it is found, and a missing module on its use.
 Requests are answered after the changes before them are checked.
 
-  $ IMP='(* [neg a] is the negation of [a]. *)\nfn neg (a : t) : t = b_not a\n\nrule b_imp : Imp (v1, v2) =\n  | false_: false implies _ -> v_true\n  | true_: true implies x -> x\n  | not_: x implies false -> neg x\n'
-  $ MORE='extend rule b_imp before true_ =\n  | same: x implies x -> v_true\n'
+  $ IMP='(* [neg a] is the negation of [a]. *)\nfn neg (a : t) : t = Bool.not_ a\n\nrule b_imp : Imp (v1, v2) =\n  | false_: false implies _ -> Bool.v_true\n  | true_: true implies x -> x\n  | not_: x implies false -> neg x\n'
+  $ MORE='extend rule Imp.b_imp before true_ =\n  | same: x implies x -> Bool.v_true\n'
   $ {
   >   msg "$init"
   >   msg '{"jsonrpc":"2.0","method":"initialized","params":{}}'
   >   msg "$(open more.kn "$MORE")"
-  >   msg "$(at 1 hover more.kn 0 26)"
+  >   msg "$(at 1 hover more.kn 0 30)"
   >   msg "$(open imp.kn "$IMP")"
   >   msg "$(at 2 hover imp.kn 6 29)"
-  >   msg "$(change imp.kn "$(printf '%s' "$IMP" | sed 's/b_not a/b_not a in/')")"
+  >   msg "$(change imp.kn "$(printf '%s' "$IMP" | sed 's/Bool.not_ a/Bool.not_ a in/')")"
   >   msg "$(at 3 hover imp.kn 3 14)"
   >   msg "$(change imp.kn "$IMP")"
   >   msg "$(change more.kn "use \\\"missing\\\"\\n$MORE")"
-  >   msg "$(at 4 definition more.kn 1 26)"
+  >   msg "$(at 4 definition more.kn 1 31)"
   >   msg "$(change more.kn "$MORE")"
   >   msg '{"jsonrpc":"2.0","id":5,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
   > } > input
   $ lsp
   {"jsonrpc":"2.0","id":0,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1,"save":{"includeText":false}},"definitionProvider":true,"hoverProvider":true,"referencesProvider":true,"documentHighlightProvider":true,"renameProvider":{"prepareProvider":true},"completionProvider":{},"workspaceSymbolProvider":true,"documentSymbolProvider":true,"workspace":{"workspaceFolders":{"supported":true,"changeNotifications":true}}},"serverInfo":{"name":"kanon"}}}
-  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[{"range":{"start":{"line":1,"character":27},"end":{"line":1,"character":28}},"severity":1,"source":"kanon","message":"type mismatch: expected t, got int"}]}}
-  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_imp =\n  | true_: true implies x -> x\n```\n\n*imp.kn*"},"range":{"start":{"line":0,"character":25},"end":{"line":0,"character":30}}}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[{"range":{"start":{"line":1,"character":31},"end":{"line":1,"character":32}},"severity":1,"source":"kanon","message":"type mismatch: expected t, got int"}]}}
+  {"jsonrpc":"2.0","id":1,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule Imp.b_imp =\n  | true_: true implies x -> x\n```\n\n*imp.kn*"},"range":{"start":{"line":0,"character":29},"end":{"line":0,"character":34}}}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[]}}
   {"jsonrpc":"2.0","id":2,"result":{"contents":{"kind":"markdown","value":"```kanon\nfn neg (a : t) : t\n```\n\n[neg a] is the negation of [a].\n\n*imp.kn*"},"range":{"start":{"line":6,"character":29},"end":{"line":6,"character":32}}}}
-  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[{"range":{"start":{"line":1,"character":29},"end":{"line":1,"character":31}},"severity":1,"source":"kanon","message":"syntax error"}]}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[{"range":{"start":{"line":1,"character":33},"end":{"line":1,"character":35}},"severity":1,"source":"kanon","message":"syntax error"}]}}
   {"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"```kanon\nnode Imp : TBool -> TBool -> TBool\n```\n\nImplication.\n\n*imp.knl*"},"range":{"start":{"line":3,"character":13},"end":{"line":3,"character":16}}}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/imp.kn","diagnostics":[]}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/more.kn","diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":13}},"severity":1,"source":"kanon","message":"use \"missing\": no ROOT/missing.knl or ROOT/missing.kn"}]}}
@@ -74,9 +74,9 @@ and its hover shows its first comment; it cannot be renamed.
   >   msg "$(at 1 definition imp.kn 6 29)"
   >   msg "$(at 2 definition imp.kn 3 14)"
   >   msg "$(at 3 definition imp.kn 4 20)"
-  >   msg "$(at 4 definition more.kn 0 26)"
-  >   msg "$(at 5 definition imp.kn 1 23)"
-  >   msg "$(at 6 hover imp.kn 1 23)"
+  >   msg "$(at 4 definition more.kn 0 30)"
+  >   msg "$(at 5 definition imp.kn 1 27)"
+  >   msg "$(at 6 hover imp.kn 1 27)"
   >   msg "$(at 7 definition imp.kn 1 12)"
   >   msg "$(at 8 hover imp.knl 1 12)"
   >   msg "$(at 9 definition lang.knl 2 14)"
@@ -92,12 +92,12 @@ and its hover shows its first comment; it cannot be renamed.
   {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":1,"character":5},"end":{"line":1,"character":8}}}]}
   {"jsonrpc":"2.0","id":3,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":14}}}]}
   {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}}]}
-  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":10}}}]}
-  {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule b_not : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":26}}}}
+  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":9}}}]}
+  {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule not_ : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":30}}}}
   {"jsonrpc":"2.0","id":7,"result":null}
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}
   {"jsonrpc":"2.0","id":9,"result":[{"uri":"BUILTIN/bool.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"BUILTIN/bool.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
-  {"jsonrpc":"2.0","id":10,"result":{"contents":{"kind":"markdown","value":"```kanon\nuse builtin \"bool\"\n```\n\nThe bool module, at the bottom of every language: booleans, equality, [Ite]\nand [Distinct]. See the README of Kanon for the syntax.\n\n*bool.knl*"},"range":{"start":{"line":2,"character":13},"end":{"line":2,"character":17}}}}
+  {"jsonrpc":"2.0","id":10,"result":{"contents":{"kind":"markdown","value":"```kanon\nuse builtin \"bool\"\n```\n\nThe bool module, at the bottom of every language: booleans, equality, [Ite]\nand [Distinct]. See the reference of Kanon for the syntax.\n\n*bool.knl*"},"range":{"start":{"line":2,"character":13},"end":{"line":2,"character":17}}}}
   {"jsonrpc":"2.0","id":11,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},{"uri":"file://ROOT/imp.kn","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}
   {"jsonrpc":"2.0","id":12,"error":{"code":-32803,"message":"modules cannot be renamed"}}
   {"jsonrpc":"2.0","id":13,"result":null}
@@ -110,14 +110,33 @@ the workspace include the rules of each rule function.
   >   msg "$(open imp.kn "$IMP")"
   >   msg "$(at 1 completion imp.kn 6 0)"
   > } > input
-  $ lsp | grep -o '{"label":"\(neg\|b_imp\|b_not\|Imp\|implies\|var\|rule\)"[^}]*}'
-  {"label":"b_not","kind":3,"detail":"rule b_not : Not sv"}
+  $ lsp | grep -o '{"label":"\(neg\|b_imp\|Bool.not_\|Imp\|implies\|var\|rule\)"[^}]*}'
+  {"label":"Bool.not_","kind":3,"detail":"rule not_ : Not sv"}
   {"label":"neg","kind":3,"detail":"fn neg (a : t) : t"}
   {"label":"b_imp","kind":3,"detail":"rule b_imp : Imp (v1, v2)"}
   {"label":"Imp","kind":4,"detail":"node Imp : TBool -> TBool -> TBool"}
   {"label":"implies","kind":24,"detail":"infix \"implies\" = Imp, b_imp"}
   {"label":"var","kind":7,"detail":"type var [@ocaml \"string\"] [@noeq]"}
   {"label":"rule","kind":14}
+
+A name of another module is qualified: after `Bool.`, the names of the module
+Bool, plain; elsewhere, those of the other modules with their module, and the
+names of the module of the file plain. The modules are completed too.
+
+  $ {
+  >   msg "$init"
+  >   msg "$(open imp.kn "$(printf '%s' "$IMP" | sed 's/Bool.not_ a/Bool.n/')")"
+  >   msg "$(at 1 completion imp.kn 1 27)"
+  >   msg "$(at 2 completion imp.kn 3 0)"
+  > } > input
+  $ lsp | grep '"id":1,' | grep -o '{"label":"\(not_\|ite\|neg\|Bool.not_\)"'
+  {"label":"not_"
+  {"label":"ite"
+  $ lsp | grep '"id":2,' | grep -o '{"label":"\(not_\|neg\|b_imp\|Bool.not_\|Bool\)"'
+  {"label":"Bool.not_"
+  {"label":"Bool"
+  {"label":"neg"
+  {"label":"b_imp"
 
   $ {
   >   msg "$init"
@@ -128,8 +147,8 @@ the workspace include the rules of each rule function.
   > } > input
   $ lsp | grep -v publishDiagnostics
   {"jsonrpc":"2.0","id":0,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1,"save":{"includeText":false}},"definitionProvider":true,"hoverProvider":true,"referencesProvider":true,"documentHighlightProvider":true,"renameProvider":{"prepareProvider":true},"completionProvider":{},"workspaceSymbolProvider":true,"documentSymbolProvider":true,"workspace":{"workspaceFolders":{"supported":true,"changeNotifications":true}}},"serverInfo":{"name":"kanon"}}}
-  {"jsonrpc":"2.0","id":1,"result":[{"name":"b_imp","kind":12,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":3,"character":5},"end":{"line":3,"character":10}}}},{"name":"b_imp/false_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":10}}},"containerName":"b_imp"},{"name":"b_imp/true_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}},"containerName":"b_imp"},{"name":"b_imp/not_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":8}}},"containerName":"b_imp"},{"name":"Imp","kind":9,"location":{"uri":"file://ROOT/imp.knl","range":{"start":{"line":1,"character":5},"end":{"line":1,"character":8}}}},{"name":"implies","kind":25,"location":{"uri":"file://ROOT/imp.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":14}}}},{"name":"b_imp/same","kind":22,"location":{"uri":"file://ROOT/more.kn","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":8}}},"containerName":"b_imp"}]}
-  {"jsonrpc":"2.0","id":2,"result":[{"name":"extend b_imp","detail":"extend rule b_imp before true_","kind":12,"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":31}},"selectionRange":{"start":{"line":0,"character":12},"end":{"line":0,"character":17}},"children":[{"name":"same","detail":"same: x implies x -> v_true","kind":22,"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":31}},"selectionRange":{"start":{"line":1,"character":4},"end":{"line":1,"character":8}},"children":[]}]}]}
+  {"jsonrpc":"2.0","id":1,"result":[{"name":"b_imp","kind":12,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":3,"character":5},"end":{"line":3,"character":10}}}},{"name":"b_imp/false_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":10}}},"containerName":"Imp.b_imp"},{"name":"b_imp/true_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}},"containerName":"Imp.b_imp"},{"name":"b_imp/not_","kind":22,"location":{"uri":"file://ROOT/imp.kn","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":8}}},"containerName":"Imp.b_imp"},{"name":"Imp","kind":9,"location":{"uri":"file://ROOT/imp.knl","range":{"start":{"line":1,"character":5},"end":{"line":1,"character":8}}}},{"name":"implies","kind":25,"location":{"uri":"file://ROOT/imp.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":14}}}},{"name":"b_imp/same","kind":22,"location":{"uri":"file://ROOT/more.kn","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":8}}},"containerName":"Imp.b_imp"}]}
+  {"jsonrpc":"2.0","id":2,"result":[{"name":"extend Imp.b_imp","detail":"extend rule Imp.b_imp before true_","kind":12,"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":36}},"selectionRange":{"start":{"line":0,"character":12},"end":{"line":0,"character":21}},"children":[{"name":"same","detail":"same: x implies x -> Bool.v_true","kind":22,"range":{"start":{"line":1,"character":4},"end":{"line":1,"character":36}},"selectionRange":{"start":{"line":1,"character":4},"end":{"line":1,"character":8}},"children":[]}]}]}
   {"jsonrpc":"2.0","id":3,"error":{"code":-32601,"message":"unknown method kanon/unknown"}}
 
 Without shutdown, the end of the input is an error.
@@ -156,7 +175,7 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   > node Xor : TBool -> TBool -> TBool [@unit false]
   > 
   > infix "xor" = Xor, b_xor
-  > infix "+" = Or, b_or
+  > infix "+" = Or, Bool.or_
   > KN
   $ cat > loc/xor.kn <<'KN'
   > fn both (a b : t) : t =
@@ -167,12 +186,12 @@ modules xor (xor.knl, xor.kn) and more (more.kn).
   >   | z -> z + y
   > 
   > rule b_xor : Xor (v1, v2) =
-  >   | same: p xor p -> v_false
+  >   | same: p xor p -> Bool.v_false
   >   | not_: not p xor q -> not (p xor q)
   >   | true_: _ xor true -> not v1
   > KN
   $ cat > loc/more.kn <<'KN'
-  > extend rule b_xor
+  > extend rule Xor.b_xor
   >   before not_ =
   >   | false_l: false xor x -> x
   > KN
@@ -200,7 +219,7 @@ extend rule f, and the hover of an operand of the spec.
   >   msg "$(at 10 definition loc/xor.kn 9 16)"
   >   msg "$(at 11 definition loc/xor.kn 9 25)"
   >   msg "$(at 12 definition loc/more.kn 1 9)"
-  >   msg "$(at 13 definition loc/more.kn 0 14)"
+  >   msg "$(at 13 definition loc/more.kn 0 18)"
   >   msg "$(at 14 hover loc/xor.kn 10 29)"
   >   msg '{"jsonrpc":"2.0","id":15,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
@@ -239,7 +258,7 @@ declaration), in the files of its language.
   > } > input
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","id":1,"result":[{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":8,"character":10},"end":{"line":8,"character":11}}},{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":8,"character":16},"end":{"line":8,"character":17}}}]}
-  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/loc/more.kn","range":{"start":{"line":0,"character":12},"end":{"line":0,"character":17}}},{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}}},{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":3,"character":19},"end":{"line":3,"character":24}}}]}
+  {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/loc/more.kn","range":{"start":{"line":0,"character":12},"end":{"line":0,"character":21}}},{"uri":"file://ROOT/loc/xor.kn","range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}}},{"uri":"file://ROOT/loc/xor.knl","range":{"start":{"line":3,"character":19},"end":{"line":3,"character":24}}}]}
   {"jsonrpc":"2.0","id":3,"result":[{"range":{"start":{"line":1,"character":9},"end":{"line":1,"character":10}},"kind":3},{"range":{"start":{"line":1,"character":26},"end":{"line":1,"character":27}},"kind":2}]}
   {"jsonrpc":"2.0","id":4,"result":null}
 
@@ -255,7 +274,7 @@ function of the built-in modules and an uppercase function name are refused.
   >   msg "$(at 1 prepareRename loc/xor.kn 9 14)"
   >   msg "$(rename 2 loc/xor.kn 9 14 r)"
   >   msg "$(rename 3 loc/xor.kn 7 6 b_exclusive_or)"
-  >   msg "$(rename 4 loc/xor.kn 8 21 false_value)"
+  >   msg "$(rename 4 loc/xor.kn 8 26 false_value)"
   >   msg "$(rename 5 loc/xor.kn 7 6 Bxor)"
   >   msg '{"jsonrpc":"2.0","id":6,"method":"shutdown"}'
   >   msg '{"jsonrpc":"2.0","method":"exit"}'
@@ -263,8 +282,8 @@ function of the built-in modules and an uppercase function name are refused.
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","id":1,"result":{"range":{"start":{"line":9,"character":14},"end":{"line":9,"character":15}},"placeholder":"p"}}
   {"jsonrpc":"2.0","id":2,"result":{"changes":{"file://ROOT/loc/xor.kn":[{"range":{"start":{"line":9,"character":14},"end":{"line":9,"character":15}},"newText":"r"},{"range":{"start":{"line":9,"character":30},"end":{"line":9,"character":31}},"newText":"r"}]}}}
-  {"jsonrpc":"2.0","id":3,"result":{"changes":{"file://ROOT/loc/more.kn":[{"range":{"start":{"line":0,"character":12},"end":{"line":0,"character":17}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.kn":[{"range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.knl":[{"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":24}},"newText":"b_exclusive_or"}]}}}
-  {"jsonrpc":"2.0","id":4,"error":{"code":-32803,"message":"v_false is in the built-in module bool.kn, which cannot be edited"}}
+  {"jsonrpc":"2.0","id":3,"result":{"changes":{"file://ROOT/loc/more.kn":[{"range":{"start":{"line":0,"character":16},"end":{"line":0,"character":21}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.kn":[{"range":{"start":{"line":7,"character":5},"end":{"line":7,"character":10}},"newText":"b_exclusive_or"}],"file://ROOT/loc/xor.knl":[{"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":24}},"newText":"b_exclusive_or"}]}}}
+  {"jsonrpc":"2.0","id":4,"error":{"code":-32803,"message":"Bool.v_false is in the built-in module bool.kn, which cannot be edited"}}
   {"jsonrpc":"2.0","id":5,"error":{"code":-32803,"message":"Bxor is not a valid name: names start with a lowercase letter or _"}}
   {"jsonrpc":"2.0","id":6,"result":null}
 
@@ -286,9 +305,9 @@ at its name.
   $ lsp | grep -v '"id":0,'
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":5,"character":13},"end":{"line":5,"character":14}},"severity":1,"source":"kanon","message":"type mismatch: expected t, got int"},{"range":{"start":{"line":10,"character":29},"end":{"line":10,"character":30}},"severity":1,"source":"kanon","message":"type mismatch: expected bool, got int"}]}}
   {"jsonrpc":"2.0","id":1,"result":null}
-  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":11,"character":3},"end":{"line":11,"character":7}},"severity":1,"source":"kanon","message":"both is defined twice"}]}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[{"range":{"start":{"line":11,"character":3},"end":{"line":11,"character":7}},"severity":1,"source":"kanon","message":"Xor.both is defined twice"}]}}
   {"jsonrpc":"2.0","id":2,"result":null}
-  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/more.kn","diagnostics":[{"range":{"start":{"line":1,"character":9},"end":{"line":1,"character":13}},"severity":1,"source":"kanon","message":"extend b_xor: b_xor has no rule nope"}]}}
+  {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/more.kn","diagnostics":[{"range":{"start":{"line":1,"character":9},"end":{"line":1,"character":13}},"severity":1,"source":"kanon","message":"extend Xor.b_xor: Xor.b_xor has no rule nope"}]}}
   {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file://ROOT/loc/xor.kn","diagnostics":[]}}
   {"jsonrpc":"2.0","id":3,"result":null}
 
@@ -333,7 +352,7 @@ tell where an operator is not surrounded by spaces.
   > (** Strictly below. *)
   > fn below (a b : t) : t = a <u b
   > rule b_ult : Ult (v1, v2) =
-  >   | same: p <u p -> v_false
+  >   | same: p <u p -> Bool.v_false
   > KN
   $ initsuf='{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"rootUri":"file://ROOT/suf","capabilities":{}}}'
   $ {

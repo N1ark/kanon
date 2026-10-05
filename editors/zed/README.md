@@ -15,7 +15,7 @@ the grammar of `tree-sitter-kanon/` and the language server of `kanon lsp`:
   operators (`&&`, `≤`, and the infix words of patterns such as
   `l urem #n`), `#x` patterns, and nested comments;
 - the outline (`cmd-shift-o`, and the outline panel): the items of a file,
-  with the rules of each rule function under it (`rule b_and` >
+  with the rules of each rule function under it (`rule and_` >
   `false_`, `true_`, ...) and the constructors of each type under it, so
   that a rule can be found by name;
 - matching and rainbow brackets, including `[@ ... ]`, auto-closed brackets

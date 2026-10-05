@@ -405,6 +405,26 @@ type def = {
   info : info;
 }
 
+(** The module of the file [file], if it has a valid name. *)
+let module_of file =
+  try Check.module_of_file ~loc:Location.none file with Check.Error _ -> None
+
+(** The canonical name of a function, primitive, oracle or [extend]
+    ([Bitvec.add], see {!Check.resolve}); the name of the other definitions. *)
+let qname d =
+  match d.kind with
+  | Fn | Rule | Prim | Oracle -> (
+      match module_of d.file with
+      | Some m when not (List.mem d.name Syntax.builtin_names) ->
+          m ^ "." ^ d.name
+      | _ -> d.name)
+  | _ -> d.name
+
+(** The canonical name of the function [x] written in [file]. *)
+let canon_in file x =
+  if String.contains x '.' || List.mem x Syntax.builtin_names then x
+  else match module_of file with Some m -> m ^ "." ^ x | None -> x
+
 (** The last parse of a file: its text, its definitions and its parse tree. *)
 type entry = { text : text; defs : def list; str : Ppxlib.structure }
 
@@ -668,7 +688,8 @@ let defs_of file s (str : Ppxlib.structure) =
               in
               [
                 mk ~header:(header s item)
-                  ~children:(labels file s x (rule_cases pvb_expr))
+                  ~children:
+                    (labels file s (canon_in file x) (rule_cases pvb_expr))
                   ~info:(Rule_info node) x Rule (span loc);
               ]
           | None -> [ mk ~header:(header s item) x Fn (span loc) ])
@@ -740,8 +761,9 @@ let defs_of file s (str : Ppxlib.structure) =
               Some (f, loc),
               Pexp_function (_, _, Pfunction_cases (cs, _, _)) ) ->
               [
-                mk ~header:(header s item) ~children:(labels file s f cs) f
-                  Extend (span loc);
+                (let f = canon_in file f in
+                 mk ~header:(header s item) ~children:(labels file s f cs) f
+                   Extend (span loc));
               ]
           | _ -> [])
       | _ -> [])
@@ -948,7 +970,7 @@ let rec scope_ctx lang file (e : entry) : Lsp_scope.ctx =
   List.iter
     (fun d ->
       match d.kind with
-      | Fn | Rule | Prim | Oracle -> Hashtbl.replace values d.name ()
+      | Fn | Rule | Prim | Oracle -> Hashtbl.replace values (qname d) ()
       | _ -> ())
     lang.defs;
   {
@@ -968,7 +990,7 @@ let rec scope_ctx lang file (e : entry) : Lsp_scope.ctx =
       (fun f ->
         match
           List.find_opt
-            (fun d -> d.name = f && (d.kind = Rule || d.kind = Fn))
+            (fun d -> qname d = f && (d.kind = Rule || d.kind = Fn))
             lang.defs
         with
         | Some d -> (
@@ -999,7 +1021,7 @@ let derived_rule lang f r =
     List.find_map
       (fun d ->
         match (d.kind, d.info) with
-        | Rule, Rule_info (Some n) when d.name = f -> Some n
+        | Rule, Rule_info (Some n) when qname d = f -> Some n
         | _ -> None)
       lang.defs
   in
@@ -1061,7 +1083,7 @@ let global_defs lang (g : Lsp_scope.global) =
   match g with
   | Value x ->
       find_defs lang (fun d ->
-          d.name = x
+          qname d = x
           && match d.kind with Fn | Rule | Prim | Oracle -> true | _ -> false)
   | Constr c ->
       let l = find_defs lang (fun d -> d.name = c && d.kind = Node) in
@@ -1104,7 +1126,7 @@ let global_defs lang (g : Lsp_scope.global) =
 (** The global name that a definition defines. *)
 let global_of_def d : Lsp_scope.global option =
   match d.kind with
-  | Fn | Rule | Prim | Oracle -> Some (Value d.name)
+  | Fn | Rule | Prim | Oracle -> Some (Value (qname d))
   | Node | Constr -> Some (Constr d.name)
   | Type _ -> Some (Type d.name)
   | Operator arity ->
@@ -1150,8 +1172,39 @@ let resolve_word lang f o =
           let x = sub s w in
           if x = "" then ([], w)
           else
-            let defs = List.filter (fun d -> d.name = x) lang.defs in
-            let rules g = List.filter (fun d -> d.kind = Label g) defs in
+            (* [M.x]: the name [x] of the module [M] *)
+            let qual =
+              if fst w >= 2 && s.[fst w - 1] = '.' then
+                let m = sub s (word_at s (fst w - 2)) in
+                if m <> "" && Char.uppercase_ascii m.[0] = m.[0] then Some m
+                else None
+              else None
+            in
+            let is_value d =
+              match d.kind with Fn | Rule | Prim | Oracle -> true | _ -> false
+            in
+            let defs =
+              match qual with
+              | Some m ->
+                  List.filter
+                    (fun d -> is_value d && qname d = m ^ "." ^ x)
+                    lang.defs
+              | None -> (
+                  let defs = List.filter (fun d -> d.name = x) lang.defs in
+                  (* the names of the module of the file come first *)
+                  match
+                    List.filter
+                      (fun d -> is_value d && qname d = canon_in f x)
+                      defs
+                  with
+                  | [] -> defs
+                  | here -> here @ List.filter (fun d -> not (is_value d)) defs)
+            in
+            let rules g =
+              let g = canon_in f g in
+              List.filter (fun d -> d.kind = Label g) lang.defs
+              |> List.filter (fun d -> d.name = x)
+            in
             let first l =
               Option.value ~default:[]
                 (List.find_map
@@ -1187,7 +1240,7 @@ let resolve_word lang f o =
                                 match d.kind with
                                 | (Rule | Extend)
                                   when fst d.item <= o && o <= snd d.item ->
-                                    Some d.name
+                                    Some (qname d)
                                 | _ -> None)
                               e.defs
                         | None -> None
@@ -1330,10 +1383,11 @@ let local_hover f (b : Lsp_scope.binder) =
   let what =
     match b.kind with
     | Param "" -> "Parameter"
-    | Param g -> Printf.sprintf "Parameter of `%s`" g
+    | Param g -> Printf.sprintf "Parameter of `%s`" (Syntax.plain_name g)
     | Spec_operand (g, c) ->
         Printf.sprintf
-          "Parameter of the rule `%s`: an operand of its spec, `%s`" g c
+          "Parameter of the rule `%s`: an operand of its spec, `%s`"
+          (Syntax.plain_name g) c
     | Pattern_var -> "Pattern variable"
     | Literal_var -> "Pattern variable, the argument of a literal (`#x`)"
     | Let_var -> "Variable bound by `let`"
@@ -1597,10 +1651,23 @@ let valid_name lang (t : Lsp_scope.target) case x =
     failed "%s is an infix operator of the language" x;
   let taken p = List.exists (fun d -> d.name = x && p d.kind) lang.defs in
   let value = function Fn | Rule | Prim | Oracle -> true | _ -> false in
+  (* the functions of the module of the name: a name is scoped by module *)
+  let taken_value m =
+    List.exists
+      (fun d ->
+        value d.kind
+        && qname d = match m with Some m -> m ^ "." ^ x | None -> x)
+      lang.defs
+  in
   match t with
-  | Local _ | Global (Value _) ->
-      if taken value || x = "type_of" || List.mem x Check.array_builtins then
+  | Local { file; _ } ->
+      if taken_value (module_of file) || List.mem x Syntax.builtin_names then
         failed "%s is already a function" x
+  | Global (Value v) ->
+      if
+        taken_value (Option.map fst (Syntax.split_name v))
+        || List.mem x Syntax.builtin_names
+      then failed "%s is already a function" x
   | Global (Constr _) ->
       if taken (function Node | Constr -> true | _ -> false) then
         failed "%s is already a constructor" x
@@ -1613,6 +1680,16 @@ let valid_name lang (t : Lsp_scope.target) case x =
       if taken (fun k -> k = Label f) then failed "%s already has a rule %s" f x
   | Global (Op _ | Module _) -> ()
 
+(** The span of the name that renaming [t] changes in its occurrence [sp] of the
+    text [s]: after the dot of a qualified name, [Bitvec.add]. *)
+let name_span s (t : Lsp_scope.target) sp =
+  match t with
+  | Global (Value _) -> (
+      match String.rindex_opt (sub s sp) '.' with
+      | Some i -> (fst sp + i + 1, snd sp)
+      | None -> sp)
+  | _ -> sp
+
 let prepare_rename params : Yojson.Safe.t =
   let f, o = doc_position params in
   let lang = lang_of f in
@@ -1621,6 +1698,7 @@ let prepare_rename params : Yojson.Safe.t =
   | Some (t, sp) ->
       ignore (renamable lang t);
       let s = Option.value (contents f) ~default:"" in
+      let sp = name_span s t sp in
       `Assoc
         [ ("range", range (text s) sp); ("placeholder", `String (sub s sp)) ]
 
@@ -1658,6 +1736,7 @@ let rename params : Yojson.Safe.t =
                                 (fun (g, sp, _) ->
                                   if g <> file then None
                                   else
+                                    let sp = name_span e.text.s t sp in
                                     Some
                                       (`Assoc
                                          [
@@ -1672,7 +1751,22 @@ let rename params : Yojson.Safe.t =
 (** {2 Completion and symbols} *)
 
 let completion params : Yojson.Safe.t =
-  let f, _ = doc_position params in
+  let f, o = doc_position params in
+  (* [M.] before the word at the cursor: the names of the module [M] *)
+  let qualifier =
+    match contents f with
+    | None -> None
+    | Some s ->
+        let a = ref (min o (String.length s)) in
+        while !a > 0 && is_word_char s.[!a - 1] do
+          decr a
+        done;
+        if !a >= 2 && s.[!a - 1] = '.' then
+          let m = sub s (word_at s (!a - 2)) in
+          if m <> "" && Char.uppercase_ascii m.[0] = m.[0] then Some m else None
+        else None
+  in
+  let here = module_of f in
   let seen = Hashtbl.create 64 in
   let item label kind detail =
     if Hashtbl.mem seen label then None
@@ -1690,7 +1784,17 @@ let completion params : Yojson.Safe.t =
     List.filter_map
       (fun d ->
         match d.kind with
-        | Fn | Rule | Prim | Oracle -> item d.name 3 (Some d.header)
+        | Fn | Rule | Prim | Oracle -> (
+            (* a name of this module is plain, a name of another module is
+               qualified, and after [M.] it is plain *)
+            match (qualifier, module_of d.file) with
+            | Some m, Some dm ->
+                if m = dm then item d.name 3 (Some d.header) else None
+            | Some _, None -> None
+            | None, Some dm when dm <> Option.value here ~default:"" ->
+                item (dm ^ "." ^ d.name) 3 (Some d.header)
+            | None, _ -> item d.name 3 (Some d.header))
+        | _ when qualifier <> None -> None
         | Node | Constr -> item d.name 4 (Some d.header)
         | Type record -> item d.name (if record then 22 else 7) (Some d.header)
         | Operator _
@@ -1699,12 +1803,27 @@ let completion params : Yojson.Safe.t =
         | _ -> None)
       (lang_defs f)
   in
-  let builtins =
-    List.filter_map
-      (fun (n, signature, _) -> item n 3 (Some signature))
-      array_functions
-  in
-  `List (defs @ builtins @ List.filter_map (fun k -> item k 14 None) keywords)
+  if qualifier <> None then `List defs
+  else
+    let modules =
+      List.filter_map
+        (fun d ->
+          match d.kind with
+          | Fn | Rule | Prim | Oracle ->
+              Option.bind (module_of d.file) (fun m -> item m 9 None)
+          | _ -> None)
+        (lang_defs f)
+    in
+    let builtins =
+      List.filter_map
+        (fun (n, signature, _) -> item n 3 (Some signature))
+        array_functions
+    in
+    `List
+      (defs
+      @ modules
+      @ builtins
+      @ List.filter_map (fun k -> item k 14 None) keywords)
 
 let symbol_kind = function
   | Fn | Rule | Prim | Oracle -> 12
@@ -1735,7 +1854,7 @@ let workspace_symbol params : Yojson.Safe.t =
            (fun d ->
              let name, container =
                match d.kind with
-               | Label g -> (g ^ "/" ^ d.name, Some g)
+               | Label g -> (Syntax.plain_name g ^ "/" ^ d.name, Some g)
                | _ -> (d.name, None)
              in
              match (d.kind, location d) with

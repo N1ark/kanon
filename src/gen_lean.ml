@@ -82,6 +82,14 @@ let keywords =
 
 let id x = if List.mem x keywords then "«" ^ x ^ "»" else x
 
+(** The Lean name of a function: its canonical name, [Bitvec.add], which Lean
+    reads as the name [add] in the namespace [Bitvec] of the language. *)
+let qn n = String.concat "." (List.map id (String.split_on_char '.' n))
+
+(** The name of a field of a structure ([Ops], [Ops.Sound]), which has no dot:
+    the flat name, [bitvec_add]. *)
+let fld n = id (flat_name n)
+
 (** [text] without what would end or open a (nested) comment in Lean: [-/] and
     [/-] get a space inside. *)
 let escape_comment text =
@@ -275,13 +283,13 @@ let rec expr ctx ft (e : expr) =
   | ECall ("array_to_list", [ a ]) -> pf ft "(Array.toList %a)" expr a
   | ECall (f, args) ->
       let f =
-        if is_oracle ctx f then "O.orc." ^ f
-        else if is_prim ctx f then f
+        if is_oracle ctx f then "O.orc." ^ plain_name f
+        else if is_prim ctx f then plain_name f
         else
           match fn_kind ctx f with
-          | Rule -> "O." ^ f
-          | OHelper -> f ^ " O"
-          | Pure -> f
+          | Rule -> "O." ^ fld f
+          | OHelper -> qn f ^ " O"
+          | Pure -> qn f
       in
       if args = [] then pf ft "%s" f
       else pf ft "(%s %a)" f (list ~sep:" " expr) args
@@ -553,7 +561,7 @@ let rule_def ctx ft (f : fn) (pre, scruts, grp) =
     | ELet _ -> failwith "gen_lean: destructuring let before a rule match"
     | _ -> Format.pp_print_list ~pp_sep:(fun ft () -> pf ft "@ <|> ") alt ft grp
   in
-  pf ft "@[<v 2>def %s.r_%s (O : Ops) %a : Option Term :=@ %a@]@ @ " f.name
+  pf ft "@[<v 2>def %s.r_%s (O : Ops) %a : Option Term :=@ %a@]@ @ " (qn f.name)
     (id name) params f lets
     (pre { (List.hd grp).body with e = EUnit })
 
@@ -934,7 +942,7 @@ let rec decreasing (f : fn) (e : expr) =
   | _ -> None
 
 let fn_def ctx ft (f : fn) ~o ~kw ~recursive =
-  pf ft "%a@[<v 2>%s %s%s %a : %a :=@ %a@]@ " doc f.fdoc kw (id f.name)
+  pf ft "%a@[<v 2>%s %s%s %a : %a :=@ %a@]@ " doc f.fdoc kw (qn f.name)
     (if o then " (O : Ops)" else "")
     params f lean_ty f.ret (expr ctx) f.body;
   (if recursive then
@@ -974,7 +982,7 @@ let model ~sources ft (p : program) =
   List.iter
     (fun (q : prim) ->
       if q.oracle then (
-        pf ft "@ %a%s : " doc q.pdoc q.pname;
+        pf ft "@ %a%s : " doc q.pdoc (plain_name q.pname);
         List.iter (fun t -> pf ft "%a → " lean_ty t) q.pargs;
         lean_ty ft q.pret))
     p.prims;
@@ -985,7 +993,7 @@ let model ~sources ft (p : program) =
     "/-- The rule functions, as used by the rules. -/@ @[<v 2>structure Ops \
      where@ orc : Oracle";
   List.iter
-    (fun f -> pf ft "@ %a%s : %a" doc f.fdoc f.name arrow f)
+    (fun f -> pf ft "@ %a%s : %a" doc f.fdoc (fld f.name) arrow f)
     (rule_fns ctx);
   pf ft "@]@ @ ";
   defs ctx ft OHelper ~o:true;
@@ -993,7 +1001,7 @@ let model ~sources ft (p : program) =
   List.iter
     (fun f ->
       pf ft "%a@[<v 2>@@[kanon_spec] def %s.spec %a : Term :=@ %a@]@ @ " doc
-        f.fdoc f.name params f (expr ctx) (Option.get f.spec))
+        f.fdoc (qn f.name) params f (expr ctx) (Option.get f.spec))
     (rule_fns ctx);
   (* rules and steps *)
   List.iter
@@ -1003,23 +1011,25 @@ let model ~sources ft (p : program) =
       pf ft
         "@[<v 2>def %s.step (O : Ops) %a : Term :=@ (firstSome [%a]).getD \
          (%s.spec %a)@]@ @ "
-        f.name params f
+        (qn f.name) params f
         (list (fun ft r ->
-             pf ft "%s.r_%s O %a" f.name
+             pf ft "%s.r_%s O %a" (qn f.name)
                (id
                   (rule_name f
                      (let _, _, g = r in
                       g)))
                args f))
-        rs f.name args f)
+        rs (qn f.name) args f)
     (rule_fns ctx);
   let fields ft mk =
-    List.iter (fun f -> pf ft ",\n    %s := %a" f.name mk f) (rule_fns ctx)
+    List.iter
+      (fun f -> pf ft ",\n    %s := %a" (fld f.name) mk f)
+      (rule_fns ctx)
   in
   pf ft "@[<v 2>def opsRaw (orc : Oracle) : Ops :=@ { orc := orc%a }@]@ @ "
-    fields (fun ft f -> pf ft "fun %a => %s.spec %a" args f f.name args f);
+    fields (fun ft f -> pf ft "fun %a => %s.spec %a" args f (qn f.name) args f);
   pf ft "@[<v 2>def opsStep (O : Ops) : Ops :=@ { orc := O.orc%a }@]@ @ " fields
-    (fun ft f -> pf ft "%s.step O" f.name);
+    (fun ft f -> pf ft "%s.step O" (qn f.name));
   pf ft
     "@[<v 2>def opsN (orc : Oracle) : Nat → Ops@ | 0 => opsRaw orc@ | n + 1 => \
      opsStep (opsN orc n)@]@ @ ";
@@ -1114,7 +1124,8 @@ let arm_names (arms : arm list) =
     arms
 
 let arm_name f r arms i =
-  Printf.sprintf "%s.r_%s.%s" f.name (id r) (id (List.nth (arm_names arms) i))
+  Printf.sprintf "%s.r_%s.%s" (qn f.name) (id r)
+    (id (List.nth (arm_names arms) i))
 
 (** The statement of an arm: under its guard, the spec at the matched arguments
     is refined by the body. *)
@@ -1163,7 +1174,7 @@ let arm_stmt ctx ft f r arms i (a : arm) =
           (fun (x, _) -> Fmt.str "%a" (expr ctx) { c.body with e = EVar x })
           f.params)
   in
-  pf ft "Refines%s (%s.spec %s)@ (%a)@]@ @ " (sem_args ()) f.name
+  pf ft "Refines%s (%s.spec %s)@ (%a)@]@ @ " (sem_args ()) (qn f.name)
     (String.concat " " spec_args)
     (fun ft () -> with_subst a.a_body_subst (fun () -> expr ctx ft c.body))
     ()
@@ -1178,8 +1189,9 @@ let statements ~sources ft (p : program) =
     (sem_binders ()) (sem_args ());
   List.iter
     (fun f ->
-      pf ft "@ %s : ∀ %a, %aRefines%s (%s.spec %a) (O.%s %a)" f.name params f
-        pre_arrows f (sem_args ()) f.name args f f.name args f)
+      pf ft "@ %s : ∀ %a, %aRefines%s (%s.spec %a) (O.%s %a)" (fld f.name)
+        params f pre_arrows f (sem_args ()) (qn f.name) args f (fld f.name) args
+        f)
     (rule_fns ctx);
   pf ft "@]@ @ ";
   List.iter (comm_stmt ft) (comm_ops ());
@@ -1193,8 +1205,8 @@ let statements ~sources ft (p : program) =
             "@[<v 2>def %s.r_%s.Stmt : Prop :=@ ∀ %s(O : Ops), O.Sound%s →@ ∀ \
              %a (res : Term), %a%s.r_%s O %a = some res →@ Refines%s (%s.spec \
              %a) res@]@ @ "
-            f.name n (sem_binders ()) (sem_args ()) params f pre_arrows f f.name
-            n args f (sem_args ()) f.name args f)
+            (qn f.name) n (sem_binders ()) (sem_args ()) params f pre_arrows f
+            (qn f.name) n args f (sem_args ()) (qn f.name) args f)
         (rules f);
       if f.cases then
         List.iter
@@ -1211,8 +1223,8 @@ let statements ~sources ft (p : program) =
              prove by hand, with `@@[kanon_arm]`. -/@ @[<v 2>def \
              %s.post.main.Stmt : Prop :=@ ∀ %s(O : Ops), O.Sound%s →@ ∀ %a, \
              %a%s (%s.step O %a)@]@ @ "
-            f.name p f.name (sem_binders ()) (sem_args ()) params f pre_arrows f
-            p f.name args f)
+            (qn f.name) p (qn f.name) (sem_binders ()) (sem_args ()) params f
+            pre_arrows f p (qn f.name) args f)
         (postcondition f))
     (rule_fns ctx);
   pf ft "end %s@]@." (root ())
@@ -1255,7 +1267,7 @@ let lifts ~sources ft (p : program) =
           (calls (Option.get f.spec))
         |> List.sort_uniq compare
       in
-      pf ft "@[<v 2>theorem lift_%s (hO : O.Sound%s)" f.name (sem_args ());
+      pf ft "@[<v 2>theorem lift_%s (hO : O.Sound%s)" (fld f.name) (sem_args ());
       List.iter
         (fun (x, t) ->
           if term (x, t) then pf ft " {%s %s' : Term}" (id x) (id x)
@@ -1271,19 +1283,20 @@ let lifts ~sources ft (p : program) =
         ~rename:(fun x ->
           if term (x, List.assoc x f.params) then x ^ "'" else x)
         ft f;
-      pf ft " :@ Refines%s (%s.spec %s) (O.%s %s) :=@ " (sem_args ()) f.name
+      pf ft " :@ Refines%s (%s.spec %s) (O.%s %s) :=@ " (sem_args ())
+        (qn f.name)
         (String.concat " " (List.map (fun (x, _) -> id x) f.params))
-        f.name
+        (fld f.name)
         (String.concat " " (List.map prime f.params));
       if List.exists term f.params then
         pf ft
           "Refinement.trans (by simp only [%s]; kanon_congr) (hO.%s %s%a)@]@ @ "
-          (String.concat ", " ("kanon_spec" :: helpers))
-          f.name
+          (String.concat ", " ("kanon_spec" :: List.map qn helpers))
+          (fld f.name)
           (String.concat " " (List.map prime f.params))
           pre_names f
       else
-        pf ft "hO.%s %s%a@]@ @ " f.name
+        pf ft "hO.%s %s%a@]@ @ " (fld f.name)
           (String.concat " " (List.map prime f.params))
           pre_names f)
     (rule_fns ctx);
@@ -1308,22 +1321,23 @@ let bool_ops ft =
      model, for the proofs@ of its arms by Kanon's library (`Kanon.BoolMod`). \
      -/@ ";
   pf ft
-    "@[<v 2>def Ops.bool %s(O : Ops) : BoolMod.Ops %s where@ b_and := O.b_and@ \
-     b_or := O.b_or@ b_not := O.b_not@ b_ite := O.b_ite@ sem_eq := O.sem_eq@ \
-     tag_le := O.orc.tag_le@ sort_by_tag := O.orc.sort_by_tag@ at_most_one := \
-     at_most_one@ distinct_check_one := distinct_check_one@ distinct_check := \
-     distinct_check@]@ @ "
+    "@[<v 2>def Ops.bool %s(O : Ops) : BoolMod.Ops %s where@ b_and := \
+     O.bool_and_@ b_or := O.bool_or_@ b_not := O.bool_not_@ b_ite := \
+     O.bool_ite@ sem_eq := O.bool_eq@ tag_le := O.orc.tag_le@ sort_by_tag := \
+     O.orc.sort_by_tag@ at_most_one := Bool.at_most_one@ distinct_check_one := \
+     Bool.distinct_check_one@ distinct_check := Bool.distinct_check@]@ @ "
     (sem_binders ()) (with_sem_args "boolLang");
   pf ft
     "@[<v 2>theorem Ops.Sound.bool %s{O : Ops} (hO : O.Sound%s) : %s.Sound \
-     where@ b_and := hO.b_and@ b_or := hO.b_or@ b_not := hO.b_not@ b_ite := \
-     hO.b_ite@ sem_eq := hO.sem_eq@ sort_by_tag := hO.orc.sort_by_tag@ \
-     at_most_one _ _ _ := rfl@ distinct_check_one_nil _ := by@   dsimp only \
-     [Ops.bool]; rw [distinct_check_one]; rfl@ distinct_check_one_cons _ _ _ \
-     := by@   dsimp only [Ops.bool]; rw [distinct_check_one]; rfl@ \
-     distinct_check_nil := by@   dsimp only [Ops.bool]; rw [distinct_check]; \
-     rfl@ distinct_check_cons _ _ := by@   dsimp only [Ops.bool]; rw \
-     [distinct_check]; split <;> simp_all [firstSome]@]@ @ "
+     where@ b_and := hO.bool_and_@ b_or := hO.bool_or_@ b_not := hO.bool_not_@ \
+     b_ite := hO.bool_ite@ sem_eq := hO.bool_eq@ sort_by_tag := \
+     hO.orc.sort_by_tag@ at_most_one _ _ _ := rfl@ distinct_check_one_nil _ := \
+     by@   dsimp only [Ops.bool]; rw [Bool.distinct_check_one]; rfl@ \
+     distinct_check_one_cons _ _ _ := by@   dsimp only [Ops.bool]; rw \
+     [Bool.distinct_check_one]; rfl@ distinct_check_nil := by@   dsimp only \
+     [Ops.bool]; rw [Bool.distinct_check]; rfl@ distinct_check_cons _ _ := \
+     by@   dsimp only [Ops.bool]; rw [Bool.distinct_check]; split <;> simp_all \
+     [firstSome]@]@ @ "
     (sem_implicits ()) (sem_args ()) (with_sem_args "O.bool")
 
 (** The proof that the operands of [op] commute, a lemma of [kanon_comm]: by
@@ -1411,7 +1425,7 @@ let cases_proofs ft (f : fn) =
                  simp only [%s.spec%s]@ "
                 (arm_name f r arms j) (sem_args ())
                 (fun ft -> List.iter (pf ft " %s"))
-                args hg f.name
+                args hg (qn f.name)
                 (if List.mem "type_of" (calls (Option.get f.spec)) then
                    ", ty, Term.ty_mk"
                  else "");
@@ -1425,8 +1439,8 @@ let cases_proofs ft (f : fn) =
         "@[<v 2>theorem %s.r_%s.proof : %s.r_%s.Stmt := by@ intro%s O hO %a \
          res%a h@ simp only [%s.r_%s] at h@ repeat' rcases orElse_some h with \
          h | h@ %a@]@ @ "
-        f.name (id r) f.name (id r) (sem_args ()) args f pre_names f f.name
-        (id r)
+        (qn f.name) (id r) (qn f.name) (id r) (sem_args ()) args f pre_names f
+        (qn f.name) (id r)
         (Format.pp_print_list
            ~pp_sep:(fun ft () -> pf ft "@ ")
            (fun ft i ->
@@ -1463,16 +1477,16 @@ let soundness ~sources ~proofs ft (p : program) =
         pf ft
           "theorem %s.post.main.ok : %s.post.main.Stmt := kanon_proof%% \
            %s.post.main@ @ "
-          f.name f.name f.name)
+          (qn f.name) (qn f.name) (qn f.name))
     (rule_fns ctx);
   List.iter
     (fun f ->
       pf ft
         "@[<v 2>theorem %s.step_sound %s(O : Ops) (hO : O.Sound%s) %a%a :@ \
          Refines%s (%s.spec %a) (%s.step O %a) := by@ unfold %s.step@ "
-        f.name (sem_binders ()) (sem_args ()) params f
-        (pre_binders ?rename:None) f (sem_args ()) f.name args f f.name args f
-        f.name;
+        (qn f.name) (sem_binders ()) (sem_args ()) params f
+        (pre_binders ?rename:None) f (sem_args ()) (qn f.name) args f
+        (qn f.name) args f (qn f.name);
       List.iter
         (fun r ->
           let _, _, g = r in
@@ -1480,7 +1494,7 @@ let soundness ~sources ~proofs ft (p : program) =
           pf ft
             "refine Refinement.firstSome_cons (fun res h => %s.r_%s.proof%s O \
              hO %a res%a h) ?_@ "
-            f.name n (sem_args ()) args f pre_names f)
+            (qn f.name) n (sem_args ()) args f pre_names f)
         (rules f);
       pf ft "exact Refinement.firstSome_nil@]@ @ ")
     (rule_fns ctx);
@@ -1492,15 +1506,16 @@ let soundness ~sources ~proofs ft (p : program) =
     (sem_binders ()) (sem_args ()) (sem_args ());
   List.iter
     (fun f ->
-      pf ft ",\n      %s := fun %a%a => Refinement.refl" f.name args f pre_names
-        f)
+      pf ft ",\n      %s := fun %a%a => Refinement.refl" (fld f.name) args f
+        pre_names f)
     (rule_fns ctx);
   pf ft
     " }\n  | n + 1 =>\n    have hO := opsN_sound%s orc h n\n    { orc := hO.orc"
     (sem_args ());
   List.iter
     (fun f ->
-      pf ft ",\n      %s := %s.step_sound%s _ hO" f.name f.name (sem_args ()))
+      pf ft ",\n      %s := %s.step_sound%s _ hO" (fld f.name) (qn f.name)
+        (sem_args ()))
     (rule_fns ctx);
   pf ft " }@]@ @ end %s@]@." (root ())
 
@@ -1685,7 +1700,7 @@ let signatures ~sources ft (p : program) =
       if not q.oracle then (
         pf ft "example : ";
         List.iter (fun t -> pf ft "%a → " lean_ty t) q.pargs;
-        pf ft "%a := %s@ " lean_ty q.pret q.pname))
+        pf ft "%a := %s@ " lean_ty q.pret (plain_name q.pname)))
     p.prims;
   pf ft "@ end@ @ end %s@]@." (root ())
 

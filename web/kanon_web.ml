@@ -1,6 +1,6 @@
 (** Kanon in a web page (in a Web Worker): the API [globalThis.kanon] that the
-    site uses (see README.md), over the language server and the command line of
-    kanon, which run on a virtual file system. *)
+    site uses (see site/README.md), over the language server and the command
+    line of kanon, which run on a virtual file system. *)
 
 open Js_of_ocaml
 

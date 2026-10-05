@@ -8,22 +8,29 @@ let () =
   let a = node (Lit (z 1, 8)) (TBv 8) and b = node (Lit (z 2, 8)) (TBv 8) in
   let flag = node (Flag true) TBool in
   (* a leaf: its parameters *)
-  check "as leaf" (as_lit a = Some (z 1, 8));
-  check "is leaf" (is_lit a && (not (is_lit flag)) && is_flag flag);
-  check "as other leaf" (as_lit flag = None && as_flag flag = Some true);
+  check "as leaf" (Lang.as_lit a = Some (z 1, 8));
+  check "is leaf"
+    (Lang.is_lit a && (not (Lang.is_lit flag)) && Lang.is_flag flag);
+  check "as other leaf"
+    (Lang.as_lit flag = None && Lang.as_flag flag = Some true);
   (* an operator: its parameters, then its operands *)
-  let sum = add true a b in
-  check "as operator" (as_add sum = Some (true, a, b));
-  check "is operator" (is_add sum && not (is_add a));
-  check "not an operator" (as_add a = None && as_not sum = None);
-  check "unary" (as_not (not_ flag) = Some flag && is_not (not_ flag));
+  let sum = Rules.add true a b in
+  check "as operator" (Lang.as_add sum = Some (true, a, b));
+  check "is operator" (Lang.is_add sum && not (Lang.is_add a));
+  check "not an operator" (Lang.as_add a = None && Lang.as_not sum = None);
+  check "unary"
+    (Lang.as_not (Rules.not_ flag) = Some flag && Lang.is_not (Rules.not_ flag));
   (* an n-ary operator: the list *)
-  check "n-ary" (as_concat (concat [ a; b ]) = Some [ a; b ]);
-  check "n-ary empty" (as_concat (concat []) = Some [] && not (is_concat a));
+  check "n-ary" (Lang.as_concat (Rules.concat [ a; b ]) = Some [ a; b ]);
+  check "n-ary empty"
+    (Lang.as_concat (Rules.concat []) = Some [] && not (Lang.is_concat a));
   (* a sort: its arguments *)
-  check "as sort" (as_tbv a.ty = Some 8 && as_tbv flag.ty = None);
-  check "is sort" (is_tbv a.ty && is_tbool flag.ty && not (is_tbool a.ty));
-  check "sort without arguments" (as_tbool flag.ty = Some ());
+  check "as sort" (Lang.as_tbv a.ty = Some 8 && Lang.as_tbv flag.ty = None);
+  check "is sort"
+    (Lang.is_tbv a.ty && Lang.is_tbool flag.ty && not (Lang.is_tbool a.ty));
+  check "sort without arguments" (Lang.as_tbool flag.ty = Some ());
   check "sort with two arguments"
     (let t = TPair (TBv 8, TBool) in
-     as_tpair t = Some (TBv 8, TBool) && is_tpair t && not (is_tpair a.ty))
+     Lang.as_tpair t = Some (TBv 8, TBool)
+     && Lang.is_tpair t
+     && not (Lang.is_tpair a.ty))

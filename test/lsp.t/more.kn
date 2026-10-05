@@ -1,2 +1,2 @@
-extend rule b_imp before true_ =
-  | same: x implies x -> v_true
+extend rule Imp.b_imp before true_ =
+  | same: x implies x -> Bool.v_true
