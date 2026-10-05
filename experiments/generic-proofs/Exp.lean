@@ -10,3 +10,5 @@ import Exp.L2.Lang
 import Exp.L2.Step
 import Exp.L2.Closed
 import Exp.L2.Generic
+import Exp.Diamond.Test
+import Exp.Diamond.Matcher
