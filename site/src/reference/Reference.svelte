@@ -1226,8 +1226,9 @@ end`}
       it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
       <code>Statements.lean</code> states <code>f.post.main.Stmt</code>
       (<code>∀ O, O.Sound → ∀ args, hyps → P (f.step O args)</code>), which
-      <code>kanon_proof%</code> proves only from a hand-written proof
-      (<code>{`@[kanon_arm] theorem … : f.post.main.Stmt{:lean}`}</code>).
+      <code>kanon_proof%</code> proves from a hand-written proof
+      (<code>{`@[kanon_arm] theorem … : f.post.main.Stmt{:lean}`}</code>) or the
+      <code>kanon_tactic</code> of <code>f</code>, as <code>kanon_auto</code> does not prove it.
     </li>
   </ul>
 
