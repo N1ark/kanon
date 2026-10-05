@@ -418,7 +418,10 @@
       a refinement). <code>kanon_refl</code>, <code>kanon_congr</code> and <code>kanon_comm</code>
       match the terms, and their lemmas, up to reducible definitions only, so that on different
       terms they fail without evaluating them: state the congruence and commutativity lemmas over
-      the terms as the specs write them. <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
+      the terms as the specs write them. When they differ, <code>kanon_refl</code> unfolds the
+      definitions at the heads of both sides, and the helpers of the interface of a module by the
+      laws of their bodies (<code>L.f v</code> by <code>f_eq</code>), a few times: a spec that is a
+      helper is refined by its body. <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
       proves refinement up to the order of the operands of commutative operators, with the
       congruence lemmas and the commutativity of the operators, which
       <code>Soundness/Laws.lean</code> tags <code>kanon_comm_lemma</code>.

@@ -26,6 +26,7 @@
 - [`[@lean_inv "P"]`](https://n1ark.github.io/kanon/reference.html#on-sorts): invariants of sorts and nodes, in their typing.
 - Interface typing laws type the terms among node arguments.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
+- `kanon_refl` unfolds helpers, so a helper spec is refined.
 
 ### Changed
 

@@ -304,9 +304,59 @@ elab "kanon_on_refines " tac:tactic : tactic => do
 
 /-! ## Congruence -/
 
+/-- The head of `e` unfolded once, with the proof of `e = e'` if it is not by
+definition: a definition, by delta (a helper of the model of a language, or
+the spec of a rule), or a helper `L.f args` of the interface of a module, by
+the law `f_eq` of its field `f`. `none` for any other head (a constructor, a
+variable, a field of `Ops`). -/
+def unfoldHead? (e : Expr) : MetaM (Option (Expr × Option Expr)) := do
+  let e := e.headBeta
+  let .const n _ := e.getAppFn | return none
+  if (← getProjectionFnInfo? n).isSome then
+    let .str p s := n | return none
+    let law := Name.str p (s ++ "_eq")
+    unless (← getEnv).contains law do return none
+    let c ← mkConstWithFreshMVarLevels law
+    let (xs, _, ty) ← forallMetaTelescopeReducing (← inferType c)
+    let some (_, lhs, rhs) := ty.eq? | return none
+    unless ← withReducible (isDefEq lhs e) do return none
+    return some (← instantiateMVars rhs, some (← instantiateMVars (mkAppN c xs)))
+  return (← unfoldDefinition? e).map (·, none)
+
 /-- Proves `Refines s s` by reflexivity, up to reducible definitions only: on
-different terms, it fails without evaluating them. -/
-macro "kanon_refl" : tactic => `(tactic| with_reducible exact Kanon.Sem.Refines.refl)
+different terms, it fails without evaluating them. Failing that, it unfolds the
+heads of both sides (see `unfoldHead?`: e.g. a spec that is a helper) and tries
+again, a few times. -/
+elab "kanon_refl" : tactic => do
+  for _ in [0:8] do
+    let s ← saveState
+    try
+      evalTactic (← `(tactic| with_reducible exact Kanon.Sem.Refines.refl))
+      return
+    catch _ => s.restore
+    let g ← getMainGoal
+    let progress ← g.withContext do
+      let t ← whnfR (← instantiateMVars (← g.getType))
+      unless t.isAppOfArity ``Kanon.Sem.Refines 3 do return false
+      let mut t' := t
+      let mut g' ← g.replaceTargetDefEq t
+      let mut progress := false
+      for i in [1, 2] do
+        match ← unfoldHead? (t'.getArg! i) with
+        | none => pure ()
+        | some (a, none) =>
+          t' := mkAppN t'.getAppFn (t'.getAppArgs.set! i a)
+          g' ← g'.replaceTargetDefEq t'
+          progress := true
+        | some (_, some pf) =>
+          let r ← g'.rewrite t' pf
+          t' := r.eNew
+          g' ← g'.replaceTargetEq r.eNew r.eqProof
+          progress := true
+      if progress then replaceMainGoal [g']
+      return progress
+    unless progress do break
+  throwError "kanon_refl: the terms differ"
 
 /-- `kanon_apply_lemmas [a, …] tac`: applies the first lemma of the attributes
 `a, …` (in turn) after which `tac` succeeds on all the new goals. -/
