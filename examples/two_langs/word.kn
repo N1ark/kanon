@@ -1,0 +1,35 @@
+(* whether [s] is the sort of words *)
+fn is_word (s : ty) : bool =
+  match s with
+  | TWord _ -> true
+  | _ -> false
+
+(* the literal on the left of a sum, or 0 *)
+fn left_lit (v : t) : int =
+  match v with
+  | WAdd (_, _, Wd (z, _), _) -> z
+  | _ -> 0
+
+(* the flags of a plain sum *)
+fn plain : flags = { wrap = false; strict = false }
+
+(* whether [m] rounds down *)
+fn is_down (m : mode) : bool =
+  match m with
+  | Down -> true
+  | Up -> false
+
+(* the sum of [v] with itself, at width [n] *)
+fn twice (n : int) (v : t) : t = WAdd (plain, n, v, v)
+
+rule add : WAdd (f, n, v1, v2) =
+  | plain: a, b when left_lit a = 0 && not f.strict -> WAdd (plain, n, a, b)
+
+rule round : WRound (m, n, v) =
+  | keep: x when (is_down m || m = Up) && is_word (type_of x) -> x
+
+(* a spec that is a helper: proved once, and by each language *)
+rule double (n : int) (v : t) : twice n v = WAdd (plain, n, v, v)
+
+rule double_closed (n : int) (v : t) : twice n v [@lean_closed] =
+  WAdd (plain, n, v, v)

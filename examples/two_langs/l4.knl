@@ -1,0 +1,10 @@
+(* The fourth language: the word module, whose nodes take data as arguments. *)
+
+[@@@lean_root "L4"]
+
+use builtin "bool"
+use "word"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

@@ -35,6 +35,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asLt : S.Term → Option (S.Term × S.Term)
   asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (B.node (LtK a1 a2) t) = some (a1, a2)
   asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (B.node (LtK a1 a2) (S.ty v))
+  /-- The arguments of the sort `TInt`. -/
+  asTInt : S.Ty → Option Unit
+  asTInt_sort : asTInt TInt = some ()
+  asTInt_sound : ∀ (s : S.Ty), asTInt s = some () → s = TInt
   int_add : Int → Int → Int
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
 

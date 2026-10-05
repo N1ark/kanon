@@ -34,6 +34,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asRem2 : S.Term → Option S.Term
   asRem2_node : ∀ (a1 : S.Term) (t : S.Ty), asRem2 (B.node (Rem2K a1) t) = some a1
   asRem2_sound : ∀ (v : S.Term) (a1 : S.Term), asRem2 v = some a1 → v = (B.node (Rem2K a1) (S.ty v))
+  /-- The arguments of the sort `TEven`. -/
+  asTEven : S.Ty → Option Unit
+  asTEven_sort : asTEven TEven = some ()
+  asTEven_sound : ∀ (s : S.Ty), asTEven s = some () → s = TEven
   even_is_ev : S.Term → Bool
   even_is_ev_eq : ∀ (v : S.Term), (even_is_ev v) =
       ((firstSome [(match (asEv v) with | some _ => some (true) | _ => none)]).getD

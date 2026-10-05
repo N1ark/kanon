@@ -42,6 +42,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asMax : S.Term → Option (S.Term × S.Term)
   asMax_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asMax (B.node (MaxK a1 a2) t) = some (a1, a2)
   asMax_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asMax v = some (a1, a2) → v = (B.node (MaxK a1 a2) (S.ty v))
+  /-- The arguments of the sort `TNum`. -/
+  asTNum : S.Ty → Option Unit
+  asTNum_sort : asTNum TNum = some ()
+  asTNum_sound : ∀ (s : S.Ty), asTNum s = some () → s = TNum
   num_is_pos : S.Term → Bool
   num_is_pos_eq : ∀ (v : S.Term), (num_is_pos v) =
       ((firstSome [(match (asNum v) with

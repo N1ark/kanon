@@ -263,11 +263,12 @@ let lean_name s =
   String.concat ""
     (List.map String.capitalize_ascii (String.split_on_char '_' s))
 
-(** The Lean name of a type: [Kind] for the kinds of terms, the name of the kind
-    constructor of their operators for the types of operators ([Op2], [OpN]),
-    else its Kanon name, CamelCased. *)
+(** The Lean name of a type: its [[@lean]] name, [Kind] for the kinds of terms,
+    the name of the kind constructor of their operators for the types of
+    operators ([Op2], [OpN]), else its Kanon name, CamelCased. *)
 let decl_lean_name (d : decl) =
-  if decl_name TKind = Some d.d_name then "Kind"
+  if d.d_lean <> None then Option.get d.d_lean
+  else if decl_name TKind = Some d.d_name then "Kind"
   else
     match
       List.find_opt
@@ -280,6 +281,32 @@ let decl_lean_name (d : decl) =
     | Some k -> k
     | None -> lean_name d.d_name
 
+let constrs_of (d : decl) =
+  List.filter (fun c -> decl_name c.c_res = Some d.d_name) !lang.constrs
+
+let is_abstract (d : decl) = d.d_fields = [] && constrs_of d = []
+
+(** The module proved once that declares the type [d], if it is one: its types
+    are defined once, under its root ([R/Types.lean], and by hand in
+    [R/Abstract.lean]), for every language that uses it. *)
+let type_module (d : decl) =
+  match module_of_loc d.d_loc with
+  | Some m when is_generic_module m -> Some m
+  | _ -> None
+
+(** Whether [d] is defined by hand in Lean: an abstract type without a [[@lean]]
+    name of an existing type. *)
+let by_hand (d : decl) = is_abstract d && d.d_lean = None
+
+(** The Lean name of the type [d], in the files of a language or of a module:
+    qualified by the root of its module, if it is proved once. An existing type
+    that [[@lean]] names is as it is named. *)
+let qual_lean_name (d : decl) =
+  match type_module d with
+  | Some m when not (is_abstract d && d.d_lean <> None) ->
+      Option.get (module_root m) ^ "." ^ decl_lean_name d
+  | _ -> decl_lean_name d
+
 let rec lean_ty ft = function
   | TInt -> pf ft "Int"
   | TBool -> pf ft "Bool"
@@ -287,21 +314,33 @@ let rec lean_ty ft = function
   | TTerm when !generic <> None -> pf ft "S.Term"
   | TSty when !generic <> None -> pf ft "S.Ty"
   | TKind when !generic <> None -> pf ft "%s" (gfield_of None "Kind")
-  | TData _ as t when !generic <> None -> (
+  | TData _ as t when !generic <> None ->
       let d = decl_of_ty t in
-      match d.d_lean with
-      | Some l -> pf ft "%s" l
-      | None -> unsupported d.d_loc "the type %s" d.d_name)
+      if type_module d = None && not (is_abstract d && d.d_lean <> None) then
+        unsupported d.d_loc "the type %s" d.d_name
+      else pf ft "%s" (qual_lean_name d)
   | TTerm -> pf ft "Term"
-  | (TKind | TSty | TData _) as t ->
-      let d = decl_of_ty t in
-      pf ft "%s" (Option.value ~default:(decl_lean_name d) d.d_lean)
+  | (TKind | TSty | TData _) as t -> pf ft "%s" (qual_lean_name (decl_of_ty t))
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
   | TArray t -> pf ft "(Array %a)" lean_ty t
 
 let lean_constr (c : constr) = Fmt.str "%a.%s" lean_ty c.c_res c.c_name
+
+(** Whether [c] is a constructor of a data type (not a sort nor a kind of
+    terms). *)
+let is_data (c : constr) =
+  match c.c_res with
+  | TData t ->
+      not
+        (List.exists
+           (fun k ->
+             match find_constr k with
+             | Some { c_args = Arg (TData t') :: _; _ } -> t = t'
+             | _ -> false)
+           !lang.node_kinds)
+  | _ -> false
 
 (* ---------------------------------------------------------------- *)
 (* Patterns *)
@@ -328,7 +367,7 @@ let rec pat ft (p : pat) =
       in
       pf ft "⟨%s⟩"
         (String.concat ", " (List.map field (decl_of_ty p.pty).d_fields))
-  | PConstr (c, _) when !generic <> None ->
+  | PConstr (c, _) when !generic <> None && not (is_data c) ->
       unsupported p.ploc "the pattern of %s" c.c_name
   | PConstr (c, args) ->
       let inner ft () =
@@ -467,18 +506,18 @@ let rec expr ctx ft (e : expr) =
   | ECons (h, t) -> pf ft "(%a :: %a)" expr h expr t
   | ERecord fs ->
       let d = decl_of_ty e.ety in
-      pf ft "({ %a } : %s)"
+      pf ft "({ %a } : %a)"
         (list (fun ft (f, _) -> pf ft "%s := %a" f expr (List.assoc f fs)))
-        d.d_fields (decl_lean_name d)
+        d.d_fields lean_ty e.ety
   | EField (e, f) -> pf ft "%a.%s" expr e f
   | EAssert (_, body) -> expr ft body
 
 and pat_names p = List.map fst (Check.binders p)
 
-(** Whether [p] matches a node. *)
+(** Whether [p] matches a node, or a sort. *)
 and has_node_pat (p : pat) =
   match p.p with
-  | PConstr (_, _) when p.pty = TTerm -> true
+  | PConstr (_, _) when p.pty = TTerm || p.pty = TSty -> true
   | PConstr (_, l) | PTuple l -> List.exists has_node_pat l
   | PAs (q, _) | PSome q -> has_node_pat q
   | PCons (h, t) -> has_node_pat h || has_node_pat t
@@ -500,10 +539,11 @@ and gconstr ctx ft loc (c : constr) args =
         app (cfield o (kind_field o.c_name)) (oargs @ operands)
     | _ -> unsupported loc "an operator that is not a constructor"
   else if c.c_res = TKind then app (cfield c (kind_field c.c_name)) args
+  else if is_data c then app (lean_constr c) args
   else unsupported loc "the constructor %s" c.c_name
 
 (** A node pattern [p] (of a term): its node, and the patterns of its arguments
-    and operands, which must not match nodes. *)
+    and operands; or a pattern of a sort, and those of its arguments. *)
 and node_pat (p : pat) =
   match p.p with
   | PConstr (k, args) when p.pty = TTerm ->
@@ -515,14 +555,15 @@ and node_pat (p : pat) =
               unsupported p.ploc "an operator pattern that is not a constructor"
         else (k, args)
       in
-      if List.exists has_node_pat args then
-        unsupported p.ploc "a pattern of nodes inside a node";
       Some (node, args)
+  | PConstr (k, args) when k.c_res = TSty -> Some (k, args)
   | _ -> None
 
 (** A match over the interface: each case is a match of its own (see [match_]),
-    in which the scrutinees that a case matches with a node are replaced by the
-    matcher of that node ([asC v], an option of its arguments). *)
+    in which the scrutinees that a case matches with a node (or a sort) are
+    replaced by the matcher of that node ([asC v], an option of its arguments).
+    The nodes inside those are matched by nested matches, on the variables that
+    the outer ones bind to them ([kanon__n1], …). *)
 and gmatch ctx ft (scruts, (cases : case list)) =
   let pats_of (c : case) =
     match (scruts, c.pat.p) with
@@ -538,51 +579,106 @@ and gmatch ctx ft (scruts, (cases : case list)) =
     | _ -> "(" ^ String.concat ", " l ^ ")"
   in
   let str pp x = Fmt.str "%a" pp x in
-  (* the discriminants and the patterns of a case *)
+  (* the patterns of a case, as layers of nested matches: each a list of
+     discriminants, with their patterns, and whether these may fail *)
   let translate (c : case) =
-    List.concat
-      (List.map2
-         (fun (s : expr) (q : pat) ->
-           let matcher (n : constr) args =
-             ( Printf.sprintf "(%s %s)"
-                 (cfield n ("as" ^ n.c_name))
-                 (str (expr ctx) s),
-               "some " ^ tuple (List.map (str pat) args) )
-           in
-           match (q.p, node_pat q) with
-           | _, Some (n, args) -> [ matcher n args ]
-           | PAs (q', x), _ when Option.is_some (node_pat q') ->
-               let n, args = Option.get (node_pat q') in
-               [ matcher n args; (str (expr ctx) s, id x) ]
-           | _ when has_node_pat q ->
-               unsupported q.ploc "a pattern of nodes inside a value"
-           | _ -> [ (str (expr ctx) s, str pat q) ])
-         scruts (pats_of c))
+    let n = ref 0 in
+    let fresh () =
+      incr n;
+      Printf.sprintf "kanon__n%d" !n
+    in
+    (* [q] as a Lean pattern, its nodes bound to variables: and the matches of
+       these variables *)
+    let rec flat (q : pat) =
+      match (q.p, node_pat q) with
+      | _, Some _ ->
+          let x = fresh () in
+          (x, [ (x, q) ])
+      | PAs (q', x), _ when Option.is_some (node_pat q') ->
+          (id x, [ (id x, q') ])
+      | _ when not (has_node_pat q) -> (str pat q, [])
+      | PAs (q', x), _ ->
+          let p', l = flat q' in
+          (Printf.sprintf "%s@%s" (id x) p', l)
+      | PTuple qs, _ ->
+          let ps, ls = List.split (List.map flat qs) in
+          ("(" ^ String.concat ", " ps ^ ")", List.concat ls)
+      | PSome q', _ ->
+          let p', l = flat q' in
+          ("(some " ^ p' ^ ")", l)
+      | PCons (h, t), _ ->
+          let ph, lh = flat h and pt, lt = flat t in
+          (Printf.sprintf "(%s :: %s)" ph pt, lh @ lt)
+      | PConstr (k, qs), _ ->
+          let ps, ls = List.split (List.map flat qs) in
+          ( Printf.sprintf "(%s)" (String.concat " " (lean_constr k :: ps)),
+            List.concat ls )
+      | _ -> unsupported q.ploc "a pattern of nodes inside a value"
+    in
+    (* the match of a node (or a sort) [q] of the term [d], and what it leaves
+       to match *)
+    let matcher d (q : pat) =
+      let k, args = Option.get (node_pat q) in
+      let ps, ls = List.split (List.map flat args) in
+      ( ( Printf.sprintf "(%s %s)" (cfield k ("as" ^ k.c_name)) d,
+          "some " ^ tuple ps,
+          true ),
+        List.concat ls )
+    in
+    let rec layers pending =
+      match pending with
+      | [] -> []
+      | _ ->
+          let ms = List.map (fun (d, q) -> matcher d q) pending in
+          List.map fst ms :: layers (List.concat_map snd ms)
+    in
+    let first, pending =
+      List.split
+        (List.map2
+           (fun (sc : expr) (q : pat) ->
+             let s = str (expr ctx) sc in
+             match (q.p, node_pat q) with
+             | _, Some _ ->
+                 let m, l = matcher s q in
+                 ([ m ], l)
+             | PAs (q', x), _ when Option.is_some (node_pat q') ->
+                 let m, l = matcher s q' in
+                 ([ m; (s, id x, false) ], l)
+             | _ ->
+                 let p, l = flat q in
+                 ([ (s, p, not (irrefutable_flat q)) ], l))
+           scruts (pats_of c))
+    in
+    List.concat first :: layers (List.concat pending)
   in
-  let alt ft (c : case) =
-    let ds = translate c in
-    let d = String.concat ", " (List.map fst ds) in
-    let p = String.concat ", " (List.map snd ds) in
-    let wild = String.concat ", " (List.map (fun _ -> "_") ds) in
-    let rhs = guarded ctx c in
-    if irrefutable c.pat then
-      pf ft "@[<hv 2>(match %s with@ | %s =>@ %a)@]" d p rhs ()
-    else
-      pf ft "@[<hv 2>(match %s with@ | %s =>@ %a@ | %s => none)@]" d p rhs ()
-        wild
+  (* the nested matches of [ls], then [rhs] *)
+  let rec nest ft (ls, rhs) =
+    match ls with
+    | [] -> rhs ft ()
+    | l :: rest ->
+        let d = String.concat ", " (List.map (fun (d, _, _) -> d) l) in
+        let p = String.concat ", " (List.map (fun (_, p, _) -> p) l) in
+        let wild = String.concat ", " (List.map (fun _ -> "_") l) in
+        if List.exists (fun (_, _, r) -> r) l then
+          pf ft "@[<hv 2>(match %s with@ | %s =>@ %a@ | %s => none)@]" d p nest
+            (rest, rhs) wild
+        else pf ft "@[<hv 2>(match %s with@ | %s =>@ %a)@]" d p nest (rest, rhs)
   in
+  let alt ft (c : case) = nest ft (translate c, guarded ctx c) in
   let alts, default =
     match List.rev cases with
     | ({ guard = None; _ } as c) :: rest when irrefutable c.pat ->
         ( List.rev rest,
           fun ft () ->
-            let ds = translate c in
-            pf ft "@[<hv 2>(match %s with@ | %s =>@ %a)@]"
-              (String.concat ", " (List.map fst ds))
-              (String.concat ", " (List.map snd ds))
-              (fun ft () ->
-                binding (pat_names c.pat) (fun () -> expr ctx ft c.body))
-              () )
+            match translate c with
+            | [ ds ] ->
+                pf ft "@[<hv 2>(match %s with@ | %s =>@ %a)@]"
+                  (String.concat ", " (List.map (fun (d, _, _) -> d) ds))
+                  (String.concat ", " (List.map (fun (_, p, _) -> p) ds))
+                  (fun ft () ->
+                    binding (pat_names c.pat) (fun () -> expr ctx ft c.body))
+                  ()
+            | _ -> assert false )
     | _ -> (cases, fun ft () -> pf ft "Inhabited.default")
   in
   match alts with
@@ -604,6 +700,18 @@ and guarded ctx (c : case) ft () =
       | Some g ->
           pf ft "@[<hv>(if %a@ then some (%a)@ else none)@]" (expr ctx) g
             (expr ctx) c.body)
+
+(** Whether a pattern matches every value of its type, once its nodes are
+    variables (see [gmatch]). *)
+and irrefutable_flat (p : pat) =
+  Option.is_some (node_pat p)
+  ||
+  match p.p with
+  | PAny | PVar _ | PUnit -> true
+  | PAs (q, _) -> irrefutable_flat q
+  | PTuple l -> List.for_all irrefutable_flat l
+  | PRecord fs -> List.for_all (fun (_, q) -> irrefutable_flat q) fs
+  | _ -> false
 
 (** Whether a pattern matches every value of its type. *)
 and irrefutable (p : pat) =
@@ -2227,11 +2335,6 @@ let soundness_file ~sources ctx =
    mutually inductive with [Term]. The abstract types are defined by hand in
    between, in [Abstract.lean]. *)
 
-let constrs_of (d : decl) =
-  List.filter (fun c -> decl_name c.c_res = Some d.d_name) !lang.constrs
-
-let is_abstract (d : decl) = d.d_fields = [] && constrs_of d = []
-
 (** The types that [d] is defined with. *)
 let components (d : decl) =
   List.map snd d.d_fields
@@ -2324,9 +2427,35 @@ let lean_decl_full ft (d : decl) =
   deriving ft ();
   comm_def ft d
 
+(** The types of the language that it defines itself: not those of the modules
+    proved once. *)
+let lang_decls () =
+  List.filter (fun d -> type_module d = None) (sorted_decls ())
+
+(** Whether the module [m] declares types that are not abstract
+    ([R/Types.lean]), and types that are defined by hand ([R/Abstract.lean]). *)
+let has_types m =
+  List.exists
+    (fun d -> type_module d = Some m && not (is_abstract d))
+    !lang.decls
+
+let has_hand_types m =
+  List.exists (fun d -> type_module d = Some m && by_hand d) !lang.decls
+
+(** The files of the types of the modules [ms] proved once: [R.Types] and
+    [R.Abstract], those that they have. *)
+let types_imports ~abstract ms =
+  List.concat_map
+    (fun m ->
+      let r = Option.get (module_root m) in
+      (if has_types m then [ r ^ ".Types" ] else [])
+      @ if abstract && has_hand_types m then [ r ^ ".Abstract" ] else [])
+    ms
+
 (** [Types.lean]. *)
 let types ~sources ft =
-  lean_header ~sources ft [];
+  lean_header ~sources ft
+    (types_imports ~abstract:false (List.map fst !lang.lean_modules));
   List.iter
     (fun d ->
       if
@@ -2336,12 +2465,14 @@ let types ~sources ft =
                 (fun e -> is_abstract e || List.exists uses_term (components e))
                 d)
       then lean_decl_full ft d)
-    (sorted_decls ());
+    (lang_decls ());
   pf ft "end %s@]@." (root ())
 
 (** [Syntax.lean]: the other types, and the terms. *)
 let syntax ~sources ft =
-  lean_header ~sources ft [ md "Abstract" ];
+  lean_header ~sources ft
+    (md "Abstract"
+    :: types_imports ~abstract:true (List.map fst !lang.lean_modules));
   let others =
     List.filter
       (fun d ->
@@ -2349,7 +2480,7 @@ let syntax ~sources ft =
         && reaches
              (fun e -> is_abstract e || List.exists uses_term (components e))
              d)
-      (sorted_decls ())
+      (lang_decls ())
   in
   let mutual, plain =
     List.partition
@@ -2686,8 +2817,8 @@ let nodes_file ~sources =
 
    Such a module [M] has its own Lean files, under its root [R], which every
    language that uses it shares: its interface [R.Syntax S] ([Syntax.lean]),
-   which its hand-written [R.Lang S] ([Lang.lean]) extends with what it needs
-   of the semantics; its rule functions over any interface ([Ops.lean]); the
+   with its data types ([Types.lean]), which its hand-written [R.Lang S]
+   ([Lang.lean]) extends with what it needs of the semantics; its rule functions over any interface ([Ops.lean]); the
    statements of its arms over the interface ([Statements/M/f.lean]), proved
    once ([Soundness/M/f.lean], from the hand-written [Proofs/M/f.lean]). A
    language that uses it gives its interface ([Interface.lean], by definition)
@@ -2832,6 +2963,47 @@ let module_sources m =
   let base = String.uncapitalize_ascii m in
   [ base ^ ".knl"; base ^ ".kn" ]
 
+(* ---- Types.lean ---- *)
+
+(** [Types.lean]: the types that the module [m] declares, but its abstract
+    types, which the module defines by hand ([Abstract.lean], which may use
+    these). *)
+let mtypes_file m =
+  with_root (groot m) @@ fun () ->
+  let own =
+    List.filter
+      (fun d -> type_module d = Some m && not (is_abstract d))
+      (sorted_decls ())
+  in
+  List.iter
+    (fun (d : decl) ->
+      let error what =
+        raise
+          (Check.Error
+             ( d.d_loc,
+               Printf.sprintf
+                 "the type %s: a type of a module proved once in Lean \
+                  ([@@@lean_module]) cannot %s"
+                 d.d_name what ))
+      in
+      if reaches (fun e -> List.exists uses_term (components e)) d then
+        error "hold terms"
+      else if reaches (fun e -> type_module e = Some m && by_hand e) d then
+        error "use an abstract type of its module, which Lean defines after it")
+    own;
+  let r = root () in
+  {
+    froot = r;
+    path = [ "Types" ];
+    contents =
+      (fun ft ->
+        with_root r (fun () ->
+            lean_header ~sources:(module_sources m) ft
+              (types_imports ~abstract:true (iface_deps m));
+            List.iter (lean_decl_full ft) own;
+            pf ft "end %s@]@." r));
+  }
+
 (* ---- Syntax.lean ---- *)
 
 (** The invariant of a sort or a node ([[@lean_inv "P"]]), if it has one. *)
@@ -2924,6 +3096,25 @@ let matcher_fields (p : program) (n : gnode) =
       (gnode_term n args "(S.ty v)");
   ]
 
+(** The fields of the matcher of the sort [c] (of the interface of its module),
+    and its laws. *)
+let sort_matcher_fields (c : constr) =
+  let xs =
+    List.mapi (fun i a -> (Printf.sprintf "x%d" (i + 1), arg_ty a)) c.c_args
+  in
+  let args = List.map fst xs in
+  let n = c.c_name in
+  let bs = if xs = [] then "" else "∀ " ^ binders xs ^ ", " in
+  [
+    Printf.sprintf "/-- The arguments of the sort `%s`. -/" n;
+    Printf.sprintf "as%s : S.Ty → Option %s" n (tuple_ty (List.map snd xs));
+    Printf.sprintf "as%s_sort : %sas%s %s = some %s" n bs n (app n args)
+      (tuple args);
+    Printf.sprintf "as%s_sound : ∀ (s : S.Ty)%s, as%s s = some %s → s = %s" n
+      (if xs = [] then "" else " " ^ binders xs)
+      n (tuple args) (app n args);
+  ]
+
 (** The sort laws: the sorts of [m] differ from each other and from those of the
     modules it uses, and are injective in their arguments. *)
 let sort_laws m =
@@ -2977,7 +3168,8 @@ let syntax_file ctx (p : program) m =
   with_root (groot m) @@ fun () ->
   let deps = generic_deps m in
   lean_file ~sources:(module_sources m) [ "Syntax" ]
-    ("KanonCore.Generic" :: List.map (fun d -> groot d ^ ".Syntax") deps)
+    (("KanonCore.Generic" :: types_imports ~abstract:true [ m ])
+    @ List.map (fun d -> groot d ^ ".Syntax") deps)
   @@ fun ft ->
   over_interface ~inside:true m @@ fun () ->
   lines ft
@@ -3023,6 +3215,7 @@ let syntax_file ctx (p : program) m =
     (module_invs m);
   List.iter (fun n -> field (wt_law ctx p n)) nodes;
   List.iter (fun n -> List.iter field (matcher_fields p n)) nodes;
+  List.iter (fun c -> List.iter field (sort_matcher_fields c)) (module_sorts m);
   List.iter
     (fun ss ->
       Option.iter (fun d -> pf ft "  %a" doc (Some d)) ss.ss_doc;
@@ -3390,13 +3583,14 @@ let mfn_soundness_file ~has_proof m (f : fn) =
 
 (** The files of the module [m]. *)
 let module_files ~has_proof ctx (p : program) m =
-  [
-    syntax_file ctx p m;
-    ops_file ctx m;
-    mstatements_file ctx p m;
-    mlifts_file ctx m;
-    mlaws_file ~has_proof m;
-  ]
+  (if has_types m then [ mtypes_file m ] else [])
+  @ [
+      syntax_file ctx p m;
+      ops_file ctx m;
+      mstatements_file ctx p m;
+      mlifts_file ctx m;
+      mlaws_file ~has_proof m;
+    ]
   @ List.concat_map
       (fun f ->
         [ mfn_statements_file ctx m f; mfn_soundness_file ~has_proof m f ])
@@ -3474,6 +3668,25 @@ let interface_file ~sources ctx (p : program) =
       List.iter
         (fun (_, q) -> field (Printf.sprintf "%s := %s" q q))
         (module_invs m);
+      List.iter
+        (fun (c : constr) ->
+          let xs =
+            List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) c.c_args
+          in
+          let n = c.c_name in
+          field
+            (Printf.sprintf "as%s := fun s => match s with | %s => some %s%s" n
+               (app (lean_constr c) xs)
+               (tuple xs)
+               (if List.length (constrs_of (decl_of_ty TSty)) > 1 then
+                  " | _ => none"
+                else ""));
+          field (Printf.sprintf "as%s_sort := by intros; rfl" n);
+          field
+            (Printf.sprintf
+               "as%s_sound := by intro s%s h; cases s <;> cases h <;> rfl" n
+               (String.concat "" (List.map (fun x -> " " ^ x) xs))))
+        (module_sorts m);
       List.iter
         (fun n ->
           let xs, os = node_names p n in

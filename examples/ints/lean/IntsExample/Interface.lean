@@ -30,6 +30,9 @@ attribute [kanon_law] modBase
 /-- The interface of the module `Bool`: every law holds by definition. -/
 def boolSyntax : KanonBool.Syntax (S := sem) modBase where
   TBool := Ty.TBool
+  asTBool := fun s => match s with | Ty.TBool => some () | _ => none
+  asTBool_sort := by intros; rfl
+  asTBool_sound := by intro s h; cases s <;> cases h <;> rfl
   BoolK := fun x1 => (Kind.Bool x1)
   WT_Bool := by intros; first | exact Iff.rfl | kanon_law
   asBool := fun v => match v with | Term.mk (Kind.Bool x1) _ => some x1 | _ => none
@@ -83,6 +86,9 @@ attribute [kanon_law] boolSyntax
 def intSyntax : IntMod.Syntax (S := sem) modBase boolSyntax where
   TInt := Ty.TInt
   TInt_ne_TBool := by intros; exact nofun
+  asTInt := fun s => match s with | Ty.TInt => some () | _ => none
+  asTInt_sort := by intros; rfl
+  asTInt_sound := by intro s h; cases s <;> cases h <;> rfl
   IntK := fun x1 => (Kind.Int x1)
   WT_Int := by intros; first | exact Iff.rfl | kanon_law
   asInt := fun v => match v with | Term.mk (Kind.Int x1) _ => some x1 | _ => none

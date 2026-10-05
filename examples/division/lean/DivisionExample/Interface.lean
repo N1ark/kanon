@@ -24,6 +24,9 @@ attribute [kanon_law] modBase
 /-- The interface of the module `Int`: every law holds by definition. -/
 def intSyntax : DivMod.Syntax (S := sem) modBase where
   TInt := Ty.TInt
+  asTInt := fun s => match s with | Ty.TInt => some ()
+  asTInt_sort := by intros; rfl
+  asTInt_sound := by intro s h; cases s <;> cases h <;> rfl
   IntK := fun x1 => (Kind.Int x1)
   WT_Int := by intros; first | exact Iff.rfl | kanon_law
   asInt := fun v => match v with | Term.mk (Kind.Int x1) _ => some x1 | _ => none

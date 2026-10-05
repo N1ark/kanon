@@ -1,0 +1,3 @@
+[@@@lean_module "Bad2Mod"]
+
+type pair = { l : t; r : t }

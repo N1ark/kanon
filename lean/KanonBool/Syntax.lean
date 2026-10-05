@@ -57,6 +57,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asDistinct : S.Term → Option (List S.Term)
   asDistinct_node : ∀ (l1 : (List S.Term)) (t : S.Ty), asDistinct (B.node (DistinctK l1) t) = some l1
   asDistinct_sound : ∀ (v : S.Term) (l1 : (List S.Term)), asDistinct v = some l1 → v = (B.node (DistinctK l1) (S.ty v))
+  /-- The arguments of the sort `TBool`. -/
+  asTBool : S.Ty → Option Unit
+  asTBool_sort : asTBool TBool = some ()
+  asTBool_sound : ∀ (s : S.Ty), asTBool s = some () → s = TBool
   bool_v_true : S.Term
   bool_v_false : S.Term
   bool_of_bool : Bool → S.Term

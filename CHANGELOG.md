@@ -27,6 +27,9 @@
 - Interface typing laws type the terms among node arguments.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
 - `kanon_refl` unfolds helpers, so a helper spec is refined.
+- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules proved once, in `M/Types.lean`.
+- Helpers of modules proved once match sorts, nested nodes, data.
+- Interfaces have a matcher `asT` per sort.
 
 ### Changed
 
@@ -45,6 +48,7 @@
 - The bool module's Lean proofs move to library `KanonBool`.
 - Languages define `lang` in `Lang.lean`, replacing `Bool.lean`.
 - `kanon_tactic` on `Syntax` proves a module's extension arms.
+- `[@lean "N"]` names generated records and variants.
 
 ### Fixed
 
@@ -55,6 +59,7 @@
 - `kanon_lift_body` lifts calls under goals that `split` tagged.
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
 - `kanon_law` no longer fails when its lemmas close the goal.
+- Record literals in Lean use the Lean name of their type.
 
 ## 0.3.0 (2026-10-04)
 

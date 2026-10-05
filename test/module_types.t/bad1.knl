@@ -1,0 +1,4 @@
+[@@@lean_module "Bad1Mod"]
+
+type blob [@ocaml "int"]
+type boxed = { b : blob }

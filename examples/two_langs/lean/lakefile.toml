@@ -1,5 +1,5 @@
 name = "two_langs_example"
-defaultTargets = ["L1", "L2", "L3"]
+defaultTargets = ["L1", "L2", "L3", "L4"]
 
 # Kanon's Lean library, from this repository.
 [[require]]
@@ -22,6 +22,14 @@ name = "EvenMod"
 [[lean_lib]]
 name = "MixMod"
 
+# The cfg module (../cfg.knl): data types only.
+[[lean_lib]]
+name = "CfgMod"
+
+# The word module (../word.kn), whose nodes take the data of the cfg module.
+[[lean_lib]]
+name = "WordMod"
+
 # The first language (../l1.knl).
 [[lean_lib]]
 name = "L1"
@@ -33,3 +41,7 @@ name = "L2"
 # The third language (../l3.knl).
 [[lean_lib]]
 name = "L3"
+
+# The fourth language (../l4.knl).
+[[lean_lib]]
+name = "L4"

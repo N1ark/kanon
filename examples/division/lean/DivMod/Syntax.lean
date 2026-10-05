@@ -41,6 +41,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asSq1 : S.Term → Option S.Term
   asSq1_node : ∀ (a1 : S.Term) (t : S.Ty), asSq1 (B.node (Sq1K a1) t) = some a1
   asSq1_sound : ∀ (v : S.Term) (a1 : S.Term), asSq1 v = some a1 → v = (B.node (Sq1K a1) (S.ty v))
+  /-- The arguments of the sort `TInt`. -/
+  asTInt : S.Ty → Option Unit
+  asTInt_sort : asTInt TInt = some ()
+  asTInt_sound : ∀ (s : S.Ty), asTInt s = some () → s = TInt
   /-- The integers that are not zero: the divisor of a division, and the result of
       `Sq1`. In Lean, `Nonzero`, a field of the interface of the module (each
       language defines it, in `Semantics.lean`). -/

@@ -28,6 +28,9 @@ attribute [kanon_law] modBase
 /-- The interface of the module `Bool`: every law holds by definition. -/
 def boolSyntax : KanonBool.Syntax (S := sem) modBase where
   TBool := Ty.TBool
+  asTBool := fun s => match s with | Ty.TBool => some ()
+  asTBool_sort := by intros; rfl
+  asTBool_sound := by intro s h; cases s <;> cases h <;> rfl
   BoolK := fun x1 => (Kind.Bool x1)
   WT_Bool := by intros; first | exact Iff.rfl | kanon_law
   asBool := fun v => match v with | Term.mk (Kind.Bool x1) _ => some x1 | _ => none
