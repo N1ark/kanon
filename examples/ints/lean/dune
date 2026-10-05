@@ -8,6 +8,7 @@
  (alias runtest)
  (deps
   (source_tree IntsExample)
+  (source_tree IntMod)
   ../lang.knl
   ../int.knl
   ../int.kn)

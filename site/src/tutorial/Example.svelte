@@ -46,7 +46,9 @@
     "lean-statements",
     "lean-lifts",
     "lean-nodes",
+    "lean-interface",
     "lean-soundness",
+    "lean-modules",
   ];
 </script>
 

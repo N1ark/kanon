@@ -3,7 +3,8 @@ import DivisionExample.Statements
 import DivisionExample.Lifts
 import DivisionExample.Nodes
 import DivisionExample.Lib.Rule
-import DivisionExample.Proofs.Laws
+import DivisionExample.Instance
+import DivMod.Soundness.Laws
 
 set_option linter.unusedVariables false
 set_option maxHeartbeats 1000000
@@ -14,7 +15,7 @@ namespace DivisionExample
 
 open Classical Kanon
 
-set_option maxHeartbeats 400000 in
-@[kanon_comm_lemma] theorem Op2.Plus.comm.ok : Op2.Plus.comm.Stmt := kanon_proof% Op2.Plus.comm
+@[kanon_comm_lemma] theorem Op2.Plus.comm.ok : Op2.Plus.comm.Stmt :=
+  fun a b t => DivMod.Plus.comm.ok (S := sem) modSyntax.toIntSyntax a b t
 
 end DivisionExample

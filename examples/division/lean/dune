@@ -8,6 +8,7 @@
  (alias runtest)
  (deps
   (source_tree DivisionExample)
+  (source_tree DivMod)
   ../lang.knl
   ../int.knl
   ../int.kn)

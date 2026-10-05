@@ -13,9 +13,13 @@
     - [lean-signatures]: the Lean check of the types of their primitives;
     - [lean-typing]: the Lean typing predicates of the operators;
     - [lean-model], [lean-statements], [lean-lifts], [lean-nodes],
-      [lean-soundness]: their Lean model, the statements of their soundness, the
-      lemmas of the nodes, and its proof, each in several files (one per rule
-      function), which are printed one after the other, each after its name.
+      [lean-interface], [lean-soundness]: their Lean model, the statements of
+      their soundness, the lemmas of the nodes, the language as an instance of
+      the modules proved once, and its proof, each in several files (one per
+      rule function), which are printed one after the other, each after its
+      name;
+    - [lean-modules]: the Lean files of the modules proved once
+      ([[@@@lean_module "M"]]), under [M/].
 
     The output is written on standard output. [kanon lean-all DIR FILE...]
     writes every Lean file of the above under [DIR] (as [DIR/R/Model.lean], for

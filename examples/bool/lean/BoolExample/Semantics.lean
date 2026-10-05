@@ -1,5 +1,5 @@
-import KanonCore.Sem
-import KanonCore.BoolMod.Val
+import KanonCore.Generic
+import KanonBool.Sem
 import BoolExample.Ops
 import BoolExample.Typing
 
@@ -12,7 +12,7 @@ or `none` for *poison*:
 - ill-typed terms (see `Term.WT`) are poison, and so are the variables that
   `ρ` does not give a value;
 - the nodes of the bool module are evaluated by the operations of Kanon's
-  library (`Kanon.BoolMod.Val`): `not` and `==` are poison when an operand is,
+  library (`KanonBool.Val`): `not` and `==` are poison when an operand is,
   `ite` only evaluates the branch it selects, and `&&` and `||` are "parallel":
   a `false` (resp. `true`) operand wins over a poisoned one, so that, e.g.,
   `ite g false e` is `not g && e`.
@@ -27,7 +27,7 @@ noncomputable section
 
 namespace BoolExample
 
-open Classical Kanon BoolMod
+open Classical Kanon KanonBool
 
 /-! ## Well-typed terms -/
 
@@ -50,6 +50,13 @@ def Term.WTList (e : Ty) : List Term → Prop
   | [] => True
   | x :: xs => x.ty = e ∧ x.WT ∧ Term.WTList e xs
 end
+
+/-- The typing of a list of terms, for the typing of `Distinct` in the
+interface of the bool module (`kanon_law`). -/
+@[kanon_law] theorem WTList_iff {e : Ty} :
+    ∀ {l : List Term}, Term.WTList e l ↔ ∀ t ∈ l, t.ty = e ∧ t.WT
+  | [] => by simp [Term.WTList]
+  | t :: ts => by simp [Term.WTList, WTList_iff (l := ts)]
 
 /-! ## Evaluation -/
 
@@ -112,10 +119,11 @@ instance : Refinement Refines := Sem.refinement
 
 /-! ## Assumptions on the oracles -/
 
-/-- What the proofs assume of the oracles: that sorting by tags permutes a
-list. The hash-consing order `tag_le` is arbitrary. -/
+/-- What the proofs assume of the oracles: what the bool module assumes of
+`sort_by_tag` (that sorting by tags permutes a list). The hash-consing order
+`tag_le` is arbitrary. -/
 structure Oracle.Compat (orc : Oracle) : Prop where
-  sort_by_tag : ∀ l, (orc.sort_by_tag l).Perm l
+  bool : KanonBool.Oracle.Compat orc.sort_by_tag
 
 end BoolExample
 

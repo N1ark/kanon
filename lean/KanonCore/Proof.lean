@@ -110,13 +110,20 @@ def atomCase (n : Name) (a : Expr) : MetaM (Option Expr) := withNewMCtxDepth do
   if pat.getAppFn.isMVar then
     unless ← isDefEq (← inferType pat.getAppFn) (← inferType a.getAppFn) do return none
   unless ← isDefEq pat a do return none
-  -- the other arguments must be determined by the hypotheses
+  -- the other arguments must be determined by the hypotheses, then the
+  -- instances are found
   for mv in mvs do
     if ← mv.mvarId!.isAssigned then continue
     let t ← instantiateMVars (← inferType mv)
     unless ← isProp t do continue
     let some h ← findHyp t | return none
     unless ← isDefEq mv h do return none
+  for mv in mvs do
+    if ← mv.mvarId!.isAssigned then continue
+    let t ← instantiateMVars (← inferType mv)
+    if (← isClass? t).isSome then
+      let some i ← (try some <$> synthInstance t catch _ => pure none) | return none
+      unless ← isDefEq mv i do return none
   let pf ← instantiateMVars (mkAppN c mvs)
   if pf.hasExprMVar then return none
   return some pf
@@ -219,11 +226,16 @@ call `O.f args` replaced by `f.spec args` (it is found by unification, with the
 lemma `R.Lib.lift_f` that Kanon generates for the function `R.Ops.f`), so that
 the rest of a proof is about raw terms only. -/
 
-/-- The lifting lemma of the head of `e`, a call `O.f args` of a rule function. -/
-def liftLemma? (e : Expr) : MetaM (Option Name) := do
-  let .const (.str (.str ns "Ops") f) _ := e.getAppFn | return none
-  let l := Name.mkStr (ns ++ `Lib) ("lift_" ++ f)
-  return if (← getEnv).contains l then some l else none
+/-- The lifting lemmas of the head of `e`, a call `O.f args` of a rule function:
+`R.Lib.lift_f` in the current namespace `R` (where a module proved once has
+those of the functions of the modules it uses, for its own `O`), then in the
+namespace of the function. -/
+def liftLemmas (e : Expr) : MetaM (List Name) := do
+  let .const (.str (.str ns "Ops") f) _ := e.getAppFn | return []
+  let env ← getEnv
+  let cands := [Name.mkStr ((← getCurrNamespace) ++ `Lib) ("lift_" ++ f),
+    Name.mkStr (ns ++ `Lib) ("lift_" ++ f)]
+  return cands.eraseDups.filter env.contains
 
 /-- Lifts the main goal, a refinement `Refines S body`, by the lifting lemmas
 of the calls of `body`. Returns the hypotheses of these lemmas that are not
@@ -233,18 +245,21 @@ partial def liftGoal : TacticM (List MVarId) := do
   let g ← getMainGoal
   let ty ← whnfR (← instantiateMVars (← g.getType))
   unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do return [g]
-  match ← liftLemma? (ty.getArg! 2) with
-  | some l =>
-    evalTactic (← `(tactic| apply $(mkCIdent l) (by assumption)))
+  for l in ← liftLemmas (ty.getArg! 2) do
+    let s ← saveState
+    try
+      evalTactic (← `(tactic| apply $(mkCIdent l) (by assumption)))
+    catch _ =>
+      s.restore
+      continue
     let mut out := []
     for g' in ← getGoals do
       unless ← g'.isAssigned do
         setGoals [g']
         out := out ++ (← liftGoal)
     return out
-  | none =>
-    evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
-    return []
+  evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
+  return []
 
 /-- Lifts each goal, leaving the hypotheses that are not refinements. -/
 elab "kanon_lift" : tactic => do
@@ -549,6 +564,12 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   (try simp only [kanon_ev] at e ⊢)
   kanon_cases
   all_goals (try simp only [kanon_val] at e ⊢)
+  all_goals (try simp only [kanon_val, Option.some.injEq, reduceCtorEq, false_and, and_false,
+    ite_true, ite_false, Bool.not_true, Bool.not_false, Option.ite_none_left_eq_some,
+    Option.ite_none_right_eq_some] at e ⊢)
+  -- the atoms that the operations on values show (what a value is, over an
+  -- interface)
+  kanon_cases
   all_goals (try simp only [kanon_val, Option.some.injEq, reduceCtorEq, false_and, and_false,
     ite_true, ite_false, Bool.not_true, Bool.not_false, Option.ite_none_left_eq_some,
     Option.ite_none_right_eq_some] at e ⊢)

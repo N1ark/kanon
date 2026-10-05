@@ -24,7 +24,9 @@ const backends = [
   "lean-statements",
   "lean-lifts",
   "lean-nodes",
+  "lean-interface",
   "lean-soundness",
+  "lean-modules",
 ];
 const { examples } = JSON.parse(readFileSync(join(site, "examples/index.json"), "utf8"));
 

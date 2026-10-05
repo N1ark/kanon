@@ -1,0 +1,111 @@
+import IntsExample.Interface
+import IntsExample.Model.Bool.sure_neq
+
+/-!
+# The language, for its modules
+
+Its modules, the bool module and the int module, are proved once (`KanonBool`,
+`IntMod`), for any language that gives their interfaces (which Kanon generates:
+`modSyntax`, in `Interface.lean`) and what they need of its semantics:
+`KanonBool.Sem` and `IntMod.Sem`, together `lang`. The evaluation of the nodes
+holds by definition (with `evList_eq` for `Distinct`); the language proves the
+two laws that need an induction or a case analysis: that well-typed booleans
+evaluate to booleans (from `ev_ty`), and that the terms that `Bool.sure_neq`
+tells apart, which the int module extends with integer literals, have
+different values (`sure_neq_sound`).
+-/
+
+namespace IntsExample
+
+open Classical Kanon KanonBool
+
+@[kanon_law] theorem evList_eq (ρ : Env) : ∀ l, evList ρ l = l.mapM (ev ρ)
+  | [] => rfl
+  | t :: ts => by
+    rw [evList, List.mapM_cons, evList_eq ρ ts]
+    cases ev ρ t <;> cases ts.mapM (ev ρ) <;> rfl
+
+/-- Well-typed terms evaluate to values of their type. -/
+theorem ev_ty (ρ : Env) : ∀ (t : Term) (v : Val), t.WT → ev ρ t = some v → v.ty = t.ty
+  | .mk (.Var x) t, v, _, e => by
+    simp only [ev] at e
+    split at e
+    · split at e
+      · cases e; assumption
+      · cases e
+    · cases e
+  | .mk (.Bool _) t, v, w, e => by
+    simp only [ev, Option.some.injEq] at e; subst e
+    simp_all [Term.WT, Val.ty]
+  | .mk (.Int _) t, v, w, e => by
+    simp only [ev, Option.some.injEq] at e; subst e
+    simp_all [Term.WT, Val.ty]
+  | .mk (.Op1 op a) t, v, w, e => by
+    cases op
+    simp only [ev, evOp1, Term.WT, Op1.WT] at w e
+    rw [pnot_eq_some] at e
+    rcases e with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> simp [Val.ty, w.1.2]
+  | .mk (.Op2 op a b) t, v, w, e => by
+    cases op <;> simp only [ev, evOp2, Term.WT, Op2.WT] at w e
+    · rw [pand_eq_some] at e
+      rcases e with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, -, rfl⟩ <;> simp [Val.ty, w.1.2.2]
+    · rw [por_eq_some] at e
+      rcases e with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, -, rfl⟩ <;> simp [Val.ty, w.1.2.2]
+    · rw [peq_eq_some] at e
+      obtain ⟨-, -, -, -, rfl⟩ := e
+      simp [Val.ty, w.1.2]
+    · simp only [IntMod.addV, Option.bind_eq_some_iff, Option.map_eq_some_iff] at e
+      obtain ⟨-, -, -, -, -, -, -, -, rfl⟩ := e
+      simp [Val.ty, w.1.2.2]
+    · simp only [IntMod.ltV, Option.bind_eq_some_iff, Option.map_eq_some_iff] at e
+      obtain ⟨-, -, -, -, -, -, -, -, rfl⟩ := e
+      simp [Val.ty, w.1.2.2]
+  | .mk (.Op3 op g a b) t, v, w, e => by
+    cases op
+    simp only [ev, evOp3, Term.WT, Op3.WT] at w e
+    obtain ⟨⟨-, hb, rfl⟩, -, wa, wb⟩ := w
+    rw [pite_eq_some] at e
+    rcases e with ⟨-, e⟩ | ⟨-, -, e⟩
+    · exact ev_ty ρ a v wa e
+    · rw [ev_ty ρ b v wb e]; exact hb
+  | .mk (.OpN op l) t, v, w, e => by
+    cases op
+    simp only [ev, evOpN, Term.WT, OpN.WT] at w e
+    obtain ⟨_, rfl, -⟩ := w
+    unfold pdistinct at e
+    rw [Option.map_eq_some_iff] at e
+    obtain ⟨_, -, rfl⟩ := e
+    rfl
+
+/-- The terms that `Bool.sure_neq` tells apart: terms of different types, and
+different literals. -/
+theorem sure_neq_cases {a b : Term} (h : Bool.sure_neq a b = true) :
+    a.ty ≠ b.ty ∨
+      (∃ x y t t', a = .mk (.Bool x) t ∧ b = .mk (.Bool y) t' ∧ x ≠ y) ∨
+      (∃ x y t t', a = .mk (.Int x) t ∧ b = .mk (.Int y) t' ∧ x ≠ y) := by
+  by_cases hty : a.ty = b.ty
+  · right
+    rcases a with ⟨ka, ta⟩; rcases b with ⟨kb, tb⟩
+    simp only [Term.ty_mk] at hty; subst hty
+    cases ka <;> cases kb <;> simp_all [Bool.sure_neq, ty, firstSome]
+  · exact .inl hty
+
+/-- What the modules proved once need of the semantics. -/
+noncomputable def lang : ModSem sem modSyntax where
+  vbool := .bool
+  vint := .int
+  toInt := Val.toInt
+  ev_bool ρ t v w h e := by
+    have := ev_ty ρ t v w e
+    cases v with
+    | bool b => exact ⟨b, rfl⟩
+    | int _ => simp_all [Val.ty, modSyntax]
+  sure_neq_sound ρ a b u h hty _ _ ea eb := by
+    rcases sure_neq_cases h with h | ⟨x, y, t, t', rfl, rfl, hxy⟩ | ⟨x, y, t, t', rfl, rfl, hxy⟩
+    · exact h hty
+    · simp only [ev, Option.some.injEq] at ea eb
+      exact hxy (by cases ea.trans eb.symm; rfl)
+    · simp only [ev, Option.some.injEq] at ea eb
+      exact hxy (by cases ea.trans eb.symm; rfl)
+
+end IntsExample

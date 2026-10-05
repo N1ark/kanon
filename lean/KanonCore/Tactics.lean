@@ -68,8 +68,11 @@ elab "kanon_proof% " x:ident : term => do
     | throwError "kanon_proof%: unknown arm {x.getId}"
   let n := ns ++ x.getId
   if let some p := (Kanon.kanonArmExt.getState env).find? n then return mkConst p
-  let tac ← match (Kanon.armFn x.getId).bind
-      fun f => (Kanon.kanonTacticExt.getState env).find? (ns ++ f ++ `spec) with
+  -- the tactic of the function of the arm, or else (for an arm that a module
+  -- adds to a function of another) that of the module, on its `Syntax`
+  let tacs := Kanon.kanonTacticExt.getState env
+  let tac ← match ((Kanon.armFn x.getId).bind fun f => tacs.find? (ns ++ f ++ `spec)).orElse
+      fun _ => tacs.find? (ns ++ `Syntax) with
     | some t => do
       let t ← ofExcept (Parser.runParserCategory env `tactic t)
       `(tactic| first | ($(⟨t⟩):tactic; done) | kanon_auto)

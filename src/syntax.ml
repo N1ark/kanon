@@ -182,6 +182,10 @@ type lang = {
           its modules *)
   lean_params : (string * string) list;
       (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
+  lean_modules : (string * string) list;
+      (** [[@@@lean_module "R"]], in the declarations of a module: the modules
+          proved once for every language, in Lean, by module name, with the root
+          of their Lean files *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -219,6 +223,7 @@ let lang =
       ty_only = [ "type_of" ];
       lean_root = "Kanon";
       lean_params = [];
+      lean_modules = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;
@@ -418,6 +423,12 @@ type fn = {
   heartbeats : int option;
       (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
           generated proof of its arms in Lean *)
+  lean_closed : bool;
+      (** [[@lean_closed]], on a rule of a module proved once in Lean: its arms
+          are proved by each language instead *)
+  extensible : bool;
+      (** [[@extensible]], on a helper: other modules may add cases to it with
+          [extend fn] *)
 }
 
 type prim = {
@@ -470,4 +481,9 @@ type typing = {
   t_when : expr option;
 }
 
-type program = { prims : prim list; fns : fn list; typing : typing list }
+type program = {
+  prims : prim list;
+  fns : fn list;
+  typing : typing list;  (** of the operators *)
+  leaf_typing : typing list;  (** of the leaves (only their result) *)
+}

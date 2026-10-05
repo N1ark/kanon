@@ -1,9 +1,8 @@
 ; The generated Lean files of the example, under ArraysExample/, from
-; ../lang.knl and its vec module (the model only: lean/ArraysExample.lean
-; imports ArraysExample.Model, and the rest of the tree is not built): `dune
-; test` checks that they are up to date (run `dune exec -- kanon lean-all .
-; ../lang.knl` here after changing the language or the modules), and CI checks
-; that the model compiles with `lake build`.
+; ../lang.knl and its vec module (proved for this language only: it has no
+; [@@@lean_module]): `dune test` checks that they are up to date (run `dune exec
+; -- kanon lean-all . ../lang.knl` here after changing the language or the
+; modules), and CI checks their proofs with `lake build`.
 
 (rule
  (alias runtest)

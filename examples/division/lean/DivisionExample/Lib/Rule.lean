@@ -26,7 +26,6 @@ open Kanon
 
 attribute [kanon_wt] Term.WT Op1.WT Op2.WT
 attribute [kanon_ev] ev evOp1 evOp2
-attribute [kanon_val] addV
 attribute [kanon_lits] Int.add ty
 attribute [kanon_body] mk_commut_binop
 

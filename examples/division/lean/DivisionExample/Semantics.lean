@@ -1,4 +1,5 @@
-import KanonCore.Sem
+import KanonCore.Generic
+import DivMod.Sem
 import DivisionExample.Ops
 import DivisionExample.Typing
 
@@ -10,9 +11,13 @@ or `none` for *poison*:
 
 - ill-typed terms (see `Term.WT`) are poison, and so are the variables that
   `ρ` does not give a value of their type;
-- `+` and `/` are poison when an operand is; the quotient by zero is
+- `+`, `/` and `Sq1` are evaluated by the operations of the int module
+  (`DivMod.addV`, ...): poison when an operand is; the quotient by zero is
   zero, as in Lean, which is why a division needs a non-zero divisor (the
   subsort `TNonzero`, whose Lean predicate is `Nonzero`).
+
+The int module is proved once, over its interface (`DivMod`): `Lang.lean` gives
+what it needs of this semantics.
 
 A smart constructor is sound when its result *refines* the raw node it
 simplifies (`Refines`, Kanon's `Sem.Refines`): whenever the raw node is
@@ -52,28 +57,16 @@ def Val.ty : Val → Ty
 /-- The values of the variables; `none` for a poisoned variable. -/
 abbrev Env := String → Option Val
 
-/-- The sum of two integers; poison otherwise. -/
-def addV : Option Val → Option Val → Option Val
-  | some (.int x), some (.int y) => some (.int (x + y))
-  | _, _ => none
-
-/-- The quotient of two integers, which is zero if the divisor is; poison
-otherwise. -/
-def divV : Option Val → Option Val → Option Val
-  | some (.int x), some (.int y) => some (.int (x / y))
-  | _, _ => none
-
-/-- The square of an integer, plus one; poison otherwise. -/
-def sq1V : Option Val → Option Val
-  | some (.int x) => some (.int (x * x + 1))
-  | _ => none
+/-- The integer of a value. -/
+def Val.toInt : Val → Option Int
+  | .int z => some z
 
 def evOp1 : Op1 → Option Val → Option Val
-  | .Sq1, a => sq1V a
+  | .Sq1, a => DivMod.sq1V .int Val.toInt a
 
 def evOp2 : Op2 → Option Val → Option Val → Option Val
-  | .Plus, a, b => addV a b
-  | .Div, a, b => divV a b
+  | .Plus, a, b => DivMod.addV .int Val.toInt a b
+  | .Div, a, b => DivMod.divV .int Val.toInt a b
 
 /-- Evaluation, assuming well-typedness. A variable is poison unless `ρ`
 gives it a value of its type. -/

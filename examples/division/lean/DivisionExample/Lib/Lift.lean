@@ -16,41 +16,18 @@ namespace DivisionExample
 
 open Kanon Kanon.Sem
 
-/-! ## The operations are monotone -/
-
-theorem addV_mono {a a' b b' : Option Val} (ha : OLe a a') (hb : OLe b b') :
-    OLe (addV a b) (addV a' b') := by
-  intro v e
-  unfold addV at e
-  split at e
-  · rw [ha _ rfl, hb _ rfl]; exact e
-  · cases e
-
-theorem divV_mono {a a' b b' : Option Val} (ha : OLe a a') (hb : OLe b b') :
-    OLe (divV a b) (divV a' b') := by
-  intro v e
-  unfold divV at e
-  split at e
-  · rw [ha _ rfl, hb _ rfl]; exact e
-  · cases e
-
-theorem sq1V_mono {a a' : Option Val} (ha : OLe a a') : OLe (sq1V a) (sq1V a') := by
-  intro v e
-  unfold sq1V at e
-  split at e
-  · rw [ha _ rfl]; exact e
-  · cases e
+/-! ## The operations are monotone (those of the int module are, `DivMod`) -/
 
 theorem evOp1_mono (op : Op1) {a a' : Option Val} (ha : OLe a a') :
     OLe (evOp1 op a) (evOp1 op a') := by
   cases op
-  exact sq1V_mono ha
+  exact DivMod.sq1V_mono ha
 
 theorem evOp2_mono (op : Op2) {a a' b b' : Option Val} (ha : OLe a a') (hb : OLe b b') :
     OLe (evOp2 op a b) (evOp2 op a' b') := by
   cases op
-  · exact addV_mono ha hb
-  · exact divV_mono ha hb
+  · exact DivMod.addV_mono ha hb
+  · exact DivMod.divV_mono ha hb
 
 /-! ## Congruence -/
 

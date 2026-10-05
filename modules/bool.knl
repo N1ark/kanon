@@ -1,5 +1,8 @@
 (* The bool module, at the bottom of every language: booleans, equality, [Ite]
-   and [Distinct]. See the reference of Kanon for the syntax. *)
+   and [Distinct]. See the reference of Kanon for the syntax. It is proved once
+   in Lean, for every language, under KanonBool (Kanon's Lean library). *)
+
+[@@@lean_module "KanonBool"]
 
 node Bool of bool : TBool
 notation Bool

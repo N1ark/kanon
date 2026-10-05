@@ -3,8 +3,8 @@
 
 (** The parts of the generated Lean files (see {!Gen_lean.parts}), whose
     backends are [lean-PART]. *)
-let lean_parts ~lang ~sources ~has_proof prog =
-  Gen_lean.parts ~lang ~sources ~has_proof prog
+let lean_parts ?only_module ~lang ~sources ~has_proof prog =
+  Gen_lean.parts ?only_module ~lang ~sources ~has_proof prog
 
 (** The backends that write on standard output, in the order of the usage. *)
 let backends =
@@ -12,7 +12,7 @@ let backends =
   @ List.map
       (fun (part, _) -> "lean-" ^ part)
       (lean_parts ~lang:[] ~sources:[]
-         ~has_proof:(fun _ -> false)
+         ~has_proof:(fun _ _ -> false)
          (lazy (assert false)))
 
 (** The end of the command, with its exit code. *)
@@ -85,7 +85,7 @@ let lean_all ~check ~err dir (files : Gen_lean.file list) =
   let names =
     List.map
       (fun (f : Gen_lean.file) ->
-        let name = Filename.concat dir (Gen_lean.file_name f.path) in
+        let name = Filename.concat dir (Gen_lean.file_name f) in
         let text = contents f in
         let current =
           if Sys.file_exists name then Some (read_file name) else None
@@ -101,17 +101,22 @@ let lean_all ~check ~err dir (files : Gen_lean.file list) =
         name)
       files
   in
-  let root =
-    Filename.concat dir
-      (String.concat "/" (String.split_on_char '.' (Gen_lean.root ())))
+  let roots =
+    List.sort_uniq compare (List.map (fun (f : Gen_lean.file) -> f.froot) files)
   in
   List.iter
-    (fun name ->
-      if (not (List.mem name names)) && generated name then
-        if check then
-          report "%s is no longer generated (run kanon lean-all)" name
-        else Sys.remove name)
-    (lean_files root);
+    (fun root ->
+      let root =
+        Filename.concat dir (String.concat "/" (String.split_on_char '.' root))
+      in
+      List.iter
+        (fun name ->
+          if (not (List.mem name names)) && generated name then
+            if check then
+              report "%s is no longer generated (run kanon lean-all)" name
+            else Sys.remove name)
+        (lean_files root))
+    roots;
   !ok
 
 (** [run args out err] runs [kanon args] (without [lsp]), writing on [out] and
@@ -133,8 +138,28 @@ let run args out err =
         in
         try
           if files = [] then usage err;
+          Gen_lean.module_uses := [];
+          Gen_lean.builtin_modules := [];
+          let on_parse f str =
+            match Check.module_of_file ~loc:Location.none f with
+            | Some m ->
+                if Option.is_some (Loader.builtin f) then
+                  Gen_lean.builtin_modules := m :: !Gen_lean.builtin_modules;
+                let uses =
+                  List.filter_map
+                    (fun (u, _) -> Check.module_of_file ~loc:Location.none u)
+                    (fst (Loader.uses str))
+                in
+                let old =
+                  Option.value ~default:[]
+                    (List.assoc_opt m !Gen_lean.module_uses)
+                in
+                Gen_lean.module_uses :=
+                  (m, old @ uses) :: List.remove_assoc m !Gen_lean.module_uses
+            | None -> ()
+          in
           let langs, files =
-            try Loader.load files with
+            try Loader.load ~on_parse files with
             | Loader.No_builtin f ->
                 Format.fprintf err "kanon: %s: no such built-in module file@." f;
                 usage err
@@ -151,11 +176,24 @@ let run args out err =
           in
           let lang = List.map (fun (f, _) -> Loader.source_name f) langs in
           let sources = List.map (fun (f, _) -> Loader.source_name f) files in
-          let lean has_proof = lean_parts ~lang ~sources ~has_proof prog in
+          (* a module proved once, given alone: only its own files *)
+          let only_module =
+            match langs with
+            | (f, _) :: _ -> (
+                match Check.module_of_file ~loc:Location.none f with
+                | Some m when List.mem_assoc m !Syntax.lang.lean_modules ->
+                    Some m
+                | _ -> None)
+            | [] -> None
+          in
+          let lean has_proof =
+            lean_parts ?only_module ~lang ~sources ~has_proof prog
+          in
           match (target, backend) with
           | Some (check, dir), _ ->
-              let has_proof path =
-                Sys.file_exists (Filename.concat dir (Gen_lean.file_name path))
+              let has_proof r path =
+                Sys.file_exists
+                  (Filename.concat dir (Gen_lean.file_name_at r path))
               in
               let files =
                 List.concat_map (fun (_, gen) -> gen ()) (lean has_proof)
@@ -178,7 +216,7 @@ let run args out err =
                 List.assoc_opt backend
                   (List.map
                      (fun (part, gen) -> ("lean-" ^ part, gen))
-                     (lean (fun _ -> false)))
+                     (lean (fun _ _ -> false)))
               with
               | Some gen ->
                   (* the files of a part of several, each after its name *)
@@ -188,7 +226,7 @@ let run args out err =
                       if List.length files > 1 then
                         Format.fprintf out "%s-- %s@.@."
                           (if i > 0 then "\n" else "")
-                          (Gen_lean.file_name f.path);
+                          (Gen_lean.file_name f);
                       Format.fprintf out "%s@?" (contents f))
                     files;
                   0

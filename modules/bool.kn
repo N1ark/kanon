@@ -21,7 +21,7 @@ fn of_bool (b : bool) : t = if b then v_true else v_false
 
 (* whether [a] and [b] surely have different values: the modules above add
    their literals *)
-fn sure_neq (a b : t) : bool =
+fn sure_neq (a b : t) : bool [@extensible] =
   (not (type_of a = type_of b))
   ||
   match (a, b) with
