@@ -1,4 +1,4 @@
-import IntsExample.Lib.Rule
+import IntsExample.Statements
 
 /-!
 # Hand-written proofs
@@ -8,6 +8,9 @@ commutativity of `+`, so no proof is needed here. A proof written by hand
 replaces `kanon_auto` for the statement it proves (`@[kanon_arm]`): the one
 below, of the commutativity of `+`, shows how. Its statement, `Op2.Plus.comm.Stmt`
 (`Statements.lean`), is that `a + b` is refined by `b + a`, at any type `t`.
+The generated proofs of the laws, `Soundness/Laws.lean`, import this file, as
+those of a rule function `M.f`, `Soundness/M/f.lean`, would import
+`Proofs/M/f.lean`.
 -/
 
 namespace IntsExample

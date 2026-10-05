@@ -1,5 +1,6 @@
 import KanonCore.BoolMod
 import BoolExample.Semantics
+import BoolExample.Model.Bool.sure_neq
 
 /-!
 # The language, for the bool module

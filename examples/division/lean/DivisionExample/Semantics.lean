@@ -1,5 +1,5 @@
 import KanonCore.Sem
-import DivisionExample.Model
+import DivisionExample.Ops
 import DivisionExample.Typing
 
 /-!
