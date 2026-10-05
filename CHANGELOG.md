@@ -7,8 +7,7 @@
 - [Scoped names](README.md#names-and-modules): `Bitvec.add` from another module.
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
-
-- [Typed functions](README.md#functions): the result of a `fn` may be annotated with a sort, `fn wrapping_add (a b : TBitVector n) : TBitVector n = add unchecked a b`. The generated OCaml asserts it on exit, and `ocaml-typed` gives the function a `val` with the tags of the sorts of its parameters and of its result, so that a derived helper is defined in Kanon and typed, rather than wrapped by hand. Lean erases the annotation.
+- [Typed functions](README.md#functions): `fn f (a : TBv n) : TBv n`.
 
 ### Changed
 
