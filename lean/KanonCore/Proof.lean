@@ -1,6 +1,7 @@
 import KanonCore.Tactics
 import KanonCore.Sem
 import KanonCore.ProofAttr
+import KanonCore.Node
 
 /-!
 # The rule tactics, for any language
@@ -22,7 +23,10 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
   give, or a `kanon_close_lemma`);
 - `kanon_rule` then proves the typing half of each refinement (`kanon_wt`) and
   reduces its value half to the values of the atoms (`kanon_sem_core`), closing
-  what `simp_all` and `omega` can (`kanon_sem`, `kanon_close`);
+  what `simp_all` and `omega` can (`kanon_sem`, `kanon_close`). The typing and
+  the evaluation of the nodes are rewritten by the lemmas of each node first
+  (`kanon_node_wt`, `kanon_node_ev`, which Kanon generates in `Nodes.lean`),
+  then by the language's `kanon_wt` and `kanon_ev` for what they leave;
 - `kanon_close_lemmas` closes a goal by a `kanon_close_lemma` lemma, which
   `kanon_rule_lift` and `kanon_sem` try last;
 - `kanon_congr` (declared by `KanonCore.Tactics`) proves refinements by
@@ -502,9 +506,11 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
     | kanon_rule_close
     | kanon_close_lemmas)))
 
-/-- The typing lemmas of the nodes. -/
-macro "kanon_wt_simp" : tactic => `(tactic| try
-  simp only [kanon_wt, true_and, and_true] at *)
+/-- The typing of the nodes: by the lemmas of each node (`kanon_node_wt`, which
+Kanon generates), then by the language's `kanon_wt` for what they leave. -/
+macro "kanon_wt_simp" : tactic => `(tactic| (
+  (try simp only [kanon_node_wt, true_and, and_true] at *)
+  (try simp only [kanon_wt, true_and, and_true] at *)))
 
 /-- Proves the typing half of a refinement between raw terms. -/
 macro "kanon_wt" : tactic => `(tactic| (
@@ -524,6 +530,7 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   kanon_wt_simp
   (try kanon_split)
   (try subst_vars)
+  (try simp only [kanon_node_ev] at e ⊢)
   (try simp only [kanon_ev] at e ⊢)
   kanon_cases
   all_goals (try simp only [kanon_val] at e ⊢)
