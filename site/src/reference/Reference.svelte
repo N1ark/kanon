@@ -1228,9 +1228,12 @@ end`}
           node <code>C</code>, <code>Nodes.C.wt</code> and <code>Nodes.C.ev</code>, its typing and
           its evaluation in terms of those of its operands
           (<code>{`ev ρ (Term.mk (Kind.Op2 Op2.Plus a1 a2) t) = addV (ev ρ a1) (ev ρ a2){:lean}`}</code>),
-          as the simp sets <code>kanon_wt</code> and <code>kanon_ev</code> that the language gives in
-          <code>R.Lib.Rule</code> unfold them (computed by <code>kanon_unfold_eq%</code>), in the
-          simp sets <code>kanon_node_wt</code> and <code>kanon_node_ev</code>
+          computed once by <code>kanon_node_lemma</code> (<code>KanonCore.Node</code>), which
+          unfolds the definitions of the semantics (<code>R.Semantics</code>) that are applied to
+          the node or to its parts (here <code>ev</code> at <code>Op2</code>, then
+          <code>evOp2</code> at <code>Op2.Plus</code>), in the simp sets
+          <code>kanon_node_wt</code> and <code>kanon_node_ev</code>, which the rule tactics use
+          first
         </td>
       </tr>
       <tr>

@@ -2,6 +2,7 @@
 import ArraysExample.Statements
 import ArraysExample.Lifts
 import ArraysExample.Nodes
+import ArraysExample.Lib.Rule
 
 set_option linter.unusedVariables false
 set_option maxHeartbeats 1000000

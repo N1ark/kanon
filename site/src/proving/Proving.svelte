@@ -119,9 +119,9 @@
         <td>
           The typing and the evaluation of each node in terms of those of its operands
           (<code>Nodes.Op2.Plus.ev</code>), for the tactics (the simp sets
-          <code>kanon_node_wt</code> and <code>kanon_node_ev</code>): they are what the simp sets
-          <code>kanon_wt</code> and <code>kanon_ev</code> of <code>Lib/Rule.lean</code> unfold the
-          nodes to, computed once here.
+          <code>kanon_node_wt</code> and <code>kanon_node_ev</code>, which they rewrite with before
+          <code>kanon_wt</code> and <code>kanon_ev</code>): the definitions of
+          <code>Semantics.lean</code> unfolded at each node, once here.
         </td>
       </tr>
       <tr>
@@ -205,10 +205,10 @@
       <code>macro_rules</code>;
     </li>
     <li>
-      <code>{`kanon_unfold_eq% s e{:lean}`}</code> (<code>KanonCore.Node</code>), the equation of
-      <code>e</code> and of what the simp set <code>s</code> simplifies it to, with which
+      the command <code>kanon_node_lemma</code> (<code>KanonCore.Node</code>), with which
       <code>Nodes.lean</code> states the lemmas of the nodes, in the simp sets
-      <code>kanon_node_wt</code> and <code>kanon_node_ev</code>.
+      <code>kanon_node_wt</code> and <code>kanon_node_ev</code>: the typing or the evaluation of a
+      node, with the definitions applied to the node or to its parts unfolded.
     </li>
   </ul>
   <p>

@@ -2,6 +2,7 @@
 import DivisionExample.Statements
 import DivisionExample.Lifts
 import DivisionExample.Nodes
+import DivisionExample.Lib.Rule
 import DivisionExample.Proofs.Laws
 
 set_option linter.unusedVariables false
