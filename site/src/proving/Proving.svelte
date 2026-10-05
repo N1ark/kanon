@@ -205,8 +205,9 @@
       <code>kanon_cases</code>, <code>kanon_lift</code> (which lifts a call <code>O.f args</code>
       with the lemma <code>R.Lib.lift_f</code> of <code>Lifts.lean</code>),
       <code>kanon_lift_body</code>, <code>kanon_guards</code>, <code>kanon_lits</code>,
-      <code>kanon_wt</code>, <code>kanon_sem_core</code>, <code>kanon_sem</code> and
-      <code>kanon_close</code>. <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
+      <code>kanon_wt</code>, <code>kanon_sem_core</code>, <code>kanon_sem</code>,
+      <code>kanon_close</code> and <code>{`kanon_on_refines tac{:lean}`}</code> (which runs
+      <code>tac</code> on the goal if it is a refinement). <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
       proves refinement up to the order of the operands of commutative operators, with the
       congruence lemmas and the commutativity of the operators, which <code>Soundness.lean</code>
       tags <code>kanon_comm_lemma</code>.
@@ -487,10 +488,14 @@ lake env lean check_axioms.lean
     </li>
     <li>
       <strong>Lifting.</strong> The lifting lemma of a function with a subsort operand assumes the
-      predicate of its argument, which <code>kanon_lift</code> cannot discharge: if the body of a
-      rule calls such a function, the goal <code>Nonzero v'</code> is left for the hand proof of
-      that rule, from what that rule knows of <code>v'</code>. Functions have no sorts, so only
-      rules assume or prove anything.
+      predicate of its argument, which <code>kanon_lift</code> leaves as a goal: if the body of a
+      rule calls such a function, the goal <code>Nonzero v'</code> is left for the proof of that
+      rule, from what that rule knows of <code>v'</code> (the example at the end of the proofs
+      below). <code>kanon_lift_body</code>, which <code>kanon_rule</code> uses, leaves it with the
+      hypothesis <code>kw</code> that the spec is well-typed, as the predicate usually only holds
+      of well-typed terms; <code>kanon_rule</code> tries <code>kanon_rule_close</code> and the
+      <code>kanon_close_lemma</code> lemmas on it, and leaves it otherwise. Functions have no sorts,
+      so only rules assume or prove anything.
     </li>
     <li>
       <strong>Swaps.</strong> The arms that are derived from another by commutativity are proved as
@@ -549,6 +554,56 @@ lake env lean check_axioms.lean  # must not mention sorryAx`}
       <strong>Several types of values.</strong> Give <code>kanon_atom_cases</code> the typed
       lemmas (<code>ev_int</code>, <code>ev_bool</code>, from <code>ev_ty</code>) before the
       untyped one (<code>ev_opt</code>): it uses the first whose hypotheses hold.
+    </li>
+  </ul>
+  <p>The proof of a larger language (Soteria's bit-vectors) ran into these:</p>
+  <ul>
+    <li>
+      <strong>Names in tactics.</strong> The names that a <code>macro</code> quotes are resolved
+      where it is defined: a lemma defined after the macro is unknown to it, and a
+      <code>{`try simp [...]{:lean}`}</code> then silently does nothing. Give lemmas to the tactics by
+      attributes (the simp sets above) rather than by name. With
+      <code>set_option hygiene false</code> (to name, in a later tactic, a hypothesis that the
+      macro introduces) every name is resolved where the macro is used: write them in full. The
+      string of a <code>kanon_tactic</code> is parsed where the arms are proved, in the namespace
+      of the model: qualify the names of other namespaces there too.
+    </li>
+    <li>
+      <strong><code>rfl</code> patterns in macros.</strong> In a hygienic macro, the
+      <code>rfl</code> of an <code>obtain</code> or <code>rcases</code> pattern is taken for a name
+      and substitutes nothing: <code>{`have h : x = y := …; subst h{:lean}`}</code> instead.
+    </li>
+    <li>
+      <strong>Simp side conditions.</strong> A conditional simp lemma whose hypothesis has a
+      variable that its left-hand side does not determine is not used, silently: the hypothesis
+      has a metavariable, which neither the default discharger nor a <code>disch</code> tactic
+      proves. State the lemma so that its left-hand side, or its first hypotheses (which
+      <code>assumption</code> discharges), determine every variable.
+    </li>
+    <li>
+      <strong>Annotations of the congruence lemmas.</strong> When the sort of a node is not that of
+      its spec (<code>ty v2</code> against a sort <code>t</code>), the congruence lemma has a side
+      condition that <code>{`intro _; rfl{:lean}`}</code> does not prove: give
+      <code>kanon_congr_side</code>, which must close it.
+    </li>
+    <li>
+      <strong>Tactics of functions.</strong> A <code>kanon_auto</code> that tries several tactics
+      in turn (<code>{`first | (t1; done) | (t2; done) | …{:lean}`}</code>) runs the failing ones
+      on every arm, which can cost more than the proof. Give each function the tactic that proves
+      its arms, which they try first:
+      <code>{`attribute [kanon_tactic "kanon_rule_bounds"] Bool.and_.spec{:lean}`}</code>.
+    </li>
+    <li>
+      <strong>The two halves of a refinement.</strong> Prove them by position
+      (<code>{`refine Sem.Refines.intro ?_ ?_{:lean}`}</code>, then one tactic per goal, as
+      <code>kanon_rule</code> does), not by trying the typing tactic on every goal
+      (<code>{`all_goals first | (wt; done) | sem{:lean}`}</code>), which fails, slowly, on the value
+      half.
+    </li>
+    <li>
+      <strong><code>omega</code></strong> uses every hypothesis of the context and splits on its
+      disjunctions, divisions and remainders: on an arm with many of them, a lemma for the step it
+      is to make (or clearing the hypotheses it does not need) is much faster.
     </li>
   </ul>
 
