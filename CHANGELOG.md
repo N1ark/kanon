@@ -7,7 +7,7 @@
 - [Scoped names](README.md#names-and-modules): `Bitvec.add` from another module.
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
-- [Typed functions](README.md#functions): `fn f (a : TBv n) : TBv n`.
+- [Typed functions](README.md#functions): sort-annotated `fn` results.
 
 ### Changed
 
