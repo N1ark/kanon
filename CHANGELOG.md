@@ -10,6 +10,7 @@
 - [Traversals](https://n1ark.github.io/kanon/reference.html#traversals): `[@@@traversals]` generates `map_children`, `iter_children` and more.
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
+- `kanon_on_refines tac` runs `tac` on refinement goals only.
 
 ### Changed
 
@@ -25,7 +26,9 @@
 ### Fixed
 
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.
-- `@[kanon_arm]` proofs elaborate in parallel again.
+- `@[kanon_arm]` proofs of a file elaborate in parallel.
+- `kanon_lift` leaves subsort predicates as goals instead of failing.
+- `kanon_congr` needs `kanon_congr_side` to close its goal.
 
 ## 0.3.0 (2026-10-04)
 
