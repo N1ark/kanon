@@ -30,6 +30,7 @@
 - [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules proved once, in `M/Types.lean`.
 - Helpers of modules proved once match sorts, nested nodes, data.
 - Interfaces have a matcher `asT` per sort.
+- A module's `Sem` instance may go in `Lang/M.lean`.
 
 ### Changed
 
@@ -49,6 +50,10 @@
 - Languages define `lang` in `Lang.lean`, replacing `Bool.lean`.
 - `kanon_tactic` on `Syntax` proves a module's extension arms.
 - `[@lean "N"]` names generated records and variants.
+- `Soundness/Laws/Op/C.lean`, one per operator, replaces `Soundness/Laws.lean`.
+- `Instance/M.lean`, one per module, replaces `Instance.lean`.
+- `Interface/M.lean`, one per module; `Interface.lean` has `modBase` only.
+- Generated proofs import only the laws and instances they use.
 
 ### Fixed
 

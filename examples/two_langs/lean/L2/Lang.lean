@@ -1,4 +1,6 @@
-import L2.Interface
+import L2.Interface.Bool
+import L2.Interface.Neg
+import L2.Interface.Num
 import L2.Model.Bool.sure_neq
 
 /-!

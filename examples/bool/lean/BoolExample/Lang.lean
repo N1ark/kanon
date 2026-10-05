@@ -1,5 +1,5 @@
 import KanonBool.Sem
-import BoolExample.Interface
+import BoolExample.Interface.Bool
 
 /-!
 # The language, for the bool module

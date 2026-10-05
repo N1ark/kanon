@@ -18,7 +18,7 @@ module, for its model, its statements and its proofs.
   out/Ex/Soundness.lean
   out/Ex/Soundness/Int/neg.lean
   out/Ex/Soundness/Int/plus.lean
-  out/Ex/Soundness/Laws.lean
+  out/Ex/Soundness/Laws/Op2/Plus.lean
   out/Ex/Statements.lean
   out/Ex/Statements/Int/neg.lean
   out/Ex/Statements/Int/plus.lean
@@ -69,8 +69,9 @@ With --check, kanon lean-all only checks that the files are up to date.
   $ kanon lean-all --check out lang.knl
 
 The hand-written proofs of a rule function, under Proofs, are imported by its
-generated proofs, under Soundness, when they exist (Proofs/Laws.lean for
-Soundness/Laws.lean):
+generated proofs, under Soundness, when they exist (Proofs/Laws.lean for each
+Soundness/Laws/Op/C.lean). A generated proof imports only what it uses: the
+commutativity of the operators that its arms may meet.
 
   $ mkdir -p out/Ex/Proofs/Int
   $ echo 'import Ex.Statements.Int.neg' > out/Ex/Proofs/Int/neg.lean
@@ -79,8 +80,11 @@ Soundness/Laws.lean):
   [1]
   $ kanon lean-all out lang.knl
   $ grep '^import' out/Ex/Soundness/Int/neg.lean
+  import KanonCore.Tactics
   import Ex.Statements.Int.neg
-  import Ex.Soundness.Laws
+  import Ex.Lifts
+  import Ex.Nodes
+  import Ex.Lib.Rule
   import Ex.Proofs.Int.neg
 
 The files that kanon generated and no longer does are removed; the others are

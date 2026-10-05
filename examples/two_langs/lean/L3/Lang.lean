@@ -1,5 +1,9 @@
 import MixMod.Sem
-import L3.Interface
+import L3.Interface.Bool
+import L3.Interface.Even
+import L3.Interface.Mix
+import L3.Interface.Neg
+import L3.Interface.Num
 import L3.Model.Bool.sure_neq
 
 /-!

@@ -1,4 +1,4 @@
-import DivisionExample.Interface
+import DivisionExample.Interface.Int
 
 /-!
 # The language, for its module

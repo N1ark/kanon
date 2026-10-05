@@ -1,5 +1,5 @@
 import L4.Lifts
-import L4.Lang
+import L4.Lang.Word
 
 /-!
 # The default proof of an arm, over the terms of the language

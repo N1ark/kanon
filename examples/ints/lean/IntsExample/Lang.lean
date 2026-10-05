@@ -1,4 +1,5 @@
-import IntsExample.Interface
+import IntsExample.Interface.Bool
+import IntsExample.Interface.Int
 import IntsExample.Model.Bool.sure_neq
 
 /-!

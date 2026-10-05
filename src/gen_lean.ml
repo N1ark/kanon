@@ -17,17 +17,18 @@
     of [Ops], and the commutativity of each commutative operator) and
     [Statements/M/f.lean] (one statement per rule and per arm); [Lifts.lean];
     [Nodes.lean] (the typing and the evaluation of each node);
-    [Soundness/Laws.lean], [Soundness/M/f.lean] (the proofs of the arms, from
-    the hand-written ones of [Proofs/M/f.lean] if it exists) and
-    [Soundness.lean] (soundness of [opsN]). Each imports only what it uses.
+    [Soundness/Laws/Op/C.lean] (the commutativity of an operator),
+    [Soundness/M/f.lean] (the proofs of the arms, from the hand-written ones of
+    [Proofs/M/f.lean] if it exists) and [Soundness.lean] (soundness of [opsN]).
+    Each imports only what it uses.
 
     A module with [[@@@lean_module "M"]] is proved once, under [M/], over its
     interface [M.Syntax S] (an abstract language with its sorts, nodes, matchers
     and helpers as fields, extending those of the modules it uses) and the
     hand-written class [M.Sem L] of what its proofs need of the semantics. A
-    language that uses it instantiates the interface ([Interface.lean]) and the
-    model ([Instance.lean]), and proves each of its arms by that of the module,
-    unless the rule function has [[@lean_closed]]. *)
+    language that uses it instantiates the interface ([Interface/M.lean]) and
+    the model ([Instance/M.lean]), and proves each of its arms by that of the
+    module, unless the rule function has [[@lean_closed]]. *)
 
 open Syntax
 
@@ -2021,7 +2022,7 @@ let iface_binders ?(explicit = false) m =
          (fun d -> b (mvar m d) (syntax_ty ~var:(mvar m) d))
          (iface_deps m))
 
-(** The interface of the module [m] that a language gives ([Interface.lean]):
+(** The interface of the module [m] that a language gives ([Interface/M.lean]):
     [numSyntax] for [Num]; [modBase] for its terms. *)
 let lsyntax m = with_sem_args (String.uncapitalize_ascii m ^ "Syntax")
 
@@ -2233,44 +2234,132 @@ let proof_imports ~has_proof path =
   let p = "Proofs" :: List.tl path in
   if has_proof (root ()) p then [ mdp p ] else []
 
-(** [Soundness/Laws.lean]: the commutativity of the operators, which the proofs
-    of the arms use. *)
-let laws_file ~sources ~has_proof ctx =
-  let path = [ "Soundness"; "Laws" ] in
-  let generic =
-    List.sort_uniq compare
-      (List.filter_map
-         (fun ((op : constr), _) ->
-           match module_of_loc op.c_loc with
-           | Some m when is_generic_module m -> Some m
-           | _ -> None)
-         (comm_ops ()))
+(** The hand-written instances of the [Sem] classes of the module [m] and of
+    those it uses, which a proof over its interface needs: in [Lang/D.lean] for
+    a module [D] if the language writes it, else in [Lang.lean]. *)
+let lang_imports ~has_proof m =
+  List.sort_uniq compare
+    (List.map
+       (fun d ->
+         if has_proof (root ()) [ "Lang"; d ] then md ("Lang." ^ d)
+         else md "Lang")
+       (generic_closure m))
+
+(** The path of the file of the commutativity of the operator [op]:
+    [Soundness/Laws/Op2/Add] for [Op2.Add]. *)
+let law_path (op : constr) =
+  "Soundness" :: "Laws" :: String.split_on_char '.' (lean_constr op)
+
+(** [Soundness/Laws/Op/C.lean]: the commutativity of an operator, which the
+    proofs of the arms that may meet it use (see [fn_soundness_file]). *)
+let law_file ~sources ~has_proof ctx ((op : constr), k) =
+  let imports =
+    match module_of_loc op.c_loc with
+    | Some m when is_generic_module m ->
+        (md "Statements" :: lang_imports ~has_proof m)
+        @ [ groot m ^ ".Soundness.Laws" ]
+    | _ ->
+        (md "Statements"
+        ::
+        (if uses_tactics ctx then [ md "Lifts"; md "Nodes"; md "Lib.Rule" ]
+         else []))
+        @
+        if has_proof (root ()) [ "Proofs"; "Laws" ] then [ md "Proofs.Laws" ]
+        else []
   in
-  lean_file ~sources path
-    ((md "Statements"
-     ::
-     (if uses_tactics ctx then [ md "Lifts"; md "Nodes"; md "Lib.Rule" ] else [])
-     )
-    @ (if generic <> [] then
-         md "Instance"
-         :: List.map (fun m -> groot m ^ ".Soundness.Laws") generic
-       else [])
-    @ proof_imports ~has_proof path)
-    (fun ft -> List.iter (comm_proof ft) (comm_ops ()))
+  lean_file ~sources (law_path op) imports (fun ft -> comm_proof ft (op, k))
+
+(** The constructors that occur in [e], in its expressions and patterns. *)
+let rec expr_constrs (e : expr) =
+  let go = expr_constrs in
+  match e.e with
+  | EConstr (c, l) -> c :: List.concat_map go l
+  | ECall (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
+      List.concat_map go l
+  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
+      go a @ go b
+  | EUnop (_, a) | ESome a | EField (a, _) -> go a
+  | EIf (a, b, c) -> go a @ go b @ go c
+  | ERecord l -> List.concat_map (fun (_, e) -> go e) l
+  | ELet (q, a, b) -> pat_constrs q @ go a @ go b
+  | ELetFun (_, _, a, b) -> go a @ go b
+  | EMatch (scruts, cases) ->
+      List.concat_map go scruts
+      @ List.concat_map
+          (fun (c : case) ->
+            pat_constrs c.pat
+            @ Option.fold ~none:[] ~some:go c.guard
+            @ go c.body)
+          cases
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
+
+and pat_constrs (q : pat) =
+  match q.p with
+  | PConstr (c, l) -> c :: List.concat_map pat_constrs l
+  | PAs (q, _) | PSome q -> pat_constrs q
+  | PTuple l -> List.concat_map pat_constrs l
+  | PCons (a, b) | POr (a, b) | PComm (a, b) -> pat_constrs a @ pat_constrs b
+  | PRecord fs -> List.concat_map (fun (_, q) -> pat_constrs q) fs
+  | _ -> []
+
+(** The commutative operators that the proofs of the arms of [f] may meet: those
+    of its spec and its body, and of the bodies and specs of the functions that
+    they call, directly or not. *)
+let reachable_comm ctx (f : fn) =
+  let seen = Hashtbl.create 17 in
+  let rec visit (g : fn) =
+    if not (Hashtbl.mem seen g.name) then (
+      Hashtbl.add seen g.name ();
+      let es = g.body :: Option.to_list g.spec in
+      List.iter
+        (fun x ->
+          match List.find_opt (fun (h : fn) -> h.name = x) ctx.fns with
+          | Some h -> visit h
+          | None -> ())
+        (List.concat_map calls es))
+  in
+  visit f;
+  let cs =
+    List.concat_map
+      (fun (g : fn) ->
+        if Hashtbl.mem seen g.name then
+          List.concat_map expr_constrs (g.body :: Option.to_list g.spec)
+        else [])
+      ctx.fns
+  in
+  List.filter
+    (fun ((op : constr), _) ->
+      List.exists
+        (fun (c : constr) -> c.c_name = op.c_name && c.c_res = op.c_res)
+        cs)
+    (comm_ops ())
 
 (** [Soundness/M/f.lean]: the proofs of the arms of a rule function, of its
     rules, of its postcondition, and that its step refines its spec. *)
 let fn_soundness_file ~sources ~has_proof ctx (f : fn) =
   let path = fn_path "Soundness" f.name in
   let generic = generic_arm_modules f in
+  (* the proofs by the tactics of the language: those of the arms that their
+     modules do not prove, and of the postcondition *)
+  let closed =
+    postcondition f <> None
+    || List.exists
+         (fun (_, arms) -> List.exists (fun a -> not (generic_arm f a)) arms)
+         (arms f)
+  in
   lean_file ~sources path
-    ([ mdp (fn_path "Statements" f.name); md "Soundness.Laws" ]
-    @ (if generic <> [] then
-         md "Instance"
-         :: List.map
-              (fun m -> groot m ^ "." ^ String.concat "." (List.map id path))
-              generic
-       else [])
+    (("KanonCore.Tactics"
+     :: mdp (fn_path "Statements" f.name)
+     ::
+     (if closed then
+        [ md "Lifts"; md "Nodes"; md "Lib.Rule" ]
+        @ List.map (fun op -> mdp (law_path (fst op))) (reachable_comm ctx f)
+      else []))
+    @ List.concat_map
+        (fun m ->
+          (md ("Instance." ^ m) :: lang_imports ~has_proof m)
+          @ [ groot m ^ "." ^ String.concat "." (List.map id path) ])
+        generic
     @ proof_imports ~has_proof path)
     (fun ft ->
       if f.cases then cases_proofs ft f;
@@ -2299,9 +2388,8 @@ let fn_soundness_file ~sources ~has_proof ctx (f : fn) =
 (** [Soundness.lean]: every rule function refines its spec, for any fuel. *)
 let soundness_file ~sources ctx =
   lean_file ~sources [ "Soundness" ]
-    (md "Model"
-    :: md "Soundness.Laws"
-    :: List.map (fun f -> mdp (fn_path "Soundness" f.name)) (rule_fns ctx))
+    ((md "Model" :: List.map (fun op -> mdp (law_path (fst op))) (comm_ops ()))
+    @ List.map (fun f -> mdp (fn_path "Soundness" f.name)) (rule_fns ctx))
     (fun ft ->
       pf ft
         "/-- Every rule function refines its spec, for any amount of fuel. -/@ \
@@ -2817,13 +2905,14 @@ let nodes_file ~sources =
 
    Such a module [M] has its own Lean files, under its root [R], which every
    language that uses it shares: its interface [R.Syntax S] ([Syntax.lean]),
-   with its data types ([Types.lean]), which its hand-written [R.Lang S]
-   ([Lang.lean]) extends with what it needs of the semantics; its rule functions over any interface ([Ops.lean]); the
-   statements of its arms over the interface ([Statements/M/f.lean]), proved
-   once ([Soundness/M/f.lean], from the hand-written [Proofs/M/f.lean]). A
-   language that uses it gives its interface ([Interface.lean], by definition)
-   and its semantics ([Lang.lean], by hand), and its arms are the generic ones
-   ([Instance.lean], and the proofs of [Soundness/M/f.lean]). *)
+   with its data types ([Types.lean]), of which its hand-written class
+   [R.Sem L] ([Sem.lean]) says what it needs of the semantics; its rule
+   functions over any interface ([Ops.lean]); the statements of its arms over
+   the interface ([Statements/M/f.lean]), proved once ([Soundness/M/f.lean],
+   from the hand-written [Proofs/M/f.lean]). A language that uses it gives its
+   interface ([Interface/M.lean], by definition) and its semantics
+   ([Lang.lean] or [Lang/M.lean], by hand), and its arms are the generic ones
+   ([Instance/M.lean], and the proofs of [Soundness/M/f.lean]). *)
 
 (** A node, for the interfaces: its constructor (the kind of a leaf, or an
     operator), the kind of an operator, and the types of its arguments and of
@@ -3596,7 +3685,7 @@ let module_files ~has_proof ctx (p : program) m =
         [ mfn_statements_file ctx m f; mfn_soundness_file ~has_proof m f ])
       (module_arm_fns ctx m)
 
-(* ---- The language: Interface.lean, Instance.lean ---- *)
+(* ---- The language: Interface.lean, Interface/M.lean, Instance/M.lean ---- *)
 
 (** The closed term of the node [n] over [args] (for its kind). *)
 let closed_kind (n : gnode) xs os =
@@ -3608,22 +3697,11 @@ let closed_kind (n : gnode) xs os =
     its field: by definition, or once its matches are split ([kanon_bridge]). *)
 let bridge (f : fn) = "by kanon_bridge " ^ qn f.name
 
-let interface_file ~sources ctx (p : program) =
-  let mods = generic_modules () in
-  let helper_files =
-    List.concat_map
-      (fun m ->
-        List.map
-          (fun (f : fn) -> mdp (helper_path ctx f.name))
-          (module_helpers ctx m Pure))
-      mods
-    |> List.sort_uniq compare
-  in
-  lean_file ~sources [ "Interface" ]
-    (("KanonCore.Generic" :: md "Semantics" :: helper_files)
-    @ List.map (fun m -> groot m ^ ".Syntax") mods)
+(** [Interface.lean]: the terms of the language, for the interfaces of its
+    modules. *)
+let interface_file ~sources =
+  lean_file ~sources [ "Interface" ] [ "KanonCore.Generic"; md "Semantics" ]
   @@ fun ft ->
-  let base = with_sem_args "modBase" in
   lines ft
     [
       "/-- The terms of the language, for the interfaces of its modules. -/";
@@ -3635,161 +3713,165 @@ let interface_file ~sources ctx (p : program) =
       "";
       "attribute [kanon_law] modBase";
       "";
-    ];
-  let field x = pf ft "  %s@ " x in
-  List.iter
-    (fun m ->
-      let empty =
-        module_sorts m = []
-        && module_nodes m = []
-        && module_subsorts m = []
-        && module_prims ctx m = []
-        && module_helpers ctx m Pure = []
-      in
-      pf ft
-        "/-- The interface of the module `%s`: every law holds by definition. \
-         -/@ def %s %s: %s %s@ "
-        m
-        (String.uncapitalize_ascii m ^ "Syntax")
-        (sem_binders ())
-        (syntax_ty ~base ~sem:(with_sem_args "sem") ~var:lsyntax m)
-        (if empty then ":= {}" else "where");
-      List.iter
-        (fun (c : constr) ->
-          field (Printf.sprintf "%s := %s" c.c_name (lean_constr c)))
-        (module_sorts m);
-      List.iter
-        (fun law ->
-          let name = String.sub law 0 (String.index law ' ') in
-          if String.ends_with ~suffix:"_inj" name then
-            field (name ^ " := by intros; rename_i h; cases h; simp")
-          else field (name ^ " := by intros; exact nofun"))
-        (sort_laws m);
-      List.iter
-        (fun (_, q) -> field (Printf.sprintf "%s := %s" q q))
-        (module_invs m);
-      List.iter
-        (fun (c : constr) ->
-          let xs =
-            List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) c.c_args
-          in
-          let n = c.c_name in
-          field
-            (Printf.sprintf "as%s := fun s => match s with | %s => some %s%s" n
-               (app (lean_constr c) xs)
-               (tuple xs)
-               (if List.length (constrs_of (decl_of_ty TSty)) > 1 then
-                  " | _ => none"
-                else ""));
-          field (Printf.sprintf "as%s_sort := by intros; rfl" n);
-          field
-            (Printf.sprintf
-               "as%s_sound := by intro s%s h; cases s <;> cases h <;> rfl" n
-               (String.concat "" (List.map (fun x -> " " ^ x) xs))))
-        (module_sorts m);
-      List.iter
-        (fun n ->
-          let xs, os = node_names p n in
-          let args = xs @ os in
-          let c = n.gc.c_name in
-          field
-            (Printf.sprintf "%s := %s" (kind_field c)
-               (if args = [] then closed_kind n [] []
-                else
-                  Printf.sprintf "fun %s => %s" (String.concat " " args)
-                    (closed_kind n xs os)));
-          field
-            (Printf.sprintf
-               "WT_%s := by intros; first | exact Iff.rfl | kanon_law" c);
-          field
-            (Printf.sprintf
-               "as%s := fun v => match v with | Term.mk %s _ => some %s | _ => \
-                none"
-               c (closed_kind n xs os) (tuple args));
-          field (Printf.sprintf "as%s_node := by intros; rfl" c);
-          field
-            (Printf.sprintf
-               "as%s_sound := by intro v%s h; dsimp only at h; split at h <;> \
-                cases h <;> rfl"
-               c
-               (String.concat "" (List.map (fun x -> " " ^ x) args))))
-        (module_nodes m);
-      List.iter
-        (fun ss ->
-          let l = Option.get ss.ss_lean in
-          field (Printf.sprintf "%s := %s" l l))
-        (module_subsorts m);
-      List.iter
-        (fun (q : prim) ->
-          field (Printf.sprintf "%s := %s" (fld q.pname) (plain_name q.pname)))
-        (module_prims ctx m);
-      List.iter
-        (fun (f : fn) ->
-          field (Printf.sprintf "%s := %s" (fld f.name) (qn f.name));
-          if not f.extensible then
-            field (Printf.sprintf "%s_eq := %s" (fld f.name) (bridge f)))
-        (module_helpers ctx m Pure);
-      pf ft "@ attribute [kanon_law] %s@ @ "
-        (String.uncapitalize_ascii m ^ "Syntax"))
-    (ordered_modules ())
+    ]
 
-let instance_file ~sources ctx =
-  let mods = generic_modules () in
+(** [Interface/M.lean]: the interface of the module [m], for the terms of the
+    language: what the hand-written instances of its [Sem] class ([Lang/M.lean],
+    or [Lang.lean]) and the proofs of its arms import. *)
+let module_interface_file ~sources ctx (p : program) m =
+  lean_file ~sources [ "Interface"; m ]
+    ((md "Interface" :: List.map (fun d -> md ("Interface." ^ d)) (iface_deps m))
+    @ List.map
+        (fun (f : fn) -> mdp (helper_path ctx f.name))
+        (module_helpers ctx m Pure)
+    @ [ groot m ^ ".Syntax" ])
+  @@ fun ft ->
+  let base = with_sem_args "modBase" in
+  let field x = pf ft "  %s@ " x in
+  let empty =
+    module_sorts m = []
+    && module_nodes m = []
+    && module_subsorts m = []
+    && module_prims ctx m = []
+    && module_helpers ctx m Pure = []
+  in
+  pf ft
+    "/-- The interface of the module `%s`: every law holds by definition. -/@ \
+     def %s %s: %s %s@ "
+    m
+    (String.uncapitalize_ascii m ^ "Syntax")
+    (sem_binders ())
+    (syntax_ty ~base ~sem:(with_sem_args "sem") ~var:lsyntax m)
+    (if empty then ":= {}" else "where");
+  List.iter
+    (fun (c : constr) ->
+      field (Printf.sprintf "%s := %s" c.c_name (lean_constr c)))
+    (module_sorts m);
+  List.iter
+    (fun law ->
+      let name = String.sub law 0 (String.index law ' ') in
+      if String.ends_with ~suffix:"_inj" name then
+        field (name ^ " := by intros; rename_i h; cases h; simp")
+      else field (name ^ " := by intros; exact nofun"))
+    (sort_laws m);
+  List.iter
+    (fun (_, q) -> field (Printf.sprintf "%s := %s" q q))
+    (module_invs m);
+  List.iter
+    (fun (c : constr) ->
+      let xs = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) c.c_args in
+      let n = c.c_name in
+      field
+        (Printf.sprintf "as%s := fun s => match s with | %s => some %s%s" n
+           (app (lean_constr c) xs)
+           (tuple xs)
+           (if List.length (constrs_of (decl_of_ty TSty)) > 1 then
+              " | _ => none"
+            else ""));
+      field (Printf.sprintf "as%s_sort := by intros; rfl" n);
+      field
+        (Printf.sprintf
+           "as%s_sound := by intro s%s h; cases s <;> cases h <;> rfl" n
+           (String.concat "" (List.map (fun x -> " " ^ x) xs))))
+    (module_sorts m);
+  List.iter
+    (fun n ->
+      let xs, os = node_names p n in
+      let args = xs @ os in
+      let c = n.gc.c_name in
+      field
+        (Printf.sprintf "%s := %s" (kind_field c)
+           (if args = [] then closed_kind n [] []
+            else
+              Printf.sprintf "fun %s => %s" (String.concat " " args)
+                (closed_kind n xs os)));
+      field
+        (Printf.sprintf "WT_%s := by intros; first | exact Iff.rfl | kanon_law"
+           c);
+      field
+        (Printf.sprintf
+           "as%s := fun v => match v with | Term.mk %s _ => some %s | _ => none"
+           c (closed_kind n xs os) (tuple args));
+      field (Printf.sprintf "as%s_node := by intros; rfl" c);
+      field
+        (Printf.sprintf
+           "as%s_sound := by intro v%s h; dsimp only at h; split at h <;> \
+            cases h <;> rfl"
+           c
+           (String.concat "" (List.map (fun x -> " " ^ x) args))))
+    (module_nodes m);
+  List.iter
+    (fun ss ->
+      let l = Option.get ss.ss_lean in
+      field (Printf.sprintf "%s := %s" l l))
+    (module_subsorts m);
+  List.iter
+    (fun (q : prim) ->
+      field (Printf.sprintf "%s := %s" (fld q.pname) (plain_name q.pname)))
+    (module_prims ctx m);
+  List.iter
+    (fun (f : fn) ->
+      field (Printf.sprintf "%s := %s" (fld f.name) (qn f.name));
+      if not f.extensible then
+        field (Printf.sprintf "%s_eq := %s" (fld f.name) (bridge f)))
+    (module_helpers ctx m Pure);
+  pf ft "@ attribute [kanon_law] %s@ @ " (String.uncapitalize_ascii m ^ "Syntax")
+
+(** [Instance/M.lean]: the model of the language, for the module [m]: what the
+    proofs of its arms use. *)
+let instance_file ~sources ctx m =
+  let closure = generic_closure m in
   let helper_files =
     List.concat_map
-      (fun m ->
+      (fun d ->
         List.map
           (fun (f : fn) -> mdp (helper_path ctx f.name))
-          (module_helpers ctx m OHelper))
-      mods
+          (module_helpers ctx d OHelper))
+      closure
     |> List.sort_uniq compare
   in
   let has_tag_le =
     List.exists (fun (q : prim) -> q.oracle && q.pname = "tag_le") ctx.prims
   in
-  lean_file ~sources [ "Instance" ]
-    ((md "Lang" :: md "Statements" :: helper_files)
-    @ List.map (fun m -> groot m ^ ".Ops") mods)
+  lean_file ~sources [ "Instance"; m ]
+    ((md ("Interface." ^ m) :: md "Statements" :: helper_files)
+    @ [ groot m ^ ".Ops" ])
   @@ fun ft ->
+  pf ft "/-- The model of the language, for the module `%s`. -/@ " m;
+  pf ft "def Ops.to%s %s(O : Ops) : %s.Ops (S := %s) %s where@ " m
+    (sem_binders ()) (groot m) (with_sem_args "sem") (lsyntax m);
+  pf ft "  tag_le := %s@ "
+    (if has_tag_le then "O.orc.tag_le" else "fun _ _ => true");
   List.iter
-    (fun m ->
-      let closure = generic_closure m in
-      pf ft "/-- The model of the language, for the module `%s`. -/@ " m;
-      pf ft "def Ops.to%s %s(O : Ops) : %s.Ops (S := %s) %s where@ " m
-        (sem_binders ()) (groot m) (with_sem_args "sem") (lsyntax m);
-      pf ft "  tag_le := %s@ "
-        (if has_tag_le then "O.orc.tag_le" else "fun _ _ => true");
+    (fun d ->
       List.iter
-        (fun d ->
-          List.iter
-            (fun (f : fn) -> pf ft "  %s := O.%s@ " (fld f.name) (fld f.name))
-            (module_fns ctx d [ Rule ]);
-          List.iter
-            (fun (q : prim) ->
-              pf ft "  %s := O.orc.%s@ " (fld q.pname) (plain_name q.pname))
-            (module_oracles ctx d);
-          List.iter
-            (fun (f : fn) -> pf ft "  %s := %s O@ " (fld f.name) (qn f.name))
-            (module_helpers ctx d OHelper))
-        closure;
-      pf ft "@ ";
-      pf ft
-        "theorem Ops.Sound.to%s %s{O : Ops} (hO : O.Sound%s) : (Ops.to%s%s \
-         O).Sound where@ "
-        m (sem_implicits ()) (sem_args ()) m (sem_args ());
+        (fun (f : fn) -> pf ft "  %s := O.%s@ " (fld f.name) (fld f.name))
+        (module_fns ctx d [ Rule ]);
       List.iter
-        (fun d ->
-          List.iter
-            (fun (f : fn) -> pf ft "  %s := hO.%s@ " (fld f.name) (fld f.name))
-            (module_fns ctx d [ Rule ]);
-          if module_oracles ctx d <> [] then
-            pf ft "  %s := hO.orc.%s@ " (orc_field d) (String.lowercase_ascii d);
-          List.iter
-            (fun (f : fn) -> pf ft "  %s_eq := %s@ " (fld f.name) (bridge f))
-            (module_helpers ctx d OHelper))
-        closure;
-      pf ft "@ ")
-    mods
+        (fun (q : prim) ->
+          pf ft "  %s := O.orc.%s@ " (fld q.pname) (plain_name q.pname))
+        (module_oracles ctx d);
+      List.iter
+        (fun (f : fn) -> pf ft "  %s := %s O@ " (fld f.name) (qn f.name))
+        (module_helpers ctx d OHelper))
+    closure;
+  pf ft "@ ";
+  pf ft
+    "theorem Ops.Sound.to%s %s{O : Ops} (hO : O.Sound%s) : (Ops.to%s%s \
+     O).Sound where@ "
+    m (sem_implicits ()) (sem_args ()) m (sem_args ());
+  List.iter
+    (fun d ->
+      List.iter
+        (fun (f : fn) -> pf ft "  %s := hO.%s@ " (fld f.name) (fld f.name))
+        (module_fns ctx d [ Rule ]);
+      if module_oracles ctx d <> [] then
+        pf ft "  %s := hO.orc.%s@ " (orc_field d) (String.lowercase_ascii d);
+      List.iter
+        (fun (f : fn) -> pf ft "  %s_eq := %s@ " (fld f.name) (bridge f))
+        (module_helpers ctx d OHelper))
+    closure;
+  pf ft "@ "
 
 (* ---------------------------------------------------------------- *)
 (* The tree of the Lean files *)
@@ -3844,18 +3926,23 @@ let parts ?only_module ~lang:lang_sources ~sources ~has_proof
           fun () ->
             Lazy.force refs;
             if generic then
-              [
-                interface_file ~sources (Lazy.force ctx) (Lazy.force prog');
-                instance_file ~sources (Lazy.force ctx);
-              ]
+              interface_file ~sources
+              :: List.concat_map
+                   (fun m ->
+                     [
+                       module_interface_file ~sources (Lazy.force ctx)
+                         (Lazy.force prog') m;
+                       instance_file ~sources (Lazy.force ctx) m;
+                     ])
+                   (ordered_modules ())
             else [] );
         ( "soundness",
           fun () ->
             let ctx = Lazy.force ctx in
-            (laws_file ~sources ~has_proof ctx
-            :: List.map
-                 (fn_soundness_file ~sources ~has_proof ctx)
-                 (rule_fns ctx))
+            List.map (law_file ~sources ~has_proof ctx) (comm_ops ())
+            @ List.map
+                (fn_soundness_file ~sources ~has_proof ctx)
+                (rule_fns ctx)
             @ [ soundness_file ~sources ctx ] );
         ( "modules",
           module_files_of
