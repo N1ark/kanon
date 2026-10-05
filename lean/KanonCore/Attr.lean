@@ -63,7 +63,7 @@ initialize registerBuiltinAttribute {
   name := `kanon_arm
   descr := "a hand-written proof of the statement `X.Stmt` of an arm `X`"
   add := fun decl _ _ => do
-    let some info := (← getEnv).find? decl | throwError "kanon_arm: unknown {decl}"
+    let some info := (← getEnv).findConstVal? decl | throwError "kanon_arm: unknown {decl}"
     let .const stmt [] := info.type
       | throwError "kanon_arm: {decl} does not prove the statement of an arm"
     let arm := stmt.getPrefix
