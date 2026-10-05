@@ -11,7 +11,8 @@ refined by `b + a`, at any type `t`.
 
 The subsort `TNonzero` (its Lean predicate is `Nonzero`, in `Semantics.lean`) asks
 two more proofs: the arm `a / a = 1` assumes that its divisor is not zero (the
-quotient by zero is zero), and `Int.sq1.post.main.Stmt` says that what `sq1`
+quotient by zero is zero), which a tactic given to the function `Int.div`
+(`kanon_tactic`) proves, and `Int.sq1.post.main.Stmt` says that what `sq1`
 returns, which has the sort `TNonzero`, is not zero.
 -/
 
@@ -33,13 +34,12 @@ open Kanon
     · next x y ha hb => cases e; rw [ha, hb, Int.add_comm]
     · cases e
 
-open Classical in
 /-- `a / a` is refined by `1`, when `a` is not zero (the divisor, `Nonzero`: the
 quotient by zero is zero). -/
-@[kanon_arm] theorem int_div_self : Int.div.r_self.main.Stmt := by
+macro "kanon_div_self" : tactic => `(tactic| (
   intro O hO v1 v2 hs hg
-  have h12 : v1 = v2 := of_decide_eq_true hg
-  subst h12
+  simp only [decide_eq_true_eq] at hg
+  subst hg
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
   · -- typing: `1` is an integer
     simp [sem, Int.div.spec, Term.WT, Op2.WT] at w ⊢
@@ -52,11 +52,15 @@ quotient by zero is zero). -/
     split at e
     · next x y hx hy =>
       rw [hx] at hy
-      obtain rfl : x = y := by simpa using hy
+      have hxy : x = y := by simpa using hy
+      subst hxy
       have hne : x ≠ 0 := hs ρ x ((Sem.eval_eq_ev (S := sem) hw).trans hx)
       cases e
       simp [Int.ediv_self hne]
-    · cases e
+    · cases e))
+
+-- the arms of `Int.div` try `kanon_div_self` before `kanon_auto`
+attribute [kanon_tactic "kanon_div_self"] Int.div.spec
 
 /-- What `sq1` returns satisfies `Nonzero`: its rule gives back its spec, whose
 value is the square of an integer plus one. -/
