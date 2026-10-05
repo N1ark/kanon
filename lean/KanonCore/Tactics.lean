@@ -46,6 +46,14 @@ partial def Kanon.armRoot (env : Environment) (x ns : Name) : Option Name :=
   else if ns.isAnonymous then none
   else armRoot env x ns.getPrefix
 
+open Lean in
+/-- The rule function of the arm `x`: `f` for `f.r_rule.arm` and `f.post.main`,
+where `f` may be qualified (`M.f`); `none` for the commutativity of an operator
+(`Op.comm`). -/
+def Kanon.armFn : Name → Option Name
+  | .str (.str f r) _ => if !f.isAnonymous && (r.startsWith "r_" || r == "post") then some f else none
+  | _ => none
+
 open Lean Elab Term in
 /-- `kanon_proof% X`, in the namespace `R` of the model: the proof of the
 statement `R.X.Stmt` of an arm (or of the commutativity of an operator,
@@ -58,8 +66,8 @@ elab "kanon_proof% " x:ident : term => do
     | throwError "kanon_proof%: unknown arm {x.getId}"
   let n := ns ++ x.getId
   if let some p := (Kanon.kanonArmExt.getState env).find? n then return mkConst p
-  let f := x.getId.components.head!
-  let tac ← match (Kanon.kanonTacticExt.getState env).find? (ns ++ f ++ `spec) with
+  let tac ← match (Kanon.armFn x.getId).bind
+      fun f => (Kanon.kanonTacticExt.getState env).find? (ns ++ f ++ `spec) with
     | some t => do
       let t ← ofExcept (Parser.runParserCategory env `tactic t)
       `(tactic| first | ($(⟨t⟩):tactic; done) | kanon_auto)
