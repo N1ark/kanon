@@ -1649,7 +1649,7 @@ let laws_file ~sources ~has_proof ctx =
   lean_file ~sources path
     ((md "Statements"
      :: md "Lifts"
-     :: (if uses_tactics ctx then [ md "Nodes" ] else []))
+     :: (if uses_tactics ctx then [ md "Nodes"; md "Lib.Rule" ] else []))
     @ List.map mdp bool_helpers
     @ proof_imports ~has_proof path)
     (fun ft ->
@@ -2146,18 +2146,18 @@ let nodes () =
         | None -> None)
     !lang.constrs
 
-(** [Nodes.lean]: for each node [C], its typing [C.wt] and its evaluation [C.ev]
-    in terms of those of its operands, as the simp sets [kanon_wt] and
-    [kanon_ev] of the language unfold them (by [kanon_unfold_eq%] of Kanon's
-    library), for the simp sets [kanon_node_wt] and [kanon_node_ev] of the
-    proofs of the arms. *)
+(** [Nodes.lean]: for each node [C], its typing [Nodes.C.wt] and its evaluation
+    [Nodes.C.ev] in terms of those of its operands, in the simp sets
+    [kanon_node_wt] and [kanon_node_ev] of the proofs of the arms: the
+    definitions of the semantics, unfolded at the node by [kanon_node_lemma] of
+    Kanon's library. *)
 let nodes_file ~sources =
   let fresh x =
     if List.mem_assoc x !lang.lean_params then "kanon__" ^ x else x
   in
   let t = fresh "t" and rho = fresh "ρ" and sem = with_sem_args "sem" in
   lean_file ~sources [ "Nodes" ]
-    [ "KanonCore.Node"; md "Lib.Rule" ]
+    [ "KanonCore.Node"; md "Semantics" ]
     (fun ft ->
       List.iter
         (fun (name, binders, kind) ->
@@ -2169,14 +2169,12 @@ let nodes_file ~sources =
           in
           let term = Printf.sprintf "(Term.mk %s %s)" kind t in
           pf ft
-            "@[<v 2>@@[kanon_node_wt] theorem Nodes.%s.wt %s%s(%s : %a) :@ \
-             kanon_unfold_eq%% kanon_wt (%s.WT %s) := by@ simp only \
-             [kanon_wt]@]@ @ "
+            "@[<v 2>kanon_node_lemma kanon_node_wt Nodes.%s.wt %s%s(%s : %a) \
+             :@ %s.WT %s@]@ @ "
             name (sem_binders ()) binders t lean_ty TSty sem term;
           pf ft
-            "@[<v 2>@@[kanon_node_ev] theorem Nodes.%s.ev %s(%s : %s.Env) \
-             %s(%s : %a) :@ kanon_unfold_eq%% kanon_ev (%s.ev %s %s) := by@ \
-             simp only [kanon_ev]@]@ @ "
+            "@[<v 2>kanon_node_lemma kanon_node_ev Nodes.%s.ev %s(%s : %s.Env) \
+             %s(%s : %a) :@ %s.ev %s %s@]@ @ "
             name (sem_binders ()) rho sem binders t lean_ty TSty sem rho term)
         (nodes ()))
 

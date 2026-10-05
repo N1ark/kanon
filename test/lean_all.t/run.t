@@ -60,9 +60,8 @@ Nodes.lean states the typing and the evaluation of each node, as the simp sets
 kanon_wt and kanon_ev of the language unfold them.
 
   $ sed -n '/Nodes.Op2.Plus.wt/,/^$/p' out/Ex/Nodes.lean
-  @[kanon_node_wt] theorem Nodes.Op2.Plus.wt (a1 : Term) (a2 : Term) (t : Ty) :
-    kanon_unfold_eq% kanon_wt (sem.WT (Term.mk (Kind.Op2 Op2.Plus a1 a2) t)) := by
-    simp only [kanon_wt]
+  kanon_node_lemma kanon_node_wt Nodes.Op2.Plus.wt (a1 : Term) (a2 : Term) (t : Ty) :
+    sem.WT (Term.mk (Kind.Op2 Op2.Plus a1 a2) t)
   
 
 With --check, kanon lean-all only checks that the files are up to date.

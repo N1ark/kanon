@@ -802,6 +802,7 @@ The Lean statements and their proofs:
   import Kanon.Statements
   import Kanon.Lifts
   import Kanon.Nodes
+  import Kanon.Lib.Rule
   
   set_option linter.unusedVariables false
   set_option maxHeartbeats 1000000

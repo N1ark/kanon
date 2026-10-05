@@ -15,9 +15,9 @@ the language by attributes:
   `kanon_body`);
 - the possible values of a term (`kanon_atom_cases`), on which it splits.
 
-`Nodes.lean` (generated) states, from `kanon_wt` and `kanon_ev`, the typing and
-the evaluation of each node (`kanon_node_wt`, `kanon_node_ev`). This file imports
-the models of the helpers it tags, and nothing else of the model.
+`Nodes.lean` (generated) states the typing and the evaluation of each node
+(`kanon_node_wt`, `kanon_node_ev`), which the tactics rewrite with first. This
+file imports the models of the helpers it tags, and nothing else of the model.
 -/
 
 namespace DivisionExample

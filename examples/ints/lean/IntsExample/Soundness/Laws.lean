@@ -2,6 +2,7 @@
 import IntsExample.Statements
 import IntsExample.Lifts
 import IntsExample.Nodes
+import IntsExample.Lib.Rule
 import IntsExample.Model.Bool.at_most_one
 import IntsExample.Model.Bool.distinct_check
 import IntsExample.Model.Bool.distinct_check_one
