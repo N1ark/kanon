@@ -1,0 +1,23 @@
+(* whether [v] is a positive literal: any other term is not *)
+fn is_pos (v : t) : bool =
+  match v with
+  | Num z -> 0 < z
+  | _ -> false
+
+rule add : Add (v1, v2) =
+  | lits: #x + #y -> Num (x + y)
+
+rule less : Lt (v1, v2) =
+  | lits: #x lt #y -> Bool.of_bool (x < y)
+  | pos: #z lt b when z = 0 && is_pos b -> Bool.v_true
+  | same: x lt x -> Bool.v_false
+
+(* proved by each language rather than once, over its own terms *)
+rule max : Max (v1, v2) [@lean_closed] =
+  | same: x, x -> x
+
+extend rule Bool.eq before same =
+  | nums: Num x == Num y -> Bool.of_bool (x = y)
+
+extend fn Bool.sure_neq =
+  | Num x, Num y -> not (x = y)

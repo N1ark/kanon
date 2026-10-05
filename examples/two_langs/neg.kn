@@ -1,0 +1,6 @@
+rule neg : Neg v =
+  | lit: #x -> Num (0 - x)
+  | neg: Neg a -> a
+
+extend rule Num.add =
+  | negself: a + Neg b when a = b -> Num 0

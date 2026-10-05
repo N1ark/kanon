@@ -1,0 +1,31 @@
+; The generated Lean files of the two languages (under L1/ and L2/) and of
+; their modules proved once (under NumMod/ and NegMod/), from ../l1.knl and
+; ../l2.knl: `dune test` checks that they are up to date (run `dune exec --
+; kanon lean-all . ../l1.knl` and `dune exec -- kanon lean-all . ../l2.knl` here
+; after changing a language or a module), and CI checks their proofs with `lake
+; build`. Both languages generate the same files of the num module.
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree L1)
+  (source_tree NumMod)
+  ../l1.knl
+  ../num.knl
+  ../num.kn)
+ (action
+  (run %{bin:kanon} lean-all --check . ../l1.knl)))
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree L2)
+  (source_tree NumMod)
+  (source_tree NegMod)
+  ../l2.knl
+  ../num.knl
+  ../num.kn
+  ../neg.knl
+  ../neg.kn)
+ (action
+  (run %{bin:kanon} lean-all --check . ../l2.knl)))

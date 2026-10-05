@@ -1,0 +1,18 @@
+(* The num module: integers, their sum, their order and their maximum. Two
+   languages use it (l1.knl and l2.knl): it is proved once, in Lean, under NumMod
+   (lean/NumMod), and each language only gives its interface. *)
+
+[@@@lean_module "NumMod"]
+
+node Num of int : TNum
+node Add : TNum -> TNum -> TNum [@comm] [@unit 0]
+node Lt : TNum -> TNum -> TBool
+(** The maximum of two integers. *)
+node Max : TNum -> TNum -> TNum
+
+sort TNum
+
+notation Num
+
+infix "+" = Add, add
+infix "lt" = Lt, less
