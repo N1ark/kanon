@@ -362,7 +362,7 @@
     </tbody>
   </table>
 
-  <Heading level={3} id="on-sorts">On sorts and subsorts</Heading>
+  <Heading level={3} id="on-sorts">On sorts, subsorts and nodes</Heading>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
@@ -385,6 +385,18 @@
           prove that what it returns, when its node has the subsort for its result, satisfies it
           (<code>f.post.main.Stmt</code>, proved by hand with <code>{`@[kanon_arm]{:lean}`}</code>).
           Without it, Lean ignores the subsort.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@lean_inv "P"]{:kanon}`}</code></td>
+        <td>a sort or a node</td>
+        <td>
+          The invariant of its terms: the Lean predicate <code>{`P : Term → Prop{:lean}`}</code>,
+          written by hand in the semantics, that is part of the well-typedness of the nodes whose
+          typing gives that sort, or of that node
+          (<code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code>). The typing law of such a node
+          in the interface of its module ends with <code>{`P (node …){:lean}`}</code> (see
+          <a href="proving.html#invariants">Invariants</a>).
         </td>
       </tr>
     </tbody>
@@ -626,7 +638,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           In the <code>.knl</code> of a module: it is proved once, in the namespace <code>M</code>,
           for every language that uses it, over its interface (see
           <a href="proving.html#modules">Modules proved once</a>). Without it, a module is proved
-          with each language.
+          with each language. The modules it uses must have it too, and must not use it.
         </td>
       </tr>
       <tr>
@@ -1271,10 +1283,9 @@ end`}
       <tr>
         <td><code>lean-interface</code></td>
         <td>
-          <code>Interface.lean</code> (<code>modSyntax</code>, the interfaces of the modules proved
-          once for the terms of the language, and <code>ModSem</code>, what they need of its
-          semantics) and <code>Instance.lean</code> (the instances of their <code>Sem</code>
-          classes, from <code>lang</code>, and the model of the language for each:
+          <code>Interface.lean</code> (<code>modBase</code>, the terms of the language, and the
+          interfaces of the modules proved once for them, <code>mSyntax</code> for the module
+          <code>M</code>) and <code>Instance.lean</code> (the model of the language for each:
           <code>Ops.toM</code>, <code>Ops.Sound.toM</code>), when the language uses such modules
         </td>
       </tr>
@@ -1293,7 +1304,8 @@ end`}
           interface), <code>Ops.lean</code>, <code>Statements.lean</code>,
           <code>Statements/N/f.lean</code>, <code>Lifts.lean</code>,
           <code>Soundness/Laws.lean</code> and <code>Soundness/N/f.lean</code>, over any language
-          <code>{`L : M.Syntax S{:lean}`}</code> with <code>{`[M.Sem L]{:lean}`}</code>
+          <code>{`L : M.Syntax B L1 … Ln{:lean}`}</code> with <code>{`[M.Sem L]{:lean}`}</code>, over the
+          interfaces <code>Li</code> of the modules it uses
         </td>
       </tr>
     </tbody>

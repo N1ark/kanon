@@ -7,16 +7,18 @@ import KanonCore.Sem
 
 A module whose declarations say `[@@@lean_module "R"]` is proved once, for
 every language that uses it, over its *interface*: Kanon generates, in
-`R/Syntax.lean`, the structure `R.Syntax S` of what the module needs of the
-terms of a language with semantics `S : Kanon.Sem` (its sorts, the kinds of its
-nodes, their typing, their matchers, its primitives and helpers, with their
-laws), which extends `Kanon.Base S` and the interfaces of the modules it uses;
-the module's own `R/Lang.lean` adds what it needs of the semantics (`R.Lang S`).
-Each language then gives an instance of these structures, whose laws hold by
-definition (`kanon_law`).
+`R/Syntax.lean`, the structure `R.Syntax B L₁ … Lₙ` of what the module needs of
+the terms `B : Kanon.Base S` of a language with semantics `S : Kanon.Sem` (its
+sorts, the kinds of its nodes, their typing, their matchers, its primitives and
+helpers, with their laws). It has the fields of the module only, and takes the
+interfaces `Lᵢ` of the modules it uses as parameters, so that a module that two
+others use (a diamond) is one parameter, whose lemmas apply as they are; the
+module's own `R/Sem.lean` adds what it needs of the semantics (the class
+`R.Sem L`, given the instances of those of the `Lᵢ`). Each language then gives
+an instance of these structures, whose laws hold by definition (`kanon_law`).
 
 - `Kanon.Base S`: the kinds of terms and the term of a kind at a sort, which
-  every interface extends (so that their diamonds share them);
+  every interface is over;
 - `Kanon.OpsBase S`: the oracle `tag_le`, which the rule functions of every
   module may use;
 - `kanon_law`: the proof of a law of an interface for a language, by its

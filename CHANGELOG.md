@@ -20,7 +20,11 @@
 - `[@extensible]` marks helpers that other modules extend.
 - Backends `lean-interface` and `lean-modules`.
 - `kanon_law` and `kanon_bridge` prove the laws of interfaces.
-- Example `two_langs`: two languages share a module proved once.
+- Example `two_langs`: languages share modules proved once, with a diamond.
+- Module interfaces are unbundled, so that diamonds of modules work.
+- Modules proved once that use each other are an error.
+- [`[@lean_inv "P"]`](https://n1ark.github.io/kanon/reference.html#on-sorts): invariants of sorts and nodes, in their typing.
+- Interface typing laws type the terms among node arguments.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
 
 ### Changed

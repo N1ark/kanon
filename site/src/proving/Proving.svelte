@@ -121,13 +121,11 @@
       <tr>
         <td><code>Interface.lean</code>, <code>Instance.lean</code></td>
         <td>
-          The language as an instance of the modules proved once that it uses:
-          <code>modSyntax</code>, their interfaces (<code>KanonBool.Syntax</code>,
-          <code>IntMod.Syntax</code>) for its terms, whose laws hold by definition, and
-          <code>ModSem</code>, what they need of its semantics; then the instances of their
-          <code>Sem</code> classes (from <code>lang</code>, in <code>Lang.lean</code>) and the
-          model of the language for each (<code>Ops.toInt O : IntMod.Ops modSyntax.toIntSyntax</code>,
-          with <code>Ops.Sound.toInt</code>).
+          The language as an instance of the modules proved once that it uses: its terms
+          (<code>modBase</code>) and their interfaces (<code>boolSyntax : KanonBool.Syntax
+          modBase</code>, <code>intSyntax : IntMod.Syntax modBase boolSyntax</code>), whose laws
+          hold by definition; then the model of the language for each (<code>Ops.toInt O :
+          IntMod.Ops intSyntax</code>, with <code>Ops.Sound.toInt</code>).
         </td>
       </tr>
       <tr>
@@ -149,7 +147,7 @@
           each rule from its arms and of the function from its rules, and
           <code>opsN_sound</code>: the whole simplifier is sound. An arm of a module proved once is
           its theorem, applied to the language
-          (<code>{`fun O hO => IntMod.….ok (S := sem) modSyntax.toIntSyntax (Ops.toInt O) (Ops.Sound.toInt hO){:lean}`}</code>).
+          (<code>{`fun O hO => IntMod.….ok (S := sem) intSyntax (Ops.toInt O) (Ops.Sound.toInt hO){:lean}`}</code>).
         </td>
       </tr>
     </tbody>
@@ -170,7 +168,8 @@
       <tr>
         <td><code>Lang.lean</code></td>
         <td>
-          What the modules proved once need of the semantics (<code>lang : ModSem sem modSyntax</code>):
+          What the modules proved once need of the semantics, an instance of the
+          <code>Sem</code> class of each (<code>{`instance : IntMod.Sem (S := sem) intSyntax{:lean}`}</code>):
           its values, and the laws that do not hold by definition.
         </td>
       </tr>
@@ -199,12 +198,14 @@
       <tr>
         <td><code>Syntax.lean</code></td>
         <td>
-          <code>{`structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty]{:lean}`}</code>,
-          the interface, which extends those of the modules it uses
-          (<code>toBoolSyntax : KanonBool.Syntax S</code>), or <code>Kanon.Base S</code> (the
-          kinds of terms, <code>Kind</code>, and <code>{`node : Kind → S.Ty → S.Term{:lean}`}</code>):
+          <code>{`structure Syntax (B : Kanon.Base S) (LBool : KanonBool.Syntax B){:lean}`}</code>,
+          the interface, over the terms <code>B</code> (the kinds of terms, <code>B.Kind</code>, and
+          <code>{`B.node : B.Kind → S.Ty → S.Term{:lean}`}</code>) and the interfaces of the
+          modules it uses, directly or not, which are its parameters (see
+          <a href="#diamonds">Diamonds</a>). Its fields are those of the module only:
           its sorts (<code>TInt</code>) with their disjointness (<code>TInt_ne_TBool</code>), the
-          kinds of its nodes (<code>PlusK</code>), their typing (<code>WT_Plus</code>), a matcher
+          kinds of its nodes (<code>PlusK</code>), the invariants of its sorts and nodes
+          (see <a href="#invariants">Invariants</a>), their typing (<code>WT_Plus</code>), a matcher
           for each node (<code>asPlus</code>, with <code>asPlus_node</code> and
           <code>asPlus_sound</code>), the predicates of its subsorts, its primitives, and its
           helpers, each with the law of its body (<code>int_add_eq</code> for the primitive <code>int_add</code>; <code>bool_of_bool_eq</code> in <code>KanonBool.Syntax</code>).
@@ -214,15 +215,15 @@
         <td><code>Ops.lean</code></td>
         <td>
           The specs of its rule functions over the interface (<code>{`Int.plus.spec L a b{:lean}`}</code>),
-          <code>{`Ops L{:lean}`}</code>, the rule functions and the oracles that its rules call (with
-          those of the modules it uses), and <code>Ops.Sound</code>.
+          <code>{`Ops L{:lean}`}</code>, the rule functions and the oracles that its rules call (it
+          extends the <code>Ops</code> of the modules it uses), and <code>Ops.Sound</code>.
         </td>
       </tr>
       <tr>
         <td><code>Statements.lean</code>, <code>Statements/M/f.lean</code></td>
         <td>
           The statements of its arms and of its commutativities, for every interface:
-          <code>{`∀ {S} … (L : Syntax S) [Sem L] (O : Ops L), O.Sound → …{:lean}`}</code>.
+          <code>{`∀ {S} … {B} {LBool} (L : Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound → …{:lean}`}</code>.
         </td>
       </tr>
       <tr>
@@ -241,10 +242,10 @@
       <tr>
         <td><code>Sem.lean</code></td>
         <td>
-          <code>{`class Sem (L : Syntax S){:lean}`}</code>, what the proofs need of the semantics of a
-          language, extending those of the modules it uses (as
-          <code>{`toBoolSem : KanonBool.Sem L.toBoolSyntax{:lean}`}</code>): its values and the
-          evaluation of its nodes. Its laws default to <code>kanon_law</code>, which proves them for
+          <code>{`class Sem (L : Syntax B LBool) [KanonBool.Sem LBool]{:lean}`}</code>, what the
+          proofs need of the semantics of a language, given the instances of those of the modules
+          it uses: its values and the evaluation of its nodes (and the meaning of its invariants
+          and of the predicates of its subsorts). Its laws default to <code>kanon_law</code>, which proves them for
           a language whose definitions they unfold to. With <code>Oracle.Compat</code>, what the
           proofs assume of its oracles, if it has some.
         </td>
@@ -268,8 +269,7 @@
     <code>rfl</code> or <code>kanon_law</code>, those of the matchers by cases, and those of the
     helpers by <code>kanon_bridge</code>, which unfolds the helper of the language and splits the
     cases of its <code>match</code> (on the nodes of the language, and its catch-all) against those
-    of the module's. The parents of a <code>Sem</code> class are named <code>to</code> and the name
-    of their module (<code>toBoolSem</code>), and the <code>Oracle.Compat</code> of a language
+    of the module's. The <code>Oracle.Compat</code> of a language
     has a field for each module proved once whose rules call oracles, named after it in lowercase
     (<code>{`bool : KanonBool.Oracle.Compat orc.sort_by_tag{:lean}`}</code>).
   </p>
@@ -283,9 +283,43 @@
     subsort. The language then writes <code>Lib/Lift.lean</code>, <code>Lib/Rule.lean</code> and
     its <code>Proofs/</code>, as a module does, over its own terms, and Kanon generates
     <code>Lifts.lean</code> and <code>Nodes.lean</code>. It is the way out when a proof is easier
-    over the terms of one language, or when the interface does not fit: the interfaces of a module
-    and of the modules it uses must form a chain (a module that uses two modules that do not use
-    each other gets the fields of the second as its own, which its lemmas do not match).
+    over the terms of one language, or when modules use each other: modules proved once cannot
+    (Kanon reports the cycle), as the interface of each would be a part of the other's.
+  </p>
+
+  <Heading level={3} id="diamonds">Diamonds</Heading>
+  <p>
+    The interfaces are unbundled: the interface of a module has its own fields only, and takes as
+    parameters the terms of the language and the interfaces of all the modules it uses, each
+    after those it uses (<code>{`MixMod.Syntax B LBool LNum LEven LNeg{:lean}`}</code>). A module
+    that two others use is then one parameter of the module that uses both, and the lemmas of the
+    shared module (<code>NumMod.Sem.ev_Num</code>) rewrite its goals as they are, by
+    <code>rw</code> and <code>simp</code>. The <code>Sem</code> classes likewise take the instances
+    of those of the modules used (<code>[NumMod.Sem LNum]</code>), and the statements quantify over
+    all of them. Only <code>Ops</code> extends those of the modules used, whose lemmas (the lifting
+    lemmas) each module states anew. In
+    <a href="{REPO}/examples/two_langs"><code>examples/two_langs</code></a>, the neg and even
+    modules use the num module, and the mix module uses both (the language <code>L3</code>): its
+    arm <code>MixMod/Proofs/Neg/neg.lean</code> rewrites with the lemmas of all three.
+  </p>
+
+  <Heading level={3} id="invariants">Invariants</Heading>
+  <p>
+    The typing law of a node in the interface (<code>WT_Plus</code>) says what Kanon knows of it:
+    the sorts of its typing, that its operands, and the terms among its arguments (as the body of a
+    binder, or a list of elements), are well-typed, and the invariants of the node and of its sort.
+    An invariant is a Lean predicate on terms, <code>{`P : Term → Prop{:lean}`}</code>, that you
+    write with the semantics (as the predicate of a subsort), and declare on a sort or a node:
+    <code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code> holds of the nodes whose typing
+    gives that sort, and <code>{`node Exists of (var * ty) list * t : TBool [@lean_inv "exists_wf"]{:kanon}`}</code>
+    of that node (for what is the node's own, as distinct binders). The language's
+    <code>Term.WT</code> must then be, at that node, the conjunction of the law
+    (<code>{`t = .TEven ∧ even_inv (.mk (.Ev z) t){:lean}`}</code>), or give <code>kanon_law</code>
+    a lemma that turns it into it. In a module proved once, the invariant is a field of the
+    interface (<code>L.even_inv</code>), and its <code>Sem</code> class states what the proofs need
+    of it (<code>{`even_inv_Ev : L.even_inv (B.node (L.EvK z) t) ↔ z % 2 = 0{:lean}`}</code>,
+    by definition in each language). The even module of <code>examples/two_langs</code> proves
+    <code>Rem2 (Ev z) → 0</code>, which holds of even literals only.
   </p>
 
   <Heading level={2} id="library">What the library gives</Heading>
@@ -495,10 +529,10 @@
 
   <Heading level={3} id="lang">Lang.lean</Heading>
   <p>
-    The language, for its modules: <code>lang</code>, a <code>{`ModSem sem modSyntax{:lean}`}</code>
-    (the name that <code>Instance.lean</code> uses). Its fields are the values that the modules
-    need (the booleans, the integers and how to read them back) and the laws of their
-    <code>Sem</code> classes, which are mostly proved by default. The two that need a proof here are
+    The language, for its modules: an instance of the <code>Sem</code> class of each, for its
+    interface (<code>{`KanonBool.Sem (S := sem) boolSyntax{:lean}`}</code>), which the generated
+    proofs find. Their fields are the values that the modules need (the booleans, the integers and
+    how to read them back) and the laws of their classes, which are mostly proved by default. The two that need a proof here are
     that well-typed booleans evaluate to booleans, from <code>ev_ty</code>, and that the terms
     that <code>sure_neq</code> (extended by the int module) tells apart have different values.
   </p>
@@ -582,10 +616,10 @@ error: IntMod/Soundness/Bool/eq.lean:16:23: Unknown identifier \`e\``}
       <Code
         lang="lean"
         code={`def Bool.eq.r_ints.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (x : Int) (t__2 : S.Ty) (y : Int) (t__4 : S.Ty),
-  S.Refines (KanonBool.Bool.eq.spec L.toBoolSyntax (L.node (L.IntK x) t__2) (L.node (L.IntK y) t__4))
-  ((L.bool_of_bool (decide (x = y))))`}
+  S.Refines (KanonBool.Bool.eq.spec LBool (B.node (L.IntK x) t__2) (B.node (L.IntK y) t__4))
+  ((LBool.bool_of_bool (decide (x = y))))`}
       />
     </li>
     <li>
@@ -644,7 +678,9 @@ lake env lean check_axioms.lean
       <code>Semantics.lean</code>, with the semantics of terms:
       <code>{`def Nonzero (t : Term) : Prop := ∀ ρ z, eval ρ t = some (.int z) → z ≠ 0{:lean}`}</code>.
       In a module proved once, it is a field of the interface (<code>L.Nonzero</code>), and its
-      <code>Sem</code> class states what the proofs need of it.
+      <code>Sem</code> class states what the proofs need of it. An invariant of a sort
+      (<a href="#invariants">Invariants</a>) is a predicate of the same kind, that well-typedness
+      gives rather than the rules assume.
     </li>
     <li>
       <strong>What it assumes.</strong> A rule function with an operand of the subsort is stated
@@ -705,7 +741,7 @@ lake env lean check_axioms.lean  # must not mention sorryAx`}
     <li>
       <strong>Values of their type.</strong> <code>ev_ty</code>, that well-typed terms evaluate to
       values of their type, is proved by recursion on terms (<code>Lang.lean</code>); the
-      <code>ev_bool</code> of <code>lang</code> follows from it.
+      <code>ev_bool</code> of the instance of <code>KanonBool.Sem</code> follows from it.
     </li>
     <li>
       <strong>Lists of operands.</strong> The typing law of a node with a list of operands
@@ -727,8 +763,8 @@ lake env lean check_axioms.lean  # must not mention sorryAx`}
       <code>bool_of_bool_eq</code>).
     </li>
     <li>
-      <strong>Instances of the modules.</strong> The interface of a language
-      (<code>modSyntax</code>) is not reducible: its laws unfold it by the simp set
+      <strong>Instances of the modules.</strong> The interfaces of a language
+      (<code>intSyntax</code>) are not reducible: their laws unfold them by the simp set
       <code>kanon_law</code>. With <code>open Classical</code>, write the semantics of an
       application explicitly (<code>(S := sem)</code>), as the generated files do.
     </li>
@@ -801,7 +837,7 @@ lake env lean check_axioms.lean  # must not mention sorryAx`}
     booleans as values. Its rules are all the bool module's, which the library proves: it has no
     <code>kanon_auto</code>, hence no <code>Lib/</code>, no <code>Nodes.lean</code> and no
     <code>Proofs/</code>, and its hand-written files are its semantics, its primitives and its
-    <code>lang</code>, whose one law to prove is <code>sure_neq_sound</code>. It is the template
+    instance of <code>KanonBool.Sem</code>, whose one law to prove is <code>sure_neq_sound</code>. It is the template
     for a language that starts from the bool module.
   </p>
 </DocPage>
