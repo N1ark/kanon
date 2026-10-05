@@ -27,7 +27,7 @@ Since then, the compiler knows no value language: the values of literals
 (`bv`), the variables (`var`), the constants of the laws, the conditional of
 `[@distrib_ite]`, the functions that only read the type of a term (`size`), and
 the Lean namespace and parameters of the semantics (`FS : FloatSem`) are
-declared by the language (see the README), and Kanon lives in its own
+declared by the language (see the reference), and Kanon lives in its own
 repository. The generic Lean core (`KanonCore.Lang`, §C) is here, in `lean/`;
 the Lean library of Bv_values and the modules stay in soteria.
 §1 describes the state before all of this.
