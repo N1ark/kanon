@@ -602,7 +602,8 @@ node Fill of int : TArray n`}
     <dt>
       <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
       <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
-      <code>lean-lifts</code>, <code>lean-nodes</code>, <code>lean-soundness</code>
+      <code>lean-lifts</code>, <code>lean-nodes</code>, <code>lean-interface</code>,
+      <code>lean-soundness</code>, <code>lean-modules</code>
     </dt>
     <dd>
       the generated Lean files (below), one after the other when a part has several (one per rule

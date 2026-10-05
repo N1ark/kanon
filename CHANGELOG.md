@@ -15,6 +15,13 @@
 - `Nodes.lean`: the typing and evaluation lemmas of each node.
 - Hand-written proofs of a function go in `Proofs/M/f.lean`.
 - `kanon lean-all --check DIR` checks the Lean files are current.
+- [`[@@@lean_module "M"]`](https://n1ark.github.io/kanon/proving.html#modules): prove a module once, for every language.
+- `[@lean_closed]` proves a rule function with each language.
+- `[@extensible]` marks helpers that other modules extend.
+- Backends `lean-interface` and `lean-modules`.
+- `kanon_law` and `kanon_bridge` prove the laws of interfaces.
+- Example `two_langs`: two languages share a module proved once.
+- `kanon_refl`: reflexivity of refinement, without evaluating terms.
 
 ### Changed
 
@@ -30,6 +37,9 @@
 - Lean backends print every file of their part.
 - `Semantics.lean` imports `R.Ops`; `Prims.lean` imports `KanonCore.Model`.
 - More arms that swap commutative operands are derived.
+- The bool module's Lean proofs move to library `KanonBool`.
+- Languages define `lang` in `Lang.lean`, replacing `Bool.lean`.
+- `kanon_tactic` on `Syntax` proves a module's extension arms.
 
 ### Fixed
 
@@ -37,6 +47,8 @@
 - `@[kanon_arm]` proofs of a file elaborate in parallel.
 - `kanon_lift` leaves subsort predicates as goals instead of failing.
 - `kanon_congr` needs `kanon_congr_side` to close its goal.
+- `kanon_lift_body` lifts calls under goals that `split` tagged.
+- `kanon_comm` and `kanon_congr` fail fast on different terms.
 
 ## 0.3.0 (2026-10-04)
 
