@@ -34,8 +34,8 @@ rule plus : Plus (v1, v2) =
 
 `[@fold]` and `[@unit]` give `plus` the rules that add two literals and drop a
 zero, and `assoc` is written by hand. With `lang.knl` containing `use "tiny"`,
-`kanon ocaml lang.knl` writes the OCaml of `plus` and `kanon lean-all lang.knl`
-the Lean model with its statements.
+`kanon ocaml lang.knl` writes the OCaml of `plus` and `kanon lean-all DIR lang.knl`
+the Lean model with its statements, under `DIR`.
 
 ## Build and use
 
@@ -52,7 +52,8 @@ dune exec -- kanon BACKEND FILE...
 the generated code on standard output. The backends are `ocaml-types`, `ocaml`,
 `ocaml-typed`, `ocaml-tests`, the Lean files (`lean-types`, `lean-syntax`,
 `lean-signatures`, `lean-typing`, `lean-model`, `lean-statements`, `lean-lifts`,
-`lean-soundness`) and `lean-all`. `kanon lsp` runs the language server and
+`lean-nodes`, `lean-soundness`); `kanon lean-all DIR FILE...` writes the Lean
+files under `DIR`. `kanon lsp` runs the language server and
 `kanon --version` prints the version. The Lean proofs build with `lake`, from
 `lean/` (Kanon's Lean library) and from the `lean/` directory of an example.
 

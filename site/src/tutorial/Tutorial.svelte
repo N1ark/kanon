@@ -602,9 +602,12 @@ node Fill of int : TArray n`}
     <dt>
       <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
       <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
-      <code>lean-lifts</code>, <code>lean-soundness</code>
+      <code>lean-lifts</code>, <code>lean-nodes</code>, <code>lean-soundness</code>
     </dt>
-    <dd>the generated Lean files (below); <code>lean-all</code> writes each of them.</dd>
+    <dd>
+      the generated Lean files (below), one after the other when a part has several (one per rule
+      function); <code>kanon lean-all DIR</code> writes all of them under <code>DIR</code>.
+    </dd>
   </dl>
   <p>
     The generated OCaml asserts the sorts of the operands on entry to each rule function (compiled
@@ -616,7 +619,9 @@ node Fill of int : TArray n`}
   <Heading level={2} id="proofs">Proofs</Heading>
   <p>
     The Lean files are generated in the namespace of <code>{`[@@@lean_root "R"]{:kanon}`}</code>
-    (<code>Kanon</code> by default):
+    (<code>Kanon</code> by default), one file per rule function where they are many, so that
+    changing a rule rebuilds the files of its function only. <code>kanon lean-all DIR lang.knl</code>
+    writes them under <code>DIR/R</code>:
   </p>
   <ul>
     <li>
@@ -627,15 +632,20 @@ node Fill of int : TArray n`}
       <code>Signatures.lean</code> checks that the hand-written <code>R.Prims</code> defines the
       primitives, at their types;
     </li>
-    <li><code>Model.lean</code> is a model of the rule functions, over the primitives;</li>
     <li>
-      <code>Statements.lean</code> states that every alternative of every rule is sound: its result
-      refines its spec;
+      <code>Ops.lean</code>, <code>Model/M/f.lean</code> and <code>Model.lean</code> are a model of
+      the rule functions, over the primitives, one file per function <code>M.f</code>;
+    </li>
+    <li>
+      <code>Statements/M/f.lean</code> states that every alternative of every rule of
+      <code>M.f</code> is sound: its result refines its spec;
     </li>
     <li><code>Lifts.lean</code> states that the specs are monotone in their term arguments;</li>
+    <li><code>Nodes.lean</code> states the typing and the evaluation of each node;</li>
     <li>
-      <code>Soundness.lean</code> proves each rule from its alternatives, and every function from
-      its rules, up to <code>R.opsN_sound</code>: the whole simplifier is sound.
+      <code>Soundness/M/f.lean</code> proves each rule of <code>M.f</code> from its alternatives,
+      and the function from its rules, and <code>Soundness.lean</code> puts them together, up to
+      <code>R.opsN_sound</code>: the whole simplifier is sound.
     </li>
   </ul>
   <p>
@@ -644,7 +654,9 @@ node Fill of int : TArray n`}
     (<code>R.Semantics</code>), and the tactics of the proofs. The language gives the tactics
     <code>kanon_auto</code>, the default proof of an alternative (an <em>arm</em>), and
     <code>kanon_congr</code>, refinement by congruence; an arm that <code>kanon_auto</code> does not
-    prove gets a theorem tagged <code>{`@[kanon_arm]{:lean}`}</code>. Kanon's Lean library
+    prove gets a theorem tagged <code>{`@[kanon_arm]{:lean}`}</code>, in
+    <code>Proofs/M/f.lean</code>, which the generated proofs of <code>M.f</code> import. Kanon's
+    Lean library
     (<code>lean/</code>, the package <code>kanon</code>) gives what does not depend on the language.
   </p>
   <p>
@@ -652,7 +664,8 @@ node Fill of int : TArray n`}
     that each <code>{`[@comm]{:kanon}`}</code> operator commutes (<code>Op2.Plus.comm.Stmt</code>,
     proved by <code>kanon_auto</code> or by hand), and proves from it, with <code>kanon_congr</code>
     for the operands swapped below the spec, every arm that only swaps operands, if its guard and
-    body do not depend on the swap. The proofs to write are thus one per case of a rule, when
+    body do not depend on the swap (other than through the types of the swapped terms, or by
+    building raw nodes of them). The proofs to write are thus one per case of a rule, when
     <code>kanon_auto</code> does not find it, and one per commutative operator.
   </p>
   <p>

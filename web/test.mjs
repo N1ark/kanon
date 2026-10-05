@@ -94,6 +94,7 @@ same(
     "lean-model",
     "lean-statements",
     "lean-lifts",
+    "lean-nodes",
     "lean-soundness",
   ],
   "backends",

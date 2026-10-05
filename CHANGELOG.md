@@ -11,6 +11,10 @@
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.
+- [`[@lean_heartbeats n]`](https://n1ark.github.io/kanon/reference.html#on-functions) bounds each generated arm proof.
+- `Nodes.lean`: the typing and evaluation lemmas of each node.
+- Hand-written proofs of a function go in `Proofs/M/f.lean`.
+- `kanon lean-all --check DIR` checks the Lean files are current.
 
 ### Changed
 
@@ -22,6 +26,10 @@
 - Primitives of different modules may not share a name.
 - `Kanon_flat` is a reserved module name.
 - `Foo.x` is a qualified name, not a field access.
+- [`kanon lean-all DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes one Lean file per rule function.
+- Lean backends print every file of their part.
+- `Semantics.lean` imports `R.Ops`; `Prims.lean` imports `KanonCore.Model`.
+- More arms that swap commutative operands are derived.
 
 ### Fixed
 
