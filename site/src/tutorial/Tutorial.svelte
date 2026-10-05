@@ -459,6 +459,13 @@ node Div : TInt -> TNonzero -> TInt`}
       A node without a rule function, like the leaf <code>Int</code>, has no function in the
       interface: only its destructors.
     </li>
+    <li>
+      A helper whose result is annotated with a sort, as in
+      <code>{`fn double (v : TInt) : TInt = plus v v{:kanon}`}</code>, is in the interface too, with
+      the tags of the sorts of its parameters and of its result: a helper derived from the rule
+      functions is defined in Kanon and typed, not wrapped by hand. The generated OCaml asserts its
+      sort on exit.
+    </li>
   </ul>
   <Example id="typed" ocaml="ocaml-typed" lean="lean-model" />
   <p>
