@@ -14,12 +14,13 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
   with the `kanon_atom_cases` lemmas;
 - `kanon_lift` / `kanon_lift_body` lift the calls `O.f args` of the body of a
   rule, in the namespace `R` of the model, to their specs `f.spec args`, with
-  the lemmas `R.Lib.lift_f` that Kanon generates;
+  the lemmas `R.Lib.lift_f` that Kanon generates, leaving their hypotheses that
+  are not refinements (`P v'`, for an operand at a subsort);
 - `kanon_rule_lift` takes the guard of an arm, unfolds its spec, splits the
   conditionals of its body, lifts its calls, and closes the refinements that are
   reflexivity or commutativity (or `kanon_rule_close`, which the language may
   give, or a `kanon_close_lemma`);
-- `kanon_rule` then proves the typing half of the refinement (`kanon_wt`) and
+- `kanon_rule` then proves the typing half of each refinement (`kanon_wt`) and
   reduces its value half to the values of the atoms (`kanon_sem_core`), closing
   what `simp_all` and `omega` can (`kanon_sem`, `kanon_close`);
 - `kanon_close_lemmas` closes a goal by a `kanon_close_lemma` lemma, which
@@ -219,32 +220,64 @@ def liftLemma? (e : Expr) : MetaM (Option Name) := do
   let l := Name.mkStr (ns ++ `Lib) ("lift_" ++ f)
   return if (← getEnv).contains l then some l else none
 
-partial def liftGoal : TacticM Unit := do
+/-- Lifts the main goal, a refinement `Refines S body`, by the lifting lemmas
+of the calls of `body`. Returns the hypotheses of these lemmas that are not
+refinements (that an argument of a function at a subsort satisfies its
+predicate, `P v'`), which are left to the caller. -/
+partial def liftGoal : TacticM (List MVarId) := do
   let g ← getMainGoal
   let ty ← whnfR (← instantiateMVars (← g.getType))
-  let some rhs := ty.getAppArgs.back? | throwError "kanon_lift: not a refinement"
-  match ← liftLemma? rhs with
+  unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do return [g]
+  match ← liftLemma? (ty.getArg! 2) with
   | some l =>
     evalTactic (← `(tactic| apply $(mkCIdent l) (by assumption)))
+    let mut out := []
     for g' in ← getGoals do
       unless ← g'.isAssigned do
         setGoals [g']
-        liftGoal
-    setGoals []
-  | none => evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
+        out := out ++ (← liftGoal)
+    return out
+  | none =>
+    evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
+    return []
 
+/-- Lifts each goal, leaving the hypotheses that are not refinements. -/
 elab "kanon_lift" : tactic => do
   let mut rest := []
   for g in ← getGoals do
     setGoals [g]
-    liftGoal
-    rest := rest ++ (← getGoals)
+    rest := rest ++ (← liftGoal)
   setGoals rest
 
 /-- Replaces the goal `Refines s body` by `Refines s S`, with the calls of
-`body` lifted to their specs in `S`. -/
-macro "kanon_lift_body" : tactic =>
-  `(tactic| (apply Kanon.Sem.Refines.of_lift; case hl => kanon_lift))
+`body` lifted to their specs in `S`. The hypotheses of the lifting lemmas that
+are not refinements (`P v'`, for a function with an operand at a subsort) are
+left after it; as they only hold of well-typed terms, they are then proved
+under the hypothesis `kw : WT s` that the spec is well-typed. -/
+elab "kanon_lift_body" : tactic => do
+  let lift : TacticM (List MVarId × List MVarId) := do
+    evalTactic (← `(tactic| apply Kanon.Sem.Refines.of_lift))
+    let gs ← getGoals
+    let some hl ← gs.findM? (fun g => return (← g.getTag) == `hl)
+      | throwError "kanon_lift_body: no goal"
+    setGoals [hl]
+    let side ← liftGoal
+    let rest ← gs.filterM fun g => return g != hl && !(← g.isAssigned)
+    return (rest, side)
+  let s ← saveState
+  let (rest, side) ← lift
+  if side.isEmpty then setGoals rest
+  else
+    s.restore
+    evalTactic (← `(tactic| refine Kanon.Sem.Refines.of_WT (fun $(mkIdent `kw) => ?_)))
+    let (rest, side) ← lift
+    setGoals (rest ++ side)
+
+/-- `kanon_on_refines tac` runs `tac` on the main goal if it is a refinement,
+and leaves it otherwise (the hypotheses left by `kanon_lift_body`). -/
+elab "kanon_on_refines " tac:tactic : tactic => do
+  let ty ← whnfR (← instantiateMVars (← getMainTarget))
+  if ty.isAppOfArity ``Kanon.Sem.Refines 3 then evalTactic tac
 
 /-! ## Congruence -/
 
@@ -518,7 +551,7 @@ macro "kanon_sem" : tactic => `(tactic| (
 /-- Proves the statement of an arm, as far as it can. -/
 macro "kanon_rule" : tactic => `(tactic| (
   kanon_rule_lift
-  all_goals (
+  all_goals kanon_on_refines (
     refine Kanon.Sem.Refines.intro ?_ ?_
     · kanon_wt
     · kanon_sem)))
