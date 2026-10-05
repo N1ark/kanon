@@ -1,4 +1,4 @@
-import KanonCore
+import KanonCore.Model
 import BoolExample.Syntax
 
 /-!

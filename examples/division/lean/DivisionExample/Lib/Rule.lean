@@ -1,9 +1,11 @@
 import DivisionExample.Lifts
+import DivisionExample.Model.mk_commut_binop
+import DivisionExample.Model.Int.add
 
 /-!
 # The default proof of an arm
 
-`kanon_auto` proves the arms that have no hand-written proof (`Proofs.lean`):
+`kanon_auto` proves the arms that have no hand-written proof (`Proofs/`):
 here, Kanon's rule tactic `kanon_rule` (`KanonCore.Proof`), given the lemmas of
 the language by attributes:
 
@@ -12,6 +14,10 @@ the language by attributes:
 - the primitives and helpers that the bodies of the rules use (`kanon_lits`,
   `kanon_body`);
 - the possible values of a term (`kanon_atom_cases`), on which it splits.
+
+`Nodes.lean` (generated) states, from `kanon_wt` and `kanon_ev`, the typing and
+the evaluation of each node (`kanon_node_wt`, `kanon_node_ev`). This file imports
+the models of the helpers it tags, and nothing else of the model.
 -/
 
 namespace DivisionExample
