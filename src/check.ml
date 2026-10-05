@@ -2123,6 +2123,13 @@ let check_attrs allowed (attrs : attributes) =
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
+(** The argument of [[@lean_heartbeats n]] or [[@@@lean_heartbeats n]]: a
+    positive number of heartbeats (thousands, as Lean's [maxHeartbeats]). *)
+let heartbeats_arg loc n =
+  match int_of_string_opt n with
+  | Some n when n > 0 -> n
+  | _ -> error loc "[@lean_heartbeats n]: n must be a positive integer"
+
 (** [[@no_lean]] is for [fn] and [prim] items only: [what] says what the item
     is, and why it is modelled. *)
 let reject_no_lean what (attrs : attributes) =
@@ -2703,6 +2710,13 @@ let language (str : structure) =
                    | "traversals", [] ->
                        lang := { !lang with traversals = true };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "lean_heartbeats", [ n ] ->
+                       lang :=
+                         {
+                           !lang with
+                           lean_heartbeats = heartbeats_arg a.attr_loc n;
+                         };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
                          a.attr_name.txt)
@@ -3227,7 +3241,7 @@ let raw_fn (vb : value_binding) =
   let rdoc, rattrs = take_doc vb.pvb_attributes in
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
-    check_attrs [ "spec"; "cases"; "untyped" ] rattrs)
+    check_attrs [ "spec"; "cases"; "untyped"; "lean_heartbeats" ] rattrs)
   else check_attrs [ "ty_only"; "no_lean"; "total" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
@@ -4590,6 +4604,13 @@ let check_fn env0 globals r =
     floc = r.rloc;
     fdoc = r.rdoc;
     no_lean = has_attr "no_lean" r.rattrs;
+    heartbeats =
+      Option.map
+        (fun (a : attribute) ->
+          match strings_attr a with
+          | [ n ] -> heartbeats_arg a.attr_loc n
+          | _ -> error a.attr_loc "expected [@lean_heartbeats n]")
+        (find_attr "lean_heartbeats" r.rattrs);
     param_sorts =
       List.filter_map
         (fun (x, (s : expression)) ->

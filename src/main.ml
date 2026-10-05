@@ -12,12 +12,16 @@
       language (which do not need the rules);
     - [lean-signatures]: the Lean check of the types of their primitives;
     - [lean-typing]: the Lean typing predicates of the operators;
-    - [lean-model], [lean-statements], [lean-lifts], [lean-soundness]: their
-      Lean model, the statements of their soundness, and its proof.
+    - [lean-model], [lean-statements], [lean-lifts], [lean-nodes],
+      [lean-soundness]: their Lean model, the statements of their soundness, the
+      lemmas of the nodes, and its proof, each in several files (one per rule
+      function), which are printed one after the other, each after its name.
 
-    The output is written on standard output, except for [lean-all], which
-    writes every Lean file [F.lean] of the above to [F.lean.gen], in the current
-    directory.
+    The output is written on standard output. [kanon lean-all DIR FILE...]
+    writes every Lean file of the above under [DIR] (as [DIR/R/Model.lean], for
+    the root [R] of the model), and removes those it wrote before and no longer
+    generates; [kanon lean-all --check DIR FILE...] only checks that they are up
+    to date.
 
     [use "path"], in a file, uses the module whose declarations are [path.knl]
     and whose rules are [path.kn] (either may be missing), relative to the

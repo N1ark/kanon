@@ -36,14 +36,14 @@ the last case.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  20:                 then some ((5 : Int))
-  25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  45:                 then some ((5 : Int))
+  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === _, _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _, _) -> Z.zero
-  20:                 then some ((5 : Int))
-  25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  45:                 then some ((5 : Int))
+  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
 
   $ cat > ext.kn <<'KN'
   > extend fn Base.g =
@@ -65,20 +65,20 @@ the last case.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  20:                 then some ((5 : Int))
-  25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  45:                 then some ((5 : Int))
+  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === (_, _), _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | ((_, _), _) -> Z.zero
-  20:                 then some ((5 : Int))
-  25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  45:                 then some ((5 : Int))
+  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
   === _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _) -> Z.zero
-  20:                 then some ((5 : Int))
-  25:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  45:                 then some ((5 : Int))
+  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
 
 `x, _` and `_ as x` are not blanks: the added case is last, so it cannot be
 reached, which is an error, not a silent omission.
