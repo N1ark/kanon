@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Bool.distinct.r_small.main.ok : Bool.distinct.r_small.main.Stmt :=
-  fun O hO => KanonBool.Bool.distinct.r_small.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.distinct.r_small.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.distinct.r_small.proof : Bool.distinct.r_small.Stmt := by
@@ -26,7 +26,7 @@ theorem Bool.distinct.r_small.proof : Bool.distinct.r_small.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.distinct.r_distinct.main.ok : Bool.distinct.r_distinct.main.Stmt :=
-  fun O hO => KanonBool.Bool.distinct.r_distinct.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.distinct.r_distinct.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.distinct.r_distinct.proof : Bool.distinct.r_distinct.Stmt := by
@@ -37,7 +37,7 @@ theorem Bool.distinct.r_distinct.proof : Bool.distinct.r_distinct.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.distinct.r_not_distinct.main.ok : Bool.distinct.r_not_distinct.main.Stmt :=
-  fun O hO => KanonBool.Bool.distinct.r_not_distinct.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.distinct.r_not_distinct.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.distinct.r_not_distinct.proof : Bool.distinct.r_not_distinct.Stmt := by
@@ -48,7 +48,7 @@ theorem Bool.distinct.r_not_distinct.proof : Bool.distinct.r_not_distinct.Stmt :
 
 set_option maxHeartbeats 400000 in
 theorem Bool.distinct.r_default.main.ok : Bool.distinct.r_default.main.Stmt :=
-  fun O hO => KanonBool.Bool.distinct.r_default.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.distinct.r_default.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.distinct.r_default.proof : Bool.distinct.r_default.Stmt := by

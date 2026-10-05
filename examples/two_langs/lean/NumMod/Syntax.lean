@@ -11,37 +11,37 @@ namespace NumMod
 
 open Classical Kanon
 
-/-- What the module `Num` needs of the terms of a language of semantics `S`: Kanon generates it, and
-each language that uses the module gives it, by definition. -/
-structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toBoolSyntax : KanonBool.Syntax S where
+/-- What the module `Num` needs of the terms `B` of a language of semantics `S`, whose
+modules that it uses have the interfaces of the parameters: Kanon generates it, and each
+language that uses the module gives it, by definition. -/
+structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) (LBool : KanonBool.Syntax B) where
   TNum : S.Ty
-  TNum_ne_TBool : TNum ≠ TBool
-  NumK : Int → Kind
-  AddK : S.Term → S.Term → Kind
-  LtK : S.Term → S.Term → Kind
+  TNum_ne_TBool : TNum ≠ LBool.TBool
+  NumK : Int → B.Kind
+  AddK : S.Term → S.Term → B.Kind
+  LtK : S.Term → S.Term → B.Kind
   /-- The maximum of two integers. -/
-  MaxK : S.Term → S.Term → Kind
-  WT_Num : ∀ (x1 : Int) (t : S.Ty), S.WT (node (NumK x1) t) ↔ t = TNum
-  WT_Add : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (AddK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
-  WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (LtK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
-  WT_Max : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (MaxK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
+  MaxK : S.Term → S.Term → B.Kind
+  WT_Num : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (NumK x1) t) ↔ t = TNum
+  WT_Add : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (AddK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
+  WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (LtK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = LBool.TBool) ∧ S.WT a1 ∧ S.WT a2
+  WT_Max : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (MaxK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
   /-- The arguments of a `Num` node. -/
   asNum : S.Term → Option Int
-  asNum_node : ∀ (x1 : Int) (t : S.Ty), asNum (node (NumK x1) t) = some x1
-  asNum_sound : ∀ (v : S.Term) (x1 : Int), asNum v = some x1 → v = (node (NumK x1) (S.ty v))
+  asNum_node : ∀ (x1 : Int) (t : S.Ty), asNum (B.node (NumK x1) t) = some x1
+  asNum_sound : ∀ (v : S.Term) (x1 : Int), asNum v = some x1 → v = (B.node (NumK x1) (S.ty v))
   /-- The arguments of a `Add` node. -/
   asAdd : S.Term → Option (S.Term × S.Term)
-  asAdd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAdd (node (AddK a1 a2) t) = some (a1, a2)
-  asAdd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAdd v = some (a1, a2) → v = (node (AddK a1 a2) (S.ty v))
+  asAdd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAdd (B.node (AddK a1 a2) t) = some (a1, a2)
+  asAdd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAdd v = some (a1, a2) → v = (B.node (AddK a1 a2) (S.ty v))
   /-- The arguments of a `Lt` node. -/
   asLt : S.Term → Option (S.Term × S.Term)
-  asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (node (LtK a1 a2) t) = some (a1, a2)
-  asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (node (LtK a1 a2) (S.ty v))
+  asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (B.node (LtK a1 a2) t) = some (a1, a2)
+  asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (B.node (LtK a1 a2) (S.ty v))
   /-- The arguments of a `Max` node. -/
   asMax : S.Term → Option (S.Term × S.Term)
-  asMax_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asMax (node (MaxK a1 a2) t) = some (a1, a2)
-  asMax_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asMax v = some (a1, a2) → v = (node (MaxK a1 a2) (S.ty v))
+  asMax_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asMax (B.node (MaxK a1 a2) t) = some (a1, a2)
+  asMax_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asMax v = some (a1, a2) → v = (B.node (MaxK a1 a2) (S.ty v))
   num_is_pos : S.Term → Bool
   num_is_pos_eq : ∀ (v : S.Term), (num_is_pos v) =
       ((firstSome [(match (asNum v) with

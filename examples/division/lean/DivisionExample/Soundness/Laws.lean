@@ -16,6 +16,6 @@ namespace DivisionExample
 open Classical Kanon
 
 @[kanon_comm_lemma] theorem Op2.Plus.comm.ok : Op2.Plus.comm.Stmt :=
-  fun a b t => DivMod.Plus.comm.ok (S := sem) modSyntax.toIntSyntax a b t
+  fun a b t => DivMod.Plus.comm.ok (S := sem) intSyntax a b t
 
 end DivisionExample

@@ -11,21 +11,21 @@ namespace NegMod
 open Classical Kanon
 
 def Neg.neg.r_lit.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : NegMod.Syntax B LBool LNum) [KanonBool.Sem LBool] [NumMod.Sem LNum] [Sem L] (O : Ops L), O.Sound →
   ∀ (x : Int) (t__2 : S.Ty),
-  S.Refines (NegMod.Neg.neg.spec L (L.node (L.NumK x) t__2))
-  ((L.node (L.NumK ((0 : Int) - x)) L.TNum))
+  S.Refines (NegMod.Neg.neg.spec L (B.node (LNum.NumK x) t__2))
+  ((B.node (LNum.NumK ((0 : Int) - x)) LNum.TNum))
 
 def Neg.neg.r_neg.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : NegMod.Syntax B LBool LNum) [KanonBool.Sem LBool] [NumMod.Sem LNum] [Sem L] (O : Ops L), O.Sound →
   ∀ (a : S.Term) (t__3 : S.Ty),
-  S.Refines (NegMod.Neg.neg.spec L (L.node (L.NegK a) t__3))
+  S.Refines (NegMod.Neg.neg.spec L (B.node (L.NegK a) t__3))
   (a)
 
 def Neg.neg.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : NegMod.Syntax B LBool LNum) [KanonBool.Sem LBool] [NumMod.Sem LNum] [Sem L] (O : Ops L), O.Sound →
   ∀ (v : S.Term),
   S.Refines (NegMod.Neg.neg.spec L v)
-  ((L.node (L.NegK v) L.TNum))
+  ((B.node (L.NegK v) LNum.TNum))
 
 end NegMod

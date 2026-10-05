@@ -11,30 +11,30 @@ namespace IntMod
 
 open Classical Kanon
 
-/-- What the module `Int` needs of the terms of a language of semantics `S`: Kanon generates it, and
-each language that uses the module gives it, by definition. -/
-structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toBoolSyntax : KanonBool.Syntax S where
+/-- What the module `Int` needs of the terms `B` of a language of semantics `S`, whose
+modules that it uses have the interfaces of the parameters: Kanon generates it, and each
+language that uses the module gives it, by definition. -/
+structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) (LBool : KanonBool.Syntax B) where
   TInt : S.Ty
-  TInt_ne_TBool : TInt ≠ TBool
-  IntK : Int → Kind
-  PlusK : S.Term → S.Term → Kind
-  LtK : S.Term → S.Term → Kind
-  WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (node (IntK x1) t) ↔ t = TInt
-  WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
-  WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (LtK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
+  TInt_ne_TBool : TInt ≠ LBool.TBool
+  IntK : Int → B.Kind
+  PlusK : S.Term → S.Term → B.Kind
+  LtK : S.Term → S.Term → B.Kind
+  WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
+  WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
+  WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (LtK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = LBool.TBool) ∧ S.WT a1 ∧ S.WT a2
   /-- The arguments of a `Int` node. -/
   asInt : S.Term → Option Int
-  asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (node (IntK x1) t) = some x1
-  asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (node (IntK x1) (S.ty v))
+  asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (B.node (IntK x1) t) = some x1
+  asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (B.node (IntK x1) (S.ty v))
   /-- The arguments of a `Plus` node. -/
   asPlus : S.Term → Option (S.Term × S.Term)
-  asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (node (PlusK a1 a2) t) = some (a1, a2)
-  asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (node (PlusK a1 a2) (S.ty v))
+  asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (B.node (PlusK a1 a2) t) = some (a1, a2)
+  asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (B.node (PlusK a1 a2) (S.ty v))
   /-- The arguments of a `Lt` node. -/
   asLt : S.Term → Option (S.Term × S.Term)
-  asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (node (LtK a1 a2) t) = some (a1, a2)
-  asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (node (LtK a1 a2) (S.ty v))
+  asLt_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asLt (B.node (LtK a1 a2) t) = some (a1, a2)
+  asLt_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asLt v = some (a1, a2) → v = (B.node (LtK a1 a2) (S.ty v))
   int_add : Int → Int → Int
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
 

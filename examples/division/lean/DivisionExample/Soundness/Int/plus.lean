@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Int.plus.r_lits.main.ok : Int.plus.r_lits.main.Stmt :=
-  fun O hO => DivMod.Int.plus.r_lits.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.plus.r_lits.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.plus.r_lits.proof : Int.plus.r_lits.Stmt := by
@@ -26,12 +26,12 @@ theorem Int.plus.r_lits.proof : Int.plus.r_lits.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Int.plus.r_unit_zero.main.ok : Int.plus.r_unit_zero.main.Stmt :=
-  fun O hO => DivMod.Int.plus.r_unit_zero.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.plus.r_unit_zero.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 set_option maxHeartbeats 400000 in
 theorem Int.plus.r_unit_zero.swap.ok : Int.plus.r_unit_zero.swap.Stmt :=
-  fun O hO => DivMod.Int.plus.r_unit_zero.swap.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.plus.r_unit_zero.swap.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.plus.r_unit_zero.proof : Int.plus.r_unit_zero.Stmt := by
@@ -43,7 +43,7 @@ theorem Int.plus.r_unit_zero.proof : Int.plus.r_unit_zero.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Int.plus.r_default.main.ok : Int.plus.r_default.main.Stmt :=
-  fun O hO => DivMod.Int.plus.r_default.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.plus.r_default.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.plus.r_default.proof : Int.plus.r_default.Stmt := by

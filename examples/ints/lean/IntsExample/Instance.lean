@@ -14,7 +14,7 @@ namespace IntsExample
 open Classical Kanon
 
 /-- The model of the language, for the module `Bool`. -/
-def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) modSyntax.toBoolSyntax where
+def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) boolSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_
@@ -35,10 +35,8 @@ theorem Ops.Sound.toBool {O : Ops} (hO : O.Sound) : (Ops.toBool O).Sound where
   bool_distinct := hO.bool_distinct
   bool_orc := hO.orc.bool
 
-instance : IntMod.Sem (S := sem) modSyntax.toIntSyntax := lang.toIntSem
-
 /-- The model of the language, for the module `Int`. -/
-def Ops.toInt (O : Ops) : IntMod.Ops (S := sem) modSyntax.toIntSyntax where
+def Ops.toInt (O : Ops) : IntMod.Ops (S := sem) intSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_

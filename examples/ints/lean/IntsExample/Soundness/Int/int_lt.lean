@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Int.int_lt.r_lits.main.ok : Int.int_lt.r_lits.main.Stmt :=
-  fun O hO => IntMod.Int.int_lt.r_lits.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => IntMod.Int.int_lt.r_lits.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.int_lt.r_lits.proof : Int.int_lt.r_lits.Stmt := by
@@ -26,7 +26,7 @@ theorem Int.int_lt.r_lits.proof : Int.int_lt.r_lits.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Int.int_lt.r_same.main.ok : Int.int_lt.r_same.main.Stmt :=
-  fun O hO => IntMod.Int.int_lt.r_same.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => IntMod.Int.int_lt.r_same.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.int_lt.r_same.proof : Int.int_lt.r_same.Stmt := by
@@ -37,7 +37,7 @@ theorem Int.int_lt.r_same.proof : Int.int_lt.r_same.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Int.int_lt.r_default.main.ok : Int.int_lt.r_default.main.Stmt :=
-  fun O hO => IntMod.Int.int_lt.r_default.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => IntMod.Int.int_lt.r_default.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.int_lt.r_default.proof : Int.int_lt.r_default.Stmt := by

@@ -58,8 +58,8 @@ end
 
 /-- What the int module needs of the semantics `S` of a language, for its
 interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toBoolSem : KanonBool.Sem L.toBoolSyntax where
+class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : Syntax B LBool)
+    [KanonBool.Sem LBool] where
   /-- The integer values. -/
   vint : Int → S.Val
   /-- The integer of a value, if it is one. -/
@@ -67,20 +67,20 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S)
   toInt_vint : ∀ z, toInt (vint z) = some z := by intros; rfl
   vint_toInt : ∀ v z, toInt v = some z → v = vint z := by
     intro v z h; cases v <;> cases h <;> rfl
-  ev_Int : ∀ ρ z t, S.ev ρ (L.node (L.IntK z) t) = some (vint z) := by kanon_law
-  ev_Plus : ∀ ρ a b t, S.ev ρ (L.node (L.PlusK a b) t) =
+  ev_Int : ∀ ρ z t, S.ev ρ (B.node (L.IntK z) t) = some (vint z) := by kanon_law
+  ev_Plus : ∀ ρ a b t, S.ev ρ (B.node (L.PlusK a b) t) =
     addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Lt : ∀ ρ a b t, S.ev ρ (L.node (L.LtK a b) t) =
-    ltV toInt vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
+  ev_Lt : ∀ ρ a b t, S.ev ρ (B.node (L.LtK a b) t) =
+    ltV toInt (KanonBool.Sem.vbool LBool) (S.ev ρ a) (S.ev ρ b) := by kanon_law
 
 /-- Different integers are different values. -/
-theorem Sem.vint_eq_iff {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S}
-    [Sem L] {a b : Int} : Sem.vint L a = Sem.vint L b ↔ a = b :=
+theorem Sem.vint_eq_iff {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : Syntax B LBool}
+    [KanonBool.Sem LBool] [Sem L] {a b : Int} : Sem.vint L a = Sem.vint L b ↔ a = b :=
   ⟨fun h => by simpa [Sem.toInt_vint] using congrArg (Sem.toInt L) h, fun h => h ▸ rfl⟩
 
 /-- The values of a value as an integer. -/
-theorem Sem.toInt_cases {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S}
-    [Sem L] {u : S.Val} :
+theorem Sem.toInt_cases {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : Syntax B LBool}
+    [KanonBool.Sem LBool] [Sem L] {u : S.Val} :
     Sem.toInt L u = none ∨ ∃ z, Sem.toInt L u = some z ∧ u = Sem.vint L z := by
   rcases h : Sem.toInt L u with _ | z
   · exact .inl rfl

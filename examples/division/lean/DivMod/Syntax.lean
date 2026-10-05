@@ -10,37 +10,37 @@ namespace DivMod
 
 open Classical Kanon
 
-/-- What the module `Int` needs of the terms of a language of semantics `S`: Kanon generates it, and
-each language that uses the module gives it, by definition. -/
-structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toBase : Kanon.Base S where
+/-- What the module `Int` needs of the terms `B` of a language of semantics `S`, whose
+modules that it uses have the interfaces of the parameters: Kanon generates it, and each
+language that uses the module gives it, by definition. -/
+structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) where
   TInt : S.Ty
-  IntK : Int → Kind
-  PlusK : S.Term → S.Term → Kind
+  IntK : Int → B.Kind
+  PlusK : S.Term → S.Term → B.Kind
   /-- The quotient: the divisor is not zero. -/
-  DivK : S.Term → S.Term → Kind
+  DivK : S.Term → S.Term → B.Kind
   /-- The square of an integer plus one, which is not zero. -/
-  Sq1K : S.Term → Kind
-  WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (node (IntK x1) t) ↔ t = TInt
-  WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
-  WT_Div : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (DivK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
-  WT_Sq1 : ∀ (a1 : S.Term) (t : S.Ty), S.WT (node (Sq1K a1) t) ↔ ((S.ty a1) = TInt ∧ t = TInt) ∧ S.WT a1
+  Sq1K : S.Term → B.Kind
+  WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
+  WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
+  WT_Div : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (DivK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
+  WT_Sq1 : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (Sq1K a1) t) ↔ ((S.ty a1) = TInt ∧ t = TInt) ∧ S.WT a1
   /-- The arguments of a `Int` node. -/
   asInt : S.Term → Option Int
-  asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (node (IntK x1) t) = some x1
-  asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (node (IntK x1) (S.ty v))
+  asInt_node : ∀ (x1 : Int) (t : S.Ty), asInt (B.node (IntK x1) t) = some x1
+  asInt_sound : ∀ (v : S.Term) (x1 : Int), asInt v = some x1 → v = (B.node (IntK x1) (S.ty v))
   /-- The arguments of a `Plus` node. -/
   asPlus : S.Term → Option (S.Term × S.Term)
-  asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (node (PlusK a1 a2) t) = some (a1, a2)
-  asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (node (PlusK a1 a2) (S.ty v))
+  asPlus_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asPlus (B.node (PlusK a1 a2) t) = some (a1, a2)
+  asPlus_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asPlus v = some (a1, a2) → v = (B.node (PlusK a1 a2) (S.ty v))
   /-- The arguments of a `Div` node. -/
   asDiv : S.Term → Option (S.Term × S.Term)
-  asDiv_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asDiv (node (DivK a1 a2) t) = some (a1, a2)
-  asDiv_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asDiv v = some (a1, a2) → v = (node (DivK a1 a2) (S.ty v))
+  asDiv_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asDiv (B.node (DivK a1 a2) t) = some (a1, a2)
+  asDiv_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asDiv v = some (a1, a2) → v = (B.node (DivK a1 a2) (S.ty v))
   /-- The arguments of a `Sq1` node. -/
   asSq1 : S.Term → Option S.Term
-  asSq1_node : ∀ (a1 : S.Term) (t : S.Ty), asSq1 (node (Sq1K a1) t) = some a1
-  asSq1_sound : ∀ (v : S.Term) (a1 : S.Term), asSq1 v = some a1 → v = (node (Sq1K a1) (S.ty v))
+  asSq1_node : ∀ (a1 : S.Term) (t : S.Ty), asSq1 (B.node (Sq1K a1) t) = some a1
+  asSq1_sound : ∀ (v : S.Term) (a1 : S.Term), asSq1 v = some a1 → v = (B.node (Sq1K a1) (S.ty v))
   /-- The integers that are not zero: the divisor of a division, and the result of
       `Sq1`. In Lean, `Nonzero`, a field of the interface of the module (each
       language defines it, in `Semantics.lean`). -/

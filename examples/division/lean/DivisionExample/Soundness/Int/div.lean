@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Int.div.r_self.main.ok : Int.div.r_self.main.Stmt :=
-  fun O hO => DivMod.Int.div.r_self.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.div.r_self.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.div.r_self.proof : Int.div.r_self.Stmt := by
@@ -26,7 +26,7 @@ theorem Int.div.r_self.proof : Int.div.r_self.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Int.div.r_default.main.ok : Int.div.r_default.main.Stmt :=
-  fun O hO => DivMod.Int.div.r_default.main.ok (S := sem) modSyntax.toIntSyntax
+  fun O hO => DivMod.Int.div.r_default.main.ok (S := sem) intSyntax
   (Ops.toInt O) (Ops.Sound.toInt hO)
 
 theorem Int.div.r_default.proof : Int.div.r_default.Stmt := by

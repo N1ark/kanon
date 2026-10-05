@@ -11,9 +11,9 @@ namespace NumMod
 open Classical Kanon
 
 def Bool.eq.r_nums.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (x : Int) (t__2 : S.Ty) (y : Int) (t__4 : S.Ty),
-  S.Refines (KanonBool.Bool.eq.spec L.toBoolSyntax (L.node (L.NumK x) t__2) (L.node (L.NumK y) t__4))
-  ((L.bool_of_bool (decide (x = y))))
+  S.Refines (KanonBool.Bool.eq.spec LBool (B.node (L.NumK x) t__2) (B.node (L.NumK y) t__4))
+  ((LBool.bool_of_bool (decide (x = y))))
 
 end NumMod

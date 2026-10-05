@@ -10,53 +10,53 @@ namespace KanonBool
 
 open Classical Kanon
 
-/-- What the module `Bool` needs of the terms of a language of semantics `S`: Kanon generates it, and
-each language that uses the module gives it, by definition. -/
-structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toBase : Kanon.Base S where
+/-- What the module `Bool` needs of the terms `B` of a language of semantics `S`, whose
+modules that it uses have the interfaces of the parameters: Kanon generates it, and each
+language that uses the module gives it, by definition. -/
+structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) where
   TBool : S.Ty
-  BoolK : Bool → Kind
-  NotK : S.Term → Kind
-  AndK : S.Term → S.Term → Kind
-  OrK : S.Term → S.Term → Kind
-  EqK : S.Term → S.Term → Kind
-  IteK : S.Term → S.Term → S.Term → Kind
-  DistinctK : (List S.Term) → Kind
-  WT_Bool : ∀ (x1 : Bool) (t : S.Ty), S.WT (node (BoolK x1) t) ↔ t = TBool
-  WT_Not : ∀ (a1 : S.Term) (t : S.Ty), S.WT (node (NotK a1) t) ↔ ((S.ty a1) = TBool ∧ t = TBool) ∧ S.WT a1
-  WT_And : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (AndK a1 a2) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a2) = TBool ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
-  WT_Or : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (OrK a1 a2) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a2) = TBool ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
-  WT_Eq : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (node (EqK a1 a2) t) ↔ ((S.ty a2) = (S.ty a1) ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
-  WT_Ite : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term) (t : S.Ty), S.WT (node (IteK a1 a2 a3) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a3) = (S.ty a2) ∧ t = (S.ty a2)) ∧ S.WT a1 ∧ S.WT a2 ∧ S.WT a3
-  WT_Distinct : ∀ (l1 : (List S.Term)) (t : S.Ty), S.WT (node (DistinctK l1) t) ↔ ∃ e, (t = TBool) ∧ ∀ x ∈ l1, S.ty x = e ∧ S.WT x
+  BoolK : Bool → B.Kind
+  NotK : S.Term → B.Kind
+  AndK : S.Term → S.Term → B.Kind
+  OrK : S.Term → S.Term → B.Kind
+  EqK : S.Term → S.Term → B.Kind
+  IteK : S.Term → S.Term → S.Term → B.Kind
+  DistinctK : (List S.Term) → B.Kind
+  WT_Bool : ∀ (x1 : Bool) (t : S.Ty), S.WT (B.node (BoolK x1) t) ↔ t = TBool
+  WT_Not : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (NotK a1) t) ↔ ((S.ty a1) = TBool ∧ t = TBool) ∧ S.WT a1
+  WT_And : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (AndK a1 a2) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a2) = TBool ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
+  WT_Or : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (OrK a1 a2) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a2) = TBool ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
+  WT_Eq : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (EqK a1 a2) t) ↔ ((S.ty a2) = (S.ty a1) ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
+  WT_Ite : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term) (t : S.Ty), S.WT (B.node (IteK a1 a2 a3) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a3) = (S.ty a2) ∧ t = (S.ty a2)) ∧ S.WT a1 ∧ S.WT a2 ∧ S.WT a3
+  WT_Distinct : ∀ (l1 : (List S.Term)) (t : S.Ty), S.WT (B.node (DistinctK l1) t) ↔ ∃ e, (t = TBool) ∧ ∀ x ∈ l1, S.ty x = e ∧ S.WT x
   /-- The arguments of a `Bool` node. -/
   asBool : S.Term → Option Bool
-  asBool_node : ∀ (x1 : Bool) (t : S.Ty), asBool (node (BoolK x1) t) = some x1
-  asBool_sound : ∀ (v : S.Term) (x1 : Bool), asBool v = some x1 → v = (node (BoolK x1) (S.ty v))
+  asBool_node : ∀ (x1 : Bool) (t : S.Ty), asBool (B.node (BoolK x1) t) = some x1
+  asBool_sound : ∀ (v : S.Term) (x1 : Bool), asBool v = some x1 → v = (B.node (BoolK x1) (S.ty v))
   /-- The arguments of a `Not` node. -/
   asNot : S.Term → Option S.Term
-  asNot_node : ∀ (a1 : S.Term) (t : S.Ty), asNot (node (NotK a1) t) = some a1
-  asNot_sound : ∀ (v : S.Term) (a1 : S.Term), asNot v = some a1 → v = (node (NotK a1) (S.ty v))
+  asNot_node : ∀ (a1 : S.Term) (t : S.Ty), asNot (B.node (NotK a1) t) = some a1
+  asNot_sound : ∀ (v : S.Term) (a1 : S.Term), asNot v = some a1 → v = (B.node (NotK a1) (S.ty v))
   /-- The arguments of a `And` node. -/
   asAnd : S.Term → Option (S.Term × S.Term)
-  asAnd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAnd (node (AndK a1 a2) t) = some (a1, a2)
-  asAnd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAnd v = some (a1, a2) → v = (node (AndK a1 a2) (S.ty v))
+  asAnd_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asAnd (B.node (AndK a1 a2) t) = some (a1, a2)
+  asAnd_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asAnd v = some (a1, a2) → v = (B.node (AndK a1 a2) (S.ty v))
   /-- The arguments of a `Or` node. -/
   asOr : S.Term → Option (S.Term × S.Term)
-  asOr_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asOr (node (OrK a1 a2) t) = some (a1, a2)
-  asOr_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asOr v = some (a1, a2) → v = (node (OrK a1 a2) (S.ty v))
+  asOr_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asOr (B.node (OrK a1 a2) t) = some (a1, a2)
+  asOr_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asOr v = some (a1, a2) → v = (B.node (OrK a1 a2) (S.ty v))
   /-- The arguments of a `Eq` node. -/
   asEq : S.Term → Option (S.Term × S.Term)
-  asEq_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asEq (node (EqK a1 a2) t) = some (a1, a2)
-  asEq_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asEq v = some (a1, a2) → v = (node (EqK a1 a2) (S.ty v))
+  asEq_node : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asEq (B.node (EqK a1 a2) t) = some (a1, a2)
+  asEq_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term), asEq v = some (a1, a2) → v = (B.node (EqK a1 a2) (S.ty v))
   /-- The arguments of a `Ite` node. -/
   asIte : S.Term → Option (S.Term × S.Term × S.Term)
-  asIte_node : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term) (t : S.Ty), asIte (node (IteK a1 a2 a3) t) = some (a1, a2, a3)
-  asIte_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term) (a3 : S.Term), asIte v = some (a1, a2, a3) → v = (node (IteK a1 a2 a3) (S.ty v))
+  asIte_node : ∀ (a1 : S.Term) (a2 : S.Term) (a3 : S.Term) (t : S.Ty), asIte (B.node (IteK a1 a2 a3) t) = some (a1, a2, a3)
+  asIte_sound : ∀ (v : S.Term) (a1 : S.Term) (a2 : S.Term) (a3 : S.Term), asIte v = some (a1, a2, a3) → v = (B.node (IteK a1 a2 a3) (S.ty v))
   /-- The arguments of a `Distinct` node. -/
   asDistinct : S.Term → Option (List S.Term)
-  asDistinct_node : ∀ (l1 : (List S.Term)) (t : S.Ty), asDistinct (node (DistinctK l1) t) = some l1
-  asDistinct_sound : ∀ (v : S.Term) (l1 : (List S.Term)), asDistinct v = some l1 → v = (node (DistinctK l1) (S.ty v))
+  asDistinct_node : ∀ (l1 : (List S.Term)) (t : S.Ty), asDistinct (B.node (DistinctK l1) t) = some l1
+  asDistinct_sound : ∀ (v : S.Term) (l1 : (List S.Term)), asDistinct v = some l1 → v = (B.node (DistinctK l1) (S.ty v))
   bool_v_true : S.Term
   bool_v_false : S.Term
   bool_of_bool : Bool → S.Term

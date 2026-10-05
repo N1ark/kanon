@@ -17,15 +17,15 @@ namespace L1
 open Classical Kanon
 
 @[kanon_comm_lemma] theorem Op2.And.comm.ok : Op2.And.comm.Stmt :=
-  fun a b t => KanonBool.And.comm.ok (S := sem) modSyntax.toBoolSyntax a b t
+  fun a b t => KanonBool.And.comm.ok (S := sem) boolSyntax a b t
 
 @[kanon_comm_lemma] theorem Op2.Or.comm.ok : Op2.Or.comm.Stmt :=
-  fun a b t => KanonBool.Or.comm.ok (S := sem) modSyntax.toBoolSyntax a b t
+  fun a b t => KanonBool.Or.comm.ok (S := sem) boolSyntax a b t
 
 @[kanon_comm_lemma] theorem Op2.Eq.comm.ok : Op2.Eq.comm.Stmt :=
-  fun a b t => KanonBool.Eq.comm.ok (S := sem) modSyntax.toBoolSyntax a b t
+  fun a b t => KanonBool.Eq.comm.ok (S := sem) boolSyntax a b t
 
 @[kanon_comm_lemma] theorem Op2.Add.comm.ok : Op2.Add.comm.Stmt :=
-  fun a b t => NumMod.Add.comm.ok (S := sem) modSyntax.toNumSyntax a b t
+  fun a b t => NumMod.Add.comm.ok (S := sem) numSyntax a b t
 
 end L1

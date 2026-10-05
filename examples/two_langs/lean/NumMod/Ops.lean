@@ -12,14 +12,14 @@ namespace NumMod
 
 open Classical Kanon
 
-def Num.add.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.AddK v1 v2) L.TNum)
+def Num.add.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.AddK v1 v2) L.TNum)
 
-def Num.less.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.LtK v1 v2) L.TBool)
+def Num.less.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.LtK v1 v2) LBool.TBool)
 
-def Num.max.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.MaxK v1 v2) L.TNum)
+def Num.max.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.MaxK v1 v2) L.TNum)
 
 attribute [kanon_spec]
   Num.add.spec
@@ -28,15 +28,15 @@ attribute [kanon_spec]
 
 /-- The rule functions, oracles and helpers of the module `Num` in the model of a
 language. -/
-structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toBoolOps : KanonBool.Ops L.toBoolSyntax where
+structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) extends
+    toBoolOps : KanonBool.Ops LBool where
   num_add : S.Term → S.Term → S.Term
   num_less : S.Term → S.Term → S.Term
   num_max : S.Term → S.Term → S.Term
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : NumMod.Syntax B LBool} (O : Ops L) : Prop extends
     toBoolSound : KanonBool.Ops.Sound O.toBoolOps where
   num_add : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (NumMod.Num.add.spec L v1 v2) (O.num_add v1 v2)
   num_less : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (NumMod.Num.less.spec L v1 v2) (O.num_less v1 v2)

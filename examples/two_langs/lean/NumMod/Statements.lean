@@ -12,8 +12,8 @@ open Classical Kanon
 
 /-- The operands of `Add` commute. -/
 def Add.comm.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (a b : S.Term) (t : S.Ty),
-  S.Refines (L.node (L.AddK a b) t)
-  (L.node (L.AddK b a) t)
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : NumMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (a b : S.Term) (t : S.Ty),
+  S.Refines (B.node (L.AddK a b) t)
+  (B.node (L.AddK b a) t)
 
 end NumMod

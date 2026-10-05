@@ -13,21 +13,16 @@ namespace DivisionExample
 
 open Classical Kanon
 
-/-- The interfaces of the modules proved once that the language uses. -/
-structure ModSyntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toIntSyntax : DivMod.Syntax S
-
-/-- What the modules proved once that the language uses need of its semantics, for the
-interface `L` (`lang`, in `Lang.lean`). -/
-structure ModSem (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] (L : ModSyntax S) extends
-    toIntSem : DivMod.Sem L.toIntSyntax
-
-/-- The terms of the language, for the interfaces of its modules: every law holds by
-definition. -/
-def modSyntax : ModSyntax sem where
+/-- The terms of the language, for the interfaces of its modules. -/
+def modBase : Kanon.Base sem where
   Kind := Kind
   node := Term.mk
   ty_node _ _ := rfl
+
+attribute [kanon_law] modBase
+
+/-- The interface of the module `Int`: every law holds by definition. -/
+def intSyntax : DivMod.Syntax (S := sem) modBase where
   TInt := Ty.TInt
   IntK := fun x1 => (Kind.Int x1)
   WT_Int := by intros; first | exact Iff.rfl | kanon_law
@@ -53,7 +48,6 @@ def modSyntax : ModSyntax sem where
   int_add := Int.add
   int_add_eq := by kanon_bridge Int.add
 
--- `kanon_law` sees through the interface
-attribute [kanon_law] modSyntax
+attribute [kanon_law] intSyntax
 
 end DivisionExample

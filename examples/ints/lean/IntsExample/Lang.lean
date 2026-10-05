@@ -6,8 +6,8 @@ import IntsExample.Model.Bool.sure_neq
 
 Its modules, the bool module and the int module, are proved once (`KanonBool`,
 `IntMod`), for any language that gives their interfaces (which Kanon generates:
-`modSyntax`, in `Interface.lean`) and what they need of its semantics:
-`KanonBool.Sem` and `IntMod.Sem`, together `lang`. The evaluation of the nodes
+`boolSyntax` and `intSyntax`, in `Interface.lean`) and what they need of its
+semantics: the instances of `KanonBool.Sem` and `IntMod.Sem`. The evaluation of the nodes
 holds by definition (with `evList_eq` for `Distinct`); the language proves the
 two laws that need an induction or a case analysis: that well-typed booleans
 evaluate to booleans (from `ev_ty`), and that the terms that `Bool.sure_neq`
@@ -90,16 +90,14 @@ theorem sure_neq_cases {a b : Term} (h : Bool.sure_neq a b = true) :
     cases ka <;> cases kb <;> simp_all [Bool.sure_neq, ty, firstSome]
   · exact .inl hty
 
-/-- What the modules proved once need of the semantics. -/
-noncomputable def lang : ModSem sem modSyntax where
+/-- What the bool module needs of the semantics. -/
+noncomputable instance boolSem : KanonBool.Sem (S := sem) boolSyntax where
   vbool := .bool
-  vint := .int
-  toInt := Val.toInt
   ev_bool ρ t v w h e := by
     have := ev_ty ρ t v w e
     cases v with
     | bool b => exact ⟨b, rfl⟩
-    | int _ => simp_all [Val.ty, modSyntax]
+    | int _ => simp_all [Val.ty, boolSyntax]
   sure_neq_sound ρ a b u h hty _ _ ea eb := by
     rcases sure_neq_cases h with h | ⟨x, y, t, t', rfl, rfl, hxy⟩ | ⟨x, y, t, t', rfl, rfl, hxy⟩
     · exact h hty
@@ -107,5 +105,10 @@ noncomputable def lang : ModSem sem modSyntax where
       exact hxy (by cases ea.trans eb.symm; rfl)
     · simp only [ev, Option.some.injEq] at ea eb
       exact hxy (by cases ea.trans eb.symm; rfl)
+
+/-- What the int module needs of the semantics. -/
+noncomputable instance intSem : IntMod.Sem (S := sem) intSyntax where
+  vint := .int
+  toInt := Val.toInt
 
 end IntsExample

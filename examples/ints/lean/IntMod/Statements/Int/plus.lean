@@ -11,29 +11,29 @@ namespace IntMod
 open Classical Kanon
 
 def Int.plus.r_lits.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (i1 : Int) (t__2 : S.Ty) (i2 : Int) (t__4 : S.Ty),
-  S.Refines (IntMod.Int.plus.spec L (L.node (L.IntK i1) t__2) (L.node (L.IntK i2) t__4))
-  ((L.node (L.IntK (L.int_add i1 i2)) L.TInt))
+  S.Refines (IntMod.Int.plus.spec L (B.node (L.IntK i1) t__2) (B.node (L.IntK i2) t__4))
+  ((B.node (L.IntK (L.int_add i1 i2)) L.TInt))
 
 def Int.plus.r_unit_zero.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (kanon__2 : Int) (t__3 : S.Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  S.Refines (IntMod.Int.plus.spec L v1 (L.node (L.IntK kanon__2) t__3))
+  S.Refines (IntMod.Int.plus.spec L v1 (B.node (L.IntK kanon__2) t__3))
   (v1)
 
 def Int.plus.r_unit_zero.swap.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (v2 : S.Term) (kanon__2 : Int) (t__3 : S.Ty),
   (decide (kanon__2 = (0 : Int))) = true →
-  S.Refines (IntMod.Int.plus.spec L (L.node (L.IntK kanon__2) t__3) v2)
+  S.Refines (IntMod.Int.plus.spec L (B.node (L.IntK kanon__2) t__3) v2)
   (v2)
 
 def Int.plus.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   S.Refines (IntMod.Int.plus.spec L v1 v2)
-  ((L.node (if O.tag_le v1 v2 then (L.PlusK v1 v2) else (L.PlusK v2 v1)) L.TInt))
+  ((B.node (if O.tag_le v1 v2 then (L.PlusK v1 v2) else (L.PlusK v2 v1)) L.TInt))
 
 end IntMod

@@ -68,7 +68,7 @@ end
 
 /-- What the int module needs of the semantics `S` of a language, for its
 interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) where
+class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : Syntax B) where
   /-- The integer values. -/
   vint : Int → S.Val
   /-- The integer of a value, if it is one. -/
@@ -76,19 +76,19 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S)
   toInt_vint : ∀ z, toInt (vint z) = some z := by intros; rfl
   vint_toInt : ∀ v z, toInt v = some z → v = vint z := by
     intro v z h; cases v <;> cases h <;> rfl
-  ev_Int : ∀ ρ z t, S.ev ρ (L.node (L.IntK z) t) = some (vint z) := by kanon_law
-  ev_Plus : ∀ ρ a b t, S.ev ρ (L.node (L.PlusK a b) t) =
+  ev_Int : ∀ ρ z t, S.ev ρ (B.node (L.IntK z) t) = some (vint z) := by kanon_law
+  ev_Plus : ∀ ρ a b t, S.ev ρ (B.node (L.PlusK a b) t) =
     addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Div : ∀ ρ a b t, S.ev ρ (L.node (L.DivK a b) t) =
+  ev_Div : ∀ ρ a b t, S.ev ρ (B.node (L.DivK a b) t) =
     divV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Sq1 : ∀ ρ a t, S.ev ρ (L.node (L.Sq1K a) t) = sq1V vint toInt (S.ev ρ a) := by kanon_law
+  ev_Sq1 : ∀ ρ a t, S.ev ρ (B.node (L.Sq1K a) t) = sq1V vint toInt (S.ev ρ a) := by kanon_law
   /-- The terms of the subsort `TNonzero` have no value zero. -/
   nonzero : ∀ t, L.Nonzero t → ∀ ρ z, S.eval ρ t = some (vint z) → z ≠ 0 := by
     intro t h; exact h
 
 namespace Sem
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} [Sem L]
+variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : Syntax B} [Sem L]
 
 /-- Different integers are different values. -/
 theorem vint_eq_iff {a b : Int} : vint L a = vint L b ↔ a = b :=

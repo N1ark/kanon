@@ -11,15 +11,15 @@ namespace NegMod
 
 open Classical Kanon
 
-/-- What the module `Neg` needs of the terms of a language of semantics `S`: Kanon generates it, and
-each language that uses the module gives it, by definition. -/
-structure Syntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toNumSyntax : NumMod.Syntax S where
-  NegK : S.Term → Kind
-  WT_Neg : ∀ (a1 : S.Term) (t : S.Ty), S.WT (node (NegK a1) t) ↔ ((S.ty a1) = TNum ∧ t = TNum) ∧ S.WT a1
+/-- What the module `Neg` needs of the terms `B` of a language of semantics `S`, whose
+modules that it uses have the interfaces of the parameters: Kanon generates it, and each
+language that uses the module gives it, by definition. -/
+structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Kanon.Base S) (LBool : KanonBool.Syntax B) (LNum : NumMod.Syntax B LBool) where
+  NegK : S.Term → B.Kind
+  WT_Neg : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (NegK a1) t) ↔ ((S.ty a1) = LNum.TNum ∧ t = LNum.TNum) ∧ S.WT a1
   /-- The arguments of a `Neg` node. -/
   asNeg : S.Term → Option S.Term
-  asNeg_node : ∀ (a1 : S.Term) (t : S.Ty), asNeg (node (NegK a1) t) = some a1
-  asNeg_sound : ∀ (v : S.Term) (a1 : S.Term), asNeg v = some a1 → v = (node (NegK a1) (S.ty v))
+  asNeg_node : ∀ (a1 : S.Term) (t : S.Ty), asNeg (B.node (NegK a1) t) = some a1
+  asNeg_sound : ∀ (v : S.Term) (a1 : S.Term), asNeg v = some a1 → v = (B.node (NegK a1) (S.ty v))
 
 end NegMod

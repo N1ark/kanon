@@ -12,10 +12,8 @@ namespace DivisionExample
 
 open Classical Kanon
 
-instance : DivMod.Sem (S := sem) modSyntax.toIntSyntax := lang.toIntSem
-
 /-- The model of the language, for the module `Int`. -/
-def Ops.toInt (O : Ops) : DivMod.Ops (S := sem) modSyntax.toIntSyntax where
+def Ops.toInt (O : Ops) : DivMod.Ops (S := sem) intSyntax where
   tag_le := O.orc.tag_le
   int_plus := O.int_plus
   int_div := O.int_div

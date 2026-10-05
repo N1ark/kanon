@@ -11,30 +11,30 @@ namespace KanonBool
 open Classical Kanon
 
 def Bool.distinct.r_small.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (l : (List S.Term)),
   (L.bool_at_most_one l) = true →
   S.Refines (KanonBool.Bool.distinct.spec L l)
   (L.bool_v_true)
 
 def Bool.distinct.r_distinct.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (l : (List S.Term)),
   (decide ((L.bool_distinct_check l) = (some true))) = true →
   S.Refines (KanonBool.Bool.distinct.spec L l)
   (L.bool_v_true)
 
 def Bool.distinct.r_not_distinct.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (l : (List S.Term)),
   (decide ((L.bool_distinct_check l) = (some false))) = true →
   S.Refines (KanonBool.Bool.distinct.spec L l)
   (L.bool_v_false)
 
 def Bool.distinct.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (l : (List S.Term)),
   S.Refines (KanonBool.Bool.distinct.spec L l)
-  ((L.node (L.DistinctK (O.bool_sort_by_tag l)) L.TBool))
+  ((B.node (L.DistinctK (O.bool_sort_by_tag l)) L.TBool))
 
 end KanonBool

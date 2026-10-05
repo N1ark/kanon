@@ -30,24 +30,24 @@ open Classical Kanon
 
 /-- What the bool module needs of the semantics `S` of a language, for its
 interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) where
+class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : Syntax B) where
   /-- The boolean values. -/
   vbool : Bool → S.Val
   vbool_inj : Function.Injective vbool := by intro _ _ h; cases h; rfl
-  ev_Bool : ∀ ρ b t, S.ev ρ (L.node (L.BoolK b) t) = some (vbool b) := by kanon_law
-  ev_Not : ∀ ρ a t, S.ev ρ (L.node (L.NotK a) t) = pnot vbool (S.ev ρ a) := by kanon_law
-  ev_And : ∀ ρ a b t, S.ev ρ (L.node (L.AndK a b) t) =
+  ev_Bool : ∀ ρ b t, S.ev ρ (B.node (L.BoolK b) t) = some (vbool b) := by kanon_law
+  ev_Not : ∀ ρ a t, S.ev ρ (B.node (L.NotK a) t) = pnot vbool (S.ev ρ a) := by kanon_law
+  ev_And : ∀ ρ a b t, S.ev ρ (B.node (L.AndK a b) t) =
     pand vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Or : ∀ ρ a b t, S.ev ρ (L.node (L.OrK a b) t) =
+  ev_Or : ∀ ρ a b t, S.ev ρ (B.node (L.OrK a b) t) =
     por vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Eq : ∀ ρ a b t, S.ev ρ (L.node (L.EqK a b) t) =
+  ev_Eq : ∀ ρ a b t, S.ev ρ (B.node (L.EqK a b) t) =
     peq vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Ite : ∀ ρ g a b t, S.ev ρ (L.node (L.IteK g a b) t) =
+  ev_Ite : ∀ ρ g a b t, S.ev ρ (B.node (L.IteK g a b) t) =
     pite vbool (S.ev ρ g) (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Distinct : ∀ ρ l t, S.ev ρ (L.node (L.DistinctK l) t) =
+  ev_Distinct : ∀ ρ l t, S.ev ρ (B.node (L.DistinctK l) t) =
     pdistinct vbool (l.mapM (S.ev ρ)) := by kanon_law
-  v_true_eq : L.bool_v_true = L.node (L.BoolK true) L.TBool := by kanon_law
-  v_false_eq : L.bool_v_false = L.node (L.BoolK false) L.TBool := by kanon_law
+  v_true_eq : L.bool_v_true = B.node (L.BoolK true) L.TBool := by kanon_law
+  v_false_eq : L.bool_v_false = B.node (L.BoolK false) L.TBool := by kanon_law
   /-- Well-typed booleans evaluate to booleans. -/
   ev_bool : ∀ ρ t v, S.WT t → S.ty t = L.TBool → S.ev ρ t = some v → ∃ b, v = vbool b
   /-- Surely different terms of the same type have different values. -/
@@ -60,7 +60,7 @@ structure Oracle.Compat {T : Type} (sort_by_tag : List T → List T) : Prop wher
 
 namespace Sem
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} [Sem L]
+variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : Syntax B} [Sem L]
 
 theorem vbool_eq_iff {a b : Bool} : vbool L a = vbool L b ↔ a = b := vbool_inj.eq_iff
 

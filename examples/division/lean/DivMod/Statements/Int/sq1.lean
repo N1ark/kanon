@@ -11,9 +11,9 @@ namespace DivMod
 open Classical Kanon
 
 def Int.sq1.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (v : S.Term),
   S.Refines (DivMod.Int.sq1.spec L v)
-  ((L.node (L.Sq1K v) L.TInt))
+  ((B.node (L.Sq1K v) L.TInt))
 
 end DivMod

@@ -12,10 +12,8 @@ namespace BoolExample
 
 open Classical Kanon
 
-instance : KanonBool.Sem (S := sem) modSyntax.toBoolSyntax := lang.toBoolSem
-
 /-- The model of the language, for the module `Bool`. -/
-def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) modSyntax.toBoolSyntax where
+def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) boolSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_

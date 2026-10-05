@@ -11,14 +11,14 @@ namespace DivMod
 
 open Classical Kanon
 
-def Int.plus.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.PlusK v1 v2) L.TInt)
+def Int.plus.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.PlusK v1 v2) L.TInt)
 
-def Int.div.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.DivK v1 v2) L.TInt)
+def Int.div.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.DivK v1 v2) L.TInt)
 
-def Int.sq1.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v : S.Term) : S.Term :=
-  (L.node (L.Sq1K v) L.TInt)
+def Int.sq1.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) (v : S.Term) : S.Term :=
+  (B.node (L.Sq1K v) L.TInt)
 
 attribute [kanon_spec]
   Int.plus.spec
@@ -27,7 +27,7 @@ attribute [kanon_spec]
 
 /-- The rule functions, oracles and helpers of the module `Int` in the model of a
 language. -/
-structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
+structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) extends
     toBase : Kanon.OpsBase S where
   int_plus : S.Term → S.Term → S.Term
   int_div : S.Term → S.Term → S.Term
@@ -35,7 +35,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Synta
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} (O : Ops L) : Prop where
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : DivMod.Syntax B} (O : Ops L) : Prop where
   int_plus : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (DivMod.Int.plus.spec L v1 v2) (O.int_plus v1 v2)
   int_div : ∀ (v1 : S.Term) (v2 : S.Term), L.Nonzero v2 → S.Refines (DivMod.Int.div.spec L v1 v2) (O.int_div v1 v2)
   int_sq1 : ∀ (v : S.Term), S.Refines (DivMod.Int.sq1.spec L v) (O.int_sq1 v)

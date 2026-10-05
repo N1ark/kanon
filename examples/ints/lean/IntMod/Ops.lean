@@ -12,11 +12,11 @@ namespace IntMod
 
 open Classical Kanon
 
-def Int.plus.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.PlusK v1 v2) L.TInt)
+def Int.plus.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.PlusK v1 v2) L.TInt)
 
-def Int.int_lt.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.LtK v1 v2) L.TBool)
+def Int.int_lt.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.LtK v1 v2) LBool.TBool)
 
 attribute [kanon_spec]
   Int.plus.spec
@@ -24,14 +24,14 @@ attribute [kanon_spec]
 
 /-- The rule functions, oracles and helpers of the module `Int` in the model of a
 language. -/
-structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toBoolOps : KanonBool.Ops L.toBoolSyntax where
+structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) extends
+    toBoolOps : KanonBool.Ops LBool where
   int_plus : S.Term → S.Term → S.Term
   int_int_lt : S.Term → S.Term → S.Term
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : IntMod.Syntax B LBool} (O : Ops L) : Prop extends
     toBoolSound : KanonBool.Ops.Sound O.toBoolOps where
   int_plus : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (IntMod.Int.plus.spec L v1 v2) (O.int_plus v1 v2)
   int_int_lt : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (IntMod.Int.int_lt.spec L v1 v2) (O.int_int_lt v1 v2)

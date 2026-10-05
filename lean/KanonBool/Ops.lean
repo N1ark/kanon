@@ -11,26 +11,26 @@ namespace KanonBool
 
 open Classical Kanon
 
-def Bool.and_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.AndK v1 v2) L.TBool)
+def Bool.and_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.AndK v1 v2) L.TBool)
 
-def Bool.or_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.OrK v1 v2) L.TBool)
+def Bool.or_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.OrK v1 v2) L.TBool)
 
-def Bool.not_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (sv : S.Term) : S.Term :=
-  (L.node (L.NotK sv) L.TBool)
+def Bool.not_.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (sv : S.Term) : S.Term :=
+  (B.node (L.NotK sv) L.TBool)
 
-def Bool.ite.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) : S.Term :=
-  (L.node (L.IteK guard if_ else_) (S.ty if_))
+def Bool.ite.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) : S.Term :=
+  (B.node (L.IteK guard if_ else_) (S.ty if_))
 
-def Bool.eq.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.EqK v1 v2) L.TBool)
+def Bool.eq.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.EqK v1 v2) L.TBool)
 
-def Bool.eq_untyped.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v1 : S.Term) (v2 : S.Term) : S.Term :=
-  (L.node (L.EqK v1 v2) L.TBool)
+def Bool.eq_untyped.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (v1 : S.Term) (v2 : S.Term) : S.Term :=
+  (B.node (L.EqK v1 v2) L.TBool)
 
-def Bool.distinct.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (l : (List S.Term)) : S.Term :=
-  (L.node (L.DistinctK l) L.TBool)
+def Bool.distinct.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) (l : (List S.Term)) : S.Term :=
+  (B.node (L.DistinctK l) L.TBool)
 
 attribute [kanon_spec]
   Bool.and_.spec
@@ -43,7 +43,7 @@ attribute [kanon_spec]
 
 /-- The rule functions, oracles and helpers of the module `Bool` in the model of a
 language. -/
-structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
+structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) extends
     toBase : Kanon.OpsBase S where
   bool_and_ : S.Term → S.Term → S.Term
   bool_or_ : S.Term → S.Term → S.Term
@@ -56,7 +56,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Synta
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} (O : Ops L) : Prop where
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : KanonBool.Syntax B} (O : Ops L) : Prop where
   bool_and_ : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.and_.spec L v1 v2) (O.bool_and_ v1 v2)
   bool_or_ : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.or_.spec L v1 v2) (O.bool_or_ v1 v2)
   bool_not_ : ∀ (sv : S.Term), S.Refines (KanonBool.Bool.not_.spec L sv) (O.bool_not_ sv)

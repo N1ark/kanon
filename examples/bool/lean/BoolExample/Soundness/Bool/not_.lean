@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_true_.main.ok : Bool.not_.r_true_.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_true_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_true_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_true_.proof : Bool.not_.r_true_.Stmt := by
@@ -26,7 +26,7 @@ theorem Bool.not_.r_true_.proof : Bool.not_.r_true_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_false_.main.ok : Bool.not_.r_false_.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_false_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_false_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_false_.proof : Bool.not_.r_false_.Stmt := by
@@ -37,7 +37,7 @@ theorem Bool.not_.r_false_.proof : Bool.not_.r_false_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_not.main.ok : Bool.not_.r_not.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_not.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_not.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_not.proof : Bool.not_.r_not.Stmt := by
@@ -48,7 +48,7 @@ theorem Bool.not_.r_not.proof : Bool.not_.r_not.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_or_.main.ok : Bool.not_.r_or_.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_or_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_or_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_or_.proof : Bool.not_.r_or_.Stmt := by
@@ -59,7 +59,7 @@ theorem Bool.not_.r_or_.proof : Bool.not_.r_or_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_and_.main.ok : Bool.not_.r_and_.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_and_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_and_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_and_.proof : Bool.not_.r_and_.Stmt := by
@@ -70,7 +70,7 @@ theorem Bool.not_.r_and_.proof : Bool.not_.r_and_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_ite.main.ok : Bool.not_.r_ite.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_ite.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_ite.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_ite.proof : Bool.not_.r_ite.Stmt := by
@@ -81,7 +81,7 @@ theorem Bool.not_.r_ite.proof : Bool.not_.r_ite.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_distinct.main.ok : Bool.not_.r_distinct.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_distinct.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_distinct.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_distinct.proof : Bool.not_.r_distinct.Stmt := by
@@ -92,7 +92,7 @@ theorem Bool.not_.r_distinct.proof : Bool.not_.r_distinct.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.not_.r_default.main.ok : Bool.not_.r_default.main.Stmt :=
-  fun O hO => KanonBool.Bool.not_.r_default.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.not_.r_default.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.not_.r_default.proof : Bool.not_.r_default.Stmt := by

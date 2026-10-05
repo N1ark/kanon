@@ -20,21 +20,16 @@ namespace L2
 
 open Classical Kanon
 
-/-- The interfaces of the modules proved once that the language uses. -/
-structure ModSyntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toNegSyntax : NegMod.Syntax S
-
-/-- What the modules proved once that the language uses need of its semantics, for the
-interface `L` (`lang`, in `Lang.lean`). -/
-structure ModSem (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] (L : ModSyntax S) extends
-    toNegSem : NegMod.Sem L.toNegSyntax
-
-/-- The terms of the language, for the interfaces of its modules: every law holds by
-definition. -/
-def modSyntax : ModSyntax sem where
+/-- The terms of the language, for the interfaces of its modules. -/
+def modBase : Kanon.Base sem where
   Kind := Kind
   node := Term.mk
   ty_node _ _ := rfl
+
+attribute [kanon_law] modBase
+
+/-- The interface of the module `Bool`: every law holds by definition. -/
+def boolSyntax : KanonBool.Syntax (S := sem) modBase where
   TBool := Ty.TBool
   BoolK := fun x1 => (Kind.Bool x1)
   WT_Bool := by intros; first | exact Iff.rfl | kanon_law
@@ -82,6 +77,11 @@ def modSyntax : ModSyntax sem where
   bool_distinct_check_one_eq := by kanon_bridge Bool.distinct_check_one
   bool_distinct_check := Bool.distinct_check
   bool_distinct_check_eq := by kanon_bridge Bool.distinct_check
+
+attribute [kanon_law] boolSyntax
+
+/-- The interface of the module `Num`: every law holds by definition. -/
+def numSyntax : NumMod.Syntax (S := sem) modBase boolSyntax where
   TNum := Ty.TNum
   TNum_ne_TBool := by intros; exact nofun
   NumK := fun x1 => (Kind.Num x1)
@@ -106,13 +106,17 @@ def modSyntax : ModSyntax sem where
   asMax_sound := by intro v a1 a2 h; dsimp only at h; split at h <;> cases h <;> rfl
   num_is_pos := Num.is_pos
   num_is_pos_eq := by kanon_bridge Num.is_pos
+
+attribute [kanon_law] numSyntax
+
+/-- The interface of the module `Neg`: every law holds by definition. -/
+def negSyntax : NegMod.Syntax (S := sem) modBase boolSyntax numSyntax where
   NegK := fun a1 => (Kind.Op1 Op1.Neg a1)
   WT_Neg := by intros; first | exact Iff.rfl | kanon_law
   asNeg := fun v => match v with | Term.mk (Kind.Op1 Op1.Neg a1) _ => some a1 | _ => none
   asNeg_node := by intros; rfl
   asNeg_sound := by intro v a1 h; dsimp only at h; split at h <;> cases h <;> rfl
 
--- `kanon_law` sees through the interface
-attribute [kanon_law] modSyntax
+attribute [kanon_law] negSyntax
 
 end L2

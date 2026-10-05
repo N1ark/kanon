@@ -14,7 +14,7 @@ namespace L1
 open Classical Kanon
 
 /-- The model of the language, for the module `Bool`. -/
-def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) modSyntax.toBoolSyntax where
+def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) boolSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_
@@ -35,10 +35,8 @@ theorem Ops.Sound.toBool {O : Ops} (hO : O.Sound) : (Ops.toBool O).Sound where
   bool_distinct := hO.bool_distinct
   bool_orc := hO.orc.bool
 
-instance : NumMod.Sem (S := sem) modSyntax.toNumSyntax := lang.toNumSem
-
 /-- The model of the language, for the module `Num`. -/
-def Ops.toNum (O : Ops) : NumMod.Ops (S := sem) modSyntax.toNumSyntax where
+def Ops.toNum (O : Ops) : NumMod.Ops (S := sem) numSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_

@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Neg.neg.r_lit.main.ok : Neg.neg.r_lit.main.Stmt :=
-  fun O hO => NegMod.Neg.neg.r_lit.main.ok (S := sem) modSyntax.toNegSyntax
+  fun O hO => NegMod.Neg.neg.r_lit.main.ok (S := sem) negSyntax
   (Ops.toNeg O) (Ops.Sound.toNeg hO)
 
 theorem Neg.neg.r_lit.proof : Neg.neg.r_lit.Stmt := by
@@ -26,7 +26,7 @@ theorem Neg.neg.r_lit.proof : Neg.neg.r_lit.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Neg.neg.r_neg.main.ok : Neg.neg.r_neg.main.Stmt :=
-  fun O hO => NegMod.Neg.neg.r_neg.main.ok (S := sem) modSyntax.toNegSyntax
+  fun O hO => NegMod.Neg.neg.r_neg.main.ok (S := sem) negSyntax
   (Ops.toNeg O) (Ops.Sound.toNeg hO)
 
 theorem Neg.neg.r_neg.proof : Neg.neg.r_neg.Stmt := by
@@ -37,7 +37,7 @@ theorem Neg.neg.r_neg.proof : Neg.neg.r_neg.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Neg.neg.r_default.main.ok : Neg.neg.r_default.main.Stmt :=
-  fun O hO => NegMod.Neg.neg.r_default.main.ok (S := sem) modSyntax.toNegSyntax
+  fun O hO => NegMod.Neg.neg.r_default.main.ok (S := sem) negSyntax
   (Ops.toNeg O) (Ops.Sound.toNeg hO)
 
 theorem Neg.neg.r_default.proof : Neg.neg.r_default.Stmt := by

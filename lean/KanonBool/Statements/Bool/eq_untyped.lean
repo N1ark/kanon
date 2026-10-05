@@ -11,14 +11,14 @@ namespace KanonBool
 open Classical Kanon
 
 def Bool.eq_untyped.r_ill_typed.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   (! (decide ((S.ty v1) = (S.ty v2)))) = true →
   S.Refines (KanonBool.Bool.eq_untyped.spec L v1 v2)
   (L.bool_v_false)
 
 def Bool.eq_untyped.r_typed.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   S.Refines (KanonBool.Bool.eq_untyped.spec L v1 v2)
   ((O.bool_eq v1 v2))

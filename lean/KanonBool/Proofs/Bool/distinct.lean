@@ -11,7 +11,7 @@ open Classical Kanon
 set_option linter.unusedSectionVars false
 
 section
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} [Sem L]
+variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : Syntax B} [Sem L]
 
 theorem mapM_eq_some {α β : Type} {f : α → Option β} {d : β} : ∀ {l : List α} {vs : List β},
     l.mapM f = some vs ↔ (∀ t ∈ l, ∃ v, f t = some v) ∧ vs = l.map (fun t => (f t).getD d)
@@ -103,7 +103,7 @@ theorem distinct_check_false : ∀ {l : List S.Term},
 /-- The value of a `Distinct` that is not poison: its operands are not poison,
 and it says whether their values are pairwise different. -/
 theorem ev_distinct_eq_some {ρ : S.Env} {l : List S.Term} {t : S.Ty} {v : S.Val}
-    (e : S.ev ρ (L.node (L.DistinctK l) t) = some v) :
+    (e : S.ev ρ (B.node (L.DistinctK l) t) = some v) :
     (∀ x ∈ l, ∃ u, S.ev ρ x = some u) ∧
       v = Sem.vbool L (decide (l.map fun x => (S.ev ρ x).getD (Sem.vbool L false)).Nodup) := by
   rw [Sem.ev_Distinct, pdistinct, Option.map_eq_some_iff] at e
@@ -113,24 +113,24 @@ theorem ev_distinct_eq_some {ρ : S.Env} {l : List S.Term} {t : S.Ty} {v : S.Val
 
 theorem ev_distinct {ρ : S.Env} {l : List S.Term} {t : S.Ty}
     (h : ∀ x ∈ l, ∃ u, S.ev ρ x = some u) :
-    S.ev ρ (L.node (L.DistinctK l) t) =
+    S.ev ρ (B.node (L.DistinctK l) t) =
       some (Sem.vbool L (decide (l.map fun x => (S.ev ρ x).getD (Sem.vbool L false)).Nodup)) := by
   rw [Sem.ev_Distinct, (mapM_eq_some (d := Sem.vbool L false)).2 ⟨h, rfl⟩]; rfl
 
 end
 
 @[kanon_arm] theorem Bool.distinct.r_small.main.proof : Bool.distinct.r_small.main.Stmt := by
-  intro S _ _ L _ O hO l h
+  intro S _ _ B L _ O hO l h
   rw [L.bool_at_most_one_eq] at h
   match l, h with
   | [], _ | [_], _ => simp only [kanon_spec]; kanon_bool_sem
   | _ :: _ :: _, h => cases h
 
 @[kanon_arm] theorem Bool.distinct.r_distinct.main.proof : Bool.distinct.r_distinct.main.Stmt := by
-  intro S _ _ L _ O hO l h
+  intro S _ _ B L _ O hO l h
   simp only [decide_eq_true_eq] at h
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
-  · simp [Bool.distinct.spec, (Sem.v_true_eq (L := L)), L.WT_Bool, L.ty_node]
+  · simp [Bool.distinct.spec, (Sem.v_true_eq (L := L)), L.WT_Bool, B.ty_node]
   simp only [Bool.distinct.spec] at e w
   obtain ⟨hall, rfl⟩ := ev_distinct_eq_some e
   rw [L.WT_Distinct] at w
@@ -146,10 +146,10 @@ end
 
 @[kanon_arm] theorem Bool.distinct.r_not_distinct.main.proof :
     Bool.distinct.r_not_distinct.main.Stmt := by
-  intro S _ _ L _ O hO l h
+  intro S _ _ B L _ O hO l h
   simp only [decide_eq_true_eq] at h
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
-  · simp [Bool.distinct.spec, (Sem.v_false_eq (L := L)), L.WT_Bool, L.ty_node]
+  · simp [Bool.distinct.spec, (Sem.v_false_eq (L := L)), L.WT_Bool, B.ty_node]
   simp only [Bool.distinct.spec] at e
   obtain ⟨-, rfl⟩ := ev_distinct_eq_some e
   have : ¬ (l.map fun x => (S.ev ρ x).getD (Sem.vbool L false)).Nodup :=
@@ -157,13 +157,13 @@ end
   simp [(Sem.v_false_eq (L := L)), Sem.ev_Bool, this]
 
 @[kanon_arm] theorem Bool.distinct.r_default.main.proof : Bool.distinct.r_default.main.Stmt := by
-  intro S _ _ L _ O hO l
+  intro S _ _ B L _ O hO l
   have hp := hO.bool_orc.sort_by_tag l
   refine Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
   · simp only [Bool.distinct.spec] at w ⊢
     rw [L.WT_Distinct] at w ⊢
     obtain ⟨E, h, hE⟩ := w
-    exact ⟨⟨E, h, fun x hx => hE x (hp.mem_iff.1 hx)⟩, by rw [L.ty_node, L.ty_node]⟩
+    exact ⟨⟨E, h, fun x hx => hE x (hp.mem_iff.1 hx)⟩, by rw [B.ty_node, B.ty_node]⟩
   · simp only [Bool.distinct.spec] at e
     obtain ⟨hall, rfl⟩ := ev_distinct_eq_some e
     rw [ev_distinct fun x hx => hall x (hp.mem_iff.1 hx)]

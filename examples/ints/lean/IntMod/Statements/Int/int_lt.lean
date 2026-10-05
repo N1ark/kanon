@@ -11,22 +11,22 @@ namespace IntMod
 open Classical Kanon
 
 def Int.int_lt.r_lits.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (x : Int) (t__2 : S.Ty) (y : Int) (t__4 : S.Ty),
-  S.Refines (IntMod.Int.int_lt.spec L (L.node (L.IntK x) t__2) (L.node (L.IntK y) t__4))
-  ((L.bool_of_bool (decide (x < y))))
+  S.Refines (IntMod.Int.int_lt.spec L (B.node (L.IntK x) t__2) (B.node (L.IntK y) t__4))
+  ((LBool.bool_of_bool (decide (x < y))))
 
 def Int.int_lt.r_same.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   (decide (v1 = v2)) = true →
   S.Refines (IntMod.Int.int_lt.spec L v1 v2)
-  (L.bool_v_false)
+  (LBool.bool_v_false)
 
 def Int.int_lt.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   S.Refines (IntMod.Int.int_lt.spec L v1 v2)
-  ((L.node (L.LtK v1 v2) L.TBool))
+  ((B.node (L.LtK v1 v2) LBool.TBool))
 
 end IntMod

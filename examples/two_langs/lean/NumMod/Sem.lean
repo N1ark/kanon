@@ -7,7 +7,7 @@ import NumMod.Syntax
 The rules of the num module (`../num.kn`) are proved once (`NumMod`), for both
 languages, over its interface `L : NumMod.Syntax S` (generated, in
 `Syntax.lean`) and what the proofs need of the semantics `S`, `NumMod.Sem L`
-(which extends what the bool module needs, `KanonBool.Sem`): the integers among
+(whose instances assume those of the bool module, `KanonBool.Sem`): the integers among
 the values (`vint`, read back by `toInt`), and the evaluation of the nodes, by
 the operations below, which both languages use in their evaluation (so that
 these laws hold by definition: `kanon_law`).
@@ -52,8 +52,8 @@ end
 
 /-- What the num module needs of the semantics `S` of a language, for its
 interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toBoolSem : KanonBool.Sem L.toBoolSyntax where
+class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : Syntax B LBool)
+    [KanonBool.Sem LBool] where
   /-- The integer values. -/
   vint : Int → S.Val
   /-- The integer of a value, if it is one. -/
@@ -61,17 +61,17 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S)
   toInt_vint : ∀ z, toInt (vint z) = some z := by intros; rfl
   vint_toInt : ∀ v z, toInt v = some z → v = vint z := by
     intro v z h; cases v <;> cases h <;> rfl
-  ev_Num : ∀ ρ z t, S.ev ρ (L.node (L.NumK z) t) = some (vint z) := by kanon_law
-  ev_Add : ∀ ρ a b t, S.ev ρ (L.node (L.AddK a b) t) =
+  ev_Num : ∀ ρ z t, S.ev ρ (B.node (L.NumK z) t) = some (vint z) := by kanon_law
+  ev_Add : ∀ ρ a b t, S.ev ρ (B.node (L.AddK a b) t) =
     addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Lt : ∀ ρ a b t, S.ev ρ (L.node (L.LtK a b) t) =
-    ltV toInt vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Max : ∀ ρ a b t, S.ev ρ (L.node (L.MaxK a b) t) =
+  ev_Lt : ∀ ρ a b t, S.ev ρ (B.node (L.LtK a b) t) =
+    ltV toInt (KanonBool.Sem.vbool LBool) (S.ev ρ a) (S.ev ρ b) := by kanon_law
+  ev_Max : ∀ ρ a b t, S.ev ρ (B.node (L.MaxK a b) t) =
     maxV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
 
 namespace Sem
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} [Sem L]
+variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : Syntax B LBool} [KanonBool.Sem LBool] [Sem L]
 
 /-- Different integers are different values. -/
 theorem vint_eq_iff {a b : Int} : vint L a = vint L b ↔ a = b :=

@@ -11,18 +11,18 @@ namespace DivMod
 open Classical Kanon
 
 def Int.div.r_self.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   L.Nonzero v2 →
   (decide (v1 = v2)) = true →
   S.Refines (DivMod.Int.div.spec L v1 v2)
-  ((L.node (L.IntK (1 : Int)) L.TInt))
+  ((B.node (L.IntK (1 : Int)) L.TInt))
 
 def Int.div.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : DivMod.Syntax B) [Sem L] (O : Ops L), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),
   L.Nonzero v2 →
   S.Refines (DivMod.Int.div.spec L v1 v2)
-  ((L.node (L.DivK v1 v2) L.TInt))
+  ((B.node (L.DivK v1 v2) L.TInt))
 
 end DivMod

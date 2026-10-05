@@ -19,12 +19,12 @@ open Kanon
 /-- `a / a` is refined by `1`, when `a` is not zero (the divisor, `Nonzero`: the
 quotient by zero is zero). -/
 macro "kanon_div_self" : tactic => `(tactic| (
-  intro S _ _ L _ O hO v1 v2 hs hg
+  intro S _ _ B L _ O hO v1 v2 hs hg
   simp only [decide_eq_true_eq] at hg
   subst hg
   refine Kanon.Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
   · -- typing: `1` is an integer
-    simp [Int.div.spec, L.WT_Div, L.WT_Int, L.ty_node] at w ⊢
+    simp [Int.div.spec, L.WT_Div, L.WT_Int, B.ty_node] at w ⊢
   · -- values: a non-zero integer divided by itself is 1
     have hw : S.WT v1 := by
       simp only [Int.div.spec, L.WT_Div] at w

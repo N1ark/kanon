@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_same.main.ok : Bool.and_.r_same.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_same.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_same.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_same.proof : Bool.and_.r_same.Stmt := by
@@ -26,12 +26,12 @@ theorem Bool.and_.r_same.proof : Bool.and_.r_same.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_false_.main.ok : Bool.and_.r_false_.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_false_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_false_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_false_.swap.ok : Bool.and_.r_false_.swap.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_false_.swap.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_false_.swap.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_false_.proof : Bool.and_.r_false_.Stmt := by
@@ -43,12 +43,12 @@ theorem Bool.and_.r_false_.proof : Bool.and_.r_false_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_true_.main.ok : Bool.and_.r_true_.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_true_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_true_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_true_.swap.ok : Bool.and_.r_true_.swap.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_true_.swap.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_true_.swap.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_true_.proof : Bool.and_.r_true_.Stmt := by
@@ -60,12 +60,12 @@ theorem Bool.and_.r_true_.proof : Bool.and_.r_true_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_not.main.ok : Bool.and_.r_not.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_not.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_not.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_not.swap.ok : Bool.and_.r_not.swap.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_not.swap.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_not.swap.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_not.proof : Bool.and_.r_not.Stmt := by
@@ -77,22 +77,22 @@ theorem Bool.and_.r_not.proof : Bool.and_.r_not.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_and_.main.ok : Bool.and_.r_and_.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_and_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_and_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_and_.swap1.ok : Bool.and_.r_and_.swap1.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_and_.swap1.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_and_.swap1.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_and_.swap2.ok : Bool.and_.r_and_.swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_and_.swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_and_.swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_and_.swap1_swap2.ok : Bool.and_.r_and_.swap1_swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_and_.swap1_swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_and_.swap1_swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_and_.proof : Bool.and_.r_and_.Stmt := by
@@ -106,22 +106,22 @@ theorem Bool.and_.r_and_.proof : Bool.and_.r_and_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_or_.main.ok : Bool.and_.r_or_.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_or_.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_or_.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_or_.swap1.ok : Bool.and_.r_or_.swap1.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_or_.swap1.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_or_.swap1.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_or_.swap2.ok : Bool.and_.r_or_.swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_or_.swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_or_.swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_or_.swap1_swap2.ok : Bool.and_.r_or_.swap1_swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_or_.swap1_swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_or_.swap1_swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_or_.proof : Bool.and_.r_or_.Stmt := by
@@ -135,22 +135,22 @@ theorem Bool.and_.r_or_.proof : Bool.and_.r_or_.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_eq_neq.main.ok : Bool.and_.r_eq_neq.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_eq_neq.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_eq_neq.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_eq_neq.swap2.ok : Bool.and_.r_eq_neq.swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_eq_neq.swap1.ok : Bool.and_.r_eq_neq.swap1.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap1.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap1.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_eq_neq.swap1_swap2.ok : Bool.and_.r_eq_neq.swap1_swap2.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap1_swap2.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_eq_neq.swap1_swap2.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_eq_neq.proof : Bool.and_.r_eq_neq.Stmt := by
@@ -164,7 +164,7 @@ theorem Bool.and_.r_eq_neq.proof : Bool.and_.r_eq_neq.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_default.main.ok : Bool.and_.r_default.main.Stmt :=
-  fun O hO => KanonBool.Bool.and_.r_default.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.and_.r_default.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.and_.r_default.proof : Bool.and_.r_default.Stmt := by

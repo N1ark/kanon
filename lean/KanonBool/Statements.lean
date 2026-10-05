@@ -12,20 +12,20 @@ open Classical Kanon
 
 /-- The operands of `And` commute. -/
 def And.comm.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (a b : S.Term) (t : S.Ty),
-  S.Refines (L.node (L.AndK a b) t)
-  (L.node (L.AndK b a) t)
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (a b : S.Term) (t : S.Ty),
+  S.Refines (B.node (L.AndK a b) t)
+  (B.node (L.AndK b a) t)
 
 /-- The operands of `Or` commute. -/
 def Or.comm.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (a b : S.Term) (t : S.Ty),
-  S.Refines (L.node (L.OrK a b) t)
-  (L.node (L.OrK b a) t)
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (a b : S.Term) (t : S.Ty),
+  S.Refines (B.node (L.OrK a b) t)
+  (B.node (L.OrK b a) t)
 
 /-- The operands of `Eq` commute. -/
 def Eq.comm.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (a b : S.Term) (t : S.Ty),
-  S.Refines (L.node (L.EqK a b) t)
-  (L.node (L.EqK b a) t)
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : KanonBool.Syntax B) [Sem L] (a b : S.Term) (t : S.Ty),
+  S.Refines (B.node (L.EqK a b) t)
+  (B.node (L.EqK b a) t)
 
 end KanonBool

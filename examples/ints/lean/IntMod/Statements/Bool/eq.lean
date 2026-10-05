@@ -11,9 +11,9 @@ namespace IntMod
 open Classical Kanon
 
 def Bool.eq.r_ints.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (O : Ops L), O.Sound →
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (O : Ops L), O.Sound →
   ∀ (x : Int) (t__2 : S.Ty) (y : Int) (t__4 : S.Ty),
-  S.Refines (KanonBool.Bool.eq.spec L.toBoolSyntax (L.node (L.IntK x) t__2) (L.node (L.IntK y) t__4))
-  ((L.bool_of_bool (decide (x = y))))
+  S.Refines (KanonBool.Bool.eq.spec LBool (B.node (L.IntK x) t__2) (B.node (L.IntK y) t__4))
+  ((LBool.bool_of_bool (decide (x = y))))
 
 end IntMod

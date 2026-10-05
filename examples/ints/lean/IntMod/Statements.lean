@@ -12,8 +12,8 @@ open Classical Kanon
 
 /-- The operands of `Plus` commute. -/
 def Plus.comm.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) [Sem L] (a b : S.Term) (t : S.Ty),
-  S.Refines (L.node (L.PlusK a b) t)
-  (L.node (L.PlusK b a) t)
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} (L : IntMod.Syntax B LBool) [KanonBool.Sem LBool] [Sem L] (a b : S.Term) (t : S.Ty),
+  S.Refines (B.node (L.PlusK a b) t)
+  (B.node (L.PlusK b a) t)
 
 end IntMod

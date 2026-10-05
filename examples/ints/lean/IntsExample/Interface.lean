@@ -19,21 +19,16 @@ namespace IntsExample
 
 open Classical Kanon
 
-/-- The interfaces of the modules proved once that the language uses. -/
-structure ModSyntax (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] extends
-    toIntSyntax : IntMod.Syntax S
-
-/-- What the modules proved once that the language uses need of its semantics, for the
-interface `L` (`lang`, in `Lang.lean`). -/
-structure ModSem (S : Kanon.Sem) [DecidableEq S.Term] [DecidableEq S.Ty] (L : ModSyntax S) extends
-    toIntSem : IntMod.Sem L.toIntSyntax
-
-/-- The terms of the language, for the interfaces of its modules: every law holds by
-definition. -/
-def modSyntax : ModSyntax sem where
+/-- The terms of the language, for the interfaces of its modules. -/
+def modBase : Kanon.Base sem where
   Kind := Kind
   node := Term.mk
   ty_node _ _ := rfl
+
+attribute [kanon_law] modBase
+
+/-- The interface of the module `Bool`: every law holds by definition. -/
+def boolSyntax : KanonBool.Syntax (S := sem) modBase where
   TBool := Ty.TBool
   BoolK := fun x1 => (Kind.Bool x1)
   WT_Bool := by intros; first | exact Iff.rfl | kanon_law
@@ -81,6 +76,11 @@ def modSyntax : ModSyntax sem where
   bool_distinct_check_one_eq := by kanon_bridge Bool.distinct_check_one
   bool_distinct_check := Bool.distinct_check
   bool_distinct_check_eq := by kanon_bridge Bool.distinct_check
+
+attribute [kanon_law] boolSyntax
+
+/-- The interface of the module `Int`: every law holds by definition. -/
+def intSyntax : IntMod.Syntax (S := sem) modBase boolSyntax where
   TInt := Ty.TInt
   TInt_ne_TBool := by intros; exact nofun
   IntK := fun x1 => (Kind.Int x1)
@@ -101,7 +101,6 @@ def modSyntax : ModSyntax sem where
   int_add := Int.add
   int_add_eq := by kanon_bridge Int.add
 
--- `kanon_law` sees through the interface
-attribute [kanon_law] modSyntax
+attribute [kanon_law] intSyntax
 
 end IntsExample

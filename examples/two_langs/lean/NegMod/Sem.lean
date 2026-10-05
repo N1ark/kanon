@@ -5,7 +5,7 @@ import NegMod.Syntax
 # What the neg module needs of the semantics of a language
 
 The negation of an integer, evaluated by `negV`; the module extends the num
-module, and what it needs of a language extends what that one needs
+module, and what it needs of a language assumes what that one needs
 (`NumMod.Sem`).
 -/
 
@@ -27,8 +27,9 @@ theorem negV_mono {V : Type} {vint : Int → V} {toInt : V → Option Int} {a a'
 
 /-- What the neg module needs of the semantics `S` of a language, for its
 interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toNumSem : NumMod.Sem L.toNumSyntax where
-  ev_Neg : ∀ ρ a t, S.ev ρ (L.node (L.NegK a) t) = negV vint toInt (S.ev ρ a) := by kanon_law
+class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : Syntax B LBool LNum)
+    [KanonBool.Sem LBool] [NumMod.Sem LNum] where
+  ev_Neg : ∀ ρ a t, S.ev ρ (B.node (L.NegK a) t) =
+    negV (NumMod.Sem.vint LNum) (NumMod.Sem.toInt LNum) (S.ev ρ a) := by kanon_law
 
 end NegMod

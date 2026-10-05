@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Bool.eq_untyped.r_ill_typed.main.ok : Bool.eq_untyped.r_ill_typed.main.Stmt :=
-  fun O hO => KanonBool.Bool.eq_untyped.r_ill_typed.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.eq_untyped.r_ill_typed.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.eq_untyped.r_ill_typed.proof : Bool.eq_untyped.r_ill_typed.Stmt := by
@@ -26,7 +26,7 @@ theorem Bool.eq_untyped.r_ill_typed.proof : Bool.eq_untyped.r_ill_typed.Stmt := 
 
 set_option maxHeartbeats 400000 in
 theorem Bool.eq_untyped.r_typed.main.ok : Bool.eq_untyped.r_typed.main.Stmt :=
-  fun O hO => KanonBool.Bool.eq_untyped.r_typed.main.ok (S := sem) modSyntax.toBoolSyntax
+  fun O hO => KanonBool.Bool.eq_untyped.r_typed.main.ok (S := sem) boolSyntax
   (Ops.toBool O) (Ops.Sound.toBool hO)
 
 theorem Bool.eq_untyped.r_typed.proof : Bool.eq_untyped.r_typed.Stmt := by

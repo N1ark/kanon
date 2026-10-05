@@ -15,7 +15,7 @@ namespace L2
 open Classical Kanon
 
 /-- The model of the language, for the module `Bool`. -/
-def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) modSyntax.toBoolSyntax where
+def Ops.toBool (O : Ops) : KanonBool.Ops (S := sem) boolSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_
@@ -37,7 +37,7 @@ theorem Ops.Sound.toBool {O : Ops} (hO : O.Sound) : (Ops.toBool O).Sound where
   bool_orc := hO.orc.bool
 
 /-- The model of the language, for the module `Num`. -/
-def Ops.toNum (O : Ops) : NumMod.Ops (S := sem) modSyntax.toNumSyntax where
+def Ops.toNum (O : Ops) : NumMod.Ops (S := sem) numSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_
@@ -64,10 +64,8 @@ theorem Ops.Sound.toNum {O : Ops} (hO : O.Sound) : (Ops.toNum O).Sound where
   num_less := hO.num_less
   num_max := hO.num_max
 
-instance : NegMod.Sem (S := sem) modSyntax.toNegSyntax := lang.toNegSem
-
 /-- The model of the language, for the module `Neg`. -/
-def Ops.toNeg (O : Ops) : NegMod.Ops (S := sem) modSyntax.toNegSyntax where
+def Ops.toNeg (O : Ops) : NegMod.Ops (S := sem) negSyntax where
   tag_le := O.orc.tag_le
   bool_and_ := O.bool_and_
   bool_or_ := O.bool_or_

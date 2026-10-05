@@ -192,21 +192,31 @@ let classify (p : program) =
    structure being declared, unprefixed), the types of terms and sorts those of
    any semantics [S]. *)
 
-(** What the expressions are printed over, when they are over an interface: the
-    prefix of its fields ([L.], or nothing in the structure that declares them).
-*)
-type gen = { gl : string }
+(** What the expressions are printed over, when they are over an interface:
+    the module [self] whose files are printed, and whether in the structure that
+    declares its interface ([inside], where its own fields are unprefixed). *)
+type gen = { self : string; inside : bool }
 
 let generic : gen option ref = ref None
 
-(** [k ()], printed over an interface whose fields have the prefix [gl]. *)
-let over_interface gl k =
+(** [k ()], printed over the interface of the module [self]. *)
+let over_interface ?(inside = false) self k =
   let saved = !generic in
-  generic := Some { gl };
+  generic := Some { self; inside };
   Fun.protect ~finally:(fun () -> generic := saved) k
 
-(** The field [x] of the interface. *)
-let gfield x = (Option.get !generic).gl ^ x
+(** The variable of the interface of the module [m], in the files of a module:
+    [L] for the module itself, [LM] for a module [M] that it uses. *)
+let lvar m =
+  match !generic with Some { self; _ } when self = m -> "L" | _ -> "L" ^ m
+
+(** The field [x] of the interface of the module [m] ([None]: of the
+    language, [Kanon.Base]). *)
+let gfield_of m x =
+  match (m, !generic) with
+  | None, _ -> "B." ^ x
+  | Some m, Some { self; inside = true } when m = self -> x
+  | Some m, _ -> lvar m ^ "." ^ x
 
 (** What cannot be stated over the interface of a module: reported at [loc]. *)
 let unsupported loc fmt =
@@ -232,6 +242,15 @@ let module_of_loc (loc : Location.t) =
 
 (** The module of the function, primitive or constant [name]. *)
 let module_of_name name = Option.map fst (split_name name)
+
+(** The field [x] of the interface of the module of the constructor [c]. *)
+let cfield (c : constr) x =
+  match module_of_loc c.c_loc with
+  | Some m -> gfield_of (Some m) x
+  | None -> gfield_of (Option.map (fun g -> g.self) !generic) x
+
+(** The field [x] of the interface of the module of the item [name]. *)
+let nfield name x = gfield_of (module_of_name name) x
 
 (** The name of the field of the kind of a node [C] in an interface: [CK]. *)
 let kind_field c = c ^ "K"
@@ -267,7 +286,7 @@ let rec lean_ty ft = function
   | TUnit -> pf ft "Unit"
   | TTerm when !generic <> None -> pf ft "S.Term"
   | TSty when !generic <> None -> pf ft "S.Ty"
-  | TKind when !generic <> None -> pf ft "%s" (gfield "Kind")
+  | TKind when !generic <> None -> pf ft "%s" (gfield_of None "Kind")
   | TData _ as t when !generic <> None -> (
       let d = decl_of_ty t in
       match d.d_lean with
@@ -348,13 +367,13 @@ let rec expr ctx ft (e : expr) =
   | EUnreachable -> pf ft "default"
   | EConstr (c, args) when !generic <> None -> gconstr ctx ft e.eloc c args
   | ENode (k, t) when !generic <> None ->
-      pf ft "(%s %a %a)" (gfield "node") expr k expr t
+      pf ft "(%s %a %a)" (gfield_of None "node") expr k expr t
   | ECall ("type_of", [ a ]) when !generic <> None -> pf ft "(S.ty %a)" expr a
   | ECall ("mk_commut_binop", [ { e = EConstr (o, oargs); _ }; l; r ])
     when !generic <> None ->
       let k a b ft () =
         pf ft "(%s %a)"
-          (gfield (kind_field o.c_name))
+          (cfield o (kind_field o.c_name))
           (list ~sep:" " expr)
           (oargs @ [ a; b ])
       in
@@ -363,11 +382,11 @@ let rec expr ctx ft (e : expr) =
   | ECall (f, args) when !generic <> None ->
       let f =
         if is_oracle ctx f then "O." ^ fld f
-        else if is_prim ctx f then gfield (fld f)
+        else if is_prim ctx f then nfield f (fld f)
         else
           match fn_kind ctx f with
           | Rule | OHelper -> "O." ^ fld f
-          | Pure -> gfield (fld f)
+          | Pure -> nfield f (fld f)
       in
       if args = [] then pf ft "%s" f
       else pf ft "(%s %a)" f (list ~sep:" " expr) args
@@ -474,13 +493,13 @@ and gconstr ctx ft loc (c : constr) args =
     if args = [] then pf ft "%s" name
     else pf ft "(%s %a)" name (list ~sep:" " (expr ctx)) args
   in
-  if c.c_res = TSty then app (gfield c.c_name) args
+  if c.c_res = TSty then app (cfield c c.c_name) args
   else if c.c_res = TKind && List.mem c.c_name !lang.node_kinds then
     match args with
     | { e = EConstr (o, oargs); _ } :: operands ->
-        app (gfield (kind_field o.c_name)) (oargs @ operands)
+        app (cfield o (kind_field o.c_name)) (oargs @ operands)
     | _ -> unsupported loc "an operator that is not a constructor"
-  else if c.c_res = TKind then app (gfield (kind_field c.c_name)) args
+  else if c.c_res = TKind then app (cfield c (kind_field c.c_name)) args
   else unsupported loc "the constructor %s" c.c_name
 
 (** A node pattern [p] (of a term): its node, and the patterns of its arguments
@@ -526,7 +545,7 @@ and gmatch ctx ft (scruts, (cases : case list)) =
          (fun (s : expr) (q : pat) ->
            let matcher (n : constr) args =
              ( Printf.sprintf "(%s %s)"
-                 (gfield ("as" ^ n.c_name))
+                 (cfield n ("as" ^ n.c_name))
                  (str (expr ctx) s),
                "some " ^ tuple (List.map (str pat) args) )
            in
@@ -742,7 +761,13 @@ let hyp_name x = "hs_" ^ x
 (** The statement of an assumption: [P x], where [text x] is how the statement
     refers to the operand [x], and [P y] for every element [y] of a list. *)
 let pre_prop ~text (x, p, is_list) =
-  let p = if !generic <> None then gfield p else p in
+  let p =
+    if !generic = None then p
+    else
+      match List.find_opt (fun ss -> ss.ss_lean = Some p) !lang.subsorts with
+      | Some ss -> gfield_of (module_of_loc ss.ss_loc) p
+      | None -> p
+  in
   if is_list then Fmt.str "(∀ y ∈ %s, %s y)" (text x) p
   else Fmt.str "%s %s" p (text x)
 
@@ -864,13 +889,13 @@ let pat_term (p : pat) =
           else (c, args)
         in
         let args = List.map go args in
-        let k = gfield (kind_field node.c_name) in
+        let k = cfield node (kind_field node.c_name) in
         let inner =
           if args = [] then k else "(" ^ String.concat " " (k :: args) ^ ")"
         in
         let t = Printf.sprintf "t__%d" p.pid in
         bind t (ty_str TSty);
-        "(" ^ gfield "node" ^ " " ^ inner ^ " " ^ t ^ ")"
+        "(" ^ gfield_of None "node" ^ " " ^ inner ^ " " ^ t ^ ")"
     | PConstr (c, args) ->
         let args = List.map go args in
         let inner =
@@ -1804,13 +1829,41 @@ let generic_deps m =
                  m d ));
       d)
 
+(** The modules proved once that [m] uses, directly or not, each after those
+    it uses, and [m] last. A module proved once cannot use itself, through
+    others: its interface would be a part of itself. *)
+let generic_order m =
+  let rec go path acc d =
+    if List.mem d path then
+      let cycle = List.rev (d :: path) in
+      let cycle =
+        let rec from = function
+          | x :: l when x <> d -> from l
+          | l -> l
+        in
+        from cycle
+      in
+      raise
+        (Check.Error
+           ( Location.none,
+             Printf.sprintf
+               "the modules proved once in Lean ([@@@lean_module]) use each \
+                other: %s; prove them per language, or merge them"
+               (String.concat " -> " cycle) ))
+    else if List.mem d acc then acc
+    else List.fold_left (go (d :: path)) acc (generic_deps d) @ [ d ]
+  in
+  go [] [] m
+
 (** The modules proved once that [m] uses, directly or not, and [m]. *)
-let rec generic_closure m =
-  List.sort_uniq compare (m :: List.concat_map generic_closure (generic_deps m))
+let generic_closure m = List.sort_uniq compare (generic_order m)
+
+(** The modules proved once that [m] uses, directly or not, each after those it
+    uses: the parameters of its interface. *)
+let iface_deps m = List.filter (( <> ) m) (generic_order m)
 
 (** The modules proved once that [m] uses and that no other of them uses: the
-    parents of its interface (so that each is a part of it, rather than having
-    its fields copied, which its lemmas would not apply to). *)
+    parents of its [Ops]. *)
 let direct_deps m =
   let deps = generic_deps m in
   List.filter
@@ -1824,23 +1877,52 @@ let direct_deps m =
 (** The modules proved once, in the order of their declaration. *)
 let generic_modules () = List.map fst !lang.lean_modules
 
-(** The modules proved once that no other uses: those whose interfaces and
-    semantics the language gives, those of the others being parts of them. *)
-let top_modules () =
-  let ms = generic_modules () in
-  List.filter
-    (fun m ->
-      not
-        (List.exists (fun m' -> m' <> m && List.mem m (generic_closure m')) ms))
-    ms
+(** The modules proved once, each after those it uses. *)
+let ordered_modules () =
+  List.fold_left
+    (fun acc m ->
+      acc @ List.filter (fun d -> not (List.mem d acc)) (generic_order m))
+    [] (generic_modules ())
 
 let groot m = Option.get (module_root m)
 
-(** The name of the field of an interface that is the interface [m] it extends:
-    [toBoolSyntax] (for [Syntax]), [toBool] (for [Lang]). *)
-let syntax_parent m = "to" ^ m ^ "Syntax"
+(** The interfaces are unbundled: the interface [R.Syntax B L1 .. Ln] of a
+    module has the fields of that module only, and takes as parameters the
+    terms of the language ([B : Kanon.Base S]) and the interfaces of the
+    modules it uses, directly or not ([iface_deps]), so that a module that two
+    others use (a diamond) is one parameter, whose lemmas apply as they are.
+    Likewise, its class [R.Sem L] takes the instances of theirs. *)
 
-let lang_parent m = "to" ^ m ^ "Sem"
+(** The interface of [m], over the terms [base] and the interfaces [var d] of
+    the modules it uses. *)
+let syntax_ty ?(base = "B") ?sem ~var m =
+  String.concat " "
+    ((groot m ^ ".Syntax")
+    :: (match sem with Some s -> [ "(S := " ^ s ^ ")" ] | None -> [])
+    @ (base :: List.map var (iface_deps m)))
+
+(** The variable of the interface of [d] in the files of the module [self]. *)
+let mvar self d = if d = self then "L" else "L" ^ d
+
+(** The binders of the terms and of the interfaces of the modules that [m] uses,
+    implicit (or [explicit]), in the files of [m]. *)
+let iface_binders ?(explicit = false) m =
+  let b x t = if explicit then "(" ^ x ^ " : " ^ t ^ ")" else "{" ^ x ^ " : " ^ t ^ "}" in
+  String.concat " "
+    (b "B" "Kanon.Base S"
+    :: List.map (fun d -> b (mvar m d) (syntax_ty ~var:(mvar m) d)) (iface_deps m))
+
+(** The interface of the module [m] that a language gives ([Interface.lean]):
+    [numSyntax] for [Num]; [modBase] for its terms. *)
+let lsyntax m = with_sem_args (String.uncapitalize_ascii m ^ "Syntax")
+
+(** The instances of the semantics of the modules that [m] uses. *)
+let sem_insts m =
+  String.concat ""
+    (List.map
+       (fun d -> Printf.sprintf "[%s.Sem %s] " (groot d) (mvar m d))
+       (iface_deps m))
+
 let ops_parent m = "to" ^ m ^ "Ops"
 let sound_parent m = "to" ^ m ^ "Sound"
 
@@ -1883,12 +1965,11 @@ let comm_proof ft ((op : constr), _) =
       let xs = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) op.c_args in
       pf ft
         "@[<v 2>@@[kanon_comm_lemma] theorem %s.ok : %s.Stmt :=@ fun%s %sa b t \
-         => %s.%s.comm.ok (S := %s) %s.%s %sa b t@]@ @ "
+         => %s.%s.comm.ok (S := %s) %s %sa b t@]@ @ "
         n n (sem_args ())
         (String.concat "" (List.map (fun x -> x ^ " ") xs))
         (groot m) op.c_name (with_sem_args "sem")
-        (with_sem_args "modSyntax")
-        (syntax_parent m)
+        (lsyntax m)
         (String.concat "" (List.map (fun x -> x ^ " ") xs))
   | _ ->
       pf ft
@@ -1916,11 +1997,10 @@ let cases_proofs ft (f : fn) =
               let m = arm_module a in
               pf ft
                 "%t@[<v 2>theorem %s.ok : %s.Stmt :=@ fun%s O hO => %s.%s.ok \
-                 (S := %s) %s.%s@ (Ops.to%s%s O) (Ops.Sound.to%s hO)@]@ @ "
+                 (S := %s) %s@ (Ops.to%s%s O) (Ops.Sound.to%s hO)@]@ @ "
                 hb (arm_name f r arms i) (arm_name f r arms i) (sem_args ())
                 (groot m) (arm_name f r arms i) (with_sem_args "sem")
-                (with_sem_args "modSyntax")
-                (syntax_parent m) m (sem_args ()) m
+                (lsyntax m) m (sem_args ()) m
           | None ->
               (* a hand-written [.proof] if there is one, else the default
                  tactic *)
@@ -2738,8 +2818,8 @@ let app f args =
 
 (** The term of the node [n] over [args] at the sort [t], over the interface. *)
 let gnode_term (n : gnode) args t =
-  Printf.sprintf "(%s %s %s)" (gfield "node")
-    (app (gfield (kind_field n.gc.c_name)) args)
+  Printf.sprintf "(%s %s %s)" (gfield_of None "node")
+    (app (cfield n.gc (kind_field n.gc.c_name)) args)
     t
 
 (** The instance and generic binders of the structures and definitions over an
@@ -2813,7 +2893,7 @@ let sort_laws m =
       (fun i a -> (Printf.sprintf "%s%d" prefix (i + 1), arg_ty a))
       c.c_args
   in
-  let sort (c : constr) xs = app c.c_name (List.map fst xs) in
+  let sort (c : constr) xs = app (cfield c c.c_name) (List.map fst xs) in
   let rec pairs = function
     | [] -> []
     | c :: rest -> List.map (fun d -> (c, d)) (rest @ others) @ pairs rest
@@ -2844,7 +2924,7 @@ let helper_field (f : fn) = Fmt.str "%s : %a" (fld f.name) arrow f
 
 (** The equation of a helper, as a field: its body, over the interface. *)
 let helper_eq ctx ~o ft (f : fn) =
-  let lhs = (if o then "O." else gfield "") ^ fld f.name in
+  let lhs = if o then "O." ^ fld f.name else nfield f.name (fld f.name) in
   pf ft "  @[<hv 4>%s_eq : %s%s =@ %a@]@ " (fld f.name)
     (if f.params = [] then "" else Fmt.str "∀ %a, " params f)
     (app lhs (List.map (fun (x, _) -> id x) f.params))
@@ -2856,25 +2936,18 @@ let syntax_file ctx (p : program) m =
   lean_file ~sources:(module_sources m) [ "Syntax" ]
     ("KanonCore.Generic" :: List.map (fun d -> groot d ^ ".Syntax") deps)
   @@ fun ft ->
-  over_interface "" @@ fun () ->
-  let parents =
-    match direct_deps m with
-    | [] -> [ "toBase : Kanon.Base S" ]
-    | ds ->
-        List.map
-          (fun d ->
-            Printf.sprintf "%s : %s.Syntax S" (syntax_parent d) (groot d))
-          ds
-  in
+  over_interface ~inside:true m @@ fun () ->
   lines ft
     [
       Printf.sprintf
-        "/-- What the module `%s` needs of the terms of a language of \
-         semantics `S`: Kanon generates it, and"
+        "/-- What the module `%s` needs of the terms `B` of a language of \
+         semantics `S`, whose"
         m;
-      "each language that uses the module gives it, by definition. -/";
-      Printf.sprintf "structure Syntax (S : Kanon.Sem) %s extends" deq;
-      "    " ^ String.concat ", " parents ^ " where";
+      "modules that it uses have the interfaces of the parameters: Kanon \
+       generates it, and each";
+      "language that uses the module gives it, by definition. -/";
+      Printf.sprintf "structure Syntax {S : Kanon.Sem} %s %s where" deq
+        (iface_binders ~explicit:true m);
     ];
   let field x = pf ft "  %s@ " x in
   List.iter
@@ -2898,7 +2971,7 @@ let syntax_file ctx (p : program) m =
              List.iter
                (fun t -> pf ft "%a → " lean_ty t)
                (n.gpayload @ n.goperands))
-           () "Kind"))
+           () (gfield_of None "Kind")))
     nodes;
   List.iter (fun n -> field (wt_law ctx p n)) nodes;
   List.iter (fun n -> List.iter field (matcher_fields p n)) nodes;
@@ -2932,7 +3005,7 @@ let syntax_file ctx (p : program) m =
     interface argument ([L.toMSyntax]). *)
 let gspec ~self (f : fn) =
   let fm = Option.get (module_of_name f.name) in
-  let l = if fm = self then "L" else "L." ^ syntax_parent fm in
+  let l = mvar self fm in
   Printf.sprintf "%s.%s.spec %s" (groot fm) (qn f.name) l
 
 let ops_file ctx m =
@@ -2944,13 +3017,14 @@ let ops_file ctx m =
   lean_file ~sources:(module_sources m) [ "Ops" ]
     ("KanonCore.Attr" :: md "Sem" :: List.map (fun d -> groot d ^ ".Ops") deps)
   @@ fun ft ->
-  over_interface "L." @@ fun () ->
+  over_interface m @@ fun () ->
   List.iter
     (fun (f : fn) ->
       pf ft
-        "%a@[<v 2>def %s.spec {S : Kanon.Sem} %s (L : Syntax S) %a : S.Term \
+        "%a@[<v 2>def %s.spec {S : Kanon.Sem} %s %s (L : %s) %a : S.Term \
          :=@ %a@]@ @ "
-        doc f.fdoc (qn f.name) deq params f (expr ctx) (Option.get f.spec))
+        doc f.fdoc (qn f.name) deq (iface_binders m) (syntax_ty ~var:(mvar m) m)
+        params f (expr ctx) (Option.get f.spec))
     rules;
   if rules <> [] then
     pf ft "@[<v 2>attribute [kanon_spec]%a@]@ @ "
@@ -2962,8 +3036,8 @@ let ops_file ctx m =
     | ds ->
         List.map
           (fun d ->
-            Printf.sprintf "%s : %s.Ops L.%s" (ops_parent d) (groot d)
-              (syntax_parent d))
+            Printf.sprintf "%s : %s.Ops %s" (ops_parent d) (groot d)
+              (mvar m d))
           ds
   in
   lines ft
@@ -2973,8 +3047,8 @@ let ops_file ctx m =
          model of a"
         m;
       "language. -/";
-      Printf.sprintf "structure Ops {S : Kanon.Sem} %s (L : Syntax S) extends"
-        deq;
+      Printf.sprintf "structure Ops {S : Kanon.Sem} %s %s (L : %s) extends"
+        deq (iface_binders m) (syntax_ty ~var:(mvar m) m);
       "    " ^ String.concat ", " parents ^ " where";
     ];
   List.iter
@@ -3003,9 +3077,9 @@ let ops_file ctx m =
        their specs, and the";
       "equations of its helpers. -/";
       Printf.sprintf
-        "structure Ops.Sound {S : Kanon.Sem} %s {L : Syntax S} (O : Ops L) : \
+        "structure Ops.Sound {S : Kanon.Sem} %s %s {L : %s} (O : Ops L) : \
          Prop%s"
-        deq
+        deq (iface_binders m) (syntax_ty ~var:(mvar m) m)
         (if sparents = [] then " where" else " extends");
     ];
   if sparents <> [] then pf ft "    %s where@ " (String.concat ", " sparents);
@@ -3032,15 +3106,18 @@ let module_comm m =
       else None)
     (comm_ops ())
 
-let lang_binder =
-  Printf.sprintf "∀ {S : Kanon.Sem} %s (L : Syntax S) [Sem L]" deq
+(** The binders of the statements of the module [m]: any language, that gives
+    its interface and its semantics. *)
+let lang_binder m =
+  Printf.sprintf "∀ {S : Kanon.Sem} %s %s (L : %s) %s[Sem L]" deq
+    (iface_binders m) (syntax_ty ~var:(mvar m) m) (sem_insts m)
 
 let mstatements_file ctx (p : program) m =
   with_root (groot m) @@ fun () ->
   lean_file ~sources:(module_sources m) [ "Statements" ] [ md "Ops" ]
   @@ fun ft ->
   ignore ctx;
-  over_interface "L." @@ fun () ->
+  over_interface m @@ fun () ->
   List.iter
     (fun n ->
       let xs, _ = node_names p n in
@@ -3048,7 +3125,7 @@ let mstatements_file ctx (p : program) m =
       pf ft
         "/-- The operands of `%s` commute. -/@ @[<v 2>def %s.comm.Stmt : Prop \
          :=@ %s %s(a b : S.Term) (t : S.Ty),@ S.Refines %s@ %s@]@ @ "
-        n.gc.c_name n.gc.c_name lang_binder
+        n.gc.c_name n.gc.c_name (lang_binder m)
         (if bs = "" then "" else bs ^ " ")
         (gnode_term n (xs @ [ "a"; "b" ]) "t")
         (gnode_term n (xs @ [ "b"; "a" ]) "t"))
@@ -3069,11 +3146,11 @@ let mlifts_file ctx m =
            else None)
          (generic_closure m))
   @@ fun ft ->
-  over_interface "L." @@ fun () ->
+  over_interface m @@ fun () ->
   pf ft
-    "namespace Lib@ @ variable {S : Kanon.Sem} %s {L : Syntax S} [Sem L] {O : \
+    "namespace Lib@ @ variable {S : Kanon.Sem} %s %s {L : %s} %s[Sem L] {O : \
      Ops L}@ @ "
-    deq;
+    deq (iface_binders m) (syntax_ty ~var:(mvar m) m) (sem_insts m);
   List.iter
     (fun (f : fn) ->
       let term (_, t) = t = TTerm in
@@ -3110,8 +3187,8 @@ let mlifts_file ctx m =
       let fm = Option.get (module_of_name f.name) in
       if fm <> m then
         (* that of the module of [f], for its own interface *)
-        pf ft "%s.Lib.lift_%s (L := L.%s) (O := O.%s) hO.%s%s%a@]@ @ "
-          (groot fm) (fld f.name) (syntax_parent fm) (ops_parent fm)
+        pf ft "%s.Lib.lift_%s (O := O.%s) hO.%s%s%a@]@ @ "
+          (groot fm) (fld f.name) (ops_parent fm)
           (sound_parent fm)
           (String.concat ""
              (List.filter_map
@@ -3148,14 +3225,14 @@ let module_arm_fns ctx m =
 (** The statement of an arm over the interface of the module [m] (see
     [arm_stmt]). *)
 let garm_stmt ctx m ft f r arms i (a : arm) =
-  over_interface "L." @@ fun () ->
+  over_interface m @@ fun () ->
   let c = a.a_case in
   let with_subst s k =
     subst := s;
     Fun.protect ~finally:(fun () -> subst := []) k
   in
   pf ft "@[<v 2>def %s.Stmt : Prop :=@ %s (O : Ops L), O.Sound →@ "
-    (arm_name f r arms i) lang_binder;
+    (arm_name f r arms i) (lang_binder m);
   if a.a_binders <> [] then
     pf ft "∀ %a,@ "
       (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %s)" x t))
@@ -3197,7 +3274,7 @@ let garm_stmt ctx m ft f r arms i (a : arm) =
     ()
 
 (** The arms of [f], over the interface (their binders and terms). *)
-let garms (f : fn) = over_interface "L." (fun () -> arms f)
+let garms m (f : fn) = over_interface m (fun () -> arms f)
 
 let mfn_statements_file ctx m (f : fn) =
   with_root (groot m) @@ fun () ->
@@ -3212,7 +3289,7 @@ let mfn_statements_file ctx m (f : fn) =
           if generic_arm f a && arm_module a = m then
             garm_stmt ctx m ft f r arms i a)
         arms)
-    (garms f)
+    (garms m f)
 
 (** Whether the module [m] has a hand-written file at [path] under its root. *)
 let mproof_imports ~has_proof m path =
@@ -3299,42 +3376,29 @@ let interface_file ~sources ctx (p : program) =
     (("KanonCore.Generic" :: md "Semantics" :: helper_files)
     @ List.map (fun m -> groot m ^ ".Syntax") mods)
   @@ fun ft ->
+  let base = with_sem_args "modBase" in
   lines ft
     [
-      "/-- The interfaces of the modules proved once that the language uses. -/";
-      Printf.sprintf "structure ModSyntax (S : Kanon.Sem) %s extends" deq;
-      "    "
-      ^ String.concat ", "
-          (List.map
-             (fun m ->
-               Printf.sprintf "%s : %s.Syntax S" (syntax_parent m) (groot m))
-             (top_modules ()));
-      "";
-      "/-- What the modules proved once that the language uses need of its \
-       semantics, for the";
-      "interface `L` (`lang`, in `Lang.lean`). -/";
-      Printf.sprintf
-        "structure ModSem (S : Kanon.Sem) %s (L : ModSyntax S) extends" deq;
-      "    "
-      ^ String.concat ", "
-          (List.map
-             (fun m ->
-               Printf.sprintf "%s : %s.Sem L.%s" (lang_parent m) (groot m)
-                 (syntax_parent m))
-             (top_modules ()));
-      "";
-      "/-- The terms of the language, for the interfaces of its modules: every \
-       law holds by";
-      "definition. -/";
-      Printf.sprintf "def modSyntax %s: ModSyntax %s where" (sem_binders ())
+      "/-- The terms of the language, for the interfaces of its modules. -/";
+      Printf.sprintf "def modBase %s: Kanon.Base %s where" (sem_binders ())
         (with_sem_args "sem");
       "  Kind := Kind";
       "  node := Term.mk";
       "  ty_node _ _ := rfl";
+      "";
+      "attribute [kanon_law] modBase";
+      "";
     ];
   let field x = pf ft "  %s@ " x in
   List.iter
     (fun m ->
+      pf ft
+        "/-- The interface of the module `%s`: every law holds by definition. \
+         -/@ def %s %s: %s where@ "
+        m
+        (String.uncapitalize_ascii m ^ "Syntax")
+        (sem_binders ())
+        (syntax_ty ~base ~sem:(with_sem_args "sem") ~var:lsyntax m);
       List.iter
         (fun (c : constr) ->
           field (Printf.sprintf "%s := %s" c.c_name (lean_constr c)))
@@ -3387,11 +3451,10 @@ let interface_file ~sources ctx (p : program) =
           field (Printf.sprintf "%s := %s" (fld f.name) (qn f.name));
           if not f.extensible then
             field (Printf.sprintf "%s_eq := %s" (fld f.name) (bridge f)))
-        (module_helpers ctx m Pure))
-    mods;
-  pf ft
-    "@ -- `kanon_law` sees through the interface@ attribute [kanon_law] \
-     modSyntax@ @ "
+        (module_helpers ctx m Pure);
+      pf ft "@ attribute [kanon_law] %s@ @ "
+        (String.uncapitalize_ascii m ^ "Syntax"))
+    (ordered_modules ())
 
 let instance_file ~sources ctx =
   let mods = generic_modules () in
@@ -3414,14 +3477,9 @@ let instance_file ~sources ctx =
   List.iter
     (fun m ->
       let closure = generic_closure m in
-      let l = with_sem_args "modSyntax" in
-      if List.mem m (top_modules ()) then
-        pf ft "instance %s: %s.Sem (S := %s) %s.%s := %s.%s@ @ "
-          (sem_binders ()) (groot m) (with_sem_args "sem") l (syntax_parent m)
-          (with_sem_args "lang") (lang_parent m);
       pf ft "/-- The model of the language, for the module `%s`. -/@ " m;
-      pf ft "def Ops.to%s %s(O : Ops) : %s.Ops (S := %s) %s.%s where@ " m
-        (sem_binders ()) (groot m) (with_sem_args "sem") l (syntax_parent m);
+      pf ft "def Ops.to%s %s(O : Ops) : %s.Ops (S := %s) %s where@ " m
+        (sem_binders ()) (groot m) (with_sem_args "sem") (lsyntax m);
       pf ft "  tag_le := %s@ "
         (if has_tag_le then "O.orc.tag_le" else "fun _ _ => true");
       List.iter

@@ -12,7 +12,7 @@ open Classical Kanon
 
 namespace Lib
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} [Sem L] {O : Ops L}
+variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : DivMod.Syntax B} [Sem L] {O : Ops L}
 
 theorem lift_int_plus (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')

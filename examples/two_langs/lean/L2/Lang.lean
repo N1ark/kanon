@@ -5,8 +5,8 @@ import L2.Model.Bool.sure_neq
 # The language, for its modules
 
 The bool, num and neg modules are proved once (`KanonBool`, `NumMod`, `NegMod`): the language
-gives their interfaces (`modSyntax`, generated in `Interface.lean`) and what they
-need of its semantics (`lang`): its values, the evaluation of the nodes (by
+gives their interfaces (`boolSyntax`, …, generated in `Interface.lean`) and what
+they need of its semantics (the instances of their `Sem` classes): its values, the evaluation of the nodes (by
 definition, and `evList_eq`), and the two laws that need an induction or a case
 analysis on its terms.
 -/
@@ -86,16 +86,14 @@ theorem sure_neq_cases {a b : Term} (h : Bool.sure_neq a b = true) :
     cases ka <;> cases kb <;> simp_all [Bool.sure_neq, ty, firstSome]
   · exact .inl hty
 
-/-- What the modules proved once need of the semantics. -/
-noncomputable def lang : ModSem sem modSyntax where
+/-- What the bool module needs of the semantics. -/
+noncomputable instance boolSem : KanonBool.Sem (S := sem) boolSyntax where
   vbool := .bool
-  vint := .int
-  toInt := Val.toInt
   ev_bool ρ t v w h e := by
     have := ev_ty ρ t v w e
     cases v with
     | bool b => exact ⟨b, rfl⟩
-    | int _ => simp_all [Val.ty, modSyntax]
+    | int _ => simp_all [Val.ty, boolSyntax]
   sure_neq_sound ρ a b u h hty _ _ ea eb := by
     rcases sure_neq_cases h with h | ⟨x, y, t, t', rfl, rfl, hxy⟩ | ⟨x, y, t, t', rfl, rfl, hxy⟩
     · exact h hty
@@ -103,5 +101,13 @@ noncomputable def lang : ModSem sem modSyntax where
       exact hxy (by cases ea.trans eb.symm; rfl)
     · simp only [ev, Option.some.injEq] at ea eb
       exact hxy (by cases ea.trans eb.symm; rfl)
+
+/-- What the num module needs of the semantics. -/
+noncomputable instance numSem : NumMod.Sem (S := sem) numSyntax where
+  vint := .int
+  toInt := Val.toInt
+
+/-- What the neg module needs of the semantics: its laws hold by definition. -/
+noncomputable instance negSem : NegMod.Sem (S := sem) negSyntax := {}
 
 end L2

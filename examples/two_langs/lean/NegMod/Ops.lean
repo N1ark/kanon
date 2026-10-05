@@ -12,21 +12,21 @@ namespace NegMod
 
 open Classical Kanon
 
-def Neg.neg.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) (v : S.Term) : S.Term :=
-  (L.node (L.NegK v) L.TNum)
+def Neg.neg.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : NegMod.Syntax B LBool LNum) (v : S.Term) : S.Term :=
+  (B.node (L.NegK v) LNum.TNum)
 
 attribute [kanon_spec]
   Neg.neg.spec
 
 /-- The rule functions, oracles and helpers of the module `Neg` in the model of a
 language. -/
-structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (L : Syntax S) extends
-    toNumOps : NumMod.Ops L.toNumSyntax where
+structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} (L : NegMod.Syntax B LBool LNum) extends
+    toNumOps : NumMod.Ops LNum where
   neg_neg : S.Term → S.Term
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {L : Syntax S} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} {L : NegMod.Syntax B LBool LNum} (O : Ops L) : Prop extends
     toNumSound : NumMod.Ops.Sound O.toNumOps where
   neg_neg : ∀ (v : S.Term), S.Refines (NegMod.Neg.neg.spec L v) (O.neg_neg v)
 

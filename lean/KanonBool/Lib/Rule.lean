@@ -18,7 +18,7 @@ open Classical Kanon Lean Meta Elab Tactic
 /-- The sort of booleans on the right of equations, which the typing of the
 nodes may give on either side. -/
 theorem Syntax.TBool_eq_comm {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty]
-    {L : Syntax S} {x : S.Ty} : L.TBool = x ↔ x = L.TBool := eq_comm
+    {B : Kanon.Base S} {L : Syntax B} {x : S.Ty} : L.TBool = x ↔ x = L.TBool := eq_comm
 
 /-- The typing and evaluation of the nodes of the module, and its literals. -/
 macro "kanon_bool_simp" loc:(Lean.Parser.Tactic.location)? : tactic => `(tactic|

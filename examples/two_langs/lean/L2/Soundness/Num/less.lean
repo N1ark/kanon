@@ -15,7 +15,7 @@ open Classical Kanon
 
 set_option maxHeartbeats 400000 in
 theorem Num.less.r_lits.main.ok : Num.less.r_lits.main.Stmt :=
-  fun O hO => NumMod.Num.less.r_lits.main.ok (S := sem) modSyntax.toNumSyntax
+  fun O hO => NumMod.Num.less.r_lits.main.ok (S := sem) numSyntax
   (Ops.toNum O) (Ops.Sound.toNum hO)
 
 theorem Num.less.r_lits.proof : Num.less.r_lits.Stmt := by
@@ -26,7 +26,7 @@ theorem Num.less.r_lits.proof : Num.less.r_lits.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Num.less.r_pos.main.ok : Num.less.r_pos.main.Stmt :=
-  fun O hO => NumMod.Num.less.r_pos.main.ok (S := sem) modSyntax.toNumSyntax
+  fun O hO => NumMod.Num.less.r_pos.main.ok (S := sem) numSyntax
   (Ops.toNum O) (Ops.Sound.toNum hO)
 
 theorem Num.less.r_pos.proof : Num.less.r_pos.Stmt := by
@@ -37,7 +37,7 @@ theorem Num.less.r_pos.proof : Num.less.r_pos.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Num.less.r_same.main.ok : Num.less.r_same.main.Stmt :=
-  fun O hO => NumMod.Num.less.r_same.main.ok (S := sem) modSyntax.toNumSyntax
+  fun O hO => NumMod.Num.less.r_same.main.ok (S := sem) numSyntax
   (Ops.toNum O) (Ops.Sound.toNum hO)
 
 theorem Num.less.r_same.proof : Num.less.r_same.Stmt := by
@@ -48,7 +48,7 @@ theorem Num.less.r_same.proof : Num.less.r_same.Stmt := by
 
 set_option maxHeartbeats 400000 in
 theorem Num.less.r_default.main.ok : Num.less.r_default.main.Stmt :=
-  fun O hO => NumMod.Num.less.r_default.main.ok (S := sem) modSyntax.toNumSyntax
+  fun O hO => NumMod.Num.less.r_default.main.ok (S := sem) numSyntax
   (Ops.toNum O) (Ops.Sound.toNum hO)
 
 theorem Num.less.r_default.proof : Num.less.r_default.Stmt := by
