@@ -1,0 +1,5 @@
+[@@@lean_module "BMod"]
+
+sort TB
+
+node B : TA -> TB

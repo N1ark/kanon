@@ -1,0 +1,6 @@
+(* A language whose two modules proved once use each other. *)
+
+[@@@lean_root "Ex"]
+
+use "a"
+use "b"
