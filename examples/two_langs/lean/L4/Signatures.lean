@@ -10,6 +10,7 @@ noncomputable section
 
 example : Term := v_true
 example : Term := v_false
+example : Int → Int := fit
 
 end
 

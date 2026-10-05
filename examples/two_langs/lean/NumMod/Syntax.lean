@@ -22,6 +22,7 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   LtK : S.Term → S.Term → B.Kind
   /-- The maximum of two integers. -/
   MaxK : S.Term → S.Term → B.Kind
+  num_is_pos : S.Term → Bool
   WT_Num : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (NumK x1) t) ↔ t = TNum
   WT_Add : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (AddK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = TNum) ∧ S.WT a1 ∧ S.WT a2
   WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (LtK a1 a2) t) ↔ ((S.ty a1) = TNum ∧ (S.ty a2) = TNum ∧ t = LBool.TBool) ∧ S.WT a1 ∧ S.WT a2
@@ -46,7 +47,6 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asTNum : S.Ty → Option Unit
   asTNum_sort : asTNum TNum = some ()
   asTNum_sound : ∀ (s : S.Ty), asTNum s = some () → s = TNum
-  num_is_pos : S.Term → Bool
   num_is_pos_eq : ∀ (v : S.Term), (num_is_pos v) =
       ((firstSome [(match (asNum v) with
                      | some z =>

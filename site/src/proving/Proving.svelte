@@ -221,11 +221,12 @@
           <a href="#diamonds">Diamonds</a>). Its fields are those of the module only:
           its sorts (<code>TInt</code>) with their disjointness (<code>TInt_ne_TBool</code>), the
           kinds of its nodes (<code>PlusK</code>), the invariants of its sorts and nodes
-          (see <a href="#invariants">Invariants</a>), their typing (<code>WT_Plus</code>), a matcher
+          (see <a href="#invariants">Invariants</a>), its primitives and its helpers, which the
+          typings may use, the typing of its nodes (<code>WT_Plus</code>), a matcher
           for each node (<code>asPlus</code>, with <code>asPlus_node</code> and
           <code>asPlus_sound</code>) and for each sort (<code>asTInt</code>, with
           <code>asTInt_sort</code> and <code>asTInt_sound</code>), the predicates of its subsorts,
-          its primitives, and its helpers, each with the law of its body (<code>int_add_eq</code>
+          and the law of the body of each helper (<code>int_add_eq</code>
           for the primitive <code>int_add</code>; <code>bool_of_bool_eq</code> in
           <code>KanonBool.Syntax</code>). The bodies match the nodes and the sorts with their
           matchers, the nodes inside nodes by nested matches (<code>{`match L.asAdd v with | some (_, kanon__n1) => match L.asInt kanon__n1 with …{:lean}`}</code>),
@@ -352,7 +353,8 @@
     write with the semantics (as the predicate of a subsort), and declare on a sort or a node:
     <code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code> holds of the nodes whose typing
     gives that sort, and <code>{`node Exists of (var * ty) list * t : TBool [@lean_inv "exists_wf"]{:kanon}`}</code>
-    of that node (for what is the node's own, as distinct binders). The language's
+    of that node (for what is the node's own, as distinct binders). The nodes and sorts that name
+    the same predicate share it (<code>word_wf</code> in the word module). The language's
     <code>Term.WT</code> must then be, at that node, the conjunction of the law
     (<code>{`t = .TEven ∧ even_inv (.mk (.Ev z) t){:lean}`}</code>), or give <code>kanon_law</code>
     a lemma that turns it into it. In a module proved once, the invariant is a field of the

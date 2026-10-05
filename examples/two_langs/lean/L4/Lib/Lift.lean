@@ -17,6 +17,7 @@ theorem evOp1_mono (op : Op1) {a a' : Option Val} (ha : OLe a a') :
   cases op
   · exact pnot_mono ha
   · exact ha
+  · exact ha
 
 theorem evOp2_mono (op : Op2) {a a' b b' : Option Val} (ha : OLe a a') (hb : OLe b b') :
     OLe (evOp2 op a b) (evOp2 op a' b') := by

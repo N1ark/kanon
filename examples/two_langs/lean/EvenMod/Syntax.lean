@@ -24,6 +24,7 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   Rem2K : S.Term → B.Kind
   /-- The invariant of the terms of `TEven`. -/
   even_inv : S.Term → Prop
+  even_is_ev : S.Term → Bool
   WT_Ev : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (EvK x1) t) ↔ t = TEven ∧ even_inv (B.node (EvK x1) t)
   WT_Rem2 : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (Rem2K a1) t) ↔ ((S.ty a1) = TEven ∧ t = LNum.TNum) ∧ S.WT a1
   /-- The arguments of a `Ev` node. -/
@@ -38,7 +39,6 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asTEven : S.Ty → Option Unit
   asTEven_sort : asTEven TEven = some ()
   asTEven_sound : ∀ (s : S.Ty), asTEven s = some () → s = TEven
-  even_is_ev : S.Term → Bool
   even_is_ev_eq : ∀ (v : S.Term), (even_is_ev v) =
       ((firstSome [(match (asEv v) with | some _ => some (true) | _ => none)]).getD
         (match v with | _ => false))

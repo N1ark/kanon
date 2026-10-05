@@ -21,6 +21,7 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   DivK : S.Term → S.Term → B.Kind
   /-- The square of an integer plus one, which is not zero. -/
   Sq1K : S.Term → B.Kind
+  int_add : Int → Int → Int
   WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
   WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
   WT_Div : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (DivK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
@@ -49,7 +50,6 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
       `Sq1`. In Lean, `Nonzero`, a field of the interface of the module (each
       language defines it, in `Semantics.lean`). -/
   Nonzero : S.Term → Prop
-  int_add : Int → Int → Int
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
 
 end DivMod

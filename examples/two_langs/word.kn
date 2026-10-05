@@ -1,3 +1,9 @@
+(* the width of the integer [z] *)
+prim fit : int -> int
+
+(* its first argument *)
+fn first (a _ : int) : int = a
+
 (* whether [s] is the sort of words *)
 fn is_word (s : ty) : bool =
   match s with

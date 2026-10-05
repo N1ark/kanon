@@ -17,13 +17,21 @@ namespace L4
 
 open Classical Kanon KanonBool
 
+/-- The invariant of blobs and fitted integers: their integer fits their
+width. -/
+def word_wf : Term → Prop
+  | .mk (.WBlob b _) _ => b.bits < 256
+  | .mk (.WFit z) _ => 0 ≤ z
+  | _ => True
+
 mutual
 /-- Syntactic well-typedness. -/
 def Term.WT : Term → Prop
   | .mk (.Var _) _ => True
   | .mk (.Bool _) t => t = .TBool
   | .mk (.Wd _ n) t => t = .TWord n
-  | .mk (.WBlob _ _) t => t = .TWord 8
+  | .mk (.WBlob b l) t => t = .TWord 8 ∧ word_wf (.mk (.WBlob b l) t)
+  | .mk (.WFit z) t => t = .TWord (fit z) ∧ word_wf (.mk (.WFit z) t)
   | .mk (.Op1 op a) t => op.WT a.ty t ∧ a.WT
   | .mk (.Op2 op a b) t => op.WT a.ty b.ty t ∧ a.WT ∧ b.WT
   | .mk (.Op3 op a b c) t => op.WT a.ty b.ty c.ty t ∧ a.WT ∧ b.WT ∧ c.WT
@@ -65,6 +73,7 @@ abbrev Env := String → Option Val
 def evOp1 : Op1 → Option Val → Option Val
   | .Not, a => pnot .bool a
   | .WRound _ _, a => a
+  | .WExt _, a => a
 
 def evOp2 : Op2 → Option Val → Option Val → Option Val
   | .And, a, b => pand .bool a b
@@ -88,6 +97,7 @@ def ev (ρ : Env) : Term → Option Val
   | .mk (.Bool b) _ => some (.bool b)
   | .mk (.Wd z _) _ => some (.int z)
   | .mk (.WBlob b _) _ => some (.int b.bits)
+  | .mk (.WFit z) _ => some (.int z)
   | .mk (.Op1 op a) _ => evOp1 op (ev ρ a)
   | .mk (.Op2 op a b) _ => evOp2 op (ev ρ a) (ev ρ b)
   | .mk (.Op3 op a b c) _ => evOp3 op (ev ρ a) (ev ρ b) (ev ρ c)

@@ -20,6 +20,7 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   IntK : Int → B.Kind
   PlusK : S.Term → S.Term → B.Kind
   LtK : S.Term → S.Term → B.Kind
+  int_add : Int → Int → Int
   WT_Int : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (IntK x1) t) ↔ t = TInt
   WT_Plus : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (PlusK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = TInt) ∧ S.WT a1 ∧ S.WT a2
   WT_Lt : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (LtK a1 a2) t) ↔ ((S.ty a1) = TInt ∧ (S.ty a2) = TInt ∧ t = LBool.TBool) ∧ S.WT a1 ∧ S.WT a2
@@ -39,7 +40,6 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asTInt : S.Ty → Option Unit
   asTInt_sort : asTInt TInt = some ()
   asTInt_sound : ∀ (s : S.Ty), asTInt s = some () → s = TInt
-  int_add : Int → Int → Int
   int_add_eq : ∀ (x : Int) (y : Int), (int_add x y) = (x + y)
 
 end IntMod

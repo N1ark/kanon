@@ -35,6 +35,12 @@ kanon_node_lemma kanon_node_wt Nodes.Kind.WBlob.wt (x1 : CfgMod.Blob) (x2 : Stri
 kanon_node_lemma kanon_node_ev Nodes.Kind.WBlob.ev (ρ : sem.Env) (x1 : CfgMod.Blob) (x2 : String) (t : Ty) :
   sem.ev ρ (Term.mk (Kind.WBlob x1 x2) t)
 
+kanon_node_lemma kanon_node_wt Nodes.Kind.WFit.wt (x1 : Int) (t : Ty) :
+  sem.WT (Term.mk (Kind.WFit x1) t)
+
+kanon_node_lemma kanon_node_ev Nodes.Kind.WFit.ev (ρ : sem.Env) (x1 : Int) (t : Ty) :
+  sem.ev ρ (Term.mk (Kind.WFit x1) t)
+
 kanon_node_lemma kanon_node_wt Nodes.Op1.Not.wt (a1 : Term) (t : Ty) :
   sem.WT (Term.mk (Kind.Op1 Op1.Not a1) t)
 
@@ -82,5 +88,11 @@ kanon_node_lemma kanon_node_wt Nodes.Op1.WRound.wt (x1 : CfgMod.Rounding) (x2 : 
 
 kanon_node_lemma kanon_node_ev Nodes.Op1.WRound.ev (ρ : sem.Env) (x1 : CfgMod.Rounding) (x2 : Int) (a1 : Term) (t : Ty) :
   sem.ev ρ (Term.mk (Kind.Op1 (Op1.WRound x1 x2) a1) t)
+
+kanon_node_lemma kanon_node_wt Nodes.Op1.WExt.wt (x1 : Int) (a1 : Term) (t : Ty) :
+  sem.WT (Term.mk (Kind.Op1 (Op1.WExt x1) a1) t)
+
+kanon_node_lemma kanon_node_ev Nodes.Op1.WExt.ev (ρ : sem.Env) (x1 : Int) (a1 : Term) (t : Ty) :
+  sem.ev ρ (Term.mk (Kind.Op1 (Op1.WExt x1) a1) t)
 
 end L4

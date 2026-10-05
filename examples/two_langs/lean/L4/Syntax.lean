@@ -14,6 +14,8 @@ inductive Kind where
   | Wd : Int → Int → Kind
   /-- The bits of a blob, as a byte. -/
   | WBlob : CfgMod.Blob → String → Kind
+  /-- The integer `z`, of its own width. -/
+  | WFit : Int → Kind
   | Op1 : Op1 → Term → Kind
   | Op2 : Op2 → Term → Term → Kind
   | Op3 : Op3 → Term → Term → Term → Kind

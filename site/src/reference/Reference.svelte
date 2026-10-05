@@ -399,7 +399,8 @@
           typing gives that sort, or of that node
           (<code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code>). The typing law of such a node
           in the interface of its module ends with <code>{`P (node …){:lean}`}</code> (see
-          <a href="proving.html#invariants">Invariants</a>).
+          <a href="proving.html#invariants">Invariants</a>). The sorts and nodes that name the same
+          <code>P</code> share it: it is one predicate, one field of the interface.
         </td>
       </tr>
     </tbody>

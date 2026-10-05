@@ -24,14 +24,29 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   WdK : Int → Int → B.Kind
   /-- The bits of a blob, as a byte. -/
   WBlobK : CfgMod.Blob → String → B.Kind
+  /-- The integer `z`, of its own width. -/
+  WFitK : Int → B.Kind
   /-- The sum of two words of width `n`. -/
   WAddK : CfgMod.Flags → Int → S.Term → S.Term → B.Kind
   /-- A word, rounded. -/
   WRoundK : CfgMod.Rounding → Int → S.Term → B.Kind
+  /-- A word, widened by `k` bits. -/
+  WExtK : Int → S.Term → B.Kind
+  /-- The invariant of the terms of `WBlob`, `WFit`. -/
+  word_wf : S.Term → Prop
+  word_fit : Int → Int
+  word_first : Int → Int → Int
+  word_is_word : S.Ty → Bool
+  word_left_lit : S.Term → Int
+  word_plain : CfgMod.Flags
+  word_is_down : CfgMod.Rounding → Bool
+  word_twice : Int → S.Term → S.Term
   WT_Wd : ∀ (x1 : Int) (n : Int) (t : S.Ty), S.WT (B.node (WdK x1 n) t) ↔ t = (TWord n)
-  WT_WBlob : ∀ (x1 : CfgMod.Blob) (x2 : String) (t : S.Ty), S.WT (B.node (WBlobK x1 x2) t) ↔ t = (TWord (8 : Int))
+  WT_WBlob : ∀ (x1 : CfgMod.Blob) (x2 : String) (t : S.Ty), S.WT (B.node (WBlobK x1 x2) t) ↔ t = (TWord (8 : Int)) ∧ word_wf (B.node (WBlobK x1 x2) t)
+  WT_WFit : ∀ (z : Int) (t : S.Ty), S.WT (B.node (WFitK z) t) ↔ t = (TWord (word_fit z)) ∧ word_wf (B.node (WFitK z) t)
   WT_WAdd : ∀ (x1 : CfgMod.Flags) (n : Int) (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (WAddK x1 n a1 a2) t) ↔ ((S.ty a1) = (TWord n) ∧ (S.ty a2) = (TWord n) ∧ t = (TWord n)) ∧ S.WT a1 ∧ S.WT a2
   WT_WRound : ∀ (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term) (t : S.Ty), S.WT (B.node (WRoundK x1 n a1) t) ↔ ((S.ty a1) = (TWord n) ∧ t = (TWord n)) ∧ S.WT a1
+  WT_WExt : ∀ (k : Int) (a1 : S.Term) (t : S.Ty), S.WT (B.node (WExtK k a1) t) ↔ (∃ n : Int, (S.ty a1) = (TWord n) ∧ (0 : Int) ≤ k ∧ t = (TWord (n + k))) ∧ S.WT a1
   /-- The arguments of a `Wd` node. -/
   asWd : S.Term → Option (Int × Int)
   asWd_node : ∀ (x1 : Int) (n : Int) (t : S.Ty), asWd (B.node (WdK x1 n) t) = some (x1, n)
@@ -40,6 +55,10 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asWBlob : S.Term → Option (CfgMod.Blob × String)
   asWBlob_node : ∀ (x1 : CfgMod.Blob) (x2 : String) (t : S.Ty), asWBlob (B.node (WBlobK x1 x2) t) = some (x1, x2)
   asWBlob_sound : ∀ (v : S.Term) (x1 : CfgMod.Blob) (x2 : String), asWBlob v = some (x1, x2) → v = (B.node (WBlobK x1 x2) (S.ty v))
+  /-- The arguments of a `WFit` node. -/
+  asWFit : S.Term → Option Int
+  asWFit_node : ∀ (z : Int) (t : S.Ty), asWFit (B.node (WFitK z) t) = some z
+  asWFit_sound : ∀ (v : S.Term) (z : Int), asWFit v = some z → v = (B.node (WFitK z) (S.ty v))
   /-- The arguments of a `WAdd` node. -/
   asWAdd : S.Term → Option (CfgMod.Flags × Int × S.Term × S.Term)
   asWAdd_node : ∀ (x1 : CfgMod.Flags) (n : Int) (a1 : S.Term) (a2 : S.Term) (t : S.Ty), asWAdd (B.node (WAddK x1 n a1 a2) t) = some (x1, n, a1, a2)
@@ -48,15 +67,15 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asWRound : S.Term → Option (CfgMod.Rounding × Int × S.Term)
   asWRound_node : ∀ (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term) (t : S.Ty), asWRound (B.node (WRoundK x1 n a1) t) = some (x1, n, a1)
   asWRound_sound : ∀ (v : S.Term) (x1 : CfgMod.Rounding) (n : Int) (a1 : S.Term), asWRound v = some (x1, n, a1) → v = (B.node (WRoundK x1 n a1) (S.ty v))
+  /-- The arguments of a `WExt` node. -/
+  asWExt : S.Term → Option (Int × S.Term)
+  asWExt_node : ∀ (k : Int) (a1 : S.Term) (t : S.Ty), asWExt (B.node (WExtK k a1) t) = some (k, a1)
+  asWExt_sound : ∀ (v : S.Term) (k : Int) (a1 : S.Term), asWExt v = some (k, a1) → v = (B.node (WExtK k a1) (S.ty v))
   /-- The arguments of the sort `TWord`. -/
   asTWord : S.Ty → Option Int
   asTWord_sort : ∀ (x1 : Int), asTWord (TWord x1) = some x1
   asTWord_sound : ∀ (s : S.Ty) (x1 : Int), asTWord s = some x1 → s = (TWord x1)
-  word_is_word : S.Ty → Bool
-  word_left_lit : S.Term → Int
-  word_plain : CfgMod.Flags
-  word_is_down : CfgMod.Rounding → Bool
-  word_twice : Int → S.Term → S.Term
+  word_first_eq : ∀ (a : Int) (kanon__2 : Int), (word_first a kanon__2) = a
   word_is_word_eq : ∀ (s : S.Ty), (word_is_word s) =
       ((firstSome [(match (asTWord s) with
                      | some _ =>

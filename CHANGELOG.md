@@ -65,6 +65,10 @@
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
 - `kanon_law` no longer fails when its lemmas close the goal.
 - Record literals in Lean use the Lean name of their type.
+- Interface typing laws keep the `when` condition.
+- Interfaces declare primitives and helpers before the typing laws.
+- Interface helper laws name the `_` parameters.
+- Nodes sharing a `[@lean_inv]` share one interface field.
 
 ## 0.3.0 (2026-10-04)
 

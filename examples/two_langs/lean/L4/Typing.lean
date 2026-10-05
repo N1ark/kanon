@@ -15,6 +15,8 @@ def Op1.WT : Op1 → Ty → Ty → Prop
       kanon__a = Ty.TBool ∧ kanon__t = Ty.TBool
   | .WRound _ n, kanon__a, kanon__t =>
       kanon__a = (Ty.TWord n) ∧ kanon__t = (Ty.TWord n)
+  | .WExt k, kanon__a, kanon__t =>
+      ∃ n : Int, kanon__a = (Ty.TWord n) ∧ (0 : Int) ≤ k ∧ kanon__t = (Ty.TWord (n + k))
 
 def Op2.WT : Op2 → Ty → Ty → Ty → Prop
   | .And, kanon__a, kanon__b, kanon__t

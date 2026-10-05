@@ -2720,10 +2720,11 @@ let typing_rhs ?names ctx (ty : typing) =
       (fun w -> List.iter (fun c -> add (prop c) (exists_vars c)) (conjuncts w))
       ty.t_when
   in
-  List.iter2
-    (fun name (s : expr) ->
+  let last = List.length names - 1 in
+  List.iteri
+    (fun i (name, (s : expr)) ->
       (* the condition, between the operands and the result *)
-      if name = result_name then cond ();
+      if i = last then cond ();
       match s.e with
       | EVar x when List.mem_assoc x !reps ->
           add (name ^ " = " ^ List.assoc x !reps) []
@@ -2740,7 +2741,7 @@ let typing_rhs ?names ctx (ty : typing) =
                 vs;
               add (name ^ " = " ^ r) vs;
               seen := !seen @ [ (name, r) ]))
-    names ty.t_sorts;
+    (List.combine names ty.t_sorts);
   let conjs = !conjs in
   let last v =
     List.fold_left max 0
@@ -3098,13 +3099,20 @@ let mtypes_file m =
 (** The invariant of a sort or a node ([[@lean_inv "P"]]), if it has one. *)
 let inv_of (c : constr) = List.assoc_opt c.c_name !lang.lean_invs
 
-(** The sorts and nodes of the module [m] that have an invariant, with it. *)
+(** The invariants of the sorts and nodes of the module [m], each once, with the
+    sorts and nodes that have it. *)
 let module_invs m =
-  List.filter_map
-    (fun (c : constr) ->
-      if in_module m c.c_loc then Option.map (fun p -> (c, p)) (inv_of c)
-      else None)
-    !lang.constrs
+  let cs =
+    List.filter_map
+      (fun (c : constr) ->
+        if in_module m c.c_loc then Option.map (fun p -> (c, p)) (inv_of c)
+        else None)
+      !lang.constrs
+  in
+  List.map
+    (fun q ->
+      (List.filter_map (fun (c, p) -> if p = q then Some c else None) cs, q))
+    (uniq (List.map snd cs))
 
 (** The typing law of the node [n] (in a structure: unprefixed): its typing, by
     its sorts; its operands, and the terms of its arguments, are well-typed; and
@@ -3247,6 +3255,16 @@ let helper_field (f : fn) = Fmt.str "%s : %a" (fld f.name) arrow f
 
 (** The equation of a helper, as a field: its body, over the interface. *)
 let helper_eq ctx ~o ft (f : fn) =
+  let f =
+    {
+      f with
+      params =
+        List.mapi
+          (fun i (x, t) ->
+            ((if x = "_" then Printf.sprintf "kanon__%d" (i + 1) else x), t))
+          f.params;
+    }
+  in
   let lhs = if o then "O." ^ fld f.name else nfield f.name (fld f.name) in
   pf ft "  @[<hv 4>%s_eq : %s%s =@ %a@]@ " (fld f.name)
     (if f.params = [] then "" else Fmt.str "∀ %a, " params f)
@@ -3298,18 +3316,12 @@ let syntax_file ctx (p : program) m =
            () (gfield_of None "Kind")))
     nodes;
   List.iter
-    (fun ((c : constr), q) ->
-      pf ft "  /-- The invariant of the terms of `%s`. -/@ " c.c_name;
+    (fun (cs, q) ->
+      pf ft "  /-- The invariant of the terms of %s. -/@ "
+        (String.concat ", "
+           (List.map (fun (c : constr) -> "`" ^ c.c_name ^ "`") cs));
       field (q ^ " : S.Term → Prop"))
     (module_invs m);
-  List.iter (fun n -> field (wt_law ctx p n)) nodes;
-  List.iter (fun n -> List.iter field (matcher_fields p n)) nodes;
-  List.iter (fun c -> List.iter field (sort_matcher_fields c)) (module_sorts m);
-  List.iter
-    (fun ss ->
-      Option.iter (fun d -> pf ft "  %a" doc (Some d)) ss.ss_doc;
-      field (Option.get ss.ss_lean ^ " : S.Term → Prop"))
-    (module_subsorts m);
   List.iter
     (fun (q : prim) ->
       Option.iter (fun d -> pf ft "  %a" doc (Some d)) q.pdoc;
@@ -3324,6 +3336,14 @@ let syntax_file ctx (p : program) m =
       Option.iter (fun d -> pf ft "  %a" doc (Some d)) f.fdoc;
       field (helper_field f))
     helpers;
+  List.iter (fun n -> field (wt_law ctx p n)) nodes;
+  List.iter (fun n -> List.iter field (matcher_fields p n)) nodes;
+  List.iter (fun c -> List.iter field (sort_matcher_fields c)) (module_sorts m);
+  List.iter
+    (fun ss ->
+      Option.iter (fun d -> pf ft "  %a" doc (Some d)) ss.ss_doc;
+      field (Option.get ss.ss_lean ^ " : S.Term → Prop"))
+    (module_subsorts m);
   List.iter
     (fun (f : fn) -> if not f.extensible then helper_eq ctx ~o:false ft f)
     helpers;

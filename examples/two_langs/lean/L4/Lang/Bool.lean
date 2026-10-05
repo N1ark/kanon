@@ -39,12 +39,19 @@ theorem ev_ty (ρ : Env) : ∀ (t : Term) (v : Val), t.WT → ev ρ t = some v �
   | .mk (.WBlob _ _) t, v, w, e => by
     simp only [ev, Option.some.injEq] at e; subst e
     simp_all [Term.WT, Val.HasTy]
+  | .mk (.WFit _) t, v, w, e => by
+    simp only [ev, Option.some.injEq] at e; subst e
+    simp_all [Term.WT, Val.HasTy]
   | .mk (.Op1 op a) t, v, w, e => by
     cases op <;> simp only [ev, evOp1, Term.WT, Op1.WT] at w e
     · rw [pnot_eq_some] at e
       rcases e with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> simp [Val.HasTy, w.1.2]
     · have := ev_ty ρ a v w.2 e
       rwa [w.1.1, ← w.1.2] at this
+    · obtain ⟨⟨n, hn, -, rfl⟩, wa⟩ := w
+      have := ev_ty ρ a v wa e
+      rw [hn] at this
+      cases v <;> simp_all [Val.HasTy]
   | .mk (.Op2 op a b) t, v, w, e => by
     cases op <;> simp only [ev, evOp2, Term.WT, Op2.WT] at w e
     · rw [pand_eq_some] at e

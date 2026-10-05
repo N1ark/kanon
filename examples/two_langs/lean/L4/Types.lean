@@ -8,6 +8,8 @@ inductive Op1 where
   | Not
   /-- A word, rounded. -/
   | WRound : CfgMod.Rounding → Int → Op1
+  /-- A word, widened by `k` bits. -/
+  | WExt : Int → Op1
   deriving DecidableEq, Repr, Inhabited
 
 inductive Op2 where

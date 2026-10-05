@@ -17,4 +17,8 @@ node WAdd of flags * int (_, n) : TWord n -> TWord n -> TWord n
 (** A word, rounded. *)
 node WRound of mode * int (_, n) : TWord n -> TWord n
 (** The bits of a blob, as a byte. *)
-node WBlob of blob * label : TWord 8
+node WBlob of blob * label : TWord 8 [@lean_inv "word_wf"]
+(** The integer `z`, of its own width. *)
+node WFit of int (z) : TWord (fit z) [@lean_inv "word_wf"]
+(** A word, widened by `k` bits. *)
+node WExt of int (k) : TWord n -> TWord (n + k) when 0 <= k

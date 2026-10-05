@@ -2,6 +2,7 @@
 import L4.Interface
 import L4.Interface.Bool
 import L4.Interface.Cfg
+import L4.Model.Word.first
 import L4.Model.Word.is_word
 import L4.Model.Word.left_lit
 import L4.Model.Word.plain
@@ -23,6 +24,7 @@ def wordSyntax : WordMod.Syntax (S := sem) modBase boolSyntax cfgSyntax where
   TWord := Ty.TWord
   TWord_ne_TBool := by intros; exact nofun
   TWord_inj := by intros; rename_i h; cases h; simp
+  word_wf := word_wf
   asTWord := fun s => match s with | (Ty.TWord x1) => some x1 | _ => none
   asTWord_sort := by intros; rfl
   asTWord_sound := by intro s x1 h; cases s <;> cases h <;> rfl
@@ -36,6 +38,11 @@ def wordSyntax : WordMod.Syntax (S := sem) modBase boolSyntax cfgSyntax where
   asWBlob := fun v => match v with | Term.mk (Kind.WBlob x1 x2) _ => some (x1, x2) | _ => none
   asWBlob_node := by intros; rfl
   asWBlob_sound := by intro v x1 x2 h; dsimp only at h; split at h <;> cases h <;> rfl
+  WFitK := fun z => (Kind.WFit z)
+  WT_WFit := by intros; first | exact Iff.rfl | kanon_law
+  asWFit := fun v => match v with | Term.mk (Kind.WFit z) _ => some z | _ => none
+  asWFit_node := by intros; rfl
+  asWFit_sound := by intro v z h; dsimp only at h; split at h <;> cases h <;> rfl
   WAddK := fun x1 n a1 a2 => (Kind.Op2 (Op2.WAdd x1 n) a1 a2)
   WT_WAdd := by intros; first | exact Iff.rfl | kanon_law
   asWAdd := fun v => match v with | Term.mk (Kind.Op2 (Op2.WAdd x1 n) a1 a2) _ => some (x1, n, a1, a2) | _ => none
@@ -46,6 +53,14 @@ def wordSyntax : WordMod.Syntax (S := sem) modBase boolSyntax cfgSyntax where
   asWRound := fun v => match v with | Term.mk (Kind.Op1 (Op1.WRound x1 n) a1) _ => some (x1, n, a1) | _ => none
   asWRound_node := by intros; rfl
   asWRound_sound := by intro v x1 n a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  WExtK := fun k a1 => (Kind.Op1 (Op1.WExt k) a1)
+  WT_WExt := by intros; first | exact Iff.rfl | kanon_law
+  asWExt := fun v => match v with | Term.mk (Kind.Op1 (Op1.WExt k) a1) _ => some (k, a1) | _ => none
+  asWExt_node := by intros; rfl
+  asWExt_sound := by intro v k a1 h; dsimp only at h; split at h <;> cases h <;> rfl
+  word_fit := fit
+  word_first := Word.first
+  word_first_eq := by kanon_bridge Word.first
   word_is_word := Word.is_word
   word_is_word_eq := by kanon_bridge Word.is_word
   word_left_lit := Word.left_lit

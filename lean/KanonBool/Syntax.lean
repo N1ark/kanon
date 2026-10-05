@@ -22,6 +22,13 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   EqK : S.Term → S.Term → B.Kind
   IteK : S.Term → S.Term → S.Term → B.Kind
   DistinctK : (List S.Term) → B.Kind
+  bool_v_true : S.Term
+  bool_v_false : S.Term
+  bool_of_bool : Bool → S.Term
+  bool_sure_neq : S.Term → S.Term → Bool
+  bool_at_most_one : (List S.Term) → Bool
+  bool_distinct_check_one : S.Term → (List S.Term) → (Option Bool)
+  bool_distinct_check : (List S.Term) → (Option Bool)
   WT_Bool : ∀ (x1 : Bool) (t : S.Ty), S.WT (B.node (BoolK x1) t) ↔ t = TBool
   WT_Not : ∀ (a1 : S.Term) (t : S.Ty), S.WT (B.node (NotK a1) t) ↔ ((S.ty a1) = TBool ∧ t = TBool) ∧ S.WT a1
   WT_And : ∀ (a1 : S.Term) (a2 : S.Term) (t : S.Ty), S.WT (B.node (AndK a1 a2) t) ↔ ((S.ty a1) = TBool ∧ (S.ty a2) = TBool ∧ t = TBool) ∧ S.WT a1 ∧ S.WT a2
@@ -61,13 +68,6 @@ structure Syntax {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] (B : Ka
   asTBool : S.Ty → Option Unit
   asTBool_sort : asTBool TBool = some ()
   asTBool_sound : ∀ (s : S.Ty), asTBool s = some () → s = TBool
-  bool_v_true : S.Term
-  bool_v_false : S.Term
-  bool_of_bool : Bool → S.Term
-  bool_sure_neq : S.Term → S.Term → Bool
-  bool_at_most_one : (List S.Term) → Bool
-  bool_distinct_check_one : S.Term → (List S.Term) → (Option Bool)
-  bool_distinct_check : (List S.Term) → (Option Bool)
   bool_of_bool_eq : ∀ (b : Bool), (bool_of_bool b) =
       (if b then bool_v_true else bool_v_false)
   bool_at_most_one_eq : ∀ (l : (List S.Term)), (bool_at_most_one l) =
