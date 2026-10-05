@@ -410,7 +410,7 @@ fn size (v : t) : int [@ty_only] = size_of_ty (type_of v)
   from the laws of its spec (see [Laws](#laws)) and `default`.
 - `fn f params : ty = body` declares a helper. All functions can call each
   other. `[@ty_only]` marks a helper of one term that only reads its type (see
-  [Rules](#rules)). `[@no_lean]` (after the result type) leaves it out of the
+  [Rules](#rules)); on a rule it is an error. `[@no_lean]` (after the result type) leaves it out of the
   Lean model: it is checked and generated in OCaml as usual, but has no `def` in
   `Model.lean`, and no statement, lift or soundness entry, so it is for
   analysis and infrastructure code that is not a simplification rule (see
@@ -554,6 +554,8 @@ The rewrites are on whole terms: in `rule not_ : Not v`, the rule of
   `ocaml-typed` backend does not constrain the tag of the result. A
   constructor-led sort is a sort constructor (`S args`); `(C x : t)` with the
   name of a type `t` is a type annotation.
+  A type annotation `(e : t)` with a parenthesised type or an arrow
+  (`(e : (a * b) list)`) is a syntax error: put the type on a `let`.
 
 ## Patterns
 
@@ -608,7 +610,9 @@ The generated module has the structure of the language: a module per Kanon
 module, that is per file (`bitvec.knl` and `bitvec.kn` are `Bitvec`, `use
 builtin "bool"` is `Bool`), with the plain names: the function `add` of
 `bitvec.kn` is `Bitvec.add`, in the output as a program, which calls
-`Lang_rules.Bitvec.add`. A module has:
+`Lang_rules.Bitvec.add`. The generated code calls the standard library as
+`Stdlib.Int`, `Stdlib.Bool`, ..., so a Kanon module named `Int` or `Bool` does
+not hide it. A module has:
 - its functions: every `fn` and `rule` (and the zero-parameter ones, which are
   values, computed once);
 - the function `t_foo` of each sort `TFoo` declared in its files (`t_bitvec`: a

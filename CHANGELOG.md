@@ -4,44 +4,52 @@
 
 ### Added
 
-- [Scoped names](README.md#names-and-modules): the functions, rule functions, primitives and constants are scoped by module (a file: `bitvec.knl` and `bitvec.kn` are `Bitvec`, `use builtin "bool"` is `Bool`). A name is plain in its module and qualified, `Bitvec.add`, from another one, in expressions, in `extend rule Bitvec.add`, in `infix "+" = Add, Bitvec.add` and in the attributes (`[@fold Int.add]`), so that an `Int.add` and a `Bitvec.add` live in the same language and the prefixes of the names (`bv_add`) are redundant. A plain name is that of the module of the file where it is written, never of a module that it uses; the error of an unknown name says which module declares it. The tree-sitter grammar reads `Bitvec.add` (`qualified_identifier`), and the language server hovers, goes to, renames (after the dot) and completes qualified names.
+- [Scoped names](README.md#names-and-modules): `Bitvec.add` from another module.
+- The language server hovers, renames and completes qualified names.
+- The tree-sitter grammar reads qualified names.
 
 ### Changed
 
-- The names of the generated code follow the scoping. The OCaml rules module has the structure of the language: a module per Kanon module, with the plain names (`Rules.Bitvec.add`, not `rules_bitvec_add`), holding its functions, the function `t_foo` of each sort, and the destructors `as_foo`/`is_foo` of the nodes and sorts declared in its files (they were top-level). The functions are still one recursive group, in `Kanon_flat` under flat names (`bitvec_add`), which the modules alias: a call through `Bitvec.add` is a direct call, inlined when small. The primitives keep their plain name in the module of the primitives, and two primitives of different modules may not have the same name. `ocaml-typed` is now only a module type `S` (and the tags) that this rules module satisfies: `Derived` is `include Rules` and the phantom types and escape hatches, with no function of its own, and the generated file checks `module _ : S = Derived`. A module with two items of the same name (a function named like a destructor of its module, a function of a sort) is an error. `Kanon_flat` is a reserved module name. The generated OCaml calls the standard library as `Stdlib.Int`, `Stdlib.Bool`, ..., so that a Kanon module named `Int` or `Bool` does not hide it. In Lean, the definitions are qualified by their module (`Bitvec.add`, `Bitvec.add.r_zero`, `Bitvec.add.spec`) and the fields of `Ops` are the flat names (`bitvec_add`). `ocaml-tests` lists the rule functions by their qualified name (`"Bitvec.add"`).
-- The bool module's functions lose their prefixes: `b_not`, `b_and`, `b_or`, `b_ite`, `sem_eq`, `sem_eq_untyped` and `b_distinct` are `Bool.not_`, `Bool.and_`, `Bool.or_`, `Bool.ite`, `Bool.eq`, `Bool.eq_untyped` and `Bool.distinct`, and `KanonCore.BoolMod`'s theorems are named after them (`Bool.and_.r_same.main`). Its primitives `v_true`, `v_false` and `sort_by_tag` are unchanged.
-- A bare constructor directly followed by `.x` (`Foo.x`) is a qualified name, not a field access.
+- Generated code qualifies names by module: `Rules.Bitvec.add`.
+- Bool functions lose prefixes: `b_not` is `Bool.not_`.
+- `ocaml-typed` generates only the module type `S`.
+- `ocaml-tests` lists rule functions by qualified name.
+- Destructors `as_foo` and `is_foo` live in their module.
+- Primitives of different modules may not share a name.
+- `Kanon_flat` is a reserved module name.
+- `Foo.x` is a qualified name, not a field access.
 
 ## 0.3.0 (2026-10-04)
 
 ### Added
 
-- [`[@no_lean]`](README.md#functions) on a `fn` or a `prim` leaves it out of the Lean files. A function or rule that Lean models may not call it.
-- [Operators with a word suffix](README.md#operators-on-terms): a symbol directly followed by a word is one operator, such as `<u` or `<=s` (`infix "<u" = Ult, bv_ult`, `a <u b`, `a <=s b`), at the precedence of its symbol. The tree-sitter grammar reads them too.
-- [`[@total]`](README.md#functions) on a `fn` requires a case for every node of the language, so that a node added without one is an error, not a silent fall through. It is checked after the `extend fn` cases are added.
-- [Documentation comments](README.md#documentation-comments) `(** ... *)` on declarations, carried to the generated OCaml and Lean.
-- [`(C x : e)`](README.md#terms) builds a node at a computed sort: `e` is any expression of type `ty`, such as a parameter or a call of a function (`(Field (i, v) : field_ty v i)`). The typing of an operator is not checked against it. A type constraint `(e : t)` on an expression is now read as an expression first, so that one on a parenthesised type (`(e : (a * b) list)`) or an arrow is a syntax error: put the type on a `let`.
-- `nat` is accepted in the signatures of functions, rules and primitives and in record fields, as a synonym of `int`. Primes in identifiers (`l'`) are covered by a test.
-
-- [Arrays](README.md#arrays): `t array` is an immutable array, with the literal `[| a; b |]` and the functions `array_length`, `array_get`, `array_set` (a copy), `array_of_list` and `array_to_list`, and structural equality. OCaml compiles them to the standard `Iarray` (OCaml 5.4, with the equality and hash generated, no hand-written glue), and Lean to `Array`, with the operations and lemmas of `KanonCore.Array`. There is no cons, concatenation or array pattern. `examples/arrays` shows them, and the language server hovers and completes them.
-- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n` declares a sort of the arguments of its parent, which the typing of a node may use for an operand or its result (`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n`). A term of a subsort is accepted wherever its parent is expected. They are erased to their parent in the OCaml of the types, rules and tests, and trusted. A `[@comm]` node whose operands have different subsorts is rejected.
-- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` on a subsort names a predicate on terms, which the Lean statements of a rule function assume of its operands at a position of the subsort (in the statements of its rules and arms, in `Ops.Sound`, in its step and lifting lemmas), and which the rule function whose node returns the subsort must prove of what it returns (`f.post.main.Stmt`, by hand). A subsort without `[@lean]` is erased. `examples/division` is checked by CI.
-- The [`ocaml-typed` backend](README.md#typed-ocaml) generates the typed interface of a language, where a term is a `'a t` whose phantom parameter is a tag, a polymorphic variant that says what Kanon knows of it: a sort `TBitVector` has the tag type `tbitvector` in the module `Tag`, and a subsort refines its parent (`tnonzero` is within `tbitvector`), so that an operand of a subsort needs a term known to be of it, and an operand of a sort accepts the terms of its subsorts. The tag types are plain polymorphic variants, which a program may join into groups of tags. The signature `S` is organised like the language, one module per file, with a function for each sort, rule function and destructor, typed by the tags, and the escape hatches `cast`, `untyped` and `type_`. `Derived` implements it from the rules (the module named by [`[@@@ocaml_rules "M"]`](README.md#floating-attributes)), with the phantom types visible, which `S` hides; the leaf nodes, which no rule builds, have no constructor in either, and a program builds them from the types and gives them their tag with `type_`. Nothing is a functor.
-- The `ocaml` backend generates a destructor `as_foo` and a test `is_foo` for every node and every sort (`as_foo : t -> (parameters, operands) option`, `as_tfoo : ty -> arguments option`), named after the constructor in lowercase. A function or a primitive with such a name is an error.
+- [`[@no_lean]`](README.md#functions) leaves a `fn` or `prim` out of Lean.
+- [Operators with a word suffix](README.md#operators-on-terms), such as `<u` and `<=s`.
+- [`[@total]`](README.md#functions) requires a case for every node.
+- [Documentation comments](README.md#documentation-comments) `(** ... *)` reach generated OCaml and Lean.
+- [Computed sorts](README.md#terms): `(C x : e)`.
+- `nat` is accepted in signatures and record fields.
+- [Arrays](README.md#arrays): `t array` and `[| a; b |]`.
+- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n`.
+- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` names a predicate.
+- The [`ocaml-typed` backend](README.md#typed-ocaml) generates a typed interface with phantom tags.
+- The `ocaml` backend generates destructors `as_foo` and tests `is_foo`.
 
 ### Fixed
 
-- The hover of the language server on a function or a node showed the second star of its documentation comment `(** ... *)` as text.
-- `kanon ocaml-tests` listed the single rule `main` for a rule function whose spec annotates the sort of an operand (`(v : TBv sz)`), and its `fired` did not bind the variables of the sorts: it lists the rules and binds them.
-- The literals that `[@fold]` binds are renamed when their names (`i`, `i1`, `i2`, derived from the type of the fold function) are those of a parameter of the node, which they captured: `node BvExtract of nat * nat (i, j) ... [@fold f]` passed the wrong values to `f`.
+- Hover showed a stray star in documentation comments.
+- `ocaml-tests` listed one rule for operands annotated with a sort.
+- `[@fold]` passed wrong values when its literals shadowed node parameters.
+- `extend fn` dropped cases after a `_, _` catch-all.
 
 ### Changed
 
-- `[@ty_only]` on a rule is an error: it only means something on a helper (`fn`).
-- Operators need spaces: an operator is surrounded by spaces (or brackets), and `x<y`, `x +y` or `f x+1` are errors, no longer `x < y`. A prefix operator (`-`, or a symbol that starts with `!`, `~` or `?`) is written right before its operand (`-x`, `x - -y`), and has no word suffix; `.`, `:` and `#` need no spaces. A symbol followed by a word is one operator whatever the declarations: the lexer no longer knows them (but for the words declared infix, such as `urem`).
-- `use +name` is a syntax error like any other, not a message: it is `use builtin "name"`.
-- A tuple of blanks (`_, _`) is a final catch-all case like `_`, for `extend fn`, `extend rule`, `default` and unreachable cases: the cases of `extend fn` were silently dropped after a final `| _, _ ->`.
-- An `extend` case that is not added, because an earlier case matches everything it does, is an error.
+- `[@ty_only]` on a rule is an error.
+- Operators need spaces: `x<y` is an error.
+- Prefix operators are written `-x`, with no space.
+- `use +name` is a syntax error: write `use builtin "name"`.
+- Parenthesised types in `(e : t)` are a syntax error.
+- An `extend` case that is never added is an error.
 - Unknown attributes on `fn`, `prim` and `rule` are errors.
 
 ## 0.2.0 (2026-10-02)
