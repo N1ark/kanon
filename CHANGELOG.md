@@ -8,9 +8,8 @@
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
 - [Typed functions](README.md#functions): sort-annotated `fn` results.
-
-- [Traversals](README.md#traversals): `[@@@traversals]` makes `kanon ocaml` generate `map_children`, `iter_children`, `exists_child` and `for_all_child` over the terms, and `map_ty_children`, ... over the sorts: one case per node, left to right, with no intermediate list, for the children in a list, an array, an option, a tuple, a record or a variant of the language. `map_children` rebuilds the node with its smart constructor, else raw at the sort of its typing. A later module's nodes get their case.
-- The typing of a node may give the sort of its result as an expression of type `ty` (a call of a function), and a leaf may declare a computed sort: `node Field of nat (i) : TTuple tys -> Rules.nth_ty tys i`, `node Tuple of t list (vs) : TTuple (Rules.types_of vs)`.
+- [Traversals](README.md#traversals): `[@@@traversals]` generates `map_children`, `iter_children` and more.
+- Node typings may give a computed result sort.
 
 ### Changed
 
