@@ -1,9 +1,9 @@
-; The generated Lean files of the two languages (under L1/ and L2/) and of
-; their modules proved once (under NumMod/ and NegMod/), from ../l1.knl and
-; ../l2.knl: `dune test` checks that they are up to date (run `dune exec --
-; kanon lean-all . ../l1.knl` and `dune exec -- kanon lean-all . ../l2.knl` here
-; after changing a language or a module), and CI checks their proofs with `lake
-; build`. Both languages generate the same files of the num module.
+; The generated Lean files of the three languages (under L1/, L2/ and L3/) and
+; of their modules proved once (under NumMod/, NegMod/, EvenMod/ and MixMod/),
+; from ../l1.knl, ../l2.knl and ../l3.knl: `dune test` checks that they are up
+; to date (run `dune exec -- kanon lean-all . ../lN.knl` here after changing a
+; language or a module), and CI checks their proofs with `lake build`. The
+; languages generate the same files of the modules they share.
 
 (rule
  (alias runtest)
@@ -29,3 +29,23 @@
   ../neg.kn)
  (action
   (run %{bin:kanon} lean-all --check . ../l2.knl)))
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree L3)
+  (source_tree NumMod)
+  (source_tree NegMod)
+  (source_tree EvenMod)
+  (source_tree MixMod)
+  ../l3.knl
+  ../num.knl
+  ../num.kn
+  ../neg.knl
+  ../neg.kn
+  ../even.knl
+  ../even.kn
+  ../mix.knl
+  ../mix.kn)
+ (action
+  (run %{bin:kanon} lean-all --check . ../l3.knl)))

@@ -186,6 +186,10 @@ type lang = {
       (** [[@@@lean_module "R"]], in the declarations of a module: the modules
           proved once for every language, in Lean, by module name, with the root
           of their Lean files *)
+  lean_invs : (string * string) list;
+      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on terms,
+          [P : Term -> Prop], that its terms satisfy, as part of their
+          well-typedness, by constructor *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -224,6 +228,7 @@ let lang =
       lean_root = "Kanon";
       lean_params = [];
       lean_modules = [];
+      lean_invs = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;

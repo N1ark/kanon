@@ -2834,7 +2834,20 @@ let module_sources m =
 
 (* ---- Syntax.lean ---- *)
 
-(** The typing law of the node [n] (in a structure: unprefixed). *)
+(** The invariant of a sort or a node ([[@lean_inv "P"]]), if it has one. *)
+let inv_of (c : constr) = List.assoc_opt c.c_name !lang.lean_invs
+
+(** The sorts and nodes of the module [m] that have an invariant, with it. *)
+let module_invs m =
+  List.filter_map
+    (fun (c : constr) ->
+      if in_module m c.c_loc then Option.map (fun p -> (c, p)) (inv_of c)
+      else None)
+    !lang.constrs
+
+(** The typing law of the node [n] (in a structure: unprefixed): its typing, by
+    its sorts; its operands, and the terms of its arguments, are well-typed;
+    and its invariant and that of its sort hold ([[@lean_inv]]). *)
 let wt_law ctx (p : program) (n : gnode) =
   let xs, os = node_names p n in
   let t = "t" in
@@ -2847,20 +2860,50 @@ let wt_law ctx (p : program) (n : gnode) =
   let nary =
     List.exists (function TList _ -> true | _ -> false) n.goperands
   in
-  let rhs =
+  let typing =
     match ty with
-    | None -> "True"
+    | None -> []
     | Some ty when nary ->
         let l = List.hd os in
-        Printf.sprintf "∃ e, (%s) ∧ ∀ x ∈ %s, S.ty x = e ∧ S.WT x"
-          (typing_rhs ~names:[ "e"; t ] ctx ty)
-          l
-    | Some ty when n.goperands = [] -> typing_rhs ~names:[ t ] ctx ty
+        [
+          Printf.sprintf "∃ e, (%s) ∧ ∀ x ∈ %s, S.ty x = e ∧ S.WT x"
+            (typing_rhs ~names:[ "e"; t ] ctx ty)
+            l;
+        ]
+    | Some ty when n.goperands = [] -> [ typing_rhs ~names:[ t ] ctx ty ]
     | Some ty ->
         let names = List.map (fun a -> "(S.ty " ^ a ^ ")") os @ [ t ] in
-        String.concat " ∧ "
-          (("(" ^ typing_rhs ~names ctx ty ^ ")")
-          :: List.map (fun a -> "S.WT " ^ a) os)
+        ("(" ^ typing_rhs ~names ctx ty ^ ")")
+        :: List.map (fun a -> "S.WT " ^ a) os
+  in
+  let args =
+    List.filter_map
+      (fun (x, ty) ->
+        match ty with
+        | TTerm -> Some ("S.WT " ^ x)
+        | TList TTerm -> Some (Printf.sprintf "(∀ y ∈ %s, S.WT y)" x)
+        | _ -> None)
+      (List.combine xs n.gpayload)
+  in
+  let inv (c : constr) =
+    Option.map (fun q -> Printf.sprintf "%s %s" (cfield c q) term) (inv_of c)
+  in
+  let sort_inv =
+    match ty with
+    | Some ty -> (
+        match (List.hd (List.rev ty.t_sorts)).e with
+        | EConstr (c, _) -> inv c
+        | _ -> None)
+    | None -> None
+  in
+  let extra = args @ Option.to_list (inv n.gc) @ Option.to_list sort_inv in
+  let typing =
+    match typing with
+    | [ x ] when nary && extra <> [] -> [ "(" ^ x ^ ")" ]
+    | l -> l
+  in
+  let rhs =
+    match typing @ extra with [] -> "True" | l -> String.concat " ∧ " l
   in
   Printf.sprintf "WT_%s : ∀ %s, S.WT %s ↔ %s" n.gc.c_name bs term rhs
 
@@ -2973,6 +3016,11 @@ let syntax_file ctx (p : program) m =
                (n.gpayload @ n.goperands))
            () (gfield_of None "Kind")))
     nodes;
+  List.iter
+    (fun ((c : constr), q) ->
+      pf ft "  /-- The invariant of the terms of `%s`. -/@ " c.c_name;
+      field (q ^ " : S.Term → Prop"))
+    (module_invs m);
   List.iter (fun n -> field (wt_law ctx p n)) nodes;
   List.iter (fun n -> List.iter field (matcher_fields p n)) nodes;
   List.iter
@@ -3392,13 +3440,19 @@ let interface_file ~sources ctx (p : program) =
   let field x = pf ft "  %s@ " x in
   List.iter
     (fun m ->
+      let empty =
+        module_sorts m = [] && module_nodes m = [] && module_subsorts m = []
+        && module_prims ctx m = []
+        && module_helpers ctx m Pure = []
+      in
       pf ft
         "/-- The interface of the module `%s`: every law holds by definition. \
-         -/@ def %s %s: %s where@ "
+         -/@ def %s %s: %s %s@ "
         m
         (String.uncapitalize_ascii m ^ "Syntax")
         (sem_binders ())
-        (syntax_ty ~base ~sem:(with_sem_args "sem") ~var:lsyntax m);
+        (syntax_ty ~base ~sem:(with_sem_args "sem") ~var:lsyntax m)
+        (if empty then ":= {}" else "where");
       List.iter
         (fun (c : constr) ->
           field (Printf.sprintf "%s := %s" c.c_name (lean_constr c)))
@@ -3410,6 +3464,9 @@ let interface_file ~sources ctx (p : program) =
             field (name ^ " := by intros; rename_i h; cases h; simp")
           else field (name ^ " := by intros; exact nofun"))
         (sort_laws m);
+      List.iter
+        (fun (_, q) -> field (Printf.sprintf "%s := %s" q q))
+        (module_invs m);
       List.iter
         (fun n ->
           let xs, os = node_names p n in

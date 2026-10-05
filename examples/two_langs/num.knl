@@ -1,6 +1,6 @@
-(* The num module: integers, their sum, their order and their maximum. Two
-   languages use it (l1.knl and l2.knl): it is proved once, in Lean, under NumMod
-   (lean/NumMod), and each language only gives its interface. *)
+(* The num module: integers, their sum, their order and their maximum. Three
+   languages use it (l1.knl, l2.knl and l3.knl): it is proved once, in Lean,
+   under NumMod (lean/NumMod), and each language only gives its interface. *)
 
 [@@@lean_module "NumMod"]
 

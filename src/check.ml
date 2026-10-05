@@ -2457,7 +2457,9 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | Some `Sort -> "a sort is part of the Lean model"
     | _ -> "a node is part of the Lean model")
     attrs;
-  check_attrs ([ "comm"; "params"; "sorts"; "when"; "get" ] @ law_attrs) attrs;
+  check_attrs
+    ([ "comm"; "params"; "sorts"; "when"; "get"; "lean_inv" ] @ law_attrs)
+    attrs;
   let payload n =
     Option.map
       (fun (a : attribute) ->
@@ -2541,6 +2543,14 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
                 (law_of_attr a))
             attrs;
     }
+  in
+  let l =
+    match find_attr "lean_inv" attrs with
+    | Some a ->
+        if not (List.mem kind [ Some `Sort; Some `Node ]) then
+          error a.attr_loc "[@lean_inv \"P\"] applies to sorts and nodes";
+        { l with lean_invs = l.lean_invs @ [ (name, string_attr a) ] }
+    | None -> l
   in
   let l =
     match find_attr "get" attrs with

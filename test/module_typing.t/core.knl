@@ -1,0 +1,8 @@
+[@@@lean_module "CoreMod"]
+
+sort TEven [@lean_inv "even_inv"]
+sort TSeq of ty
+
+node Ev of int : TEven
+node Seq of t list [@lean_inv "seq_wt"]
+node Exists of int list * t : TBool [@lean_inv "exists_wf"]

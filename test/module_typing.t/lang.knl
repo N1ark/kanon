@@ -1,0 +1,6 @@
+(* A language whose module proved once has invariants. *)
+
+[@@@lean_root "Ex"]
+
+use builtin "bool"
+use "core"

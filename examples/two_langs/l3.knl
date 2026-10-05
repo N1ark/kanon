@@ -1,0 +1,13 @@
+(* The third language: that of l2.knl, with the even and mix modules. *)
+
+[@@@lean_root "L3"]
+
+use builtin "bool"
+use "num"
+use "neg"
+use "even"
+use "mix"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var
