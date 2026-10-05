@@ -11,6 +11,11 @@ namespace L4
 
 open Classical Kanon
 
+def Word.add.r_lits.Stmt : Prop :=
+  ∀ (O : Ops), O.Sound →
+  ∀ (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) (res : Term), Word.add.r_lits O f n v1 v2 = some res →
+  Refines (Word.add.spec f n v1 v2) res
+
 def Word.add.r_plain.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) (res : Term), Word.add.r_plain O f n v1 v2 = some res →
@@ -20,6 +25,12 @@ def Word.add.r_default.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →
   ∀ (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) (res : Term), Word.add.r_default O f n v1 v2 = some res →
   Refines (Word.add.spec f n v1 v2) res
+
+def Word.add.r_lits.main.Stmt : Prop :=
+  ∀ (O : Ops), O.Sound →
+  ∀ (f : CfgMod.Flags) (n : Int) (x : Int) (w__2 : Int) (t__3 : Ty) (y : Int) (w__5 : Int) (t__6 : Ty),
+  Refines (Word.add.spec f n (Term.mk (Kind.Wd x w__2) t__3) (Term.mk (Kind.Wd y w__5) t__6))
+  ((Term.mk (Kind.Wd (O.orc.wsum x y) n) (Ty.TWord n)))
 
 def Word.add.r_plain.main.Stmt : Prop :=
   ∀ (O : Ops), O.Sound →

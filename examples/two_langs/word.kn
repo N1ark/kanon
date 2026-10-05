@@ -1,6 +1,9 @@
 (* the width of the integer [z] *)
 prim fit : int -> int
 
+(* the sum of two integers, computed by hand *)
+oracle wsum : int -> int -> int
+
 (* its first argument *)
 fn first (a _ : int) : int = a
 
@@ -29,6 +32,7 @@ fn is_down (m : mode) : bool =
 fn twice (n : int) (v : t) : t = WAdd (plain, n, v, v)
 
 rule add : WAdd (f, n, v1, v2) =
+  | lits: Wd (x, _), Wd (y, _) -> Wd (wsum x y, n)
   | plain: a, b when left_lit a = 0 && not f.strict -> WAdd (plain, n, a, b)
 
 rule round : WRound (m, n, v) =

@@ -151,7 +151,7 @@ instance : Refinement Refines := Sem.refinement
 `sort_by_tag` (that sorting by tags permutes a list). The hash-consing order
 `tag_le` is arbitrary. -/
 structure Oracle.Compat (orc : Oracle) : Prop where
-  bool : KanonBool.Oracle.Compat orc.sort_by_tag
+  sort_by_tag : ∀ l, (orc.sort_by_tag l).Perm l
 
 end IntsExample
 

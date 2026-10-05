@@ -41,4 +41,12 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Bas
     addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
   ev_WRound : ∀ ρ m n a t, S.ev ρ (B.node (L.WRoundK m n a) t) = S.ev ρ a := by kanon_law
 
+/-- What the rules assume of the oracle `wsum`, for the interface `L`: it is the
+sum of the semantics. -/
+structure Oracle.Compat {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S}
+    {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : Syntax B LBool LCfg)
+    [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (wsum : Int → Int → Int) : Prop where
+  wsum : ∀ x y, addV (Sem.vint L) (Sem.toInt L) (some (Sem.vint L x)) (some (Sem.vint L y)) =
+    some (Sem.vint L (wsum x y))
+
 end WordMod

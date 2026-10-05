@@ -56,7 +56,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : KanonBool.Syntax B} (O : Ops L) : Prop where
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : KanonBool.Syntax B} [Sem L] (O : Ops L) : Prop where
   bool_and_ : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.and_.spec L v1 v2) (O.bool_and_ v1 v2)
   bool_or_ : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.or_.spec L v1 v2) (O.bool_or_ v1 v2)
   bool_not_ : ∀ (sv : S.Term), S.Refines (KanonBool.Bool.not_.spec L sv) (O.bool_not_ sv)
@@ -64,6 +64,6 @@ structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B :
   bool_eq : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.eq.spec L v1 v2) (O.bool_eq v1 v2)
   bool_eq_untyped : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (KanonBool.Bool.eq_untyped.spec L v1 v2) (O.bool_eq_untyped v1 v2)
   bool_distinct : ∀ (l : (List S.Term)), S.Refines (KanonBool.Bool.distinct.spec L l) (O.bool_distinct l)
-  bool_orc : Oracle.Compat O.bool_sort_by_tag
+  bool_orc : Oracle.Compat L O.bool_sort_by_tag
 
 end KanonBool

@@ -148,7 +148,11 @@
       A primitive, implemented by hand in OCaml (in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
       define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
-      not rely on its behaviour (e.g. a hash-consing order). <code>{`[@no_lean]{:kanon}`}</code>
+      not rely on its behaviour (e.g. a hash-consing order), beyond what <code>Oracle.Compat</code>
+      assumes. In a module proved once, <code>{`Oracle.Compat L f …{:lean}`}</code> takes the
+      interface <code>L</code> and the oracles of the module, with the <code>Sem</code> instances in
+      scope, so that it may relate them to the semantics (see
+      <a href="proving.html#modules">Modules</a>). <code>{`[@no_lean]{:kanon}`}</code>
       after the type leaves a primitive out of Lean (see <a href="#on-functions">below</a>).
     </dd>
 

@@ -34,6 +34,7 @@
 
 ### Changed
 
+- A module's `Oracle.Compat` takes its interface and `Sem` instances.
 - Generated code qualifies names by module: `Rules.Bitvec.add`.
 - Bool functions lose prefixes: `b_not` is `Bool.not_`.
 - `ocaml-typed` generates only the module type `S`.

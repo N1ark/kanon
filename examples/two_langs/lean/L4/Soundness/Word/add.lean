@@ -17,6 +17,17 @@ namespace L4
 open Classical Kanon
 
 set_option maxHeartbeats 400000 in
+theorem Word.add.r_lits.main.ok : Word.add.r_lits.main.Stmt :=
+  fun O hO => WordMod.Word.add.r_lits.main.ok (S := sem) wordSyntax
+  (Ops.toWord O) (Ops.Sound.toWord hO)
+
+theorem Word.add.r_lits.proof : Word.add.r_lits.Stmt := by
+  intro O hO f n v1 v2 res h
+  simp only [Word.add.r_lits] at h
+  repeat' rcases orElse_some h with h | h
+  · kanon_arm h (Word.add.r_lits.main.ok O hO)
+
+set_option maxHeartbeats 400000 in
 theorem Word.add.r_plain.main.ok : Word.add.r_plain.main.Stmt :=
   fun O hO => WordMod.Word.add.r_plain.main.ok (S := sem) wordSyntax
   (Ops.toWord O) (Ops.Sound.toWord hO)
@@ -41,6 +52,7 @@ theorem Word.add.r_default.proof : Word.add.r_default.Stmt := by
 theorem Word.add.step_sound (O : Ops) (hO : O.Sound) (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) :
   Refines (Word.add.spec f n v1 v2) (Word.add.step O f n v1 v2) := by
   unfold Word.add.step
+  refine Refinement.firstSome_cons (fun res h => Word.add.r_lits.proof O hO f n v1 v2 res h) ?_
   refine Refinement.firstSome_cons (fun res h => Word.add.r_plain.proof O hO f n v1 v2 res h) ?_
   refine Refinement.firstSome_cons (fun res h => Word.add.r_default.proof O hO f n v1 v2 res h) ?_
   exact Refinement.firstSome_nil

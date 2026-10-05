@@ -26,7 +26,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} {L : EvenMod.Syntax B LBool LNum} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LNum : NumMod.Syntax B LBool} {L : EvenMod.Syntax B LBool LNum} [KanonBool.Sem LBool] [NumMod.Sem LNum] [Sem L] (O : Ops L) : Prop extends
     toNumSound : NumMod.Ops.Sound O.toNumOps where
   even_rem2 : ∀ (v : S.Term), S.Refines (EvenMod.Even.rem2.spec L v) (O.even_rem2 v)
 

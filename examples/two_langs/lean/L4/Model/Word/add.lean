@@ -12,6 +12,12 @@ namespace L4
 
 open Classical Kanon
 
+def Word.add.r_lits (O : Ops) (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) : Option Term :=
+  (match v1, v2 with
+    | (Term.mk (Kind.Wd x _) _), (Term.mk (Kind.Wd y _) _) =>
+    (whenSome true ((Term.mk (Kind.Wd (O.orc.wsum x y) n) (Ty.TWord n))))
+    | _, _ => none)
+
 def Word.add.r_plain (O : Ops) (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) : Option Term :=
   (match v1, v2 with
     | a, b =>
@@ -24,6 +30,6 @@ def Word.add.r_default (O : Ops) (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : 
     (whenSome true ((Term.mk (Kind.Op2 (Op2.WAdd f n) v1 v2) (Ty.TWord n)))))
 
 def Word.add.step (O : Ops) (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) : Term :=
-  (firstSome [Word.add.r_plain O f n v1 v2, Word.add.r_default O f n v1 v2]).getD (Word.add.spec f n v1 v2)
+  (firstSome [Word.add.r_lits O f n v1 v2, Word.add.r_plain O f n v1 v2, Word.add.r_default O f n v1 v2]).getD (Word.add.spec f n v1 v2)
 
 end L4

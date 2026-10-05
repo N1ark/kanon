@@ -15,6 +15,7 @@ open Classical Kanon
 structure Oracle where
   tag_le : Term → Term → Bool
   sort_by_tag : (List Term) → (List Term)
+  wsum : Int → Int → Int
 
 /-- The rule functions, as used by the rules. -/
 structure Ops where

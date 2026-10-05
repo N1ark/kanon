@@ -117,7 +117,7 @@ instance : Refinement Refines := Sem.refinement
 /-- What the proofs assume of the oracles: what the bool module assumes of
 `sort_by_tag`. -/
 structure Oracle.Compat (orc : Oracle) : Prop where
-  bool : KanonBool.Oracle.Compat orc.sort_by_tag
+  sort_by_tag : ∀ l, (orc.sort_by_tag l).Perm l
 
 end L1
 

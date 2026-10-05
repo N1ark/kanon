@@ -130,4 +130,9 @@ noncomputable instance evenSem : EvenMod.Sem (S := sem) evenSyntax := {}
 /-- The mix module needs nothing more. -/
 instance mixSem : MixMod.Sem (S := sem) mixSyntax := {}
 
+/-- What the bool module assumes of the oracles, from those of the language. -/
+theorem Oracle.Compat.bool {orc : Oracle} (h : orc.Compat) :
+    KanonBool.Oracle.Compat (S := sem) boolSyntax orc.sort_by_tag :=
+  { sort_by_tag := h.sort_by_tag }
+
 end L3

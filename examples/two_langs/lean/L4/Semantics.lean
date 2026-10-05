@@ -127,9 +127,10 @@ abbrev Refines : Term → Term → Prop := sem.Refines
 instance : Refinement Refines := Sem.refinement
 
 /-- What the proofs assume of the oracles: what the bool module assumes of
-`sort_by_tag`. -/
+`sort_by_tag`, and that `wsum` sums. -/
 structure Oracle.Compat (orc : Oracle) : Prop where
-  bool : KanonBool.Oracle.Compat orc.sort_by_tag
+  sort_by_tag : ∀ l, (orc.sort_by_tag l).Perm l
+  wsum : ∀ x y, orc.wsum x y = x + y
 
 end L4
 

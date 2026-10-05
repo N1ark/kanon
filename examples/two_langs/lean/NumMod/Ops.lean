@@ -36,7 +36,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : NumMod.Syntax B LBool} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {L : NumMod.Syntax B LBool} [KanonBool.Sem LBool] [Sem L] (O : Ops L) : Prop extends
     toBoolSound : KanonBool.Ops.Sound O.toBoolOps where
   num_add : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (NumMod.Num.add.spec L v1 v2) (O.num_add v1 v2)
   num_less : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (NumMod.Num.less.spec L v1 v2) (O.num_less v1 v2)

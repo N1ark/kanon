@@ -112,4 +112,9 @@ noncomputable instance numSem : NumMod.Sem (S := sem) numSyntax where
 /-- What the neg module needs of the semantics: its laws hold by definition. -/
 noncomputable instance negSem : NegMod.Sem (S := sem) negSyntax := {}
 
+/-- What the bool module assumes of the oracles, from those of the language. -/
+theorem Oracle.Compat.bool {orc : Oracle} (h : orc.Compat) :
+    KanonBool.Oracle.Compat (S := sem) boolSyntax orc.sort_by_tag :=
+  { sort_by_tag := h.sort_by_tag }
+
 end L2

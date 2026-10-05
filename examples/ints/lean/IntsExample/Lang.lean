@@ -112,4 +112,9 @@ noncomputable instance intSem : IntMod.Sem (S := sem) intSyntax where
   vint := .int
   toInt := Val.toInt
 
+/-- What the bool module assumes of the oracles, from those of the language. -/
+theorem Oracle.Compat.bool {orc : Oracle} (h : orc.Compat) :
+    KanonBool.Oracle.Compat (S := sem) boolSyntax orc.sort_by_tag :=
+  { sort_by_tag := h.sort_by_tag }
+
 end IntsExample

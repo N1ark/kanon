@@ -3428,10 +3428,11 @@ let ops_file ctx m =
        their specs, and the";
       "equations of its helpers. -/";
       Printf.sprintf
-        "structure Ops.Sound {S : Kanon.Sem} %s %s {L : %s} (O : Ops L) : \
-         Prop%s"
+        "structure Ops.Sound {S : Kanon.Sem} %s %s {L : %s} %s[Sem L] (O : Ops \
+         L) : Prop%s"
         deq (iface_binders m)
         (syntax_ty ~var:(mvar m) m)
+        (sem_insts m)
         (if sparents = [] then " where" else " extends");
     ];
   if sparents <> [] then pf ft "    %s where@ " (String.concat ", " sparents);
@@ -3441,7 +3442,7 @@ let ops_file ctx m =
         pre_arrows f (gspec ~self:m f) args f (fld f.name) args f)
     rules;
   if oracles <> [] then
-    pf ft "  %s : Oracle.Compat %s@ " (orc_field m)
+    pf ft "  %s : Oracle.Compat L %s@ " (orc_field m)
       (String.concat " "
          (List.map (fun (q : prim) -> "O." ^ fld q.pname) oracles));
   List.iter (helper_eq ctx ~o:true ft) ohelpers;
@@ -3839,7 +3840,7 @@ let module_interface_file ~sources ctx (p : program) m =
 
 (** [Instance/M.lean]: the model of the language, for the module [m]: what the
     proofs of its arms use. *)
-let instance_file ~sources ctx m =
+let instance_file ~sources ~has_proof ctx m =
   let closure = generic_closure m in
   let helper_files =
     List.concat_map
@@ -3855,6 +3856,7 @@ let instance_file ~sources ctx m =
   in
   lean_file ~sources [ "Instance"; m ]
     ((md ("Interface." ^ m) :: md "Statements" :: helper_files)
+    @ lang_imports ~has_proof m
     @ [ groot m ^ ".Ops" ])
   @@ fun ft ->
   pf ft "/-- The model of the language, for the module `%s`. -/@ " m;
@@ -3952,7 +3954,7 @@ let parts ?only_module ~lang:lang_sources ~sources ~has_proof
                      [
                        module_interface_file ~sources (Lazy.force ctx)
                          (Lazy.force prog') m;
-                       instance_file ~sources (Lazy.force ctx) m;
+                       instance_file ~sources ~has_proof (Lazy.force ctx) m;
                      ])
                    (ordered_modules ())
             else [] );

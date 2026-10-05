@@ -268,8 +268,10 @@
           proofs need of the semantics of a language, given the instances of those of the modules
           it uses: its values and the evaluation of its nodes (and the meaning of its invariants
           and of the predicates of its subsorts). Its laws default to <code>kanon_law</code>, which proves them for
-          a language whose definitions they unfold to. With <code>Oracle.Compat</code>, what the
-          proofs assume of its oracles, if it has some.
+          a language whose definitions they unfold to. With
+          <code>{`Oracle.Compat (L : Syntax B LBool) [KanonBool.Sem LBool] [Sem L] f …{:lean}`}</code>,
+          what the proofs assume of its oracles <code>f …</code>, if it has some, which may use the
+          semantics (<code>Sem.vint L</code>).
         </td>
       </tr>
       <tr><td><code>Abstract.lean</code></td><td>Only if it declares abstract types: their Lean types (see <a href="#data">Data types</a>).</td></tr>
@@ -292,9 +294,13 @@
     <code>rfl</code> or <code>kanon_law</code>, those of the matchers by cases, and those of the
     helpers by <code>kanon_bridge</code>, which unfolds the helper of the language and splits the
     cases of its <code>match</code> (on the nodes of the language, and its catch-all) against those
-    of the module's. The <code>Oracle.Compat</code> of a language
-    has a field for each module proved once whose rules call oracles, named after it in lowercase
-    (<code>{`bool : KanonBool.Oracle.Compat orc.sort_by_tag{:lean}`}</code>).
+    of the module's. For each module proved once whose rules call oracles, the language gives
+    <code>{`Oracle.Compat.bool (h : orc.Compat) : KanonBool.Oracle.Compat (S := sem) boolSyntax orc.sort_by_tag{:lean}`}</code>,
+    named after the module in lowercase: a theorem, with its <code>Sem</code> instance (in
+    <code>Lang.lean</code> or <code>Lang/M.lean</code>), or a field of its own
+    <code>Oracle.Compat</code>. The word module of <code>examples/two_langs</code> folds a sum of
+    literals with its oracle <code>wsum</code>, which its <code>Oracle.Compat</code> relates to
+    the semantics.
   </p>
 
   <Heading level={3} id="data">Data types</Heading>

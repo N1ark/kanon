@@ -39,4 +39,9 @@ noncomputable instance boolSem : KanonBool.Sem (S := sem) boolSyntax where
     simp only [ev, Option.some.injEq] at ea eb
     exact hxy (ea.trans eb.symm)
 
+/-- What the bool module assumes of the oracles, from those of the language. -/
+theorem Oracle.Compat.bool {orc : Oracle} (h : orc.Compat) :
+    KanonBool.Oracle.Compat (S := sem) boolSyntax orc.sort_by_tag :=
+  { sort_by_tag := h.sort_by_tag }
+
 end BoolExample

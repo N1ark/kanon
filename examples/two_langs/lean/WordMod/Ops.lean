@@ -39,14 +39,16 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
   word_round : CfgMod.Rounding → Int → S.Term → S.Term
   word_double : Int → S.Term → S.Term
   word_double_closed : Int → S.Term → S.Term
+  word_wsum : Int → Int → Int
 
 /-- What the proofs assume of the model: its rule functions refine their specs, and the
 equations of its helpers. -/
-structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} {L : WordMod.Syntax B LBool LCfg} (O : Ops L) : Prop extends
+structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} {L : WordMod.Syntax B LBool LCfg} [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (O : Ops L) : Prop extends
     toBoolSound : KanonBool.Ops.Sound O.toBoolOps, toCfgSound : CfgMod.Ops.Sound O.toCfgOps where
   word_add : ∀ (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term), S.Refines (WordMod.Word.add.spec L f n v1 v2) (O.word_add f n v1 v2)
   word_round : ∀ (m : CfgMod.Rounding) (n : Int) (v : S.Term), S.Refines (WordMod.Word.round.spec L m n v) (O.word_round m n v)
   word_double : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double.spec L n v) (O.word_double n v)
   word_double_closed : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double_closed.spec L n v) (O.word_double_closed n v)
+  word_orc : Oracle.Compat L O.word_wsum
 
 end WordMod

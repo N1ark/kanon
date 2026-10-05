@@ -54,8 +54,10 @@ class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Bas
   sure_neq_sound : ∀ ρ a b u, L.bool_sure_neq a b = true → S.ty a = S.ty b → S.WT a →
     S.WT b → S.ev ρ a = some u → S.ev ρ b = some u → False
 
-/-- What the rules assume of the oracle `sort_by_tag`: it permutes. -/
-structure Oracle.Compat {T : Type} (sort_by_tag : List T → List T) : Prop where
+/-- What the rules assume of the oracle `sort_by_tag`, for the interface `L`: it
+permutes. -/
+structure Oracle.Compat {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S}
+    (L : Syntax B) (sort_by_tag : List S.Term → List S.Term) : Prop where
   sort_by_tag : ∀ l, (sort_by_tag l).Perm l
 
 namespace Sem

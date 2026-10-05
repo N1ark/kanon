@@ -10,6 +10,12 @@ namespace WordMod
 
 open Classical Kanon
 
+def Word.add.r_lits.main.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (O : Ops L), O.Sound →
+  ∀ (f : CfgMod.Flags) (n : Int) (x : Int) (w__2 : Int) (t__3 : S.Ty) (y : Int) (w__5 : Int) (t__6 : S.Ty),
+  S.Refines (WordMod.Word.add.spec L f n (B.node (L.WdK x w__2) t__3) (B.node (L.WdK y w__5) t__6))
+  ((B.node (L.WdK (O.word_wsum x y) n) (L.TWord n)))
+
 def Word.add.r_plain.main.Stmt : Prop :=
   ∀ {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) [KanonBool.Sem LBool] [CfgMod.Sem LCfg] [Sem L] (O : Ops L), O.Sound →
   ∀ (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term),
