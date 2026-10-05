@@ -196,12 +196,25 @@
                   "value": ":"
                 },
                 {
-                  "type": "FIELD",
-                  "name": "return_type",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_type"
-                  }
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "return_type",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_type"
+                      }
+                    },
+                    {
+                      "type": "FIELD",
+                      "name": "return_sort",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_sort_annotation"
+                      }
+                    }
+                  ]
                 }
               ]
             },

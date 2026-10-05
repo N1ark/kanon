@@ -1635,6 +1635,20 @@
           }
         ]
       },
+      "return_sort": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "constructor",
+            "named": true
+          },
+          {
+            "type": "constructor_expression",
+            "named": true
+          }
+        ]
+      },
       "return_type": {
         "multiple": false,
         "required": false,
