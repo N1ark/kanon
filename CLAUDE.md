@@ -1,5 +1,12 @@
 # Kanon
 
+## Design intentions
+
+- Kanon is meant to be a standalone DSL. It shouldn't hardcode things that Soteria needs in particular, we should instead just extend the DSL to support our use case, while avoiding magic and avoiding adding features whose only purpose is support soteria's use case.
+- Kanon is experimental: we don't care about backwards compatibility. It's always ok to remove features, with no nice error messages for transitioning old code; the only Kanon code is ours, and we know what we're doing.
+- Kanon is simple. Avoid magic and over-complicated or counter-intuitive features.
+- Soteria + Kanon is an experimental setup, where we are attempting to catch unsoundnesses and avoid the current unwieldiness of the whole bv values functor / extensions / solver limitations. Kanon seems a very natural fit for this, because we can tweak it to add features to help us, and its extensibility at the value language level fits perfectly the goals of Soteria. So if something in soteria rust or c got worse because of Kanon, we should take notes on it, and see how Kanon can be improved.
+
 ## Changelog
 
 - Every line of `CHANGELOG.md` has at most 10 words and at most two sentences.
