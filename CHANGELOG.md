@@ -73,6 +73,7 @@
 - Nodes sharing a `[@lean_inv]` share one interface field.
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
 - Modules proved once accept matches without a catch-all case.
+- `kanon_lift` no longer fails on hypotheses over introduced interfaces.
 
 ## 0.3.0 (2026-10-04)
 

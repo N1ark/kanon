@@ -249,9 +249,9 @@ refinements (that an argument of a function at a subsort satisfies its
 predicate, `P v'`), which are left to the caller. -/
 partial def liftGoal : TacticM (List MVarId) := do
   let g ← getMainGoal
-  let ty ← whnfR (← instantiateMVars (← g.getType))
+  let ty ← g.withContext do whnfR (← instantiateMVars (← g.getType))
   unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do return [g]
-  let ls ← liftLemmas (ty.getArg! 2)
+  let ls ← g.withContext (liftLemmas (ty.getArg! 2))
   for l in ls do
     let s ← saveState
     try
@@ -266,7 +266,7 @@ partial def liftGoal : TacticM (List MVarId) := do
         out := out ++ (← liftGoal)
     return out
   unless ls.isEmpty do
-    throwError "kanon_lift: none of the lifting lemmas {ls} applies to{indentExpr ty}"
+    g.withContext <| throwError "kanon_lift: none of the lifting lemmas {ls} applies to{indentExpr ty}"
   evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
   return []
 
@@ -308,7 +308,7 @@ elab "kanon_lift_body" : tactic => do
 /-- `kanon_on_refines tac` runs `tac` on the main goal if it is a refinement,
 and leaves it otherwise (the hypotheses left by `kanon_lift_body`). -/
 elab "kanon_on_refines " tac:tactic : tactic => do
-  let ty ← whnfR (← instantiateMVars (← getMainTarget))
+  let ty ← withMainContext do whnfR (← instantiateMVars (← getMainTarget))
   if ty.isAppOfArity ``Kanon.Sem.Refines 3 then evalTactic tac
 
 /-! ## Congruence -/
