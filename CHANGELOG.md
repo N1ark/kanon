@@ -25,6 +25,7 @@
 ### Fixed
 
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.
+- `@[kanon_arm]` proofs elaborate in parallel again.
 
 ## 0.3.0 (2026-10-04)
 
