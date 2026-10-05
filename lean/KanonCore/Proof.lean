@@ -26,8 +26,9 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
 - `kanon_close_lemmas` closes a goal by a `kanon_close_lemma` lemma, which
   `kanon_rule_lift` and `kanon_sem` try last;
 - `kanon_congr` (declared by `KanonCore.Tactics`) proves refinements by
-  congruence, with the `kanon_congr_lemma` lemmas, and the side goals left to
-  `kanon_congr_side`, which the language may give, as it may give
+  congruence, with the `kanon_congr_lemma` lemmas, and the side goals that are
+  not `_ → t = t` left to `kanon_congr_side`, which the language may give (it
+  must close them), as it may give
   `kanon_congr_pre`, which `kanon_congr` first applies to each refinement;
 - `kanon_comm` proves refinements up to the order of the operands of
   commutative operators, by congruence and the `kanon_comm_lemma` lemmas (the
@@ -302,7 +303,9 @@ elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
       catch _ => s.restore
   throwError "kanon_apply_lemmas: no lemma applies"
 
-/-- The side goals of `kanon_congr`, given by the language with `macro_rules`. -/
+/-- The side goals of `kanon_congr`, given by the language with `macro_rules`:
+it is tried on each hypothesis of a congruence lemma, before `kanon_congr`
+itself, and must close it. -/
 syntax "kanon_congr_side" : tactic
 
 /-- What `kanon_congr` does first to a refinement, before applying a congruence
@@ -322,7 +325,7 @@ macro_rules
            | kanon_apply_lemmas [kanon_congr_lemma]
                (first
                  | (intro _; rfl)
-                 | kanon_congr_side
+                 | (kanon_congr_side; done)
                  | kanon_congr)))
 
 /-- `kanon_swap_lemmas tac`: proves `R s s'` by transitivity, from the first
@@ -353,14 +356,14 @@ macro_rules
       | kanon_apply_lemmas [kanon_congr_lemma]
           (first
             | (intro _; rfl)
-            | kanon_congr_side
+            | (kanon_congr_side; done)
             | kanon_comm)
       | kanon_swap_lemmas (first
           | exact Kanon.Sem.Refines.refl
           | kanon_apply_lemmas [kanon_congr_lemma]
               (first
                 | (intro _; rfl)
-                | kanon_congr_side
+                | (kanon_congr_side; done)
                 | kanon_comm)))
 
 /-! ## Closing by lemmas -/
