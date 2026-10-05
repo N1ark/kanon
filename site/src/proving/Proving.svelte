@@ -14,7 +14,9 @@
       "../../../examples/ints/lean/lakefile.toml",
       "../../../examples/ints/lean/IntsExample/*.lean",
       "../../../examples/ints/lean/IntsExample/Lib/*.lean",
-      "../../../examples/division/lean/DivisionExample/Proofs.lean",
+      "../../../examples/ints/lean/IntsExample/Proofs/*.lean",
+      "../../../examples/ints/lean/IntsExample/Model/Int/plus.lean",
+      "../../../examples/division/lean/DivisionExample/Proofs/**/*.lean",
     ],
     { query: "?raw", import: "default", eager: true },
   ) as Record<string, string>;
@@ -26,9 +28,11 @@
     return text;
   }
 
-  /** The proofs of examples/division, the example with a subsort. */
-  const divisionProofs =
-    sources["../../../examples/division/lean/DivisionExample/Proofs.lean"] ?? "";
+  /** The hand-written proofs of examples/division, the example with a subsort. */
+  const divisionProofs = ["Proofs/Int/div.lean", "Proofs/Int/sq1.lean"].map((name) => [
+    name,
+    sources[`../../../examples/division/lean/DivisionExample/${name}`] ?? "",
+  ]);
 
   const REPO = "https://github.com/N1ark/kanon/tree/main";
 </script>
@@ -56,8 +60,11 @@
   <p>
     The Lean files of a language are in the namespace <code>R</code> of
     <code>{`[@@@lean_root "R"]{:kanon}`}</code> (here <code>IntsExample</code>), and in its
-    directory of modules. <code>kanon lean-all lang.knl</code> writes the generated ones,
-    <code>F.lean</code> to <code>F.lean.gen</code>, in the current directory:
+    directory of modules. <code>kanon lean-all DIR lang.knl</code> writes the generated ones under
+    <code>DIR/R</code>, one file per rule function where they are many (in the directory of its
+    module: <code>Model/Int/plus.lean</code> for <code>Int.plus</code>), each importing only what it
+    uses, so that changing a rule only rebuilds the files of its function and the two that put them
+    together, <code>Model.lean</code> and <code>Soundness.lean</code>:
   </p>
   <table>
     <thead><tr><th>File</th><th>Contents</th></tr></thead>
@@ -80,9 +87,12 @@
         <td>Checks that <code>R.Prims</code> defines the primitives, at their types.</td>
       </tr>
       <tr>
-        <td><code>Model.lean</code></td>
+        <td><code>Ops.lean</code>, <code>Model/M/f.lean</code>, <code>Model.lean</code></td>
         <td>
-          The model of the rule functions: each rule a function to
+          The model of the rule functions: <code>Ops.lean</code> has the record of the rule
+          functions and their specs, each <code>Model/M/f.lean</code> a helper (or a group of
+          mutually recursive ones) or the rules of a rule function, and <code>Model.lean</code>
+          the rule functions with fuel (<code>opsN</code>). Each rule a function to
           <code>{`Option Term{:lean}`}</code>, each rule function the first of its rules that
           applies (<code>firstSome</code>), and <code>Ops</code>, the rule functions, over the
           oracles (<code>Oracle</code>). The documentation comments of the helpers, the oracles and
@@ -93,10 +103,11 @@
         </td>
       </tr>
       <tr>
-        <td><code>Statements.lean</code></td>
+        <td><code>Statements.lean</code>, <code>Statements/M/f.lean</code></td>
         <td>
-          The statement of each arm (<code>f.r_rule.arm.Stmt</code>), and of the commutativity of
-          each <code>{`[@comm]{:kanon}`}</code> operator (<code>Op2.Plus.comm.Stmt</code>).
+          That the rule functions refine their specs (<code>Ops.Sound</code>), the commutativity of
+          each <code>{`[@comm]{:kanon}`}</code> operator (<code>Op2.Plus.comm.Stmt</code>), and for
+          each rule function the statement of each arm (<code>f.r_rule.arm.Stmt</code>).
         </td>
       </tr>
       <tr>
@@ -104,9 +115,22 @@
         <td>That the specs are monotone in their term arguments (<code>Lib.lift_f</code>).</td>
       </tr>
       <tr>
-        <td><code>Soundness.lean</code></td>
+        <td><code>Nodes.lean</code></td>
         <td>
-          The proof of each arm, of each rule from its arms, of each function from its rules, and
+          The typing and the evaluation of each node in terms of those of its operands
+          (<code>Nodes.Op2.Plus.ev</code>), for the tactics (the simp sets
+          <code>kanon_node_wt</code> and <code>kanon_node_ev</code>): they are what the simp sets
+          <code>kanon_wt</code> and <code>kanon_ev</code> of <code>Lib/Rule.lean</code> unfold the
+          nodes to, computed once here.
+        </td>
+      </tr>
+      <tr>
+        <td><code>Soundness/Laws.lean</code>, <code>Soundness/M/f.lean</code>, <code>Soundness.lean</code></td>
+        <td>
+          The proof of the commutativity of the operators, then for each rule function the proof
+          of each arm (each with its own bound on heartbeats, see
+          <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), of
+          each rule from its arms and of the function from its rules, and
           <code>opsN_sound</code>: the whole simplifier is sound.
         </td>
       </tr>
@@ -131,7 +155,14 @@
       </tr>
       <tr><td><code>Lib/Lift.lean</code></td><td>The congruence of refinement, for <code>kanon_congr</code>.</td></tr>
       <tr><td><code>Lib/Rule.lean</code></td><td>The tactics of the proofs of arms, and the lemmas they use.</td></tr>
-      <tr><td><code>Proofs.lean</code></td><td>The proofs of the arms that the tactics do not find.</td></tr>
+      <tr>
+        <td><code>Proofs/M/f.lean</code>, <code>Proofs/Laws.lean</code></td>
+        <td>
+          The proofs of the arms of <code>M.f</code> (of the commutativity of the operators) that
+          the tactics do not find, if any: the generated <code>Soundness/M/f.lean</code>
+          (<code>Soundness/Laws.lean</code>) imports the file when it exists.
+        </td>
+      </tr>
     </tbody>
   </table>
 
@@ -164,16 +195,28 @@
       proof of an arm, or of the commutativity of an operator);
     </li>
     <li>
-      <code>{`kanon_proof% X{:lean}`}</code>, with which <code>Soundness.lean</code> proves each arm
+      <code>{`kanon_proof% X{:lean}`}</code>, with which <code>Soundness/M/f.lean</code> proves each arm
       <code>X</code>: its <code>kanon_arm</code> proof if there is one, else the
       <code>kanon_tactic</code> of its function, else <code>kanon_auto</code>;
     </li>
     <li>
       the tactics <code>kanon_auto</code> (the default proof of an arm, and of a commutativity) and
       <code>kanon_congr</code> (refinement by congruence), which the language defines with
-      <code>macro_rules</code>.
+      <code>macro_rules</code>;
+    </li>
+    <li>
+      <code>{`kanon_unfold_eq% s e{:lean}`}</code> (<code>KanonCore.Node</code>), the equation of
+      <code>e</code> and of what the simp set <code>s</code> simplifies it to, with which
+      <code>Nodes.lean</code> states the lemmas of the nodes, in the simp sets
+      <code>kanon_node_wt</code> and <code>kanon_node_ev</code>.
     </li>
   </ul>
+  <p>
+    <code>KanonCore.Model</code>, the part of it that the model needs (<code>whenSome</code>,
+    <code>firstSome</code> and the arrays), is what <code>Prims.lean</code> imports: the model is
+    then built without Lean's meta-programming library, which every other module imports, and
+    which takes a second to load.
+  </p>
 
   <Heading level={3} id="proof">KanonCore.Proof</Heading>
   <p>The semantics and the tactics that the languages share, imported on their own:</p>
@@ -209,8 +252,8 @@
       <code>kanon_close</code> and <code>{`kanon_on_refines tac{:lean}`}</code> (which runs
       <code>tac</code> on the goal if it is a refinement). <code>kanon_comm</code>, which <code>kanon_rule_lift</code> tries,
       proves refinement up to the order of the operands of commutative operators, with the
-      congruence lemmas and the commutativity of the operators, which <code>Soundness.lean</code>
-      tags <code>kanon_comm_lemma</code>.
+      congruence lemmas and the commutativity of the operators, which
+      <code>Soundness/Laws.lean</code> tags <code>kanon_comm_lemma</code>.
     </li>
     <li>
       The language gives these tactics its lemmas by attributes: the simp sets
@@ -250,7 +293,8 @@
       (<code>sure_neq_sound</code>). The language defines it as
       <code>R.boolLang : BoolMod.Lang R.sem</code> (<code>R.boolLang x</code> for the parameters
       <code>x</code> of <code>{`[@@@lean_param]{:kanon}`}</code>), in a module that
-      <code>R.Proofs</code> imports.
+      <code>R.Lib.Lift</code> imports (<code>Soundness/Laws.lean</code> imports it through
+      <code>Lifts.lean</code>).
     </li>
     <li>
       <code>BoolMod.Ops L</code> is the bool module in the model of the language (its rule
@@ -267,10 +311,11 @@
       <code>kanon_bool</code> (<code>KanonCore.BoolMod.Tactic</code>).
     </li>
     <li>
-      <code>Soundness.lean</code> proves each arm by that theorem
+      <code>Soundness/M/f.lean</code> proves each arm by that theorem
       (<code>fun O hO => BoolMod.Bool.f.r_rule.arm boolLang O.bool hO.bool</code>), the commutativity
       of <code>And</code>, <code>Or</code> and <code>Eq</code> by
-      <code>BoolMod.Lang.refines_and_comm</code>, …, and defines the bool module of the model,
+      <code>BoolMod.Lang.refines_and_comm</code>, …, and <code>Soundness/Laws.lean</code> defines
+      the bool module of the model,
       <code>Ops.bool O : BoolMod.Ops boolLang</code>, with the proof
       <code>Ops.Sound.bool : O.Sound → O.bool.Sound</code> (which uses the field
       <code>sort_by_tag</code> of the language's <code>Oracle.Compat</code>).
@@ -291,19 +336,31 @@
   </p>
   <Code lang="text" code={file("lean/lakefile.toml")} />
   <p>
-    The generated files are written by <code>kanon lean-all ../../lang.knl</code>, run in
-    <code>IntsExample/</code>, then renamed from <code>F.lean.gen</code> to <code>F.lean</code>
-    (in Kanon's repository, a dune rule does it, and <code>dune test</code> checks that they are
-    up to date). The modules import each other in this order, the hand-written ones in bold:
+    The generated files are written by <code>kanon lean-all . ../lang.knl</code>, run in
+    <code>examples/ints/lean</code> (in Kanon's repository, <code>dune test</code> runs
+    <code>kanon lean-all --check</code>, which checks that they are up to date). The modules import
+    each other in this order, the hand-written ones in bold:
   </p>
   <p class="chain">
     <code>Types</code> → <strong><code>Abstract</code></strong> → <code>Syntax</code> →
     <strong><code>Prims</code></strong> → <code>Signatures</code>, <code>Typing</code> →
-    <code>Model</code> → <strong><code>Semantics</code></strong> → <code>Statements</code>,
+    <code>Ops</code> → <code>Model/M/f</code> → <code>Model</code>;
+    <code>Ops</code> → <strong><code>Semantics</code></strong> → <code>Statements</code> →
     <strong><code>Bool</code></strong> → <strong><code>Lib/Lift</code></strong> →
-    <code>Lifts</code> → <strong><code>Lib/Rule</code></strong> →
-    <strong><code>Proofs</code></strong> → <code>Soundness</code>
+    <code>Lifts</code> → <strong><code>Lib/Rule</code></strong> → <code>Nodes</code> →
+    <code>Soundness/Laws</code>; <code>Statements</code>, <code>Model/M/f</code> →
+    <code>Statements/M/f</code> → <strong><code>Proofs/M/f</code></strong> →
+    <code>Soundness/M/f</code> → <code>Soundness</code>
   </p>
+  <p>
+    A hand-written module imports only what it uses, as the generated ones do: the models of the
+    helpers it mentions (<code>Bool.lean</code> imports <code>Model/Bool/sure_neq</code>,
+    <code>Lib/Rule.lean</code> those of the helpers it tags), and a proof of the arms of
+    <code>M.f</code> the statements of <code>M.f</code>. Importing all of the model
+    (<code>Model</code>) would rebuild them, and everything after them, whenever a rule changes.
+    The model of <code>Int.plus</code>, for instance:
+  </p>
+  <Code lang="lean" code={file("lean/IntsExample/Model/Int/plus.lean")} />
   <p>
     <code>check_axioms.lean</code> checks that the soundness theorem is proved, without
     <code>sorry</code>:
@@ -343,7 +400,7 @@
   <Heading level={3} id="bool">Bool.lean</Heading>
   <p>
     The language, for the bool module: a <code>{`BoolMod.Lang sem{:lean}`}</code>,
-    <code>boolLang</code>, the name that <code>Soundness.lean</code> uses. With it, the library
+    <code>boolLang</code>, the name that <code>Soundness/Laws.lean</code> uses. With it, the library
     proves the arms of the bool module for this language. Its fields are the terms of the nodes of
     the module, written as the generated statements write them
     (<code>{`andK a b := .Op2 .And a b{:lean}`}</code>), the booleans, the language's
@@ -373,30 +430,40 @@
   </p>
   <Code lang="lean" code={file("lean/IntsExample/Lib/Rule.lean")} />
 
-  <Heading level={3} id="proofs">Proofs.lean</Heading>
+  <Heading level={3} id="proofs">Proofs/</Heading>
   <p>
     The proofs of the arms that <code>kanon_auto</code> does not find, tagged
-    <code>{`@[kanon_arm]{:lean}`}</code>. Here <code>kanon_auto</code> proves every arm of the
-    language's rules (<code>Int.plus</code>, <code>Int.int_lt</code>, the <code>ints</code> rule added to
-    <code>Bool.eq</code>) and the commutativity of <code>+</code>, so this file could be empty: its
-    proof of the commutativity of <code>+</code> shows how one replaces <code>kanon_auto</code>.
+    <code>{`@[kanon_arm]{:lean}`}</code>, in <code>Proofs/M/f.lean</code> for the arms of the rule
+    function <code>M.f</code>, and in <code>Proofs/Laws.lean</code> for the commutativity of the
+    operators. A file there is optional, and written by hand only: <code>kanon lean-all</code>
+    makes the generated proofs of <code>M.f</code> (<code>Soundness/M/f.lean</code>) import it when
+    it exists, and its <code>{`@[kanon_arm]{:lean}`}</code> theorems then replace the default
+    proofs of their arms, by name. It imports the statements it proves
+    (<code>Statements/M/f</code>, or <code>Statements</code>) and what its proofs use, and is
+    rebuilt only when they change. Here <code>kanon_auto</code> proves every arm of the language's
+    rules (<code>Int.plus</code>, <code>Int.int_lt</code>, the <code>ints</code> rule added to
+    <code>Bool.eq</code>) and the commutativity of <code>+</code>, so there could be no file at all:
+    <code>Proofs/Laws.lean</code>, the proof of the commutativity of <code>+</code>, shows how one
+    replaces <code>kanon_auto</code>. Run <code>kanon lean-all</code> after adding or removing one.
   </p>
-  <Code lang="lean" code={file("lean/IntsExample/Proofs.lean")} />
+  <Code lang="lean" code={file("lean/IntsExample/Proofs/Laws.lean")} />
 
   <Heading level={2} id="loop">The proof loop</Heading>
   <ol>
     <li>
       <p>
-        <code>lake build</code>. <code>Soundness.lean</code> proves each arm <code>X</code> by
+        <code>lake build</code>. <code>Soundness/M/f.lean</code> proves each arm <code>X</code> of
+        <code>M.f</code> by
         <code>{`theorem X.ok : X.Stmt := kanon_proof% X{:lean}`}</code>; an arm that its tactic does
-        not prove is an error there, which names it. Without <code>Bool.of_bool</code> in
+        not prove is an error there, which names it (or exceeds its heartbeats, and fails then).
+        Without <code>Bool.of_bool</code> in
         <code>kanon_body</code>, two arms fail:
       </p>
       <Code
         lang="text"
-        code={`error: IntsExample/Soundness.lean:509:59: unsolved goals
+        code={`error: IntsExample/Soundness/Bool/eq.lean:15:61: unsolved goals
 ⊢ (Bool.of_bool (decide (x✝ = y✝))).WT ∧ (Bool.of_bool (decide (x✝ = y✝))).ty = Ty.TBool
-error: IntsExample/Soundness.lean:675:59: unsolved goals`}
+error: IntsExample/Soundness/Int/int_lt.lean:15:67: unsolved goals`}
       />
       <Code
         lang="lean"
@@ -405,7 +472,7 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
     </li>
     <li>
       <p>
-        Read the statement of the arm in <code>Statements.lean</code>: its result refines its
+        Read the statement of the arm in <code>Statements/Bool/eq.lean</code>: its result refines its
         spec, over the variables of its pattern, with its guard as a hypothesis.
       </p>
       <Code
@@ -429,7 +496,8 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
   Bool.eq.spec Int.int_lt.spec`}
       />
       <p>
-        or prove the arm by hand, in <code>Proofs.lean</code>: an
+        or prove the arm by hand, in <code>Proofs/Bool/eq.lean</code> (then run
+        <code>kanon lean-all</code>, so that <code>Soundness/Bool/eq.lean</code> imports it): an
         <code>{`@[kanon_arm]{:lean}`}</code> theorem of <code>Bool.eq.r_ints.main.Stmt</code>.
       </p>
     </li>
@@ -440,7 +508,8 @@ error: IntsExample/Soundness.lean:675:59: unsolved goals`}
         <code>{`b + a{:kanon}`}</code>), proved by <code>kanon_auto</code> or by an
         <code>{`@[kanon_arm]{:lean}`}</code> theorem. From it, and <code>kanon_congr</code> for the
         operands swapped below the spec, Kanon proves the arms that only swap commutative operands
-        (<code>swap</code>), if their guard and body do not depend on the swap: the proofs to write
+        (<code>swap</code>), if their guard and body do not depend on the swap (other than through
+        the sorts of the swapped terms, or by building raw nodes of them): the proofs to write
         are at most one per case of a rule, and one per commutative operator.
       </p>
     </li>
@@ -504,7 +573,10 @@ lake env lean check_axioms.lean
       (<code>∀ y ∈ vs, Nonzero y</code>).
     </li>
   </ul>
-  <Code lang="lean" code={divisionProofs} />
+  {#each divisionProofs as [name, text] (name)}
+    <p class="file"><code>examples/division/lean/DivisionExample/{name}</code></p>
+    <Code lang="lean" code={text} />
+  {/each}
   <p>It is built and checked like the others:</p>
   <Code
     lang="text"
@@ -611,8 +683,9 @@ lake env lean check_axioms.lean  # must not mention sorryAx`}
   <p>
     <a href="{REPO}/examples/bool"><code>examples/bool</code></a> is the bool module alone, with
     booleans as values. Its rules are all the bool module's, which the library proves: it has no
-    <code>kanon_auto</code>, its <code>Lib/Rule.lean</code> and <code>Proofs.lean</code> are empty,
-    and its hand-written files are its semantics, its primitives, its <code>boolLang</code>, whose
+    <code>kanon_auto</code>, hence no <code>Lib/Rule.lean</code>, no <code>Nodes.lean</code> and no
+    <code>Proofs/</code>, and its hand-written files are its semantics, its primitives, its
+    <code>boolLang</code>, whose
     laws are one-line proofs, and the congruence of its nodes. It is the template for a language
     that starts from the bool module.
   </p>
