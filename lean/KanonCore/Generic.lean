@@ -140,17 +140,17 @@ end Kanon.Generic
 
 /-- Proves a law of the interface of a module for a language: by definition,
 or once the definitions of the language are unfolded at its nodes, with the
-`kanon_law` lemmas. -/
+`kanon_law` lemmas (which may close it before any unfolding). -/
 macro "kanon_law" : tactic => `(tactic| (
   intros
   first
     | rfl
     | exact Iff.rfl
-    | ((try simp only [kanon_law])
-       kanon_unfold
-       (try simp only [kanon_law]) <;>
-       first
-         | rfl
-         | exact Iff.rfl
-         | (simp only [and_assoc]; done)
-         | (simp [kanon_law, and_assoc]; done))))
+    | ((try simp only [kanon_law]) <;>
+       (kanon_unfold
+        (try simp only [kanon_law]) <;>
+        first
+          | rfl
+          | exact Iff.rfl
+          | (simp only [and_assoc]; done)
+          | (simp [kanon_law, and_assoc]; done)))))

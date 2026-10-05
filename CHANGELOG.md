@@ -53,6 +53,7 @@
 - `kanon_congr` needs `kanon_congr_side` to close its goal.
 - `kanon_lift_body` lifts calls under goals that `split` tagged.
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
+- `kanon_law` no longer fails when its lemmas close the goal.
 
 ## 0.3.0 (2026-10-04)
 
