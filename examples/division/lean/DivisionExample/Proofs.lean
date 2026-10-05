@@ -78,4 +78,11 @@ value is the square of an integer plus one. -/
     omega
   · cases h
 
+/-- Lifting a call of `div` leaves the predicate of its divisor (here, by `kanon_lift`, on
+terms that a rule could build: `sq1 (v1 / v2)`), for the proof of the rule. -/
+example (O : Ops) (hO : O.Sound) (v1 v2 : Term) (hs : Nonzero v2) :
+    Refines (Int.sq1.spec (Int.div.spec v1 v2)) (O.int_sq1 (O.int_div v1 v2)) := by
+  kanon_lift
+  exact hs
+
 end DivisionExample
