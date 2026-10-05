@@ -1,5 +1,5 @@
 (* The bool module, at the bottom of every language: booleans, equality, [Ite]
-   and [Distinct]. See the README of Kanon for the syntax. *)
+   and [Distinct]. See the reference of Kanon for the syntax. *)
 
 node Bool of bool : TBool
 notation Bool

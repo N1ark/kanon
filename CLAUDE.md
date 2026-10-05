@@ -11,5 +11,10 @@
 
 - Every line of `CHANGELOG.md` has at most 10 words and at most two sentences.
 - It lists only user-facing changes: syntax, attributes, generated output, CLI, language server, editor support, behaviour, fixes of wrong output. No refactors, tests, CI or design rationale.
-- Any further detail (explanations, examples, limits) goes in the guide: `README.md` and the manual pages under `site/src`.
+- Any further detail (explanations, examples, limits) goes in the reference and the guide (`site/src`).
 - Group entries under Added, Changed and Fixed. Breaking changes go under Changed.
+
+## Documentation
+
+- `README.md` is high level only: overview, install, usage and links. All documentation lives in the reference and the guide (`site/src`).
+- A new feature is documented in the reference (`site/src/reference`), and in the guide (`site/src/proving`, `site/src/tutorial`) if it needs a how-to, never in the README.

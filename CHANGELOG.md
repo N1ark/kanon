@@ -4,12 +4,12 @@
 
 ### Added
 
-- [Scoped names](README.md#names-and-modules): `Bitvec.add` from another module.
+- [Scoped names](https://n1ark.github.io/kanon/reference.html#names): `Bitvec.add` from another module.
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
-- [Typed functions](README.md#functions): sort-annotated `fn` results.
-- [Traversals](README.md#traversals): `[@@@traversals]` generates `map_children`, `iter_children` and more.
+- [Traversals](https://n1ark.github.io/kanon/reference.html#traversals): `[@@@traversals]` generates `map_children`, `iter_children` and more.
 - Node typings may give a computed result sort.
+- [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 
 ### Changed
 
@@ -26,16 +26,16 @@
 
 ### Added
 
-- [`[@no_lean]`](README.md#functions) leaves a `fn` or `prim` out of Lean.
-- [Operators with a word suffix](README.md#operators-on-terms), such as `<u` and `<=s`.
-- [`[@total]`](README.md#functions) requires a case for every node.
-- [Documentation comments](README.md#documentation-comments) `(** ... *)` reach generated OCaml and Lean.
-- [Computed sorts](README.md#terms): `(C x : e)`.
+- [`[@no_lean]`](https://n1ark.github.io/kanon/reference.html#on-functions) leaves a `fn` or `prim` out of Lean.
+- [Operators with a word suffix](https://n1ark.github.io/kanon/reference.html#operators), such as `<u` and `<=s`.
+- [`[@total]`](https://n1ark.github.io/kanon/reference.html#on-functions) requires a case for every node.
+- [Documentation comments](https://n1ark.github.io/kanon/reference.html#declarations) `(** ... *)` reach generated OCaml and Lean.
+- [Computed sorts](https://n1ark.github.io/kanon/reference.html#terms): `(C x : e)`.
 - `nat` is accepted in signatures and record fields.
-- [Arrays](README.md#arrays): `t array` and `[| a; b |]`.
-- [Subsorts](README.md#modules-nodes-and-sorts): `subsort TNonzero of nat : TBitVector n`.
-- [Subsorts in Lean](README.md#subsorts-in-lean): `[@lean "P"]` names a predicate.
-- The [`ocaml-typed` backend](README.md#typed-ocaml) generates a typed interface with phantom tags.
+- [Arrays](https://n1ark.github.io/kanon/reference.html#arrays): `t array` and `[| a; b |]`.
+- [Subsorts](https://n1ark.github.io/kanon/reference.html#subsort): `subsort TNonzero of nat : TBitVector n`.
+- [Subsorts in Lean](https://n1ark.github.io/kanon/reference.html#on-sorts): `[@lean "P"]` names a predicate.
+- The [`ocaml-typed` backend](https://n1ark.github.io/kanon/reference.html#typed) generates a typed interface with phantom tags.
 - The `ocaml` backend generates destructors `as_foo` and tests `is_foo`.
 
 ### Fixed
@@ -59,22 +59,22 @@
 
 ### Added
 
-- [`notation C`](README.md#patterns) gives literal patterns to a leaf.
-- [Helper parameters](README.md#functions) may be annotated with a sort.
-- [`(C x : S args)`](README.md#terms) builds a node at an explicit sort.
-- [Folds](README.md#laws) receive the sorts of the literals as `ty` parameters.
-- An operator's function applies to any [non-term operands](README.md#operators-on-terms).
-- [`[@ocaml]`](README.md#types) on records and variants re-exports an existing type.
+- [`notation C`](https://n1ark.github.io/kanon/reference.html#patterns) gives literal patterns to a leaf.
+- [Helper parameters](https://n1ark.github.io/kanon/reference.html#on-functions) may be annotated with a sort.
+- [`(C x : S args)`](https://n1ark.github.io/kanon/reference.html#terms) builds a node at an explicit sort.
+- [Folds](https://n1ark.github.io/kanon/reference.html#laws) receive the sorts of the literals as `ty` parameters.
+- An operator's function applies to any [non-term operands](https://n1ark.github.io/kanon/reference.html#operators).
+- [`[@ocaml]`](https://n1ark.github.io/kanon/reference.html#on-types) on records and variants re-exports an existing type.
 - The site has a [guide to proofs](https://n1ark.github.io/kanon/proving.html) in Lean.
 
 ### Changed
 
 - [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of `*`.
-- Built-in modules are used with [`use builtin "bool"`](README.md#usage).
+- Built-in modules are used with [`use builtin "bool"`](https://n1ark.github.io/kanon/reference.html#use).
 
 ### Removed
 
-- `[@literal]`: use [`notation`](README.md#patterns).
+- `[@literal]`: use [`notation`](https://n1ark.github.io/kanon/reference.html#patterns).
 - `[@to_term]`, `[@of_term]` and `[@raw]`: literals store integers or booleans.
 
 ## 0.1.0 (2026-10-02)
@@ -84,24 +84,24 @@ The first versioned release.
 ### Added
 
 - `kanon --version` prints the version.
-- [`ocaml-types`](README.md#ocaml): self-contained OCaml types and hash-consed terms.
-- [`[@@@ocaml_prims "M"]`](README.md#floating-attributes) names the OCaml module of primitives.
-- [`[@@@ocaml_types "M"]`](README.md#floating-attributes): the rules open the module of types.
-- [`sort`](README.md#modules-nodes-and-sorts) declares sorts; `node` no longer does.
-- [`node C : a list -> s`](README.md#modules-nodes-and-sorts) declares an operator of any arity.
+- [`ocaml-types`](https://n1ark.github.io/kanon/reference.html#ocaml): self-contained OCaml types and hash-consed terms.
+- [`[@@@ocaml_prims "M"]`](https://n1ark.github.io/kanon/reference.html#floating) names the OCaml module of primitives.
+- [`[@@@ocaml_types "M"]`](https://n1ark.github.io/kanon/reference.html#floating): the rules open the module of types.
+- [`sort`](https://n1ark.github.io/kanon/reference.html#declarations) declares sorts; `node` no longer does.
+- [`node C : a list -> s`](https://n1ark.github.io/kanon/reference.html#declarations) declares an operator of any arity.
 - Any word or symbol sequence can be an [operator](https://n1ark.github.io/kanon/reference.html#operators).
-- [`=` and `<>`](README.md#types) work at every type but `[@noeq]` ones.
-- [`[@hash "M.hash"]`](README.md#types) hashes the values of an abstract type.
-- [`[@fold f lift]`](README.md#laws): `lift` makes a term of the result.
-- [Laws](README.md#laws) apply to `[@literal int]` literals.
-- [`[@unit c]` and `[@zero c]`](README.md#laws) accept named constants.
-- [`constant`](README.md#constants) and its parameter are optional.
-- Lean: one proof per [commutative operator](README.md#proofs) proves swapped arms.
+- [`=` and `<>`](https://n1ark.github.io/kanon/reference.html#on-types) work at every type but `[@noeq]` ones.
+- [`[@hash "M.hash"]`](https://n1ark.github.io/kanon/reference.html#on-types) hashes the values of an abstract type.
+- [`[@fold f lift]`](https://n1ark.github.io/kanon/reference.html#laws): `lift` makes a term of the result.
+- [Laws](https://n1ark.github.io/kanon/reference.html#laws) apply to `[@literal int]` literals.
+- [`[@unit c]` and `[@zero c]`](https://n1ark.github.io/kanon/reference.html#laws) accept named constants.
+- [`constant`](https://n1ark.github.io/kanon/reference.html#constant) and its parameter are optional.
+- Lean: one proof per [commutative operator](https://n1ark.github.io/kanon/proving.html#loop) proves swapped arms.
 - The site has a [reference](https://n1ark.github.io/kanon/reference.html) of declarations, attributes and operators.
 
 ### Changed
 
-- Kanon [generates the terms](README.md#modules-nodes-and-sorts) from the nodes and sorts.
+- Kanon [generates the terms](https://n1ark.github.io/kanon/reference.html#declarations) from the nodes and sorts.
 - `[@literal]` is now `[@literal bool]`.
 - `constant` takes a name or a literal: `constant 0 = e`.
 - The rules of `[@unit c]` and `[@zero c]` are `unit_c`, `zero_c`.
@@ -110,10 +110,10 @@ The first versioned release.
 
 ### Removed
 
-- `ocaml-check`: use [`ocaml-types`](README.md#ocaml).
+- `ocaml-check`: use [`ocaml-types`](https://n1ark.github.io/kanon/reference.html#ocaml).
 - `type t`, `type ty` and `[@operators]`: declare nodes and sorts.
 - Placing nodes in types by name.
 - `[@ite]` and `[@distrib_ite]`: write their rules by hand.
-- `[@to_term]` on boolean literals: use [`[@fold f lift]`](README.md#laws).
+- `[@to_term]` on boolean literals: use [`[@fold f lift]`](https://n1ark.github.io/kanon/reference.html#laws).
 - The primitive `equal`: use `=`.
 - The built-in `land`, `lor`, `lxor`, `lsl`, `lsr`, `asr` and `~`.
