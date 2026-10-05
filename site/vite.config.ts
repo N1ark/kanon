@@ -84,7 +84,7 @@ function grammarCheck(): Plugin {
     name: "kanon-grammar",
     configResolved(config) {
       if (existsSync(join(site, "public/tree-sitter-kanon.wasm"))) return;
-      const message = "public/tree-sitter-kanon.wasm is missing: build it with `npm run grammar` (see README.md)";
+      const message = "public/tree-sitter-kanon.wasm is missing: build it with `npm run grammar` (see site/README.md)";
       if (config.command === "build") throw new Error(message);
       config.logger.warn(`kanon-grammar: ${message}; Kanon is shown without highlighting`);
     },

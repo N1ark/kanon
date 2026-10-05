@@ -1,4 +1,4 @@
-; Kanon in a web page (see README.md): dune build @web --profile web builds
+; Kanon in a web page (see site/README.md): dune build @web --profile web builds
 ; dist/, the directory to serve, with kanon.js. It is only built in the web
 ; profile, which needs js_of_ocaml and zarith_stubs_js; in the other profiles,
 ; dune build leaves this directory out, and dune build @web says how to build it.

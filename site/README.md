@@ -9,7 +9,7 @@ it, in the browser, published at <https://n1ark.github.io/kanon/>:
 - `proving.html`, the guide to proofs: how to prove a language in Lean, on
   the example `examples/ints/` of the repository, whose files it quotes;
 - `reference.html`, the reference: the declarations, the attributes and the
-  operators;
+  operators, the rules, the generated code and the language server;
 - `sandbox.html`, the sandbox: the files of a language in an editor with
   Kanon's language server (diagnostics, hovers, completion, definitions,
   references, rename, outline), and the output of every backend. The files are
