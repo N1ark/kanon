@@ -226,15 +226,21 @@ call `O.f args` replaced by `f.spec args` (it is found by unification, with the
 lemma `R.Lib.lift_f` that Kanon generates for the function `R.Ops.f`), so that
 the rest of a proof is about raw terms only. -/
 
+/-- The namespace `n` and those that enclose it, innermost first. -/
+def namespacePrefixes : Name → List Name
+  | .anonymous => []
+  | n@(.str p _) | n@(.num p _) => n :: namespacePrefixes p
+
 /-- The lifting lemmas of the head of `e`, a call `O.f args` of a rule function:
-`R.Lib.lift_f` in the current namespace `R` (where a module proved once has
-those of the functions of the modules it uses, for its own `O`), then in the
-namespace of the function. -/
+`R.Lib.lift_f` for each namespace `R` that encloses the current one, innermost
+first (inside the theorem `M.f.r_a.main.ok` of the module `M`, `M.Lib.lift_f`:
+a module proved once has those of the functions of the modules it uses, for
+its own `O`), then in the namespace of the function. -/
 def liftLemmas (e : Expr) : MetaM (List Name) := do
   let .const (.str (.str ns "Ops") f) _ := e.getAppFn | return []
   let env ← getEnv
-  let cands := [Name.mkStr ((← getCurrNamespace) ++ `Lib) ("lift_" ++ f),
-    Name.mkStr (ns ++ `Lib) ("lift_" ++ f)]
+  let cands := (namespacePrefixes (← getCurrNamespace) ++ [ns]).map fun r =>
+    Name.mkStr (r ++ `Lib) ("lift_" ++ f)
   return cands.eraseDups.filter env.contains
 
 /-- Lifts the main goal, a refinement `Refines S body`, by the lifting lemmas
@@ -245,7 +251,8 @@ partial def liftGoal : TacticM (List MVarId) := do
   let g ← getMainGoal
   let ty ← whnfR (← instantiateMVars (← g.getType))
   unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do return [g]
-  for l in ← liftLemmas (ty.getArg! 2) do
+  let ls ← liftLemmas (ty.getArg! 2)
+  for l in ls do
     let s ← saveState
     try
       evalTactic (← `(tactic| apply $(mkCIdent l) (by assumption)))
@@ -258,6 +265,8 @@ partial def liftGoal : TacticM (List MVarId) := do
         setGoals [g']
         out := out ++ (← liftGoal)
     return out
+  unless ls.isEmpty do
+    throwError "kanon_lift: none of the lifting lemmas {ls} applies to{indentExpr ty}"
   evalTactic (← `(tactic| exact Kanon.Sem.Refines.refl))
   return []
 

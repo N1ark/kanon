@@ -458,7 +458,10 @@
       half on the values of the atoms, closing what <code>simp_all</code> and <code>omega</code>
       can. They are made of smaller ones, which are also available: <code>kanon_split</code>,
       <code>kanon_cases</code>, <code>kanon_lift</code> (which lifts a call <code>O.f args</code>
-      with the lemma <code>Lib.lift_f</code> of <code>Lifts.lean</code>),
+      with the lemma <code>R.Lib.lift_f</code> of <code>Lifts.lean</code>: for each namespace
+      <code>R</code> that encloses the proof, innermost first, then that of <code>f</code>, so
+      that in a module proved once its own lemma, for its <code>O</code>, comes first; it fails if
+      none of the lemmas found applies),
       <code>kanon_lift_body</code>, <code>kanon_guards</code>, <code>kanon_lits</code>,
       <code>kanon_wt</code>, <code>kanon_sem_core</code>, <code>kanon_sem</code>,
       <code>kanon_close</code>, <code>kanon_refl</code> and

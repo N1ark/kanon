@@ -19,6 +19,9 @@ def Word.add.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : K
 def Word.round.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) (m : CfgMod.Rounding) (n : Int) (v : S.Term) : S.Term :=
   (B.node (L.WRoundK m n v) (L.TWord n))
 
+def Word.choose.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) (g : S.Term) (a : S.Term) (b : S.Term) : S.Term :=
+  (B.node (LBool.IteK g a b) (S.ty a))
+
 def Word.double.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {LBool : KanonBool.Syntax B} {LCfg : CfgMod.Syntax B} (L : WordMod.Syntax B LBool LCfg) (n : Int) (v : S.Term) : S.Term :=
   (L.word_twice n v)
 
@@ -28,6 +31,7 @@ def Word.double_closed.spec {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.
 attribute [kanon_spec]
   Word.add.spec
   Word.round.spec
+  Word.choose.spec
   Word.double.spec
   Word.double_closed.spec
 
@@ -37,6 +41,7 @@ structure Ops {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon
     toBoolOps : KanonBool.Ops LBool, toCfgOps : CfgMod.Ops LCfg where
   word_add : CfgMod.Flags → Int → S.Term → S.Term → S.Term
   word_round : CfgMod.Rounding → Int → S.Term → S.Term
+  word_choose : S.Term → S.Term → S.Term → S.Term
   word_double : Int → S.Term → S.Term
   word_double_closed : Int → S.Term → S.Term
   word_wsum : Int → Int → Int
@@ -47,6 +52,7 @@ structure Ops.Sound {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B :
     toBoolSound : KanonBool.Ops.Sound O.toBoolOps, toCfgSound : CfgMod.Ops.Sound O.toCfgOps where
   word_add : ∀ (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term), S.Refines (WordMod.Word.add.spec L f n v1 v2) (O.word_add f n v1 v2)
   word_round : ∀ (m : CfgMod.Rounding) (n : Int) (v : S.Term), S.Refines (WordMod.Word.round.spec L m n v) (O.word_round m n v)
+  word_choose : ∀ (g : S.Term) (a : S.Term) (b : S.Term), S.Refines (WordMod.Word.choose.spec L g a b) (O.word_choose g a b)
   word_double : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double.spec L n v) (O.word_double n v)
   word_double_closed : ∀ (n : Int) (v : S.Term), S.Refines (WordMod.Word.double_closed.spec L n v) (O.word_double_closed n v)
   word_orc : Oracle.Compat L O.word_wsum

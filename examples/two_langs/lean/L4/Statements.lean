@@ -21,6 +21,7 @@ attribute [kanon_spec]
   Bool.distinct.spec
   Word.add.spec
   Word.round.spec
+  Word.choose.spec
   Word.double.spec
   Word.double_closed.spec
 
@@ -36,6 +37,7 @@ structure Ops.Sound (O : Ops) : Prop where
   bool_distinct : ∀ (l : (List Term)), Refines (Bool.distinct.spec l) (O.bool_distinct l)
   word_add : ∀ (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term), Refines (Word.add.spec f n v1 v2) (O.word_add f n v1 v2)
   word_round : ∀ (m : CfgMod.Rounding) (n : Int) (v : Term), Refines (Word.round.spec m n v) (O.word_round m n v)
+  word_choose : ∀ (g : Term) (a : Term) (b : Term), Refines (Word.choose.spec g a b) (O.word_choose g a b)
   word_double : ∀ (n : Int) (v : Term), Refines (Word.double.spec n v) (O.word_double n v)
   word_double_closed : ∀ (n : Int) (v : Term), Refines (Word.double_closed.spec n v) (O.word_double_closed n v)
 

@@ -29,6 +29,7 @@ structure Ops where
   bool_distinct : (List Term) → Term
   word_add : CfgMod.Flags → Int → Term → Term → Term
   word_round : CfgMod.Rounding → Int → Term → Term
+  word_choose : Term → Term → Term → Term
   word_double : Int → Term → Term
   word_double_closed : Int → Term → Term
 
@@ -59,6 +60,9 @@ def Word.add.spec (f : CfgMod.Flags) (n : Int) (v1 : Term) (v2 : Term) : Term :=
 def Word.round.spec (m : CfgMod.Rounding) (n : Int) (v : Term) : Term :=
   (Term.mk (Kind.Op1 (Op1.WRound m n) v) (Ty.TWord n))
 
+def Word.choose.spec (g : Term) (a : Term) (b : Term) : Term :=
+  (Term.mk (Kind.Op3 Op3.Ite g a b) (ty a))
+
 def Word.double.spec (n : Int) (v : Term) : Term :=
   (Word.twice n v)
 
@@ -76,6 +80,7 @@ def opsRaw (orc : Oracle) : Ops :=
     bool_distinct := fun l => Bool.distinct.spec l,
     word_add := fun f n v1 v2 => Word.add.spec f n v1 v2,
     word_round := fun m n v => Word.round.spec m n v,
+    word_choose := fun g a b => Word.choose.spec g a b,
     word_double := fun n v => Word.double.spec n v,
     word_double_closed := fun n v => Word.double_closed.spec n v }
 

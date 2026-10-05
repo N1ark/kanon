@@ -65,6 +65,13 @@ theorem lift_word_round (hO : O.Sound) {m : CfgMod.Rounding} {n : Int} {v v' : T
   Refines (Word.round.spec m n v) (O.word_round m n v') :=
   Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.word_round m n v')
 
+theorem lift_word_choose (hO : O.Sound) {g g' : Term} {a a' : Term} {b b' : Term}
+  (h_g : Refines g g')
+  (h_a : Refines a a')
+  (h_b : Refines b b') :
+  Refines (Word.choose.spec g a b) (O.word_choose g' a' b') :=
+  Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.word_choose g' a' b')
+
 theorem lift_word_double (hO : O.Sound) {n : Int} {v v' : Term}
   (h_v : Refines v v') :
   Refines (Word.double.spec n v) (O.word_double n v') :=

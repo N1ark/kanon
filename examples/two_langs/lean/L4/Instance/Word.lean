@@ -28,6 +28,7 @@ def Ops.toWord (O : Ops) : WordMod.Ops (S := sem) wordSyntax where
   bool_sort_by_tag := O.orc.sort_by_tag
   word_add := O.word_add
   word_round := O.word_round
+  word_choose := O.word_choose
   word_double := O.word_double
   word_double_closed := O.word_double_closed
   word_wsum := O.orc.wsum
@@ -43,6 +44,7 @@ theorem Ops.Sound.toWord {O : Ops} (hO : O.Sound) : (Ops.toWord O).Sound where
   bool_orc := hO.orc.bool
   word_add := hO.word_add
   word_round := hO.word_round
+  word_choose := hO.word_choose
   word_double := hO.word_double
   word_double_closed := hO.word_double_closed
   word_orc := hO.orc.word

@@ -12,6 +12,7 @@ import L4.Soundness.Bool.eq_untyped
 import L4.Soundness.Bool.distinct
 import L4.Soundness.Word.add
 import L4.Soundness.Word.round
+import L4.Soundness.Word.choose
 import L4.Soundness.Word.double
 import L4.Soundness.Word.double_closed
 
@@ -38,6 +39,7 @@ theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
       bool_distinct := fun l => Refinement.refl,
       word_add := fun f n v1 v2 => Refinement.refl,
       word_round := fun m n v => Refinement.refl,
+      word_choose := fun g a b => Refinement.refl,
       word_double := fun n v => Refinement.refl,
       word_double_closed := fun n v => Refinement.refl }
   | n + 1 =>
@@ -52,6 +54,7 @@ theorem opsN_sound (orc : Oracle) (h : orc.Compat) :
       bool_distinct := Bool.distinct.step_sound _ hO,
       word_add := Word.add.step_sound _ hO,
       word_round := Word.round.step_sound _ hO,
+      word_choose := Word.choose.step_sound _ hO,
       word_double := Word.double.step_sound _ hO,
       word_double_closed := Word.double_closed.step_sound _ hO }
 

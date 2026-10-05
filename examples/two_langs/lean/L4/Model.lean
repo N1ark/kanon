@@ -8,6 +8,7 @@ import L4.Model.Bool.eq_untyped
 import L4.Model.Bool.distinct
 import L4.Model.Word.add
 import L4.Model.Word.round
+import L4.Model.Word.choose
 import L4.Model.Word.double
 import L4.Model.Word.double_closed
 
@@ -31,6 +32,7 @@ def opsStep (O : Ops) : Ops :=
     bool_distinct := Bool.distinct.step O,
     word_add := Word.add.step O,
     word_round := Word.round.step O,
+    word_choose := Word.choose.step O,
     word_double := Word.double.step O,
     word_double_closed := Word.double_closed.step O }
 

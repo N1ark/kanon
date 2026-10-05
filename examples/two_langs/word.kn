@@ -38,6 +38,9 @@ rule add : WAdd (f, n, v1, v2) =
 rule round : WRound (m, n, v) =
   | keep: x when (is_down m || m = Up) && is_word (type_of x) -> x
 
+(* a choice, by the rule of the bool module that this module lifts *)
+rule choose : Ite (g, a, b) = Bool.ite g a b
+
 (* a spec that is a helper: proved once, and by each language *)
 rule double (n : int) (v : t) : twice n v = WAdd (plain, n, v, v)
 

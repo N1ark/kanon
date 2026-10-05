@@ -70,6 +70,7 @@
 - Interfaces declare primitives and helpers before the typing laws.
 - Interface helper laws name the `_` parameters.
 - Nodes sharing a `[@lean_inv]` share one interface field.
+- `kanon_lift` finds a module's lemmas inside its arm proofs.
 
 ## 0.3.0 (2026-10-04)
 
