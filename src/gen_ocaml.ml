@@ -1076,20 +1076,36 @@ let traversals ft =
       in
       Some (Printf.sprintf "  | %s ->\n      %s\n" pat body)
   in
-  let fn_terms act name ty_f res default =
+  let map_doc =
+    "One level: [f] on each direct child, in order; does not recurse. [v] \
+     itself if [f] returns every child unchanged ([==]), else [v] rebuilt."
+  and iter_doc =
+    "One level: [f] on each direct child, in order; does not recurse."
+  and exists_doc =
+    "One level: whether [f] holds for a direct child, from the left; does not \
+     recurse."
+  and for_all_doc =
+    "One level: whether [f] holds for every direct child, from the left; does \
+     not recurse."
+  in
+  let fn_terms doc act name ty_f res default =
     pf ft "%s"
       (Printf.sprintf
-         "let %s (f : %s) (v : t) : %s =\n  match v with\n%s  | _ -> %s\n\n"
-         name ty_f res
+         "(** %s *)\n\
+          let %s (f : %s) (v : t) : %s =\n\
+         \  match v with\n\
+          %s  | _ -> %s\n\n"
+         doc name ty_f res
          (String.concat "" (List.filter_map (node_case act) nodes))
          default)
   in
-  fn_terms Map "map_children" "t -> t" "t" "v";
-  fn_terms Iter "iter_children" "t -> unit" "unit" "()";
-  fn_terms Exists "exists_child" "t -> bool" "bool" "false";
+  fn_terms map_doc Map "map_children" "t -> t" "t" "v";
+  fn_terms iter_doc Iter "iter_children" "t -> unit" "unit" "()";
+  fn_terms exists_doc Exists "exists_child" "t -> bool" "bool" "false";
   pf ft "%s"
-    "let for_all_child (f : t -> bool) (v : t) : bool =\n\
-    \  not (exists_child (fun c -> not (f c)) v)\n\n";
+  @@ Printf.sprintf "(** %s *)\n%s" for_all_doc
+       "let for_all_child (f : t -> bool) (v : t) : bool =\n\
+       \  not (exists_child (fun c -> not (f c)) v)\n\n";
   (* the sorts *)
   let sorts = List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs in
   let sort_case act (c : constr) =
@@ -1119,20 +1135,24 @@ let traversals ft =
       in
       Some (Printf.sprintf "  | %s ->\n      %s\n" pat body)
   in
-  let fn_sorts act name ty_f res default =
+  let fn_sorts doc act name ty_f res default =
     pf ft "%s"
       (Printf.sprintf
-         "let %s (f : %s) (v : ty) : %s =\n  match v with\n%s  | _ -> %s\n\n"
-         name ty_f res
+         "(** %s *)\n\
+          let %s (f : %s) (v : ty) : %s =\n\
+         \  match v with\n\
+          %s  | _ -> %s\n\n"
+         doc name ty_f res
          (String.concat "" (List.filter_map (sort_case act) sorts))
          default)
   in
-  fn_sorts Map "map_ty_children" "ty -> ty" "ty" "v";
-  fn_sorts Iter "iter_ty_children" "ty -> unit" "unit" "()";
-  fn_sorts Exists "exists_ty_child" "ty -> bool" "bool" "false";
+  fn_sorts map_doc Map "map_ty_children" "ty -> ty" "ty" "v";
+  fn_sorts iter_doc Iter "iter_ty_children" "ty -> unit" "unit" "()";
+  fn_sorts exists_doc Exists "exists_ty_child" "ty -> bool" "bool" "false";
   pf ft "%s"
-    "let for_all_ty_child (f : ty -> bool) (v : ty) : bool =\n\
-    \  not (exists_ty_child (fun c -> not (f c)) v)\n\n"
+  @@ Printf.sprintf "(** %s *)\n%s" for_all_doc
+       "let for_all_ty_child (f : ty -> bool) (v : ty) : bool =\n\
+       \  not (exists_ty_child (fun c -> not (f c)) v)\n\n"
 
 let program ~sources ft (p : program) =
   check_prims p;

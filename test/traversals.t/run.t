@@ -97,6 +97,7 @@ the types of the language get a function of their own.
   and kanon__exists_cell f (x : cell) : bool =
     (kanon__exists_item f) x.item || (function Some x -> (kanon__exists_cell f) x | None -> false) x.next
   
+  (** One level: [f] on each direct child, in order; does not recurse. [v] itself if [f] returns every child unchanged ([==]), else [v] rebuilt. *)
   let map_children (f : t -> t) (v : t) : t =
     match v with
     | { kind = Seq (p1); _ } ->
@@ -113,6 +114,7 @@ the types of the language get a function of their own.
         if y_x1 == x1 then v else kanon__rebuild_Neg y_x1
     | _ -> v
   
+  (** One level: [f] on each direct child, in order; does not recurse. *)
   let iter_children (f : t -> unit) (v : t) : unit =
     match v with
     | { kind = Seq (p1); _ } ->
@@ -125,6 +127,7 @@ the types of the language get a function of their own.
         f x1
     | _ -> ()
   
+  (** One level: whether [f] holds for a direct child, from the left; does not recurse. *)
   let exists_child (f : t -> bool) (v : t) : bool =
     match v with
     | { kind = Seq (p1); _ } ->
@@ -137,9 +140,11 @@ the types of the language get a function of their own.
         f x1
     | _ -> false
   
+  (** One level: whether [f] holds for every direct child, from the left; does not recurse. *)
   let for_all_child (f : t -> bool) (v : t) : bool =
     not (exists_child (fun c -> not (f c)) v)
   
+  (** One level: [f] on each direct child, in order; does not recurse. [v] itself if [f] returns every child unchanged ([==]), else [v] rebuilt. *)
   let map_ty_children (f : ty -> ty) (v : ty) : ty =
     match v with
     | TSeq (p1) ->
@@ -147,18 +152,21 @@ the types of the language get a function of their own.
         if y_p1 == p1 then v else TSeq (y_p1)
     | _ -> v
   
+  (** One level: [f] on each direct child, in order; does not recurse. *)
   let iter_ty_children (f : ty -> unit) (v : ty) : unit =
     match v with
     | TSeq (p1) ->
         f p1
     | _ -> ()
   
+  (** One level: whether [f] holds for a direct child, from the left; does not recurse. *)
   let exists_ty_child (f : ty -> bool) (v : ty) : bool =
     match v with
     | TSeq (p1) ->
         f p1
     | _ -> false
   
+  (** One level: whether [f] holds for every direct child, from the left; does not recurse. *)
   let for_all_ty_child (f : ty -> bool) (v : ty) : bool =
     not (exists_ty_child (fun c -> not (f c)) v)
   
@@ -235,6 +243,7 @@ The sorts have children too:
         if y_p1 == p1 then v else TSeq (y_p1)
     | _ -> v
   
+  (** One level: [f] on each direct child, in order; does not recurse. *)
   let iter_ty_children (f : ty -> unit) (v : ty) : unit =
 
 A language without the attribute has none of this:

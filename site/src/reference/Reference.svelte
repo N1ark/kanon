@@ -855,11 +855,16 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
 
   <Heading level={3} id="traversals">Traversals</Heading>
   <p>
+    The traversals go <strong>one level</strong> deep: each calls <code>f</code> on the
+    <em>direct</em> children of a term (whatever nodes they are, not only leaves) and does not
+    recurse. The recursion is up to <code>f</code>.
+  </p>
+  <p>
     With <code>{`[@@@traversals]{:kanon}`}</code>, <code>kanon ocaml</code> also generates
-    functions that traverse the terms and the sorts, with one case per node and per sort
-    constructor, including those added by later modules. They are top-level functions of the rules
-    module (<code>Lang_rules.map_children</code>), on which a host writes what Kanon does not know
-    of: free variables, substitution, evaluation, search.
+    these functions for the terms and the sorts, with one case per node and per sort constructor,
+    including those added by later modules. They are top-level functions of the rules module
+    (<code>Lang_rules.map_children</code>), on which a host writes what Kanon does not know of:
+    free variables, substitution, evaluation, search.
   </p>
   <Code
     lang="ocaml"
@@ -870,6 +875,25 @@ val for_all_child : (t -> bool) -> t -> bool
 val map_ty_children : (ty -> ty) -> ty -> ty
 (* iter_ty_children, exists_ty_child, for_all_ty_child *)`}
   />
+  <p>
+    A recursive operation calls itself through them. A host handles binders, which Kanon does not
+    know of, by matching them before it delegates to <code>map_children</code>:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`(* x replaced by e everywhere *)
+let rec subst x e t =
+  match t.kind with
+  | Var y when y = x -> e
+  | _ -> map_children (subst x e) t
+
+(* the same, where Lam (y, body) binds y in body: a Lam that binds x is kept *)
+let rec subst x e t =
+  match t.kind with
+  | Var y when y = x -> e
+  | Lam (y, _) when y = x -> t
+  | _ -> map_children (subst x e) t`}
+  />
   <ul>
     <li>
       The <em>children</em> of a node are the values of type <code>t</code> in its parameters and
@@ -879,12 +903,12 @@ val map_ty_children : (ty -> ty) -> ty -> ty
       a sort are the values of type <code>ty</code> in its arguments, in the same shapes.
     </li>
     <li>
-      <code>iter_children f v</code> calls <code>f</code> on each child, in order.
+      <code>iter_children f v</code> calls <code>f</code> on each direct child, in order.
       <code>exists_child f v</code> stops at the first child where <code>f</code> is true, and
       <code>for_all_child f v</code> at the first where it is false.
     </li>
     <li>
-      <code>map_children f v</code> applies <code>f</code> to each child once, in order. If every
+      <code>map_children f v</code> applies <code>f</code> to each direct child once, in order. If every
       result is physically equal (<code>==</code>) to its child, it returns <code>v</code> itself:
       nothing is rebuilt or allocated, and no smart constructor is called. Otherwise it rebuilds the
       node with <code>kanon__rebuild_C</code>: through its <em>smart constructor</em> if a rule
@@ -931,6 +955,7 @@ node Sum of t list : TInt`}
       let s = kanon__list_map f r in
       if y == x && s == r then l else y :: s
 
+(** One level: [f] on each direct child, in order; does not recurse. [v] itself if [f] returns every child unchanged ([==]), else [v] rebuilt. *)
 let map_children (f : t -> t) (v : t) : t =
   match v with
   | { kind = Sum (p1); _ } ->
@@ -942,6 +967,7 @@ let map_children (f : t -> t) (v : t) : t =
       if y_x1 == x1 && y_x2 == x2 then v else kanon__rebuild_Add y_x1 y_x2
   | _ -> v
 
+(** One level: [f] on each direct child, in order; does not recurse. *)
 let iter_children (f : t -> unit) (v : t) : unit =
   match v with
   | { kind = Sum (p1); _ } ->
@@ -950,6 +976,7 @@ let iter_children (f : t -> unit) (v : t) : unit =
       f x1; f x2
   | _ -> ()
 
+(** One level: whether [f] holds for a direct child, from the left; does not recurse. *)
 let exists_child (f : t -> bool) (v : t) : bool =
   match v with
   | { kind = Sum (p1); _ } ->
