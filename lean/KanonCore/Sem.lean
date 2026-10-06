@@ -3,9 +3,9 @@ import KanonCore.Refinement
 /-!
 # The semantics of a language, generically
 
-A language gives its terms, types, values and environments, the typing of its
-terms (`ty`, `WT`) and their evaluation (`ev`, assuming well-typedness), as a
-`Kanon.Sem`. The value of a term (`eval`, poison for ill-typed terms) and the
+A language gives its types, values and environments (a `Kanon.Dom`, over which
+the modules give the meaning of their nodes), its terms, their typing (`ty`,
+`WT`) and their evaluation (`ev`, assuming well-typedness), as a `Kanon.Sem`. The value of a term (`eval`, poison for ill-typed terms) and the
 refinement of terms (`Refines`) are defined here once, with their generic facts.
 
 A language defines its `sem : Kanon.Sem` as a reducible definition, its `eval`
@@ -18,12 +18,16 @@ definitions by `simp only` or `dsimp only`.
 
 namespace Kanon
 
-/-- The semantics of a language. -/
-structure Sem where
-  Term : Type
+/-- The types, values and environments of a language: what the meaning of the
+nodes of a module (`M.Node.eval`) is over. -/
+structure Dom where
   Ty : Type
   Val : Type
   Env : Type
+
+/-- The semantics of a language. -/
+structure Sem extends Dom where
+  Term : Type
   /-- The type of a term. -/
   ty : Term → Ty
   /-- Syntactic well-typedness. -/
@@ -77,6 +81,8 @@ theorem Refines.trans {a b c : S.Term} (h1 : S.Refines a b) (h2 : S.Refines b c)
 not found through the type `S.Term` of the generic one. -/
 theorem refinement : Refinement S.Refines := ⟨Refines.refl, Refines.trans⟩
 
+instance instRefinement : Refinement S.Refines := refinement
+
 theorem Refines.syn {a b : S.Term} (h : S.Refines a b) (w : S.WT a) :
     S.WT b ∧ S.ty b = S.ty a :=
   h.1 w
@@ -124,5 +130,11 @@ theorem Refines.of_lift {s m r : S.Term} (hl : S.Refines m r) (hm : S.Refines s 
   Refines.trans hm hl
 
 end Sem
+
+/-- The oracle that every model has: the hash-consing order of terms, which
+`mk_commut_binop` orders the operands of commutative operators by. The `Ops`
+of the modules that use no other extend it. -/
+structure OpsBase (S : Sem) where
+  tag_le : S.Term → S.Term → Bool
 
 end Kanon

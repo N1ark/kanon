@@ -3,15 +3,15 @@
 
 (** The parts of the generated Lean files (see {!Gen_lean.parts}), whose
     backends are [lean-PART]. *)
-let lean_parts ?only_module ~lang ~sources ~has_proof prog =
-  Gen_lean.parts ?only_module ~lang ~sources ~has_proof prog
+let lean_parts ~module_only ~lang ~has_proof prog =
+  Gen_lean.parts ~module_only ~lang ~has_proof prog
 
 (** The backends that write on standard output, in the order of the usage. *)
 let backends =
   [ "ocaml-types"; "ocaml"; "ocaml-typed"; "ocaml-tests" ]
   @ List.map
       (fun (part, _) -> "lean-" ^ part)
-      (lean_parts ~lang:[] ~sources:[]
+      (lean_parts ~module_only:false ~lang:[]
          ~has_proof:(fun _ _ -> false)
          (lazy (assert false)))
 
@@ -140,9 +140,12 @@ let run args out err =
           if files = [] then usage err;
           Gen_lean.module_uses := [];
           Gen_lean.builtin_modules := [];
+          Gen_lean.root_module := None;
           let on_parse f str =
             match Check.module_of_file ~loc:Location.none f with
             | Some m ->
+                if !Gen_lean.root_module = None then
+                  Gen_lean.root_module := Some m;
                 if Option.is_some (Loader.builtin f) then
                   Gen_lean.builtin_modules := m :: !Gen_lean.builtin_modules;
                 let uses =
@@ -176,19 +179,14 @@ let run args out err =
           in
           let lang = List.map (fun (f, _) -> Loader.source_name f) langs in
           let sources = List.map (fun (f, _) -> Loader.source_name f) files in
-          (* a module proved once, given alone: only its own files *)
-          let only_module =
+          (* a module built into kanon, given alone: only its own files *)
+          let module_only =
             match langs with
-            | (f, _) :: _ -> (
-                match Check.module_of_file ~loc:Location.none f with
-                | Some m when List.mem_assoc m !Syntax.lang.lean_modules ->
-                    Some m
-                | _ -> None)
-            | [] -> None
+            | (f, _) :: _ -> Option.is_some (Loader.builtin f)
+            | [] -> false
           in
-          let lean has_proof =
-            lean_parts ?only_module ~lang ~sources ~has_proof prog
-          in
+          ignore sources;
+          let lean has_proof = lean_parts ~module_only ~lang ~has_proof prog in
           match (target, backend) with
           | Some (check, dir), _ ->
               let has_proof r path =

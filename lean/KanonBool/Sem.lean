@@ -1,84 +1,190 @@
-import KanonBool.Syntax
-import KanonBool.Val
+import KanonBool.Node
+import KanonCore.Embed
+import KanonCore.ProofAttr
 
 /-!
-# What the bool module needs of the semantics of a language
+# The meaning of the nodes of the bool module
 
-The rules of the bool module (`modules/bool.kn`) are proved once, for every
-language that uses it, over its interface `L : KanonBool.Syntax S` (generated, in
-`Syntax.lean`: the sort `TBool`, the kinds of the nodes, their typing and
-matchers, the primitives `v_true` and `v_false`, the helpers) and what the
-proofs need of the semantics `S` of the language, `KanonBool.Sem L`:
+The bool module needs the booleans among the values of a language
+(`KanonBool.Values`), and evaluates its nodes by the operations below, given the
+values of their children, where `none` is poison:
 
-- the booleans among its values (`vbool`), which are different;
-- the evaluation of the nodes, by the operations of `KanonBool.Val`, which the
-  language uses in its own evaluation (so that these laws hold by definition:
-  `kanon_law` proves them, unless the language gives another proof);
-- the primitives `v_true` and `v_false`, which are the literals;
-- that well-typed booleans evaluate to booleans (`ev_bool`), and that the
-  terms that the extensible helper `sure_neq` tells apart, which the modules
-  above it extend, have different values (`sure_neq_sound`): the language
-  proves them.
-
-It is a class, so that the modules above, whose `Sem` extends it, give it.
-`Oracle.Compat` is what the rules assume of the oracle `sort_by_tag`.
+- `pand` and `por` are "parallel": a `false` (resp. `true`) operand wins over a
+  poisoned one, as it would over any value of the unspecified one;
+- `pnot` and `peq` are poison when an operand is, and `peq` compares values;
+- `pite` only uses the branch it selects;
+- `pdistinct` is whether the values are pairwise different.
 -/
+
+noncomputable section
 
 namespace KanonBool
 
 open Classical Kanon
+open Kanon.Sem (OLe)
 
-/-- What the bool module needs of the semantics `S` of a language, for its
-interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : Syntax B) where
-  /-- The boolean values. -/
-  vbool : Bool → S.Val
-  vbool_inj : Function.Injective vbool := by intro _ _ h; cases h; rfl
-  ev_Bool : ∀ ρ b t, S.ev ρ (B.node (L.BoolK b) t) = some (vbool b) := by kanon_law
-  ev_Not : ∀ ρ a t, S.ev ρ (B.node (L.NotK a) t) = pnot vbool (S.ev ρ a) := by kanon_law
-  ev_And : ∀ ρ a b t, S.ev ρ (B.node (L.AndK a b) t) =
-    pand vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Or : ∀ ρ a b t, S.ev ρ (B.node (L.OrK a b) t) =
-    por vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Eq : ∀ ρ a b t, S.ev ρ (B.node (L.EqK a b) t) =
-    peq vbool (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Ite : ∀ ρ g a b t, S.ev ρ (B.node (L.IteK g a b) t) =
-    pite vbool (S.ev ρ g) (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Distinct : ∀ ρ l t, S.ev ρ (B.node (L.DistinctK l) t) =
-    pdistinct vbool (l.mapM (S.ev ρ)) := by kanon_law
-  v_true_eq : L.bool_v_true = B.node (L.BoolK true) L.TBool := by kanon_law
-  v_false_eq : L.bool_v_false = B.node (L.BoolK false) L.TBool := by kanon_law
-  /-- Well-typed booleans evaluate to booleans. -/
-  ev_bool : ∀ ρ t v, S.WT t → S.ty t = L.TBool → S.ev ρ t = some v → ∃ b, v = vbool b
-  /-- Surely different terms of the same type have different values. -/
-  sure_neq_sound : ∀ ρ a b u, L.bool_sure_neq a b = true → S.ty a = S.ty b → S.WT a →
-    S.WT b → S.ev ρ a = some u → S.ev ρ b = some u → False
+/-- What the bool module needs of the values of a language: its booleans. -/
+class Values (D : Kanon.Dom) where
+  vbool : Embed Bool D.Val
 
-/-- What the rules assume of the oracle `sort_by_tag`, for the interface `L`: it
-permutes. -/
-structure Oracle.Compat {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S}
-    (L : Syntax B) (sort_by_tag : List S.Term → List S.Term) : Prop where
-  sort_by_tag : ∀ l, (sort_by_tag l).Perm l
+section
+variable {V : Type} (vb : Bool → V)
 
-namespace Sem
+/-- Parallel conjunction: `false` wins over poison. -/
+def pand (a b : Option V) : Option V :=
+  if a = some (vb false) ∨ b = some (vb false) then some (vb false)
+  else if a = some (vb true) ∧ b = some (vb true) then some (vb true)
+  else none
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : Syntax B} [Sem L]
+/-- Parallel disjunction: `true` wins over poison. -/
+def por (a b : Option V) : Option V :=
+  if a = some (vb true) ∨ b = some (vb true) then some (vb true)
+  else if a = some (vb false) ∧ b = some (vb false) then some (vb false)
+  else none
 
-theorem vbool_eq_iff {a b : Bool} : vbool L a = vbool L b ↔ a = b := vbool_inj.eq_iff
+/-- Negation. -/
+def pnot (a : Option V) : Option V :=
+  if a = some (vb true) then some (vb false)
+  else if a = some (vb false) then some (vb true)
+  else none
 
-/-- The values of a well-typed boolean. -/
-theorem ev_cases {ρ : S.Env} {t : S.Term} (w : S.WT t) (h : S.ty t = L.TBool) :
-    S.ev ρ t = none ∨ S.ev ρ t = some (vbool L true) ∨ S.ev ρ t = some (vbool L false) := by
-  rcases e : S.ev ρ t with _ | v
-  · exact .inl rfl
-  · obtain ⟨b, rfl⟩ := ev_bool ρ t v w h e
-    cases b <;> simp
+/-- Equality of values. -/
+def peq : Option V → Option V → Option V
+  | some x, some y => some (vb (decide (x = y)))
+  | _, _ => none
 
-end Sem
+/-- The conditional, which only uses the branch it selects. -/
+def pite (g a b : Option V) : Option V :=
+  if g = some (vb true) then a else if g = some (vb false) then b else none
 
-/-- The values of any term. -/
-theorem Sem.ev_opt {S : Kanon.Sem} {ρ : S.Env} {t : S.Term} :
-    S.ev ρ t = none ∨ ∃ v, S.ev ρ t = some v := by
-  cases S.ev ρ t <;> simp
+/-- `Distinct`: whether the values are pairwise different. -/
+def pdistinct (vs : Option (List V)) : Option V :=
+  vs.map fun vs => vb (decide vs.Nodup)
+end
+
+/-- The evaluation of a node, given the values of its children. -/
+def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
+    Node (Option D.Val) → Option D.Val
+  | .Bool b => some (Values.vbool.inj b)
+  | .Not a => pnot Values.vbool.inj a
+  | .And a b => pand Values.vbool.inj a b
+  | .Or a b => por Values.vbool.inj a b
+  | .Eq a b => peq Values.vbool.inj a b
+  | .Ite g a b => pite Values.vbool.inj g a b
+  | .Distinct l => pdistinct Values.vbool.inj (l.mapM id)
+
+/-- The values of the sorts of the module: `true` and `false`. -/
+def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop
+  | .TBool, v => v = Values.vbool.inj true ∨ v = Values.vbool.inj false
+
+/-! The operations on known values, unfolded by the closing steps. -/
+attribute [kanon_close_simp] pand por pnot peq pite pdistinct
+
+/-! ## The operations by cases -/
+
+section
+variable {V : Type} {vb : Bool → V} {a b g : Option V} {x y : V}
+
+@[kanon_val] theorem pand_eq_some :
+    pand vb a b = some x ↔
+      (a = some (vb false) ∧ x = vb false) ∨ (b = some (vb false) ∧ x = vb false) ∨
+        (a = some (vb true) ∧ b = some (vb true) ∧ x = vb true) := by
+  unfold pand; (repeat' split) <;> grind
+
+@[kanon_val] theorem por_eq_some :
+    por vb a b = some x ↔
+      (a = some (vb true) ∧ x = vb true) ∨ (b = some (vb true) ∧ x = vb true) ∨
+        (a = some (vb false) ∧ b = some (vb false) ∧ x = vb false) := by
+  unfold por; (repeat' split) <;> grind
+
+@[kanon_val] theorem pnot_eq_some :
+    pnot vb a = some x ↔
+      (a = some (vb true) ∧ x = vb false) ∨ (a = some (vb false) ∧ x = vb true) := by
+  unfold pnot; (repeat' split) <;> grind
+
+@[kanon_val] theorem peq_eq_some :
+    peq vb a b = some x ↔ ∃ u w, a = some u ∧ b = some w ∧ x = vb (decide (u = w)) := by
+  unfold peq; split <;> simp_all [eq_comm]
+
+@[kanon_val] theorem pite_eq_some :
+    pite vb g a b = some x ↔ (g = some (vb true) ∧ a = some x) ∨
+      (g = some (vb false) ∧ g ≠ some (vb true) ∧ b = some x) := by
+  unfold pite; (repeat' split) <;> simp_all
+
+@[kanon_val] theorem pdistinct_eq_some {vs : Option (List V)} :
+    pdistinct vb vs = some x ↔ ∃ l, vs = some l ∧ x = vb (decide l.Nodup) := by
+  unfold pdistinct; cases vs <;> simp [eq_comm]
+
+end
+
+/-! ## Monotonicity in poison -/
+
+section
+variable {V : Type} {vb : Bool → V}
+
+theorem pand_mono {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
+    OLe (pand vb a b) (pand vb a' b') := by
+  intro v e
+  rw [pand_eq_some] at *
+  rcases e with ⟨h, rfl⟩ | ⟨h, rfl⟩ | ⟨h1, h2, rfl⟩
+  · exact .inl ⟨ha _ h, rfl⟩
+  · exact .inr (.inl ⟨hb _ h, rfl⟩)
+  · exact .inr (.inr ⟨ha _ h1, hb _ h2, rfl⟩)
+
+theorem por_mono {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
+    OLe (por vb a b) (por vb a' b') := by
+  intro v e
+  rw [por_eq_some] at *
+  rcases e with ⟨h, rfl⟩ | ⟨h, rfl⟩ | ⟨h1, h2, rfl⟩
+  · exact .inl ⟨ha _ h, rfl⟩
+  · exact .inr (.inl ⟨hb _ h, rfl⟩)
+  · exact .inr (.inr ⟨ha _ h1, hb _ h2, rfl⟩)
+
+theorem pnot_mono {a a' : Option V} (ha : OLe a a') : OLe (pnot vb a) (pnot vb a') := by
+  intro v e
+  rw [pnot_eq_some] at *
+  rcases e with ⟨h, rfl⟩ | ⟨h, rfl⟩
+  · exact .inl ⟨ha _ h, rfl⟩
+  · exact .inr ⟨ha _ h, rfl⟩
+
+theorem peq_mono {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
+    OLe (peq vb a b) (peq vb a' b') := by
+  intro v e
+  rw [peq_eq_some] at *
+  obtain ⟨u, w, h1, h2, rfl⟩ := e
+  exact ⟨u, w, ha _ h1, hb _ h2, rfl⟩
+
+theorem pite_mono {g g' a a' b b' : Option V} (hg : OLe g g') (ha : OLe a a') (hb : OLe b b') :
+    OLe (pite vb g a b) (pite vb g' a' b') := by
+  intro v e
+  rw [pite_eq_some] at e ⊢
+  rcases e with ⟨h1, h2⟩ | ⟨h1, h2, h3⟩
+  · exact .inl ⟨hg _ h1, ha _ h2⟩
+  · refine .inr ⟨hg _ h1, ?_, hb _ h3⟩
+    rw [hg _ h1]; rw [h1] at h2; exact h2
+
+theorem pdistinct_mono {a a' : Option (List V)} (ha : OLe a a') :
+    OLe (pdistinct vb a) (pdistinct vb a') := by
+  intro v e
+  cases a with
+  | none => cases e
+  | some vs => rw [ha vs rfl]; exact e
+
+end
+
+/-- The evaluation of the nodes is monotone in poison. -/
+theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
+    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+  cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
+  all_goals simp only [Node.eval]
+  · subst h; exact OLe.refl _
+  · exact pnot_mono h
+  · exact pand_mono h.1 h.2
+  · exact por_mono h.1 h.2
+  · exact peq_mono h.1 h.2
+  · exact pite_mono h.1 h.2.1 h.2.2
+  · exact pdistinct_mono (OLe.mapM h)
 
 end KanonBool
+
+end

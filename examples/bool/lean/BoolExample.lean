@@ -1,1 +1,1 @@
-import BoolExample.Soundness
+import BoolExample.Rules

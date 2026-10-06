@@ -36,9 +36,9 @@ end Kanon
 
 /-- `attribute [kanon_tactic "tac"] f.spec`: the arms of the rule function `f` are
 proved by the tactic `tac` (and otherwise by `kanon_auto`), unless they have a
-hand-written proof. On the interface of a module proved once
-(`attribute [kanon_tactic "tac"] R.Syntax`), the tactic of the arms of the
-module whose function has none (those it adds to the functions of others). The tactic is a string, parsed where it is used, as the
+hand-written proof. On the `Ops` of a module
+(`attribute [kanon_tactic "tac"] R.Ops`), the tactic of the arms of the
+module whose function has none (such as those it adds to the functions of others). The tactic is a string, parsed where it is used, as the
 arguments of attributes are macro-expanded. -/
 syntax (name := kanon_tactic) "kanon_tactic " str : attr
 
@@ -51,9 +51,9 @@ initialize registerBuiltinAttribute {
   name := `kanon_tactic
   descr := "the tactic that proves the arms of a rule function, given on its spec"
   add := fun decl stx _ => do
-    unless decl.getString! == "spec" || decl.getString! == "Syntax" do
+    unless decl.getString! == "spec" || decl.getString! == "Ops" do
       throwError "kanon_tactic: {decl} is neither the spec of a rule function nor the \
-        interface of a module"
+        `Ops` of a module"
     if (Kanon.kanonTacticExt.getState (← getEnv)).contains decl then
       throwError "kanon_tactic: {decl} already has a tactic"
     let some tac := stx[1].isStrLit? | throwError "kanon_tactic: expected a string"

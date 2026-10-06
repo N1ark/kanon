@@ -2699,27 +2699,17 @@ let language (str : structure) =
                | Pstr_attribute a -> (
                    match (a.attr_name.txt, strings_attr a) with
                    | "lean_root", [ r ] ->
-                       lang := { !lang with lean_root = r };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
-                   | "lean_module", [ r ] ->
                        let m =
                          match module_of_loc a.attr_loc with
                          | Some m -> m
                          | None ->
                              error a.attr_loc
-                               "[@@@@@@lean_module] is only for a module"
+                               "[@@@@@@lean_root] is only for a module"
                        in
                        lang :=
                          {
                            !lang with
-                           lean_modules = !lang.lean_modules @ [ (m, r) ];
-                         };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
-                   | "lean_param", [ x; t ] ->
-                       lang :=
-                         {
-                           !lang with
-                           lean_params = !lang.lean_params @ [ (x, t) ];
+                           lean_roots = !lang.lean_roots @ [ (m, r) ];
                          };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_types", [ m ] ->
@@ -3266,7 +3256,7 @@ let raw_fn (vb : value_binding) =
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
     check_attrs
-      [ "spec"; "cases"; "untyped"; "lean_heartbeats"; "lean_closed" ]
+      [ "spec"; "cases"; "untyped"; "lean_heartbeats" ]
       rattrs)
   else check_attrs [ "ty_only"; "no_lean"; "total"; "extensible" ] rattrs;
   let rspec, rsorts =
@@ -3966,16 +3956,11 @@ let extend_rules (str : structure) =
                    | Ppat_var { txt; _ } -> define vb.pvb_pat.ppat_loc txt = f
                    | _ -> false)
                  && Option.is_some (spec_of_attrs vb.pvb_attributes) <> fn -> (
-              (match split_name f with
-              | Some (m, _)
-                when fn
-                     && List.mem_assoc m !lang.lean_modules
-                     && not (has_attr "extensible" vb.pvb_attributes) ->
-                  error loc
-                    "extend fn %s: %s is not [@@extensible], which its module \
-                     needs, as it is proved once in Lean ([@@@@@@lean_module])"
-                    f f
-              | _ -> ());
+              if fn && not (has_attr "extensible" vb.pvb_attributes) then
+                error loc
+                  "extend fn %s: %s is not [@@extensible], which its module \
+                   needs, as each language puts it together in Lean"
+                  f f;
               match vb.pvb_expr.pexp_desc with
               | Pexp_function (ps, ret, Pfunction_body body) ->
                   let body = insert loc f before ext body in
@@ -4647,7 +4632,6 @@ let check_fn env0 globals r =
           | [ n ] -> heartbeats_arg a.attr_loc n
           | _ -> error a.attr_loc "expected [@lean_heartbeats n]")
         (find_attr "lean_heartbeats" r.rattrs);
-    lean_closed = has_attr "lean_closed" r.rattrs;
     extensible = has_attr "extensible" r.rattrs;
     param_sorts =
       List.filter_map

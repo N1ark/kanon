@@ -21,7 +21,7 @@ Lemmas:
   the first equation of its conclusion (e.g. `ev ρ t`, for a hypothesis-free
   `ev_opt : ev ρ t = none ∨ ∃ v, ev ρ t = some v`, or one with hypotheses such as
   `ev_int : t.WT → t.ty = .TInt → ev ρ t = none ∨ ∃ z, ev ρ t = some (.int z)`).
-  `kanon_cases` uses, for each atom, the first of them (in the order they are
+  `kanon_cases` uses, for each atom, the last of them (in the order they are
   tagged) whose hypotheses are in the context (and determine its other
   arguments);
 - `kanon_congr_lemma`: refining the operands of a node refines the node
@@ -43,6 +43,7 @@ register_simp_attr kanon_wt
 register_simp_attr kanon_ev
 register_simp_attr kanon_val
 register_simp_attr kanon_close_simp
+register_simp_attr kanon_rel
 
 open Lean
 

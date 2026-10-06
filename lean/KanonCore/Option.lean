@@ -23,4 +23,15 @@ theorem whenSome_eq_some {α} {c : Bool} {a r : α} (h : whenSome c a = some r) 
     c = true ∧ a = r := by
   cases c <;> simp_all [whenSome]
 
+/-- A property of the first option that is `some`, or else of the default. -/
+theorem getD_firstSome_nil {α} {P : α → Prop} {d : α} (h : P d) :
+    P ((firstSome ([] : List (Option α))).getD d) := h
+
+theorem getD_firstSome_cons {α} {P : α → Prop} {d : α} {o : Option α} {l : List (Option α)}
+    (h : ∀ r, o = some r → P r) (t : P ((firstSome l).getD d)) :
+    P ((firstSome (o :: l)).getD d) := by
+  cases o with
+  | none => simpa [firstSome] using t
+  | some r => simpa [firstSome] using h r rfl
+
 end Kanon

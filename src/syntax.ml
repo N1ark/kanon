@@ -177,19 +177,13 @@ type lang = {
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
-  lean_root : string;
-      (** [[@@@lean_root "R"]]: the namespace of the Lean model, and the root of
-          its modules *)
-  lean_params : (string * string) list;
-      (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
-  lean_modules : (string * string) list;
-      (** [[@@@lean_module "R"]], in the declarations of a module: the modules
-          proved once for every language, in Lean, by module name, with the root
-          of their Lean files *)
+  lean_roots : (string * string) list;
+      (** [[@@@lean_root "R"]], in the declarations of a module: the root of its
+          Lean files, and its namespace, by module *)
   lean_invs : (string * string) list;
-      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on terms,
-          [P : Term -> Prop], that its terms satisfy, as part of their
-          well-typedness, by constructor *)
+      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
+          of its module, [P : Node T -> Prop], that they satisfy, as part of
+          their typing, by constructor *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -225,9 +219,7 @@ let lang =
       constants = [];
       constant_docs = [];
       ty_only = [ "type_of" ];
-      lean_root = "Kanon";
-      lean_params = [];
-      lean_modules = [];
+      lean_roots = [];
       lean_invs = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
@@ -428,9 +420,6 @@ type fn = {
   heartbeats : int option;
       (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
           generated proof of its arms in Lean *)
-  lean_closed : bool;
-      (** [[@lean_closed]], on a rule of a module proved once in Lean: its arms
-          are proved by each language instead *)
   extensible : bool;
       (** [[@extensible]], on a helper: other modules may add cases to it with
           [extend fn] *)
