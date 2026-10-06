@@ -1323,12 +1323,12 @@ let rec occurs ~ty_ok x (e : expr) =
 
 (** Whether [x] occurs in the result [e] other than as a term that the result is
     built from: by itself, or as an operand of a raw node, under the branches of
-    conditionals and the bodies of [let]s, or in a function that only reads the
-    type of a term. A result in which the term [x] is swapped by commutativity
-    is then refined by commutativity and congruence (with the same conditions,
-    the types of the swapped terms being the same). *)
+    conditionals and the bodies of [let]s. A result in which the term [x] is
+    swapped by commutativity is then refined by commutativity and congruence. A
+    use of the type of [x] ([size x]) is unsafe: the types of the swapped terms
+    are only propositionally equal. *)
 let rec occurs_unsafe x (e : expr) =
-  let ty_only = occurs ~ty_ok:true x in
+  let ty_only = occurs ~ty_ok:false x in
   match e.e with
   | EVar _ -> false
   | ENode ({ e = EConstr (_, args); _ }, sort) ->
@@ -1445,8 +1445,8 @@ let derived_from (f : fn) (grp : arm list) (a : arm) =
           | Some (t, _), Some (t', _) when t = t' -> true
           | Some (t, _), Some (t', _) when is_param a t && is_param b t' -> true
           | Some (_, p), Some (_, p') when p = p' ->
-              (not (Option.fold ~none:false ~some:(occurs ~ty_ok:true x) g))
-              && ((not (occurs ~ty_ok:true x e))
+              (not (Option.fold ~none:false ~some:(occurs ~ty_ok:false x) g))
+              && ((not (occurs ~ty_ok:false x e))
                  ||
                  (swapped := true;
                   not (occurs_unsafe x e)))

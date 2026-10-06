@@ -60,6 +60,7 @@
 
 ### Fixed
 
+- Commuted arms reading a swapped term's type are proved directly.
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.
 - `@[kanon_arm]` proofs of a file elaborate in parallel.
 - `kanon_lift` leaves subsort predicates as goals instead of failing.
