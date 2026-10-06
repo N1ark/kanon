@@ -25,18 +25,29 @@ theorem someV_nil {D : Kanon.Dom} [KanonBool.Values D] [Values D] {ρ : D.Env}
   · cases h
 
 @[kanon_arm] theorem Pack.some_.r_empty.main.proof : Pack.some_.r_empty.main.Stmt := by
-  intro S _ _ _ _ O hO names body h
-  cases names with
-  | cons _ _ => simp [Pack.no_names, firstSome] at h
-  | nil =>
-    refine Kanon.Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
-    · rw [Pack.some_.spec, WT_mk] at w
-      simp only [Node.wt, some_wt, Node.All] at w
-      exact ⟨w.2, by simp [Pack.some_.spec, w.1.2]⟩
-    · rw [Pack.some_.spec, ev_mk] at e
-      simp only [Node.map, Node.eval] at e
-      obtain ⟨b, hb, rfl⟩ := someV_nil e
-      exact hb
+  intro S _ _ _ _ _ O hO names body h
+  have hu : used_names names body = [] := by
+    cases hn : used_names names body with
+    | nil => rfl
+    | cons _ _ => simp [Pack.no_names, firstSome, hn] at h
+  refine Kanon.Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
+  · obtain ⟨-, -, hb, wb⟩ := WT_some w
+    exact ⟨wb, by simp [Pack.some_.spec, hb]⟩
+  · rw [Pack.some_.spec, Laws.ev_used ρ _ _ _ w] at e
+    rw [show Laws.used_names names body = [] from hu, ev_mk] at e
+    simp only [Node.map, Node.eval] at e
+    obtain ⟨b, hb, rfl⟩ := someV_nil e
+    exact hb
+
+@[kanon_arm] theorem Pack.some_.r_default.main.proof : Pack.some_.r_default.main.Stmt := by
+  intro S _ _ _ _ _ O hO names body
+  refine Kanon.Sem.Refines.intro (fun w => ?_) (fun ρ v w _ e => ?_)
+  · obtain ⟨-, hn, hb, wb⟩ := WT_some w
+    refine ⟨(WT_mk _ _).2 ⟨?_, by simp [Node.All, wb]⟩, by simp [Pack.some_.spec]⟩
+    simp only [Node.wt, some_wt]
+    exact ⟨by simp, ((Laws.used_sublist names body).map Prod.fst).nodup hn, hb⟩
+  · rw [Pack.some_.spec, Laws.ev_used ρ _ _ _ w] at e
+    exact e
 
 /-- A term that is a pack of one term. -/
 theorem pack_one {S : Kanon.Sem} [KanonBool.Lang S] [Lang S] {a a' : S.Term}
@@ -46,11 +57,11 @@ theorem pack_one {S : Kanon.Sem} [KanonBool.Lang S] [Lang S] {a a' : S.Term}
       ∃ v, S.ev ρ a' = some v ∧ u = Values.vpack.inj [v] := by
   obtain ⟨t, rfl⟩ := Kanon.NodeEmbed.exists_of_proj _ h
   rw [WT_mk] at w
-  simp only [Node.wt, pack_wt, Node.All, List.mem_singleton, forall_eq] at w
+  simp only [Node.wt, pack_wt, packs_wt, Node.All, List.mem_singleton, forall_eq] at w
   obtain ⟨⟨x, hx, hty⟩, wa⟩ := w
   refine ⟨wa, ⟨x, by simpa using hx, hty⟩, ?_⟩
   rw [ev_mk] at e
-  simp only [Node.map, Node.eval, List.map_cons, List.map_nil, List.mapM_cons, List.mapM_nil,
+  simp only [Node.map, Node.eval, packV, List.map_cons, List.map_nil, List.mapM_cons, List.mapM_nil,
     id, Option.bind_eq_bind, Option.pure_def, Option.map_eq_some_iff,
     Option.bind_eq_some_iff] at e
   obtain ⟨_, ⟨v, hv, _, h1, h2⟩, rfl⟩ := e
@@ -58,7 +69,7 @@ theorem pack_one {S : Kanon.Sem} [KanonBool.Lang S] [Lang S] {a a' : S.Term}
   exact ⟨v, hv, rfl⟩
 
 @[kanon_arm] theorem Bool.sure_neq.c1.proof : Bool.sure_neq.c1.Stmt := by
-  intro S _ _ _ _ O hO a b r h
+  intro S _ _ _ _ _ O hO a b r h
   simp only [Bool.sure_neq.c1] at h
   split at h
   · rename_i a' b' ha hb

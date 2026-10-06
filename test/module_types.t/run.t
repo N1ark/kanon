@@ -59,12 +59,12 @@ sorts of the module) and nodes inside nodes (by nested matches):
   
   attribute [kanon_body] M.plain M.is_w M.inner_down
 
-A type of a module cannot hold terms, nor use an abstract type of its
-module (Abstract.lean is defined after Types.lean):
+A type of a module cannot hold both terms and itself, nor use an abstract
+type of its module (Abstract.lean is defined after Types.lean):
 
   $ kanon lean-all out lang1.knl
   ./bad1.knl:4:5: the type boxed, which uses blob, an abstract type of its module (Lean defines it after, in Abstract.lean): not supported in Lean
   [1]
   $ kanon lean-all out lang2.knl
-  ./bad2.knl:3:5: the type pair, which holds terms: not supported in Lean
+  ./bad2.knl:3:5: the type tree, which holds terms and itself: not supported in Lean
   [1]

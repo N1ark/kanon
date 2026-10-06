@@ -16,7 +16,7 @@ open Classical Kanon
 
 namespace Lib
 
-variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [L5.Lang S] [KanonBool.Typed S] [PackMod.Typed S] {O : Ops S}
+variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [L5.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] {O : Ops S}
 
 theorem lift_bool_and_ (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')

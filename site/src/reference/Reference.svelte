@@ -634,6 +634,14 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@@@lean_laws]{:kanon}`}</code></td>
+        <td>
+          The proofs of the module assume the class <code>Laws</code> of its
+          <code>Prims.lean</code>, which each language gives in its <code>Typing.lean</code> (see
+          <a href="proving.html#laws">What a module needs a language to prove</a>).
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
         <td>
           The namespace and directory of the Lean files of the module of the <code>.knl</code>

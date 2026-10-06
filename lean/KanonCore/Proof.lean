@@ -875,25 +875,11 @@ elab "kanon_auto_by_goal" : tactic => do
 macro_rules | `(tactic| kanon_auto) => `(tactic| ((try intro _); intros; kanon_auto_by_goal))
 
 
-/-- Proves the law `size_proj` of the instance of the `Lang` class of a module
-in a language whose `size` is `sizeOf`: the children of a node are smaller
-than its term. -/
-macro "kanon_size_proj" : tactic => `(tactic| (
-  intro e n h
-  cases e <;> cases h
-  all_goals
-    cases n <;> simp only [kanon_size_simp]
-    all_goals (repeat' (first | apply And.intro | intro _ _))
-    all_goals first
-      | trivial
-      | (have := List.sizeOf_lt_of_mem ‹_ ∈ _›; simp <;> omega)
-      | (simp <;> omega)))
-
 open Lean Meta Elab Tactic in
-/-- Proves that a recursive call of a helper on a term decreases (`S.size`):
-from the hypotheses `proj e = some n` that its matches name, by the
-`kanon_size` lemmas (the children of `n` are smaller than `e`), and `omega`. -/
-elab "kanon_decreasing" : tactic => withMainContext do
+/-- The facts that the `kanon_size` lemmas give of the hypotheses: the children
+of a node (`proj e = some n`), or the terms of a value (`y ∈ p.flat x`), are
+smaller than it. -/
+elab "kanon_size_facts" : tactic => withMainContext do
   let lemmas := kanonLemmas (← getEnv) `kanon_size
   let mut g ← getMainGoal
   for d in (← getLCtx) do
@@ -906,6 +892,28 @@ elab "kanon_decreasing" : tactic => withMainContext do
         g := g'
       catch _ => s.restore
   replaceMainGoal [g]
+
+/-- Proves the law `size_proj` of the instance of the `Lang` class of a module
+in a language whose `size` is `sizeOf`: the children of a node are smaller
+than its term. -/
+macro "kanon_size_proj" : tactic => `(tactic| (
+  intro e n h
+  cases e <;> cases h
+  all_goals
+    cases n <;> simp only [kanon_size_simp]
+    all_goals (repeat' (first | apply And.intro | intro _ _))
+    all_goals first
+      | trivial
+      | (have := List.sizeOf_lt_of_mem ‹_ ∈ _›; simp <;> omega)
+      | (simp <;> omega)
+      | (kanon_size_facts; simp <;> omega)))
+
+open Lean Meta Elab Tactic in
+/-- Proves that a recursive call of a helper on a term decreases (`S.size`):
+from the hypotheses `proj e = some n` that its matches name, by the
+`kanon_size` lemmas (the children of `n` are smaller than `e`), and `omega`. -/
+elab "kanon_decreasing" : tactic => withMainContext do
+  evalTactic (← `(tactic| kanon_size_facts))
   evalTactic (← `(tactic| ((try simp only [kanon_size_simp] at *); omega)))
 
 end Kanon.Proof

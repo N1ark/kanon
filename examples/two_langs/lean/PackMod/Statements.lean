@@ -16,7 +16,7 @@ open Classical Kanon
 
 namespace Lib
 
-variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] {O : Ops S}
+variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] {O : Ops S}
 
 theorem lift_bool_and_ (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
@@ -66,20 +66,20 @@ theorem lift_pack_some_ (hO : O.Sound) {names : (List (String × S.Ty))} {body b
 end Lib
 
 def Pack.some_.r_empty.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] (O : Ops S), O.Sound →
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] (O : Ops S), O.Sound →
   ∀ (names : (List (String × S.Ty))) (body : S.Term),
-  (PackMod.Pack.no_names names) = true →
+  (PackMod.Pack.no_names (PackMod.used_names names body)) = true →
   S.Refines (PackMod.Pack.some_.spec names body)
   (body)
 
 def Pack.some_.r_default.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] (O : Ops S), O.Sound →
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] (O : Ops S), O.Sound →
   ∀ (names : (List (String × S.Ty))) (body : S.Term),
   S.Refines (PackMod.Pack.some_.spec names body)
-  ((PackMod.mk (.Some_ names body) (KanonBool.sort .TBool)))
+  ((PackMod.mk (.Some_ (PackMod.used_names names body) body) (KanonBool.sort .TBool)))
 
 def Bool.sure_neq.c1.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S], ∀ (O : Ops S), O.Sound → ∀ (a : S.Term) (b : S.Term) (r : Bool), Bool.sure_neq.c1 O a b = some r →
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S], ∀ (O : Ops S), O.Sound → ∀ (a : S.Term) (b : S.Term) (r : Bool), Bool.sure_neq.c1 O a b = some r →
   KanonBool.Bool.sure_neq.post a b r
 
 end PackMod

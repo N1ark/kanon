@@ -184,6 +184,9 @@ type lang = {
       (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
           of its module, [P : Node T -> Prop], that they satisfy, as part of
           their typing, by constructor *)
+  lean_laws : string list;
+      (** [[@@@lean_laws]], in the declarations of a module: its proofs assume
+          the class [Laws] of its [Prims.lean], which each language gives *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -221,6 +224,7 @@ let lang =
       ty_only = [ "type_of" ];
       lean_roots = [];
       lean_invs = [];
+      lean_laws = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;

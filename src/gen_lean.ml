@@ -528,6 +528,28 @@ let term_ty = ref "S.Term"
 
 let sort_ty = ref "S.Ty"
 
+(** Whether the values of [t] hold terms. *)
+let has_term t = mentions TTerm t
+
+(** The parameters of the data type [d] in Lean: [Ty] if it holds sorts, and [T]
+    if it holds terms, of a language. *)
+let decl_params (d : decl) =
+  if generated_decl d then []
+  else
+    (if mentions TSty (TData d.d_name) then [ "Ty" ] else [])
+    @ if has_term (TData d.d_name) then [ "T" ] else []
+
+(** [k ()], with the terms printed as [t] (and the sorts as [ty]). *)
+let with_tys ?ty t k =
+  let saved = (!term_ty, !sort_ty) in
+  term_ty := t;
+  Option.iter (fun ty -> sort_ty := ty) ty;
+  Fun.protect
+    ~finally:(fun () ->
+      term_ty := fst saved;
+      sort_ty := snd saved)
+    k
+
 let rec lean_ty ft = function
   | TInt -> pf ft "Int"
   | TBool -> pf ft "Bool"
@@ -535,7 +557,14 @@ let rec lean_ty ft = function
   | TTerm -> pf ft "%s" !term_ty
   | TSty -> pf ft "%s" !sort_ty
   | TKind -> unsupported Location.none "the type of kinds"
-  | TData _ as t -> pf ft "%s" (qual_lean_name (decl_of_ty t))
+  | TData _ as t -> (
+      let d = decl_of_ty t in
+      match decl_params d with
+      | [] -> pf ft "%s" (qual_lean_name d)
+      | ps ->
+          pf ft "(%s %s)" (qual_lean_name d)
+            (String.concat " "
+               (List.map (fun x -> if x = "T" then !term_ty else !sort_ty) ps)))
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
   | TOption t -> pf ft "(Option %a)" lean_ty t
   | TList t -> pf ft "(List %a)" lean_ty t
@@ -1589,8 +1618,18 @@ let module_files : (string * string list) list ref = ref []
 
 let module_sources m = Option.value ~default:[] (List.assoc_opt m !module_files)
 
+(** Whether the proofs of [m] assume the class [Laws] of its [Prims.lean]
+    ([[@@@lean_laws]]). *)
+let has_laws m = List.mem m !lang.lean_laws
+
+(** The modules among [m] and those it uses that have laws. *)
+let laws_mods m = List.filter has_laws (closure m)
+
+let laws_binders m =
+  List.map (fun d -> Printf.sprintf "[%s.Laws S]" (module_root d)) (laws_mods m)
+
 (** The binders of the statements over the languages that have the module [m]:
-    [{S : Kanon.Sem} [D.Lang S] … [M.Lang S]]. *)
+    [{S : Kanon.Sem} [D.Lang S] … [M.Lang S]], then their [Typed] and [Laws]. *)
 let lang_binders m =
   String.concat " "
     (("{S : Kanon.Sem}"
@@ -1599,16 +1638,18 @@ let lang_binders m =
           (lang_mods m))
     @ List.map
         (fun d -> Printf.sprintf "[%s.Typed S]" (module_root d))
-        (List.filter has_sorts (lang_mods m)))
+        (List.filter has_sorts (lang_mods m))
+    @ laws_binders m)
 
-(** The line that declares [lang_binders] as variables. *)
+(** The line that declares the classes [Lang] and [Laws] as variables. *)
 let variables ft m =
   pf ft "variable %s@ @ "
     (String.concat " "
-       ("{S : Kanon.Sem}"
-       :: List.map
-            (fun d -> Printf.sprintf "[%s.Lang S]" (module_root d))
-            (lang_mods m)))
+       (("{S : Kanon.Sem}"
+        :: List.map
+             (fun d -> Printf.sprintf "[%s.Lang S]" (module_root d))
+             (lang_mods m))
+       @ laws_binders m))
 
 (** [set_option maxHeartbeats n in], before a generated proof of an arm of [f]
     (of a law, for [None]): that of [f] ([[@lean_heartbeats n]]), or else that
@@ -1910,9 +1951,7 @@ let node_names (p : program) (n : gnode) =
   List.mapi
     (fun i t ->
       match t with
-      | TTerm -> Printf.sprintf "a%d" (i + 1)
-      | TList TTerm -> Printf.sprintf "l%d" (i + 1)
-      | t when mentions TTerm t || mentions TKind t ->
+      | t when mentions TKind t ->
           unsupported n.gc.c_loc "the argument %a of the node %s" pp_ty t
             n.gc.c_name
       | _ -> (
@@ -1927,7 +1966,11 @@ let node_names (p : program) (n : gnode) =
                 unsupported n.gc.c_loc "the name %s of an argument of %s" x
                   n.gc.c_name
               else id x
-          | _ -> Printf.sprintf "x%d" (i + 1)))
+          | _ -> (
+              match t with
+              | TTerm -> Printf.sprintf "a%d" (i + 1)
+              | TList TTerm -> Printf.sprintf "l%d" (i + 1)
+              | _ -> Printf.sprintf "x%d" (i + 1))))
     (n.gpayload @ n.goperands)
 
 let node_typing (p : program) (n : gnode) =
@@ -1974,24 +2017,244 @@ let types_imports ms =
       @ if has_hand_types m then [ r ^ ".Abstract" ] else [])
     ms
 
+(* ---------------------------------------------------------------- *)
+(* Terms inside other types *)
+
+(** A part of a value: a term, a value without terms, or a value of a type that
+    holds terms, whose functions are those of the prefix [p] ([p.map f x], the
+    value with its terms mapped by [f]; [p.flat x], its terms, in order). *)
+type part = PTerm | PVal | PNamed of string
+
+(** The two parts of a tuple: its first element and the others. *)
+let pair_parts = function
+  | [ a; b ] -> (a, b)
+  | a :: rest -> (a, TTuple rest)
+  | [] -> invalid_arg "gen_lean: an empty tuple"
+
+(** The cases of the values of [t], a type that holds terms: how each is built
+    from its parts (in Lean, as a pattern and as an expression) and the types of
+    its parts. *)
+let cases_of t : ((string list -> string) * ty list) list =
+  let nth l i = List.nth l i in
+  match t with
+  | TList a ->
+      [
+        ((fun _ -> "[]"), []);
+        ((fun l -> Printf.sprintf "(%s :: %s)" (nth l 0) (nth l 1)), [ a; t ]);
+      ]
+  | TOption a ->
+      [ ((fun _ -> "none"), []); ((fun l -> "(some " ^ nth l 0 ^ ")"), [ a ]) ]
+  | TArray a -> [ ((fun l -> "⟨" ^ nth l 0 ^ "⟩"), [ TList a ]) ]
+  | TTuple l ->
+      let a, b = pair_parts l in
+      [ ((fun l -> Printf.sprintf "(%s, %s)" (nth l 0) (nth l 1)), [ a; b ]) ]
+  | TData _ -> (
+      let d = decl_of_ty t in
+      match d.d_fields with
+      | [] ->
+          List.map
+            (fun (c : constr) ->
+              ((fun l -> ctor_app c.c_name l), List.map arg_ty c.c_args))
+            (constrs_of d)
+      | fs -> [ ((fun l -> "⟨" ^ String.concat ", " l ^ "⟩"), List.map snd fs) ]
+      )
+  | _ -> invalid_arg "gen_lean: cases_of"
+
+(** The functions of the types that hold terms inside the arguments of the nodes
+    of a module (or the fields of a data type): each has a name, with the prefix
+    of the registry and a number, in the order they are needed. *)
+type registry = { prefix : string; mutable shapes : (ty * string) list }
+
+let rec part_of reg t =
+  if not (has_term t) then PVal
+  else
+    match t with
+    | TTerm -> PTerm
+    | TData _ -> PNamed (qual_lean_name (decl_of_ty t))
+    | _ -> PNamed (shape_name reg t)
+
+(** The name of the functions of [t] in [reg], registered after those of its
+    parts. *)
+and shape_name reg t =
+  match List.assoc_opt t reg.shapes with
+  | Some n -> n
+  | None ->
+      List.iter
+        (fun (_, ts) ->
+          List.iter (fun p -> if p <> t then ignore (part_of reg p)) ts)
+        (cases_of t);
+      let n = Printf.sprintf "%s%d" reg.prefix (List.length reg.shapes + 1) in
+      reg.shapes <- reg.shapes @ [ (t, n) ];
+      n
+
+(** The parts of a case of [t], named [n] in [reg]. *)
+let case_parts reg t n ts =
+  List.map (fun p -> if p = t then PNamed n else part_of reg p) ts
+
+let case_vars ts = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) ts
+
+(** The definitions of the functions of [t], named [n]: [n.map], [n.flat], the
+    lemmas that the tactics use ([n.map_map], [n.flat_map]) and the bound of the
+    sizes of its terms ([n.size_mem], for the recursions on terms). *)
+let shape_defs ft reg (t, n) =
+  let tyv = if mentions TSty t then "Ty " else "" in
+  let sz = if mentions TSty t then "[SizeOf Ty] " else "" in
+  let at tv = with_tys ~ty:"Ty" tv (fun () -> ty_str t) in
+  let cases =
+    List.map
+      (fun (mk, ts) -> (mk, case_vars ts, case_parts reg t n ts))
+      (cases_of t)
+  in
+  let ih name f xs ps =
+    String.concat ""
+      (List.map2
+         (fun x p ->
+           if p = PNamed n then Printf.sprintf "have := %s.%s %s; " n name (f x)
+           else "")
+         xs ps)
+  in
+  pf ft "/-- The terms of a value of `%a`. -/@ " pp_ty t;
+  pf ft "@[<v 2>def _root_.%s.map {%sT U : Type} (f : T → U) : %s → %s" n tyv
+    (at "T") (at "U");
+  List.iter
+    (fun (mk, xs, ps) ->
+      pf ft "@ | %s => %s" (mk xs)
+        (mk
+           (List.map2
+              (fun x p ->
+                match p with
+                | PTerm -> "(f " ^ x ^ ")"
+                | PVal -> x
+                | PNamed q -> Printf.sprintf "(%s.map f %s)" q x)
+              xs ps)))
+    cases;
+  pf ft "@]@ @ ";
+  pf ft "@[<v 2>def _root_.%s.flat {%sT : Type} : %s → List T" n tyv (at "T");
+  List.iter
+    (fun (mk, xs, ps) ->
+      let l =
+        List.concat
+          (List.map2
+             (fun x p ->
+               match p with
+               | PTerm -> [ "[" ^ x ^ "]" ]
+               | PVal -> []
+               | PNamed q -> [ Printf.sprintf "%s.flat %s" q x ])
+             xs ps)
+      in
+      pf ft "@ | %s => %s" (mk xs)
+        (if l = [] then "[]" else String.concat " ++ " l))
+    cases;
+  pf ft "@]@ @ ";
+  pf ft
+    "@[<v 2>@@[simp] theorem _root_.%s.map_map {%sT U V : Type} (f : T → U) (g \
+     : U → V) :@ ∀ x : %s, %s.map g (%s.map f x) = %s.map (fun a => g (f a)) x"
+    n tyv (at "T") n n n;
+  List.iter
+    (fun (mk, xs, ps) ->
+      pf ft "@ | %s => by %ssimp [%s.map, *]" (mk xs)
+        (ih "map_map" (fun x -> "f g " ^ x) xs ps)
+        n)
+    cases;
+  pf ft "@]@ @ ";
+  pf ft
+    "@[<v 2>@@[simp] theorem _root_.%s.flat_map {%sT U : Type} (f : T → U) :@ \
+     ∀ x : %s, %s.flat (%s.map f x) = (%s.flat x).map f"
+    n tyv (at "T") n n n;
+  List.iter
+    (fun (mk, xs, ps) ->
+      pf ft "@ | %s => by %ssimp [%s.map, %s.flat, *]" (mk xs)
+        (ih "flat_map" (fun x -> "f " ^ x) xs ps)
+        n n)
+    cases;
+  pf ft "@]@ @ ";
+  pf ft
+    "@[<v 2>theorem _root_.%s.sizeOf_flat {%sT : Type} %s[SizeOf T] :@ ∀ (x : \
+     %s) (y : T), y ∈ %s.flat x → sizeOf y < sizeOf x"
+    n tyv sz (at "T") n;
+  List.iter
+    (fun (mk, xs, ps) ->
+      let terms = List.filter (fun (_, p) -> p <> PVal) (List.combine xs ps) in
+      let close = "first | omega | (simp <;> omega)" in
+      let part h (x, p) =
+        match p with
+        | PTerm -> Printf.sprintf "(subst %s; %s)" h close
+        | PNamed q ->
+            Printf.sprintf "(have := %s.sizeOf_flat %s y %s; %s)" q x h close
+        | PVal -> assert false
+      in
+      pf ft "@ | %s, y, hy => by" (mk xs);
+      if terms = [] then pf ft "@   simp [%s.flat] at hy" n
+      else
+        pf ft
+          "@   simp only [%s.flat, List.mem_append, List.mem_singleton] at hy" n;
+      match terms with
+      | [] -> ()
+      | [ p ] -> pf ft "@   %s" (part "hy" p)
+      | _ ->
+          let hs = List.mapi (fun i _ -> Printf.sprintf "h%d" (i + 1)) terms in
+          pf ft "@   rcases hy with %s" (String.concat " | " hs);
+          List.iter2 (fun h p -> pf ft "@   · %s" (part h p)) hs terms)
+    cases;
+  pf ft "@]@ @ ";
+  pf ft
+    "/-- The terms of a value are smaller than it. -/@ @@[kanon_size] theorem \
+     _root_.%s.size_mem {%sT : Type} %s[SizeOf T] {x : %s} {y : T} (h : y ∈ \
+     %s.flat x) :@   sizeOf y < sizeOf x :=@   %s.sizeOf_flat x y h@ @ "
+    n tyv sz (at "T") n n
+
+(** The registry of the types that hold terms inside the arguments of the nodes
+    of [m]: [R.Node.shape1], …. *)
+let node_registry m =
+  let reg = { prefix = module_root m ^ ".Node.shape"; shapes = [] } in
+  List.iter
+    (fun n ->
+      List.iter
+        (fun t ->
+          if has_term t && t <> TTerm && t <> TList TTerm then
+            ignore (part_of reg t))
+        n.gpayload)
+    (module_nodes m);
+  reg
+
+(** The registry of the types that hold terms inside the fields of the data type
+    [d]: [R.D.shape1], …. *)
+let decl_registry (d : decl) =
+  let reg = { prefix = qual_lean_name d ^ ".shape"; shapes = [] } in
+  List.iter
+    (fun (_, ts) -> List.iter (fun t -> ignore (part_of reg t)) ts)
+    (cases_of (TData d.d_name));
+  reg
+
 let lean_decl ft (d : decl) =
   let name = decl_lean_name d in
+  let ps = decl_params d in
+  let binders =
+    String.concat "" (List.map (fun x -> " (" ^ x ^ " : Type)") ps)
+  in
   doc ft d.d_doc;
-  (match d.d_fields with
-  | [] ->
-      pf ft "@[<v 2>inductive %s where" name;
-      List.iter
-        (fun c ->
-          pf ft "@ %a| %s" doc c.c_doc c.c_name;
-          if c.c_args <> [] then
-            pf ft " : %a%s"
-              (list ~sep:"" (fun ft a -> pf ft "%a → " lean_ty (arg_ty a)))
-              c.c_args name)
-        (constrs_of d)
-  | fields ->
-      pf ft "@[<v 2>structure %s where" name;
-      List.iter (fun (f, t) -> pf ft "@ %s : %a" f lean_ty t) fields);
-  pf ft "@]@   deriving DecidableEq, Repr, Inhabited@ @ "
+  with_tys ~ty:"Ty" "T" (fun () ->
+      match d.d_fields with
+      | [] ->
+          pf ft "@[<v 2>inductive %s%s where" name binders;
+          List.iter
+            (fun c ->
+              pf ft "@ %a| %s" doc c.c_doc c.c_name;
+              if c.c_args <> [] then
+                pf ft " : %a%s"
+                  (list ~sep:"" (fun ft a -> pf ft "%a → " lean_ty (arg_ty a)))
+                  c.c_args
+                  (String.concat " " (name :: ps)))
+            (constrs_of d)
+      | fields ->
+          pf ft "@[<v 2>structure %s%s where" name binders;
+          List.iter (fun (f, t) -> pf ft "@ %s : %a" f lean_ty t) fields);
+  pf ft "@]@   deriving DecidableEq, Repr, Inhabited@ @ ";
+  if has_term (TData d.d_name) then
+    let reg = decl_registry d in
+    with_tys ~ty:"Ty" "T" (fun () ->
+        List.iter (shape_defs ft reg) reg.shapes;
+        shape_defs ft reg (TData d.d_name, qual_lean_name d))
 
 (** [Types.lean]: the types that the module [m] declares, but its abstract
     types, which it defines by hand ([Abstract.lean], which may use these). *)
@@ -2000,11 +2263,12 @@ let types_file m =
   List.iter
     (fun (d : decl) ->
       if
-        List.exists uses_term (List.map snd d.d_fields)
-        || List.exists
-             (fun c -> List.exists (fun a -> uses_term (arg_ty a)) c.c_args)
-             (constrs_of d)
-      then unsupported d.d_loc "the type %s, which holds terms" d.d_name;
+        has_term (TData d.d_name)
+        && List.exists
+             (fun (_, ts) -> List.exists (mentions (TData d.d_name)) ts)
+             (cases_of (TData d.d_name))
+      then
+        unsupported d.d_loc "the type %s, which holds terms and itself" d.d_name;
       let hand =
         List.filter
           (fun (d' : decl) -> by_hand d' && decl_module d' = Some m)
@@ -2036,7 +2300,10 @@ let types_file m =
           (list Format.pp_print_string)
           (module_sources m);
         let imports =
-          types_imports (List.filter (( <> ) m) (closure m))
+          (if List.exists (fun d -> has_term (TData d.d_name)) own then
+             [ "KanonCore.ProofAttr" ]
+           else [])
+          @ types_imports (List.filter (( <> ) m) (closure m))
           @ List.filter_map
               (fun d -> if by_hand d then Some (r ^ ".Abstract") else None)
               []
@@ -2048,22 +2315,32 @@ let types_file m =
         pf ft "end %s@]@." r);
   }
 
-(** The argument of a node constructor: a child, a list of children, or a value
-    of its type. *)
+(** The argument of a node constructor: a child, a list of children, a value of
+    a type that holds children, or a value of its type. *)
 let arg_kind = function
   | TTerm -> `Child
   | TList TTerm -> `Children
+  | t when has_term t -> `Nested t
   | t -> `Value t
+
+(** The prefix of the functions of the type [t] (which holds terms) of an
+    argument of a node of [m]. *)
+let nested_name m t =
+  match part_of (node_registry m) t with
+  | PNamed q -> q
+  | _ -> invalid_arg "gen_lean: nested_name"
 
 (** [Node.lean]: the sorts and the nodes of [m]. *)
 let node_file (p : program) m =
   let r = module_root m in
   let nodes = module_nodes m and sorts = module_sorts m in
+  let reg = node_registry m in
   lean_file ~sources:(module_sources m) r [ "Node" ]
-    ("KanonCore.Embed" :: types_imports (closure m))
+    (("KanonCore.Embed"
+     :: (if reg.shapes <> [] then [ "KanonCore.ProofAttr" ] else []))
+    @ types_imports (closure m))
   @@ fun ft ->
-  sort_ty := "Ty";
-  Fun.protect ~finally:(fun () -> sort_ty := "S.Ty") @@ fun () ->
+  with_tys ~ty:"Ty" "T" @@ fun () ->
   if sorts <> [] then (
     pf ft "/-- The sorts of the module. -/@ @[<v 2>inductive %s where"
       (if srt_takes_ty m then "Srt (Ty : Type)" else "Srt");
@@ -2083,7 +2360,7 @@ let node_file (p : program) m =
           match arg_kind t with
           | `Child -> (x, "T")
           | `Children -> (x, "(List T)")
-          | `Value t -> (x, ty_str t))
+          | `Value t | `Nested t -> (x, ty_str t))
         (node_names p n) (n.gpayload @ n.goperands)
     in
     let ty = node_takes_ty m in
@@ -2097,8 +2374,11 @@ let node_file (p : program) m =
           (String.concat ""
              (List.map (fun (x, t) -> Printf.sprintf " (%s : %s)" x t) (args n))))
       nodes;
-    pf ft "@]@ @ namespace Node@ @ variable {%sT U : Type}@ @ "
+    pf ft "@]@ @ ";
+    List.iter (shape_defs ft reg) reg.shapes;
+    pf ft "namespace Node@ @ variable {%sT U : Type}@ @ "
       (if ty then "Ty " else "");
+    let nested t = nested_name m t in
     let nd t = node_t ~qual:false m "Ty" t in
     let pat n xs = ctor_app n.gc.c_name xs in
     let names n = node_names p n in
@@ -2115,6 +2395,7 @@ let node_file (p : program) m =
                   match k with
                   | `Child -> "(f " ^ x ^ ")"
                   | `Children -> "(" ^ x ^ ".map f)"
+                  | `Nested t -> Printf.sprintf "(%s.map f %s)" (nested t) x
                   | `Value _ -> x)
                 xs (kinds n))))
       nodes;
@@ -2131,6 +2412,8 @@ let node_file (p : program) m =
                  match k with
                  | `Child -> [ "P " ^ x ]
                  | `Children -> [ "(∀ y ∈ " ^ x ^ ", P y)" ]
+                 | `Nested t ->
+                     [ Printf.sprintf "(∀ y ∈ %s.flat %s, P y)" (nested t) x ]
                  | `Value _ -> [])
                xs (kinds n))
         in
@@ -2153,6 +2436,15 @@ let node_file (p : program) m =
                  match k with
                  | `Child -> [ Printf.sprintf "R %s %s" x y ]
                  | `Children -> [ Printf.sprintf "Kanon.Forall₂ R %s %s" x y ]
+                 | `Nested t ->
+                     let q = nested t in
+                     [
+                       Printf.sprintf
+                         "%s.map (fun _ => ()) %s = %s.map (fun _ => ()) %s" q x
+                         q y;
+                       Printf.sprintf
+                         "Kanon.Forall₂ R (%s.flat %s) (%s.flat %s)" q x q y;
+                     ]
                  | `Value _ -> [ Printf.sprintf "%s = %s" x y ])
                (List.combine xs ys) (kinds n))
         in
@@ -2928,7 +3220,7 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
         (String.concat ""
            (List.map
               (fun _ -> " _")
-              (lang_mods m @ List.filter has_sorts (lang_mods m))))
+              (lang_mods m @ List.filter has_sorts (lang_mods m) @ laws_mods m)))
         (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
         a.a_binders hg;
       (* each swapped node of [a] refines that of [b], inner ones first: by
@@ -3132,9 +3424,51 @@ let semantics_file ~sources (p : program) ms =
   lean_file ~sources r [ "Semantics" ]
     ((r ^ ".Val") :: List.map (fun m -> module_root m ^ ".Lang") langs)
   @@ fun ft ->
+  with_tys ~ty:"Ty" "Term" @@ fun () ->
   let all m = "all" ^ m and evm m = "ev" ^ m in
   let children n =
     List.combine (node_names p n) (List.map arg_kind (n.gpayload @ n.goperands))
+  in
+  (* the types that hold terms inside the arguments of the nodes, inner ones
+     first, with the registry of the names of their parts *)
+  let shapes =
+    let out = ref [] in
+    let rec visit reg t =
+      match part_of reg t with
+      | PNamed q when not (List.mem_assoc q !out) ->
+          let reg' =
+            match t with TData _ -> decl_registry (decl_of_ty t) | _ -> reg
+          in
+          List.iter
+            (fun (_, ts) ->
+              List.iter (fun t' -> if t' <> t then visit reg' t') ts)
+            (cases_of t);
+          if not (List.mem_assoc q !out) then out := !out @ [ (q, (t, reg')) ]
+      | _ -> ()
+    in
+    List.iter
+      (fun m ->
+        let reg = node_registry m in
+        List.iter
+          (fun n ->
+            List.iter
+              (fun t ->
+                match arg_kind t with `Nested _ -> visit reg t | _ -> ())
+              n.gpayload)
+          (module_nodes m))
+      noded;
+    !out
+  in
+  let aux k q = k ^ "_" ^ String.map (fun c -> if c = '.' then '_' else c) q in
+  let lem k q = aux k q ^ if k = "all" then "_iff" else "_eq" in
+  let shape_cases (q, (t, reg)) =
+    List.map
+      (fun (mk, ts) -> (mk, case_vars ts, case_parts reg t q ts))
+      (cases_of t)
+  in
+  let shape_ty t = ty_str t in
+  let shape_ty_ev t =
+    with_tys ~ty:"Ty" "(Env → Option Val)" (fun () -> ty_str t)
   in
   (* typing *)
   pf ft
@@ -3161,6 +3495,7 @@ let semantics_file ~sources (p : program) ms =
                 match k with
                 | `Child -> Some (x ^ ".WT")
                 | `Children -> Some ("allList " ^ x)
+                | `Nested t -> Some (aux "all" (nested_name m t) ^ " " ^ x)
                 | `Value _ -> None)
               ch
           in
@@ -3174,6 +3509,26 @@ let semantics_file ~sources (p : program) ms =
     pf ft
       "@[<v 2>def allList : List Term → Prop@ | [] => True@ | x :: xs => x.WT \
        ∧ allList xs@]@ @ ";
+  List.iter
+    (fun ((q, (t, _)) as sh) ->
+      pf ft "@[<v 2>def %s : %s → Prop" (aux "all" q) (shape_ty t);
+      List.iter
+        (fun (mk, xs, ps) ->
+          let conj =
+            List.concat
+              (List.map2
+                 (fun x p ->
+                   match p with
+                   | PTerm -> [ x ^ ".WT" ]
+                   | PVal -> []
+                   | PNamed q' -> [ aux "all" q' ^ " " ^ x ])
+                 xs ps)
+          in
+          pf ft "@ | %s => %s" (mk xs)
+            (if conj = [] then "True" else String.concat " ∧ " conj))
+        (shape_cases sh);
+      pf ft "@]@ @ ")
+    shapes;
   pf ft "end@ @ ";
   (* evaluation *)
   pf ft
@@ -3200,6 +3555,8 @@ let semantics_file ~sources (p : program) ms =
                     match k with
                     | `Child -> "(fun ρ => ev ρ " ^ x ^ ")"
                     | `Children -> "(evList " ^ x ^ ")"
+                    | `Nested t ->
+                        "(" ^ aux "ev" (nested_name m t) ^ " " ^ x ^ ")"
                     | `Value _ -> x)
                   ch)))
         (module_nodes m);
@@ -3209,7 +3566,69 @@ let semantics_file ~sources (p : program) ms =
     pf ft
       "@[<v 2>def evList : List Term → List (Env → Option Val)@ | [] => []@ | \
        x :: xs => (fun ρ => ev ρ x) :: evList xs@]@ @ ";
+  List.iter
+    (fun ((q, (t, _)) as sh) ->
+      pf ft "@[<v 2>def %s : %s → %s" (aux "ev" q) (shape_ty t) (shape_ty_ev t);
+      List.iter
+        (fun (mk, xs, ps) ->
+          pf ft "@ | %s => %s" (mk xs)
+            (mk
+               (List.map2
+                  (fun x p ->
+                    match p with
+                    | PTerm -> "(fun ρ => ev ρ " ^ x ^ ")"
+                    | PVal -> x
+                    | PNamed q' -> "(" ^ aux "ev" q' ^ " " ^ x ^ ")")
+                  xs ps)))
+        (shape_cases sh);
+      pf ft "@]@ @ ")
+    shapes;
   pf ft "end@ @ ";
+  (* their lemmas *)
+  List.iter
+    (fun ((q, (t, _)) as sh) ->
+      let ih name xs ps =
+        String.concat ""
+          (List.map2
+             (fun x p ->
+               if p = PNamed q then
+                 Printf.sprintf "have := %s %s; " (lem name q) x
+               else "")
+             xs ps)
+      in
+      let before =
+        let rec go = function
+          | [] -> []
+          | (q', _) :: _ when q' = q -> []
+          | (q', _) :: rest -> q' :: go rest
+        in
+        go shapes
+      in
+      let lemmas name =
+        String.concat "" (List.map (fun q' -> ", " ^ lem name q') before)
+      in
+      pf ft "@[<v 2>theorem %s : ∀ x : %s, %s x ↔ ∀ y ∈ %s.flat x, Term.WT y"
+        (lem "all" q) (shape_ty t) (aux "all" q) q;
+      List.iter
+        (fun (mk, xs, ps) ->
+          pf ft "@ | %s => by %ssimp [%s, %s.flat%s, *]" (mk xs)
+            (ih "all" xs ps) (aux "all" q) q (lemmas "all"))
+        (shape_cases sh);
+      pf ft "@]@ @ ";
+      pf ft "@[<v 2>theorem %s : ∀ x : %s, %s x = %s.map (fun c ρ => ev ρ c) x"
+        (lem "ev" q) (shape_ty t) (aux "ev" q) q;
+      List.iter
+        (fun (mk, xs, ps) ->
+          pf ft "@ | %s => by %ssimp [%s, %s.map%s, *]" (mk xs) (ih "ev" xs ps)
+            (aux "ev" q) q (lemmas "ev"))
+        (shape_cases sh);
+      pf ft "@]@ @ ")
+    shapes;
+  let all_lems =
+    String.concat "" (List.map (fun (q, _) -> ", " ^ lem "all" q) shapes)
+  and ev_lems =
+    String.concat "" (List.map (fun (q, _) -> ", " ^ lem "ev" q) shapes)
+  in
   if lists then (
     pf ft
       "theorem allList_iff : ∀ l, allList l ↔ ∀ x ∈ l, Term.WT x@   | [] => by \
@@ -3222,14 +3641,16 @@ let semantics_file ~sources (p : program) ms =
       let rm = module_root m in
       pf ft
         "theorem %s_iff (n : %s) : %s n ↔ n.All Term.WT := by@   cases n <;> \
-         simp [%s, %s.Node.All%s]@ @ "
+         simp [%s, %s.Node.All%s%s]@ @ "
         (all m) (node_t m "Ty" "Term") (all m) (all m) rm
-        (if lists then ", allList_iff" else "");
+        (if lists then ", allList_iff" else "")
+        all_lems;
       pf ft
         "theorem %s_eq (n : %s) : %s n = n.map (fun c ρ => ev ρ c) := by@   \
-         cases n <;> simp only [%s, %s.Node.map%s]@ @ "
+         cases n <;> simp only [%s, %s.Node.map%s%s]@ @ "
         (evm m) (node_t m "Ty" "Term") (evm m) (evm m) rm
-        (if lists then ", evList_eq" else ""))
+        (if lists then ", evList_eq" else "")
+        ev_lems)
     noded;
   List.iter
     (fun m ->

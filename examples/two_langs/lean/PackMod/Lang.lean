@@ -19,6 +19,9 @@ open Classical Kanon
 of the sorts of the modules), given the types of their children (`ty`). -/
 def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sPack : (PackMod.Srt Ty) → Ty) (ty : T → Ty) : (Node Ty) T → Ty → Prop
   | (.Pack l1), t => pack_wt sBool sPack ty (.Pack l1) t
+  | (.Arr x1), t => pack_wt sBool sPack ty (.Arr x1) t
+  | (.Opt x1), t => pack_wt sBool sPack ty (.Opt x1) t
+  | (.Two x1), t => pack_wt sBool sPack ty (.Two x1) t
   | (.Some_ x1 a2), t => (t = (sBool .TBool)) ∧ some_wt sBool sPack ty (.Some_ x1 a2) t
 
 /-- What the module needs of a language `S`: its nodes and sorts embedded in the terms and types

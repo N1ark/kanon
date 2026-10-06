@@ -2,6 +2,7 @@
 import L5.Lang
 import L5.Sem
 import PackMod.Model
+import PackMod.Types
 import KanonCore.Model
 import KanonCore.Attr
 import KanonCore.Embed
@@ -21,7 +22,7 @@ open Classical Kanon
 language. -/
 structure Ops (S : Kanon.Sem) extends toPackOps : PackMod.Ops S
 
-variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [L5.Lang S]
+variable {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [L5.Lang S] [PackMod.Laws S]
 
 /-- What the proofs assume of the model: its rule functions refine their specs, its oracles
 and extensible helpers do what they are assumed to do. -/

@@ -295,8 +295,10 @@
     <code>CfgMod.Rounding</code>). Its abstract types are defined by hand, in its
     <code>Abstract.lean</code>, which may use those of <code>Types.lean</code> (but those that
     <code>{`[@lean]{:kanon}`}</code> names, which are existing Lean types,
-    <code>{`type label [@lean "String"]{:kanon}`}</code>). A type cannot hold terms, nor use an
-    abstract type of its module. The modules that use these types import them, so that their nodes
+    <code>{`type label [@lean "String"]{:kanon}`}</code>). A type that holds terms (or sorts) is
+    over those of a language (<code>{`structure Two (T : Type){:lean}`}</code>), with the functions
+    that map its terms and list them (<code>Two.map</code>, <code>Two.flat</code>); it cannot hold
+    itself, nor use an abstract type of its module. The modules that use these types import them, so that their nodes
     take them as arguments (<code>{`WAdd (x1 : CfgMod.Flags) (n : Int) (a3 a4 : T){:lean}`}</code>),
     and their rules build and match them. In <code>examples/two_langs</code>, the cfg module
     declares data types only, which the nodes of the word module take.
@@ -346,6 +348,28 @@
     some environment that gives its names values makes its body true
     (<code>examples/two_langs/lean/PackMod/Sem.lean</code>), and the language
     <code>L5</code> proves the typing of its terms in every environment.
+  </p>
+  <p>
+    The children of a node may be inside other types: an array, an option, a tuple, or a record
+    or variant of the module (<code>{`node Opt of (int * t) option{:kanon}`}</code>). For each such
+    type, <code>Node.lean</code> defines the functions that map its terms and list them
+    (<code>Node.shape1.map</code>, <code>Node.shape1.flat</code>, with their lemmas), by which
+    <code>Node.All</code> and <code>Node.Rel</code> see these children: two nodes are related when
+    the values have the same shape and their lists of children are related. The packs of the pack
+    module hold their terms in a list, an array, an option of a pair and a record.
+  </p>
+
+  <Heading level={3} id="laws">What a module needs a language to prove</Heading>
+  <p>
+    Some primitives read the terms of a language: the names that occur free in a term, which a
+    rule that drops the unused names of a quantifier needs. A module marked
+    <code>{`[@@@lean_laws]{:kanon}`}</code> declares, in its <code>Prims.lean</code>, the class
+    <code>{`Laws (S : Kanon.Sem) [Lang S] …{:lean}`}</code> of what it needs of every language:
+    these primitives, and the facts that its proofs use. Its statements assume it, and each
+    language gives an instance in its <code>Typing.lean</code>, where it defines them on its terms
+    and proves the facts by induction on them. The pack module's <code>used_names</code> keeps the
+    names that occur free in the body of a quantifier; <code>L5</code> proves that the value of a
+    term depends on its free names only, hence that the others do not change the quantifier.
   </p>
 
   <Heading level={2} id="library">What the library gives</Heading>

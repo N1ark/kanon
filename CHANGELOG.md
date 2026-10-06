@@ -29,6 +29,9 @@
 - Lean binders: nodes may evaluate children in other environments.
 - Cases of extensible helpers may call rule functions and helpers.
 - Example `two_langs`: a pack module, with a quantifier.
+- Lean children inside arrays, options, tuples and data types.
+- Lean data types may hold terms: `Two T`.
+- `[@@@lean_laws]`: a module's proofs assume facts each language proves.
 
 ### Changed
 
