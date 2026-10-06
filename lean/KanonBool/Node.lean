@@ -62,6 +62,20 @@ def Rel (R : T → U → Prop) : Node T → Node U → Prop
   | (.Distinct l1), (.Distinct l1') => Kanon.Forall₂ R l1 l1'
   | _, _ => False
 
+/-- The children of the node, in order. -/
+def children : Node T → List T
+  | (.Bool x1) => []
+  | (.Not a1) => [a1]
+  | (.And a1 a2) => [a1] ++ [a2]
+  | (.Or a1 a2) => [a1] ++ [a2]
+  | (.Eq a1 a2) => [a1] ++ [a2]
+  | (.Ite a1 a2 a3) => [a1] ++ [a2] ++ [a3]
+  | (.Distinct l1) => l1
+
+/-- Every child of the node satisfies `P` when all its children do. -/
+theorem all_iff (P : T → Prop) (n : Node T) : n.All P ↔ ∀ c ∈ n.children, P c := by
+  cases n <;> simp [All, children, or_imp, forall_and]
+
 end Node
 
 end KanonBool

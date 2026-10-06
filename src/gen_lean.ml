@@ -2452,7 +2452,33 @@ let node_file (p : program) m =
           (if conj = [] then "True" else String.concat " ∧ " conj))
       nodes;
     if List.length nodes > 1 then pf ft "@ | _, _ => False";
-    pf ft "@]@ @ end Node@ @ ")
+    pf ft "@]@ @ ";
+    pf ft "/-- The children of the node, in order. -/@ ";
+    pf ft "@[<v 2>def children : %s → List T" (nd "T");
+    List.iter
+      (fun n ->
+        let xs = names n in
+        let l =
+          List.concat
+            (List.map2
+               (fun x k ->
+                 match k with
+                 | `Child -> [ "[" ^ x ^ "]" ]
+                 | `Children -> [ x ]
+                 | `Nested t -> [ Printf.sprintf "%s.flat %s" (nested t) x ]
+                 | `Value _ -> [])
+               xs (kinds n))
+        in
+        pf ft "@ | %s => %s" (pat n xs)
+          (if l = [] then "[]" else String.concat " ++ " l))
+      nodes;
+    pf ft "@]@ @ ";
+    pf ft
+      "/-- Every child of the node satisfies `P` when all its children do. -/@ \
+       theorem all_iff (P : T → Prop) (n : %s) : n.All P ↔ ∀ c ∈ n.children, P \
+       c := by@   cases n <;> simp [All, children, or_imp, forall_and]@ @ "
+      (nd "T");
+    pf ft "end Node@ @ ")
 
 (** The modules among [m] and those it uses that have sorts: the embeddings of
     their sorts are the parameters of the typing of the nodes of [m]. *)
@@ -3110,7 +3136,8 @@ let statements_file ctx m =
           pre_names f
       else if List.exists term f.params then
         pf ft
-          "Kanon.Sem.Refines.trans (by simp only [%s]; kanon_congr) (hO.%s \
+          "Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by@   \
+           simp only [%s] at kw ⊢; kanon_lift_ty kw; kanon_congr)@   (hO.%s \
            %s%a)@]@ @ "
           (String.concat ", " ("kanon_spec" :: helpers))
           (fld f.name)

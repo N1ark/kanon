@@ -21,18 +21,24 @@ theorem lift_int_plus (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (DivMod.Int.plus.spec v1 v2) (O.int_plus v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_plus v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.int_plus v1' v2')
 
 theorem lift_int_div (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') (hs_v2 : DivMod.Nonzero v2') :
   S.Refines (DivMod.Int.div.spec v1 v2) (O.int_div v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_div v1' v2' hs_v2)
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.int_div v1' v2' hs_v2)
 
 theorem lift_int_sq1 (hO : O.Sound) {v v' : S.Term}
   (h_v : S.Refines v v') :
   S.Refines (DivMod.Int.sq1.spec v) (O.int_sq1 v') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_sq1 v')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.int_sq1 v')
 
 end Lib
 

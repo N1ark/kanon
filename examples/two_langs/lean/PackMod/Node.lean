@@ -180,6 +180,18 @@ def Rel (R : T → U → Prop) : (Node Ty) T → (Node Ty) U → Prop
   | (.Some_ x1 a2), (.Some_ x1' a2') => x1 = x1' ∧ R a2 a2'
   | _, _ => False
 
+/-- The children of the node, in order. -/
+def children : (Node Ty) T → List T
+  | (.Pack l1) => l1
+  | (.Arr x1) => PackMod.Node.shape2.flat x1
+  | (.Opt x1) => PackMod.Node.shape4.flat x1
+  | (.Two x1) => PackMod.Two.flat x1
+  | (.Some_ x1 a2) => [a2]
+
+/-- Every child of the node satisfies `P` when all its children do. -/
+theorem all_iff (P : T → Prop) (n : (Node Ty) T) : n.All P ↔ ∀ c ∈ n.children, P c := by
+  cases n <;> simp [All, children, or_imp, forall_and]
+
 end Node
 
 end PackMod

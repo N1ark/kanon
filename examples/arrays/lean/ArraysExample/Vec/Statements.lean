@@ -20,20 +20,26 @@ variable {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] 
 theorem lift_vec_len (hO : O.Sound) {v v' : S.Term}
   (h_v : S.Refines v v') :
   S.Refines (ArraysExample.Vec.Vec.len.spec v) (O.vec_len v') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.vec_len v')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.vec_len v')
 
 theorem lift_vec_get (hO : O.Sound) {v v' : S.Term} {i i' : S.Term}
   (h_v : S.Refines v v')
   (h_i : S.Refines i i') :
   S.Refines (ArraysExample.Vec.Vec.get.spec v i) (O.vec_get v' i') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.vec_get v' i')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.vec_get v' i')
 
 theorem lift_vec_set (hO : O.Sound) {v v' : S.Term} {i i' : S.Term} {x x' : S.Term}
   (h_v : S.Refines v v')
   (h_i : S.Refines i i')
   (h_x : S.Refines x x') :
   S.Refines (ArraysExample.Vec.Vec.set.spec v i x) (O.vec_set v' i' x') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.vec_set v' i' x')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.vec_set v' i' x')
 
 end Lib
 

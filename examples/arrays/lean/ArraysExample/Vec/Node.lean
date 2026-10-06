@@ -58,6 +58,18 @@ def Rel (R : T → U → Prop) : Node T → Node U → Prop
   | (.Set a1 a2 a3), (.Set a1' a2' a3') => R a1 a1' ∧ R a2 a2' ∧ R a3 a3'
   | _, _ => False
 
+/-- The children of the node, in order. -/
+def children : Node T → List T
+  | (.Int x1) => []
+  | (.Vec x1) => []
+  | (.Len a1) => [a1]
+  | (.Get a1 a2) => [a1] ++ [a2]
+  | (.Set a1 a2 a3) => [a1] ++ [a2] ++ [a3]
+
+/-- Every child of the node satisfies `P` when all its children do. -/
+theorem all_iff (P : T → Prop) (n : Node T) : n.All P ↔ ∀ c ∈ n.children, P c := by
+  cases n <;> simp [All, children, or_imp, forall_and]
+
 end Node
 
 end ArraysExample.Vec

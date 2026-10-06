@@ -51,6 +51,17 @@ def Rel (R : T → U → Prop) : Node T → Node U → Prop
   | (.Max a1 a2), (.Max a1' a2') => R a1 a1' ∧ R a2 a2'
   | _, _ => False
 
+/-- The children of the node, in order. -/
+def children : Node T → List T
+  | (.Num x1) => []
+  | (.Add a1 a2) => [a1] ++ [a2]
+  | (.Lt a1 a2) => [a1] ++ [a2]
+  | (.Max a1 a2) => [a1] ++ [a2]
+
+/-- Every child of the node satisfies `P` when all its children do. -/
+theorem all_iff (P : T → Prop) (n : Node T) : n.All P ↔ ∀ c ∈ n.children, P c := by
+  cases n <;> simp [All, children, or_imp, forall_and]
+
 end Node
 
 end NumMod

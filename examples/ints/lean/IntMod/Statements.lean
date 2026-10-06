@@ -62,13 +62,17 @@ theorem lift_int_plus (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (IntMod.Int.plus.spec v1 v2) (O.int_plus v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_plus v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.int_plus v1' v2')
 
 theorem lift_int_int_lt (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (IntMod.Int.int_lt.spec v1 v2) (O.int_int_lt v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.int_int_lt v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.int_int_lt v1' v2')
 
 end Lib
 

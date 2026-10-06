@@ -62,24 +62,32 @@ theorem lift_word_add (hO : O.Sound) {f : CfgMod.Flags} {n : Int} {v1 v1' : S.Te
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (WordMod.Word.add.spec f n v1 v2) (O.word_add f n v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.word_add f n v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.word_add f n v1' v2')
 
 theorem lift_word_round (hO : O.Sound) {m : CfgMod.Rounding} {n : Int} {v v' : S.Term}
   (h_v : S.Refines v v') :
   S.Refines (WordMod.Word.round.spec m n v) (O.word_round m n v') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.word_round m n v')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.word_round m n v')
 
 theorem lift_word_choose (hO : O.Sound) {g g' : S.Term} {a a' : S.Term} {b b' : S.Term}
   (h_g : S.Refines g g')
   (h_a : S.Refines a a')
   (h_b : S.Refines b b') :
   S.Refines (WordMod.Word.choose.spec g a b) (O.word_choose g' a' b') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.word_choose g' a' b')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.word_choose g' a' b')
 
 theorem lift_word_double (hO : O.Sound) {n : Int} {v v' : S.Term}
   (h_v : S.Refines v v') :
   S.Refines (WordMod.Word.double.spec n v) (O.word_double n v') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec, WordMod.Word.twice]; kanon_congr) (hO.word_double n v')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec, WordMod.Word.twice] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.word_double n v')
 
 end Lib
 

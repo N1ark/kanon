@@ -40,3 +40,4 @@ relation of two nodes compares their shapes and the lists of their children.
     | (.Arr x1 x2) => (.Arr (CoreMod.Node.shape2.map f x1) (CoreMod.Node.shape4.map f x2))
     | (.Arr x1 x2) => (∀ y ∈ CoreMod.Node.shape2.flat x1, P y) ∧ (∀ y ∈ CoreMod.Node.shape4.flat x2, P y)
     | (.Arr x1 x2), (.Arr x1' x2') => CoreMod.Node.shape2.map (fun _ => ()) x1 = CoreMod.Node.shape2.map (fun _ => ()) x1' ∧ Kanon.Forall₂ R (CoreMod.Node.shape2.flat x1) (CoreMod.Node.shape2.flat x1') ∧ CoreMod.Node.shape4.map (fun _ => ()) x2 = CoreMod.Node.shape4.map (fun _ => ()) x2' ∧ Kanon.Forall₂ R (CoreMod.Node.shape4.flat x2) (CoreMod.Node.shape4.flat x2')
+    | (.Arr x1 x2) => CoreMod.Node.shape2.flat x1 ++ CoreMod.Node.shape4.flat x2

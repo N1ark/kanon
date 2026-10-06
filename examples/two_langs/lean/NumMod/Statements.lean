@@ -62,19 +62,25 @@ theorem lift_num_add (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (NumMod.Num.add.spec v1 v2) (O.num_add v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.num_add v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.num_add v1' v2')
 
 theorem lift_num_less (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (NumMod.Num.less.spec v1 v2) (O.num_less v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.num_less v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.num_less v1' v2')
 
 theorem lift_num_max (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
   (h_v1 : S.Refines v1 v1')
   (h_v2 : S.Refines v2 v2') :
   S.Refines (NumMod.Num.max.spec v1 v2) (O.num_max v1' v2') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.num_max v1' v2')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.num_max v1' v2')
 
 end Lib
 

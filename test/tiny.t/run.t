@@ -449,36 +449,48 @@ The Lean statements and their proofs:
     (h_v1 : S.Refines v1 v1')
     (h_v2 : S.Refines v2 v2') :
     S.Refines (Kanon.Rules.Rules.plus.spec v1 v2) (O.rules_plus v1' v2') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_plus v1' v2')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_plus v1' v2')
   
   theorem lift_rules_times (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
     (h_v1 : S.Refines v1 v1')
     (h_v2 : S.Refines v2 v2') :
     S.Refines (Kanon.Rules.Rules.times.spec v1 v2) (O.rules_times v1' v2') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_times v1' v2')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_times v1' v2')
   
   theorem lift_rules_lt_ (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
     (h_v1 : S.Refines v1 v1')
     (h_v2 : S.Refines v2 v2') :
     S.Refines (Kanon.Rules.Rules.lt_.spec v1 v2) (O.rules_lt_ v1' v2') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_lt_ v1' v2')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_lt_ v1' v2')
   
   theorem lift_rules_not_ (hO : O.Sound) {v v' : S.Term}
     (h_v : S.Refines v v') :
     S.Refines (Kanon.Rules.Rules.not_.spec v) (O.rules_not_ v') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_not_ v')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_not_ v')
   
   theorem lift_rules_and_ (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
     (h_v1 : S.Refines v1 v1')
     (h_v2 : S.Refines v2 v2') :
     S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) (O.rules_and_ v1' v2') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_and_ v1' v2')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_and_ v1' v2')
   
   theorem lift_rules_eq (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
     (h_v1 : S.Refines v1 v1')
     (h_v2 : S.Refines v2 v2') :
     S.Refines (Kanon.Rules.Rules.eq.spec v1 v2) (O.rules_eq v1' v2') :=
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.rules_eq v1' v2')
+    Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+      simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+      (hO.rules_eq v1' v2')
   
   end Lib
   

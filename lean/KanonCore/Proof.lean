@@ -345,6 +345,37 @@ elab "kanon_refines_facts" : tactic => do
     pure g
   replaceMainGoal [g]
 
+open Lean Meta Elab Tactic in
+/-- Proves `∃ x y …, P x y …` by `simp_all`, with witnesses among the local
+variables of the types of `x`, `y`, …, tried in turn. -/
+partial def kanonExists (g : MVarId) : TacticM Bool := g.withContext do
+  let s ← saveState
+  setGoals [g]
+  try
+    evalTactic (← `(tactic| (simp_all; done)))
+    return true
+  catch _ => s.restore
+  let ty ← whnfR (← instantiateMVars (← g.getType))
+  let some (α, _) := ty.app2? ``Exists | return false
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    unless ← isDefEq d.type α do continue
+    let s ← saveState
+    try
+      setGoals [g]
+      evalTactic (← `(tactic| refine ⟨$(mkIdent d.userName), ?_⟩))
+      let [g'] ← getGoals | throwError "kanon_exists"
+      if ← kanonExists g' then return true
+      s.restore
+    catch _ => s.restore
+  return false
+
+open Lean Meta Elab Tactic in
+/-- Proves an existential goal by `simp_all`, with witnesses among the local
+variables (see `kanonExists`). -/
+elab "kanon_exists" : tactic => do
+  unless ← kanonExists (← getMainGoal) do throwError "kanon_exists: no witnesses"
+
 /-- The goals of `Node.rel_refines`, for one node: the children of the
 refined node are well-typed, of the same types, and their values refined. -/
 macro "kanon_rel_refines" : tactic => `(tactic| (
@@ -361,7 +392,8 @@ macro "kanon_rel_refines" : tactic => `(tactic| (
       (try subst_vars)
       (first
         | (simp_all; done)
-        | exact ⟨_, by simp_all, by apply_assumption <;> assumption⟩)
+        | exact ⟨_, by simp_all, by apply_assumption <;> assumption⟩
+        | kanon_exists)
   · simp_all [Kanon.Sem.FLe]))
 
 /-! ## Congruence -/
@@ -431,6 +463,34 @@ elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
         return
       catch _ => s.restore
   throwError "kanon_apply_lemmas: no lemma applies"
+
+open Lean Meta Elab Tactic in
+/-- For each hypothesis `h : S.Refines a a'` whose `a` is well-typed (a
+hypothesis), rewrites `S.ty a'` into `S.ty a` in the goal. -/
+elab "kanon_lift_ty_core" : tactic => withMainContext do
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    let ty ← whnfR (← instantiateMVars d.type)
+    unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do continue
+    let s ← saveState
+    try
+      let w ← mkAppM ``Kanon.Sem.WT #[ty.getArg! 0, ty.getArg! 1]
+      let some hw ← Kanon.Proof.findHyp w | continue
+      let eq ← mkAppM ``And.right #[← mkAppM ``Kanon.Sem.Refines.syn #[d.toExpr, hw]]
+      let g ← getMainGoal
+      let r ← g.rewrite (← g.getType) eq
+      let g' ← g.replaceTargetEq r.eNew r.eqProof
+      replaceMainGoal (g' :: r.mvarIds)
+    catch _ => s.restore
+
+/-- In a goal `S.Refines s s'` under `kw : S.WT s`: rewrites the sorts of the
+refined terms `a'` of `s'` into those of `a`, when `kw` says that `a` is
+well-typed, so that what `s` builds from the sorts of its arguments is the same
+in `s'`. -/
+macro "kanon_lift_ty " kw:ident : tactic => `(tactic| (
+  (try simp only [kanon_wt] at $kw:ident)
+  (try kanon_split)
+  kanon_lift_ty_core))
 
 /-- The side goals of `kanon_congr`, given by the language with `macro_rules`:
 it is tried on each hypothesis of a congruence lemma, before `kanon_congr`

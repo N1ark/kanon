@@ -85,8 +85,8 @@
           Its sorts, <code>Srt</code>, and its nodes, <code>{`Node (T : Type){:lean}`}</code>, over
           the terms <code>T</code> of any language, with the documentation comments of the
           declarations; <code>Node.map</code>, <code>Node.All</code> (every child satisfies a
-          predicate) and <code>Node.Rel</code> (two nodes with the same arguments and related
-          children). Sorts that take sorts are over the sorts of a language,
+          predicate), <code>Node.Rel</code> (two nodes with the same arguments and related
+          children) and <code>Node.children</code> (its children, in order). Sorts that take sorts are over the sorts of a language,
           <code>{`Srt (Ty : Type){:lean}`}</code>, and so are nodes that take sorts,
           <code>{`Node (Ty T : Type){:lean}`}</code> (see <a href="#sorts">Sorts of sorts</a>).
         </td>

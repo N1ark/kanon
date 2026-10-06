@@ -32,6 +32,8 @@
 - Lean children inside arrays, options, tuples and data types.
 - Lean data types may hold terms: `Two T`.
 - `[@@@lean_laws]`: a module's proofs assume facts each language proves.
+- Lean `Node.children` lists the children of a node.
+- Lifting lemmas hold of specs that read their arguments' sorts.
 
 ### Changed
 

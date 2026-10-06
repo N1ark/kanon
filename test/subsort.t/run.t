@@ -176,7 +176,7 @@ are some. The post-condition has a proof that the language gives:
         nonzero_rules_all := fun vs hs_vs => Kanon.Sem.Refines.refl,
   $ kanon lean-statements nonzero.knl | grep "hs_"
     (h_v2 : S.Refines v2 v2') (hs_v2 : Kanon.Nonzero v2') :
-    Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.nonzero_rules_bv_div s v1' v2' hs_v2)
+      (hO.nonzero_rules_bv_div s v1' v2' hs_v2)
   theorem lift_nonzero_rules_all (hO : O.Sound) {vs : (List S.Term)} (hs_vs : (∀ y ∈ vs, Kanon.Nonzero y)) :
     hO.nonzero_rules_all vs hs_vs
 

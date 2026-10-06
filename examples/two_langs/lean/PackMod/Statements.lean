@@ -61,7 +61,9 @@ theorem lift_bool_distinct (hO : O.Sound) {l : (List S.Term)} :
 theorem lift_pack_some_ (hO : O.Sound) {names : (List (String × S.Ty))} {body body' : S.Term}
   (h_body : S.Refines body body') :
   S.Refines (PackMod.Pack.some_.spec names body) (O.pack_some_ names body') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.pack_some_ names body')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.pack_some_ names body')
 
 end Lib
 

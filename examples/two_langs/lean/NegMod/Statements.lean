@@ -79,7 +79,9 @@ theorem lift_num_max (hO : O.Sound) {v1 v1' : S.Term} {v2 v2' : S.Term}
 theorem lift_neg_neg (hO : O.Sound) {v v' : S.Term}
   (h_v : S.Refines v v') :
   S.Refines (NegMod.Neg.neg.spec v) (O.neg_neg v') :=
-  Kanon.Sem.Refines.trans (by simp only [kanon_spec]; kanon_congr) (hO.neg_neg v')
+  Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+    simp only [kanon_spec] at kw ⊢; kanon_lift_ty kw; kanon_congr)
+    (hO.neg_neg v')
 
 end Lib
 
