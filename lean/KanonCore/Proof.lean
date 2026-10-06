@@ -634,6 +634,56 @@ macro "kanon_guards" : tactic => `(tactic| first
   | simp only [kanon_guards, decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true,
       Bool.not_eq_true', decide_eq_false_iff_not] at *)
 
+/-- Splits the matches at the heads of the left-hand sides of the equations
+among the hypotheses. -/
+partial def splitAllMatches : TacticM Unit := do
+  let names ← withMainContext do
+    let mut ns := #[]
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let some (_, lhs, _) := (← instantiateMVars d.type).eq? | continue
+      let lhs := lhs.consumeMData
+      if (← Meta.isMatcherApp lhs) || lhs.isAppOf ``ite || lhs.isAppOf ``dite then
+        ns := ns.push d.userName
+    return ns
+  for n in names do
+    Kanon.Tactic.splitMatches n
+
+elab "kanon_split_all_matches" : tactic => splitAllMatches
+
+/-- Splits the matches and conditionals anywhere in the equations among the
+hypotheses (the guards of an arm, once its helpers are unfolded), repeatedly. -/
+partial def splitHypMatches (fuel : Nat := 16) : TacticM Unit := do
+  if fuel = 0 then return
+  let g ← getMainGoal
+  let h? ← g.withContext do
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let ty ← instantiateMVars d.type
+      unless ty.isEq do continue
+      let hasMatch := (ty.find? fun e => e.isAppOf ``ite || e.isAppOf ``dite ||
+        (match e.getAppFn with
+          | .const n _ => (n.isStr && n.getString!.startsWith "match_")
+          | _ => false)).isSome
+      if hasMatch then return some d.userName
+    return none
+  let some h := h? | return
+  let s ← saveState
+  try
+    evalTactic (← `(tactic| split at $(mkIdent h):ident))
+  catch _ =>
+    s.restore
+    return
+  let gs ← getGoals
+  let mut out := []
+  for g in gs do
+    setGoals [g]
+    splitHypMatches (fuel - 1)
+    out := out ++ (← getGoals)
+  setGoals out
+
+elab "kanon_split_hyps" : tactic => splitHypMatches
+
 /-- Closes the refinements left by `kanon_rule_lift` in a way of the language,
 given with `macro_rules`. -/
 syntax "kanon_rule_close" : tactic
@@ -648,7 +698,15 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
   (try kanon_guards)
   (try kanon_split)
   (try subst_vars)
-  (try simp only [kanon_spec, kanon_body])
+  (try simp only [kanon_body] at *)
+  (try kanon_split_hyps)
+  all_goals (try (simp only [reduceCtorEq, Bool.false_eq_true, Kanon.firstSome_nil',
+    Kanon.firstSome_some, Kanon.firstSome_none, Option.getD_some, Option.getD_none] at *; done))
+  all_goals (try kanon_proj)
+  all_goals (try kanon_guards)
+  all_goals (try kanon_split)
+  all_goals (try subst_vars)
+  all_goals (try simp only [kanon_spec, kanon_body])
   (repeat' split)
   all_goals (try kanon_lift_body)
   all_goals (try simp only [kanon_spec, kanon_body])
@@ -779,24 +837,11 @@ attribute [kanon_val] Kanon.Embed.inj_eq_iff Kanon.Embed.proj_inj List.mapM_cons
 
 attribute [kanon_ev] List.map_cons List.map_nil
 
+attribute [kanon_guards] Kanon.firstSome_nil' Kanon.firstSome_some Kanon.firstSome_none
+  Option.getD_some Option.getD_none
+
 attribute [kanon_close_simp] List.nodup_cons List.nodup_nil List.mem_cons List.not_mem_nil
 
-/-- Splits the matches at the heads of the left-hand sides of the equations
-among the hypotheses. -/
-partial def splitAllMatches : TacticM Unit := do
-  let names ← withMainContext do
-    let mut ns := #[]
-    for d in (← getLCtx) do
-      if d.isImplementationDetail then continue
-      let some (_, lhs, _) := (← instantiateMVars d.type).eq? | continue
-      let lhs := lhs.consumeMData
-      if (← Meta.isMatcherApp lhs) || lhs.isAppOf ``ite || lhs.isAppOf ``dite then
-        ns := ns.push d.userName
-    return ns
-  for n in names do
-    Kanon.Tactic.splitMatches n
-
-elab "kanon_split_all_matches" : tactic => splitAllMatches
 
 /-- Proves what a case of an extensible helper must satisfy (its
 postcondition `f.post`, by hand in the module of the helper): unfolds the case

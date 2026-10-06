@@ -4,6 +4,8 @@ import KanonBool.Sem
 import KanonCore.Proof
 
 set_option linter.unusedVariables false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedSectionVars false
 set_option maxHeartbeats 1000000
 
 noncomputable section
@@ -21,7 +23,7 @@ def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (ty : T → Ty) : Node 
   | (.Or a1 a2), t => (ty a1 = (sBool .TBool) ∧ ty a2 = (sBool .TBool) ∧ t = (sBool .TBool))
   | (.Eq a1 a2), t => (ty a2 = ty a1 ∧ t = (sBool .TBool))
   | (.Ite a1 a2 a3), t => (ty a1 = (sBool .TBool) ∧ ty a3 = ty a2 ∧ t = ty a2)
-  | (.Distinct l1), t => (∃ e, (t = (sBool .TBool)) ∧ ∀ x ∈ l1, ty x = e)
+  | (.Distinct l1), t => (∃ kanon__e, (t = (sBool .TBool)) ∧ ∀ kanon__x ∈ l1, ty kanon__x = kanon__e)
 
 /-- What the module needs of a language `S`: its nodes and sorts embedded in the terms and types
 of `S`, which types and evaluates them as the module says. -/

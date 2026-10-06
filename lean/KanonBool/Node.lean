@@ -2,6 +2,8 @@
 import KanonCore.Embed
 
 set_option linter.unusedVariables false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedSectionVars false
 set_option maxHeartbeats 1000000
 
 noncomputable section

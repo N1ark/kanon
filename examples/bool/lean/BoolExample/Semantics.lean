@@ -5,6 +5,7 @@ import BoolExample.Lang
 
 set_option linter.unusedVariables false
 set_option linter.unusedSimpArgs false
+set_option linter.unusedSectionVars false
 set_option maxHeartbeats 1000000
 
 noncomputable section
@@ -83,6 +84,26 @@ theorem allLang_iff (n : BoolExample.Node Term) : allLang n ↔ n.All Term.WT :=
 theorem evLang_eq (ρ : Env) (n : BoolExample.Node Term) : evLang ρ n = n.map (ev ρ) := by
   cases n <;> simp only [evLang, BoolExample.Node.map, evList_eq]
 
+/-- The typing of a node of `Bool`. -/
+theorem WT_bool (n : KanonBool.Node Term) (t : Ty) :
+  Term.WT (.bool n t) ↔ KanonBool.Node.wt Ty.bool Term.ty n t ∧ n.All Term.WT := by
+  show (_ ∧ allBool n) ↔ _; rw [allBool_iff]
+
+/-- The evaluation of a node of `Bool`. -/
+theorem ev_bool (ρ : Env) (n : KanonBool.Node Term) (t : Ty) :
+  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
+  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq ρ n)
+
+/-- The typing of a node of `Lang`. -/
+theorem WT_lang (n : BoolExample.Node Term) (t : Ty) :
+  Term.WT (.lang n t) ↔ BoolExample.Node.wt Ty.bool Term.ty n t ∧ n.All Term.WT := by
+  show (_ ∧ allLang n) ↔ _; rw [allLang_iff]
+
+/-- The evaluation of a node of `Lang`. -/
+theorem ev_lang (ρ : Env) (n : BoolExample.Node Term) (t : Ty) :
+  ev ρ (.lang n t) = BoolExample.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
+  congrArg (BoolExample.Node.eval (D := dom) ρ t) (evLang_eq ρ n)
+
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where
   toDom := dom
@@ -107,8 +128,8 @@ instance instBoolLang : KanonBool.Lang sem where
     ty_inj := fun _ _ => rfl
     proj_inj := fun _ _ => rfl
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
-  WT_inj n t := by show (_ ∧ allBool n) ↔ _; rw [allBool_iff]; exact Iff.rfl
-  ev_inj ρ n t := congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq ρ n)
+  WT_inj := WT_bool
+  ev_inj := ev_bool
   srt := {
     inj := .bool
     proj := fun s => match s with | .bool s => some s
@@ -123,8 +144,8 @@ instance instLangLang : BoolExample.Lang sem where
     ty_inj := fun _ _ => rfl
     proj_inj := fun _ _ => rfl
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
-  WT_inj n t := by show (_ ∧ allLang n) ↔ _; rw [allLang_iff]; exact Iff.rfl
-  ev_inj ρ n t := congrArg (BoolExample.Node.eval (D := dom) ρ t) (evLang_eq ρ n)
+  WT_inj := WT_lang
+  ev_inj := ev_lang
   proj_Bool_inj_Lang _ _ := rfl
   proj_Lang_inj_Bool _ _ := rfl
 

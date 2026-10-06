@@ -17,16 +17,14 @@ const backends = [
   "ocaml-typed",
   "ocaml-tests",
   "lean-types",
-  "lean-syntax",
-  "lean-signatures",
-  "lean-typing",
+  "lean-node",
+  "lean-lang",
   "lean-model",
   "lean-statements",
-  "lean-lifts",
-  "lean-nodes",
-  "lean-interface",
   "lean-soundness",
-  "lean-modules",
+  "lean-syntax",
+  "lean-semantics",
+  "lean-rules",
 ];
 const { examples } = JSON.parse(readFileSync(join(site, "examples/index.json"), "utf8"));
 

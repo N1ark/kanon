@@ -20,7 +20,7 @@ abbrev Val := Bool
 abbrev Env := Int → Option Bool
 
 /-- The sorts, values and environments of the language. -/
-def dom : Kanon.Dom := { Ty := Ty, Val := Val, Env := Env }
+abbrev dom : Kanon.Dom := { Ty := Ty, Val := Val, Env := Env }
 
 instance : KanonBool.Values dom where
   vbool := { inj := id, proj := some, proj_inj := fun _ => rfl,

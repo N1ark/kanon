@@ -60,6 +60,12 @@ def OLe {α : Type} (a b : Option α) : Prop := ∀ v, a = some v → b = some v
 @[simp] theorem OLe.refl {α : Type} (a : Option α) : OLe a a := fun _ h => h
 @[simp] theorem OLe.none {α : Type} (a : Option α) : OLe none a := fun _ h => by cases h
 
+/-- `a` is poison, or `b` is `a`. -/
+theorem OLe.cases {α : Type} {a b : Option α} (h : OLe a b) : a = .none ∨ b = a := by
+  cases a with
+  | none => exact .inl rfl
+  | some x => exact .inr (h x rfl)
+
 theorem eval_WT {ρ t v} (h : S.eval ρ t = some v) : S.WT t := by
   unfold eval at h; split at h <;> simp_all
 

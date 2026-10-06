@@ -1,7 +1,7 @@
 import KanonCore.Proof
 
 /-! `kanon_lift` leaves the hypothesis `L.P a'` of a lifting lemma, a field of a
-variable `L` (as over the interface of a module). -/
+variable `L`. -/
 
 namespace KanonTest.LiftSide
 

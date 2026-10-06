@@ -12,8 +12,7 @@ rule less : Lt (v1, v2) =
   | pos: #z lt b when z = 0 && is_pos b -> Bool.v_true
   | same: x lt x -> Bool.v_false
 
-(* proved by each language rather than once, over its own terms *)
-rule max : Max (v1, v2) [@lean_closed] =
+rule max : Max (v1, v2) =
   | same: x, x -> x
 
 extend rule Bool.eq before same =

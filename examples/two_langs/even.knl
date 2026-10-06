@@ -4,7 +4,7 @@
    rules that hold of even literals only. It uses the num module, as the neg
    module does: the mix module, which uses both, sits on a diamond. *)
 
-[@@@lean_module "EvenMod"]
+[@@@lean_root "EvenMod"]
 
 (** Even integers. *)
 sort TEven [@lean_inv "even_inv"]

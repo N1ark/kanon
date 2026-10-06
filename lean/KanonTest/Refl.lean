@@ -1,8 +1,7 @@
 import KanonCore.Proof
 
 /-! `kanon_refl` unfolds the heads of the refined terms when they differ:
-definitions (a spec that is a helper of the model), and the helpers of an
-interface, by the laws `f_eq` of their fields. -/
+definitions (a spec that is a helper of the model). -/
 
 namespace KanonTest.Refl
 
@@ -21,13 +20,6 @@ open Kanon
 def twice (x : List Nat) : List Nat := x ++ x
 
 example (x : List Nat) : sem.Refines (twice x) (x ++ x) := by kanon_refl
-
-/-- An interface with a helper `twice` and its law. -/
-structure Syntax where
-  twice : List Nat → List Nat
-  twice_eq : ∀ x, twice x = x ++ x
-
-example (L : Syntax) (x : List Nat) : sem.Refines (L.twice x) (x ++ x) := by kanon_refl
 
 example (x : List Nat) : sem.Refines (twice x) (x ++ [0]) ∨ True := by
   fail_if_success (left; kanon_refl)

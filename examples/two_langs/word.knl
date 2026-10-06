@@ -2,7 +2,7 @@
    module as arguments. It is proved once, in Lean, under WordMod: its helpers
    match a sort, a node inside a node, and data. *)
 
-[@@@lean_module "WordMod"]
+[@@@lean_root "WordMod"]
 
 use builtin "bool"
 use "cfg"

@@ -1,110 +1,94 @@
-import KanonCore.Generic
-import DivMod.Syntax
+import DivMod.Node
+import KanonCore.Embed
+import KanonCore.ProofAttr
 
 /-!
-# What the int module needs of the semantics of a language
+# The meaning of the nodes of the int module
 
-The rules of the int module (`../int.kn`) are proved once (`DivMod`), for every
-language that uses it, over its interface `L : DivMod.Syntax S` (generated, in
-`Syntax.lean`) and what the proofs need of the semantics `S`, `DivMod.Sem L`:
-
-- the integers among its values (`vint`), and how to read them back (`toInt`);
-- the evaluation of its nodes, by the operations below, which the language uses
-  in its own evaluation (so that these laws hold by definition: `kanon_law`);
-- the meaning of the subsort `TNonzero`, whose Lean predicate `Nonzero` is a
-  field of the interface: a term that satisfies it has no value zero.
+The module needs the integers among the values of a language
+(`DivMod.Values`), and evaluates its nodes, given the values of their
+children: poison when an operand is, or is not an integer. The quotient by zero
+is zero, as in Lean.
 -/
+
+noncomputable section
 
 namespace DivMod
 
 open Classical Kanon
 open Kanon.Sem (OLe)
 
+/-- What the module needs of the values of a language: its integers. -/
+class Values (D : Kanon.Dom) where
+  vint : Embed Int D.Val
+
 section
-variable {V : Type} (vint : Int → V) (toInt : V → Option Int)
+variable {V : Type} (vi : Embed Int V)
 
-/-- The sum of two integers; poison otherwise. -/
-def addV (a b : Option V) : Option V :=
-  a.bind fun x => b.bind fun y => (toInt x).bind fun m => (toInt y).map fun n => vint (m + n)
+/-- An operation on one integer; poison otherwise. -/
+def op1 (f : Int → Int) (a : Option V) : Option V :=
+  a.bind fun x => (vi.proj x).map fun m => vi.inj (f m)
 
-/-- The quotient of two integers, which is zero if the divisor is; poison
-otherwise. -/
-def divV (a b : Option V) : Option V :=
-  a.bind fun x => b.bind fun y => (toInt x).bind fun m => (toInt y).map fun n => vint (m / n)
+/-- An operation on two integers; poison otherwise. -/
+def op2 (f : Int → Int → Int) (a b : Option V) : Option V :=
+  a.bind fun x => b.bind fun y => (vi.proj x).bind fun m => (vi.proj y).map fun n => vi.inj (f m n)
 
-/-- The square of an integer, plus one; poison otherwise. -/
-def sq1V (a : Option V) : Option V :=
-  a.bind fun x => (toInt x).map fun m => vint (m * m + 1)
+@[kanon_val] theorem op1_eq_some {f : Int → Int} {a : Option V} {r : V} :
+    op1 vi f a = some r ↔ ∃ m, a = some (vi.inj m) ∧ r = vi.inj (f m) := by
+  constructor
+  · intro h
+    simp only [op1, Option.bind_eq_some_iff, Option.map_eq_some_iff,
+      Embed.proj_eq_some_iff] at h
+    obtain ⟨_, rfl, m, rfl, rfl⟩ := h
+    exact ⟨m, rfl, rfl⟩
+  · rintro ⟨m, rfl, rfl⟩
+    simp [op1]
 
-variable {vint toInt}
+@[kanon_val] theorem op2_eq_some {f : Int → Int → Int} {a b : Option V} {r : V} :
+    op2 vi f a b = some r ↔ ∃ m n, a = some (vi.inj m) ∧ b = some (vi.inj n) ∧ r = vi.inj (f m n) := by
+  constructor
+  · intro h
+    simp only [op2, Option.bind_eq_some_iff, Option.map_eq_some_iff,
+      Embed.proj_eq_some_iff] at h
+    obtain ⟨_, rfl, _, rfl, m, rfl, n, rfl, rfl⟩ := h
+    exact ⟨m, n, rfl, rfl, rfl⟩
+  · rintro ⟨m, n, rfl, rfl, rfl⟩
+    simp [op2]
 
-theorem addV_mono {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
-    OLe (addV vint toInt a b) (addV vint toInt a' b') := by
-  intro v e
-  simp only [addV, Option.bind_eq_some_iff] at e ⊢
-  obtain ⟨x, hx, y, hy, rest⟩ := e
-  exact ⟨x, ha _ hx, y, hb _ hy, rest⟩
+theorem op1_mono {f : Int → Int} {a a' : Option V} (ha : OLe a a') :
+    OLe (op1 vi f a) (op1 vi f a') := by
+  intro r e
+  rw [op1_eq_some] at e ⊢
+  obtain ⟨m, h1, rfl⟩ := e
+  exact ⟨m, ha _ h1, rfl⟩
 
-theorem divV_mono {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
-    OLe (divV vint toInt a b) (divV vint toInt a' b') := by
-  intro v e
-  simp only [divV, Option.bind_eq_some_iff] at e ⊢
-  obtain ⟨x, hx, y, hy, rest⟩ := e
-  exact ⟨x, ha _ hx, y, hb _ hy, rest⟩
-
-theorem sq1V_mono {a a' : Option V} (ha : OLe a a') :
-    OLe (sq1V vint toInt a) (sq1V vint toInt a') := by
-  intro v e
-  simp only [sq1V, Option.bind_eq_some_iff] at e ⊢
-  obtain ⟨x, hx, rest⟩ := e
-  exact ⟨x, ha _ hx, rest⟩
-
-theorem addV_comm (a b : Option V) : addV vint toInt a b = addV vint toInt b a := by
-  cases a <;> cases b <;> simp only [addV, Option.bind_none, Option.bind_some] <;>
-    (try rfl) <;> rename_i x y <;> cases toInt x <;> cases toInt y <;>
-    simp [Int.add_comm]
-
+theorem op2_mono {f : Int → Int → Int} {a a' b b' : Option V} (ha : OLe a a') (hb : OLe b b') :
+    OLe (op2 vi f a b) (op2 vi f a' b') := by
+  intro r e
+  rw [op2_eq_some] at e ⊢
+  obtain ⟨m, n, h1, h2, rfl⟩ := e
+  exact ⟨m, n, ha _ h1, hb _ h2, rfl⟩
 end
 
-/-- What the int module needs of the semantics `S` of a language, for its
-interface `L`. -/
-class Sem {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} (L : Syntax B) where
-  /-- The integer values. -/
-  vint : Int → S.Val
-  /-- The integer of a value, if it is one. -/
-  toInt : S.Val → Option Int
-  toInt_vint : ∀ z, toInt (vint z) = some z := by intros; rfl
-  vint_toInt : ∀ v z, toInt v = some z → v = vint z := by
-    intro v z h; cases v <;> cases h <;> rfl
-  ev_Int : ∀ ρ z t, S.ev ρ (B.node (L.IntK z) t) = some (vint z) := by kanon_law
-  ev_Plus : ∀ ρ a b t, S.ev ρ (B.node (L.PlusK a b) t) =
-    addV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Div : ∀ ρ a b t, S.ev ρ (B.node (L.DivK a b) t) =
-    divV vint toInt (S.ev ρ a) (S.ev ρ b) := by kanon_law
-  ev_Sq1 : ∀ ρ a t, S.ev ρ (B.node (L.Sq1K a) t) = sq1V vint toInt (S.ev ρ a) := by kanon_law
-  /-- The terms of the subsort `TNonzero` have no value zero. -/
-  nonzero : ∀ t, L.Nonzero t → ∀ ρ z, S.eval ρ t = some (vint z) → z ≠ 0 := by
-    intro t h; exact h
+/-- The evaluation of a node, given the values of its children. -/
+def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
+    Node (Option D.Val) → Option D.Val
+  | .Int z => some (Values.vint.inj z)
+  | .Plus a b => op2 Values.vint (· + ·) a b
+  | .Div a b => op2 Values.vint (· / ·) a b
+  | .Sq1 a => op1 Values.vint (fun m => m * m + 1) a
 
-namespace Sem
+theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
+    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+  cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
+  all_goals simp only [Node.eval]
+  · subst h; exact OLe.refl _
+  · exact op2_mono _ h.1 h.2
+  · exact op2_mono _ h.1 h.2
+  · exact op1_mono _ h
 
-variable {S : Kanon.Sem} [DecidableEq S.Term] [DecidableEq S.Ty] {B : Kanon.Base S} {L : Syntax B} [Sem L]
-
-/-- Different integers are different values. -/
-theorem vint_eq_iff {a b : Int} : vint L a = vint L b ↔ a = b :=
-  ⟨fun h => by simpa [toInt_vint] using congrArg (toInt L) h, fun h => h ▸ rfl⟩
-
-/-- The values of a value as an integer. -/
-theorem toInt_cases {u : S.Val} : toInt L u = none ∨ ∃ z, toInt L u = some z ∧ u = vint L z := by
-  rcases h : toInt L u with _ | z
-  · exact .inl rfl
-  · exact .inr ⟨z, rfl, vint_toInt u z h⟩
-
-end Sem
-
-/-- The values of any term. -/
-theorem Sem.ev_opt {S : Kanon.Sem} {ρ : S.Env} {t : S.Term} :
-    S.ev ρ t = none ∨ ∃ v, S.ev ρ t = some v := by
-  cases S.ev ρ t <;> simp
+/-- The values of the sorts of the module: integers. -/
+def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop
+  | .TInt, v => ∃ z, v = Values.vint.inj z
 
 end DivMod

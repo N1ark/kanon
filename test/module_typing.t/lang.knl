@@ -1,4 +1,4 @@
-(* A language whose module proved once has invariants. *)
+(* A language whose module has invariants. *)
 
 [@@@lean_root "Ex"]
 

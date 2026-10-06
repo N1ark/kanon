@@ -77,9 +77,9 @@ whose result is not annotated is not in it:
 Lean does not model the annotation: the function is the same as without it.
 
   $ kanon lean-model lang.knl | grep -A2 "def Bv.wrapping_add"
-  def Bv.wrapping_add (O : Ops) (a : Term) (b : Term) : Term :=
-    (let n := (match (ty a) with | (Ty.TBv n) => n | _ => default);
-    (let n := (match (ty b) with | (Ty.TBv n) => n | _ => default);
+  def Bv.wrapping_add (O : Ops S) (a : S.Term) (b : S.Term) : S.Term :=
+    (let n := ((firstSome [(match (Kanon.Bv.sortProj (S.ty a)) with
+                             | some (.TBv n) =>
   $ kanon lean-statements lang.knl | grep -c "wrapping"
   0
   [1]

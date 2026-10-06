@@ -92,7 +92,7 @@ and its hover shows its first comment; it cannot be renamed.
   {"jsonrpc":"2.0","id":2,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":1,"character":5},"end":{"line":1,"character":8}}}]}
   {"jsonrpc":"2.0","id":3,"result":[{"uri":"file://ROOT/imp.knl","range":{"start":{"line":3,"character":7},"end":{"line":3,"character":14}}}]}
   {"jsonrpc":"2.0","id":4,"result":[{"uri":"file://ROOT/imp.kn","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":9}}}]}
-  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":50,"character":5},"end":{"line":50,"character":9}}}]}
+  {"jsonrpc":"2.0","id":5,"result":[{"uri":"BUILTIN/bool.kn","range":{"start":{"line":49,"character":5},"end":{"line":49,"character":9}}}]}
   {"jsonrpc":"2.0","id":6,"result":{"contents":{"kind":"markdown","value":"```kanon\nrule not_ : Not sv\n```\n\n*bool.kn*"},"range":{"start":{"line":1,"character":21},"end":{"line":1,"character":30}}}}
   {"jsonrpc":"2.0","id":7,"result":null}
   {"jsonrpc":"2.0","id":8,"result":{"contents":{"kind":"markdown","value":"```kanon\nsort TBool\n```\n\n*bool.knl*"},"range":{"start":{"line":1,"character":11},"end":{"line":1,"character":16}}}}

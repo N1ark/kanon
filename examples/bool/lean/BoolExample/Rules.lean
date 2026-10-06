@@ -6,6 +6,7 @@ import BoolExample.Soundness
 
 set_option linter.unusedVariables false
 set_option linter.unusedSimpArgs false
+set_option linter.unusedSectionVars false
 set_option maxHeartbeats 1000000
 
 noncomputable section
@@ -33,11 +34,11 @@ theorem Bool.sure_neq.sound (a : Term) (b : Term) :
   refine Kanon.getD_firstSome_cons (fun r h => KanonBool.Bool.sure_neq.c2.ok (S := sem) a b r h) ?_
   exact Kanon.getD_firstSome_nil (KanonBool.Bool.sure_neq.default.ok (S := sem) a b)
 
-def Bool.and_.step (O : Ops sem) (v1 : Term) (v2 : Term) : Term :=
+def Bool.and_.step (O : BoolExample.Ops sem) (v1 : Term) (v2 : Term) : Term :=
   (firstSome [KanonBool.Bool.and_.r_same (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_false_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_true_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_not (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_and_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_or_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_eq_neq (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.and_.r_default (S := sem) O.toBoolOps v1 v2]).getD
     (KanonBool.Bool.and_.spec (S := sem) v1 v2)
 
-theorem Bool.and_.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
+theorem Bool.and_.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (KanonBool.Bool.and_.spec (S := sem) v1 v2) (Bool.and_.step O v1 v2) := by
   unfold Bool.and_.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.and_.r_same.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
@@ -50,11 +51,11 @@ theorem Bool.and_.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.and_.r_default.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.or_.step (O : Ops sem) (v1 : Term) (v2 : Term) : Term :=
+def Bool.or_.step (O : BoolExample.Ops sem) (v1 : Term) (v2 : Term) : Term :=
   (firstSome [KanonBool.Bool.or_.r_same (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_true_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_false_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_not (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_or_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_and_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.or_.r_default (S := sem) O.toBoolOps v1 v2]).getD
     (KanonBool.Bool.or_.spec (S := sem) v1 v2)
 
-theorem Bool.or_.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
+theorem Bool.or_.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (KanonBool.Bool.or_.spec (S := sem) v1 v2) (Bool.or_.step O v1 v2) := by
   unfold Bool.or_.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.or_.r_same.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
@@ -66,11 +67,11 @@ theorem Bool.or_.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term)
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.or_.r_default.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.not_.step (O : Ops sem) (sv : Term) : Term :=
+def Bool.not_.step (O : BoolExample.Ops sem) (sv : Term) : Term :=
   (firstSome [KanonBool.Bool.not_.r_true_ (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_false_ (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_not (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_or_ (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_and_ (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_ite (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_distinct (S := sem) O.toBoolOps sv, KanonBool.Bool.not_.r_default (S := sem) O.toBoolOps sv]).getD
     (KanonBool.Bool.not_.spec (S := sem) sv)
 
-theorem Bool.not_.step_sound (O : Ops sem) (hO : O.Sound) (sv : Term) :
+theorem Bool.not_.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (sv : Term) :
     Refines (KanonBool.Bool.not_.spec (S := sem) sv) (Bool.not_.step O sv) := by
   unfold Bool.not_.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.not_.r_true_.sound (S := sem) O.toBoolOps hO.toBoolSound sv res h) ?_
@@ -83,11 +84,11 @@ theorem Bool.not_.step_sound (O : Ops sem) (hO : O.Sound) (sv : Term) :
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.not_.r_default.sound (S := sem) O.toBoolOps hO.toBoolSound sv res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.ite.step (O : Ops sem) (guard : Term) (if_ : Term) (else_ : Term) : Term :=
+def Bool.ite.step (O : BoolExample.Ops sem) (guard : Term) (if_ : Term) (else_ : Term) : Term :=
   (firstSome [KanonBool.Bool.ite.r_true_ (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_false_ (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_bool (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_not_bool (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_false_then (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_true_then (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_false_else (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_true_else (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_not_guard (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_guard_then (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_guard_else (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_ite_then (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_ite_else (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_and_ite_then (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_or_ite_else (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_same (S := sem) O.toBoolOps guard if_ else_, KanonBool.Bool.ite.r_default (S := sem) O.toBoolOps guard if_ else_]).getD
     (KanonBool.Bool.ite.spec (S := sem) guard if_ else_)
 
-theorem Bool.ite.step_sound (O : Ops sem) (hO : O.Sound) (guard : Term) (if_ : Term) (else_ : Term) :
+theorem Bool.ite.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (guard : Term) (if_ : Term) (else_ : Term) :
     Refines (KanonBool.Bool.ite.spec (S := sem) guard if_ else_) (Bool.ite.step O guard if_ else_) := by
   unfold Bool.ite.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.ite.r_true_.sound (S := sem) O.toBoolOps hO.toBoolSound guard if_ else_ res h) ?_
@@ -109,11 +110,11 @@ theorem Bool.ite.step_sound (O : Ops sem) (hO : O.Sound) (guard : Term) (if_ : T
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.ite.r_default.sound (S := sem) O.toBoolOps hO.toBoolSound guard if_ else_ res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.eq.step (O : Ops sem) (v1 : Term) (v2 : Term) : Term :=
+def Bool.eq.step (O : BoolExample.Ops sem) (v1 : Term) (v2 : Term) : Term :=
   (firstSome [KanonBool.Bool.eq.r_same (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_bools (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_ite_ite (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_false_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_true_ (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_nots (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq.r_default (S := sem) O.toBoolOps v1 v2]).getD
     (KanonBool.Bool.eq.spec (S := sem) v1 v2)
 
-theorem Bool.eq.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
+theorem Bool.eq.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (KanonBool.Bool.eq.spec (S := sem) v1 v2) (Bool.eq.step O v1 v2) := by
   unfold Bool.eq.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.eq.r_same.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
@@ -125,22 +126,22 @@ theorem Bool.eq.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) 
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.eq.r_default.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.eq_untyped.step (O : Ops sem) (v1 : Term) (v2 : Term) : Term :=
+def Bool.eq_untyped.step (O : BoolExample.Ops sem) (v1 : Term) (v2 : Term) : Term :=
   (firstSome [KanonBool.Bool.eq_untyped.r_ill_typed (S := sem) O.toBoolOps v1 v2, KanonBool.Bool.eq_untyped.r_typed (S := sem) O.toBoolOps v1 v2]).getD
     (KanonBool.Bool.eq_untyped.spec (S := sem) v1 v2)
 
-theorem Bool.eq_untyped.step_sound (O : Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
+theorem Bool.eq_untyped.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (v1 : Term) (v2 : Term) :
     Refines (KanonBool.Bool.eq_untyped.spec (S := sem) v1 v2) (Bool.eq_untyped.step O v1 v2) := by
   unfold Bool.eq_untyped.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.eq_untyped.r_ill_typed.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.eq_untyped.r_typed.sound (S := sem) O.toBoolOps hO.toBoolSound v1 v2 res h) ?_
   exact Kanon.Refinement.firstSome_nil
 
-def Bool.distinct.step (O : Ops sem) (l : (List Term)) : Term :=
+def Bool.distinct.step (O : BoolExample.Ops sem) (l : (List Term)) : Term :=
   (firstSome [KanonBool.Bool.distinct.r_small (S := sem) O.toBoolOps l, KanonBool.Bool.distinct.r_distinct (S := sem) O.toBoolOps l, KanonBool.Bool.distinct.r_not_distinct (S := sem) O.toBoolOps l, KanonBool.Bool.distinct.r_default (S := sem) O.toBoolOps l]).getD
     (KanonBool.Bool.distinct.spec (S := sem) l)
 
-theorem Bool.distinct.step_sound (O : Ops sem) (hO : O.Sound) (l : (List Term)) :
+theorem Bool.distinct.step_sound (O : BoolExample.Ops sem) (hO : O.Sound) (l : (List Term)) :
     Refines (KanonBool.Bool.distinct.spec (S := sem) l) (Bool.distinct.step O l) := by
   unfold Bool.distinct.step
   refine Kanon.Refinement.firstSome_cons (fun res h => KanonBool.Bool.distinct.r_small.sound (S := sem) O.toBoolOps hO.toBoolSound l res h) ?_
@@ -150,7 +151,7 @@ theorem Bool.distinct.step_sound (O : Ops sem) (hO : O.Sound) (l : (List Term)) 
   exact Kanon.Refinement.firstSome_nil
 
 /-- The rule functions as their specs, without simplification. -/
-def opsRaw (orc : Oracle) : Ops sem :=
+def opsRaw (orc : Oracle) : BoolExample.Ops sem :=
   { tag_le := orc.tag_le,
     bool_sort_by_tag := orc.bool_sort_by_tag,
     bool_sure_neq := Bool.sure_neq,
@@ -163,7 +164,7 @@ def opsRaw (orc : Oracle) : Ops sem :=
     bool_distinct := fun l => KanonBool.Bool.distinct.spec (S := sem) l }
 
 /-- One step of the rule functions, over those of `O`. -/
-def opsStep (O : Ops sem) : Ops sem :=
+def opsStep (O : BoolExample.Ops sem) : BoolExample.Ops sem :=
   { O with
     bool_and_ := Bool.and_.step O,
     bool_or_ := Bool.or_.step O,
@@ -174,7 +175,7 @@ def opsStep (O : Ops sem) : Ops sem :=
     bool_distinct := Bool.distinct.step O }
 
 /-- The rule functions, with `n` steps of fuel. -/
-def opsN (orc : Oracle) : Nat → Ops sem
+def opsN (orc : Oracle) : Nat → BoolExample.Ops sem
   | 0 => opsRaw orc
   | n + 1 => opsStep (opsN orc n)
 

@@ -1,4 +1,4 @@
-[@@@lean_module "CoreMod"]
+[@@@lean_root "CoreMod"]
 
 sort TEven [@lean_inv "even_inv"]
 sort TSeq of ty

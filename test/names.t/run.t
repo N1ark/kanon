@@ -66,10 +66,10 @@ Lean.
 Identifiers may have primes, and a user type may still be called `nat`.
 
   $ kanon lean-model lang.knl | grep "def Rules.bv_ext.r_neg" -A3
-  def Rules.bv_ext.r_neg (O : Ops) (from' : Int) (to' : Int) (v' : Term) : Option Term :=
-    let sz' := (Rules.size v');
-    (match v' with
-      | (Term.mk (Kind.Op1 Op1.Neg x') _) =>
+  def Rules.bv_ext.r_neg (O : Ops S) (from' : Int) (to' : Int) (v' : S.Term) : Option S.Term :=
+    let sz' := (Kanon.Rules.Rules.size v');
+    (match (Kanon.proj v') with
+      | some (.Neg x') =>
   $ cat > lang2.knl <<'KN'
   > use "rules2"
   > type nat [@ocaml "int"] [@lean "Nat"]

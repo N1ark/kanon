@@ -14,7 +14,8 @@ and `extend rule` go before it, and a rule function that ends with one has no
 
 A helper over three scrutinees ends with `_`, `_, _, _` or `(_, _), _`, and over
 a pair of pairs. The added case is in the OCaml and in the Lean model, before
-the last case.
+the last case; Lean needs the helper to be `[@extensible]`, as each language
+puts its cases together.
 
   $ cat > ext.kn <<'KN'
   > extend fn Base.f =
@@ -23,7 +24,7 @@ the last case.
 
   $ for last in '_ -> 0' '_, _, _ -> 0'; do
   >   cat > base.kn <<KN
-  > fn f (a b : int) (c : bool) : int =
+  > fn f (a b : int) (c : bool) : int [@extensible] =
   >   match a, b, c with
   >   | 1, 2, true -> 5
   >   | $last
@@ -36,14 +37,14 @@ the last case.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  45:                 then some ((5 : Int))
-  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  61:    then some ((5 : Int))
+  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _, _) -> Z.zero
-  45:                 then some ((5 : Int))
-  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  61:    then some ((5 : Int))
+  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
   $ cat > ext.kn <<'KN'
   > extend fn Base.g =
@@ -52,7 +53,7 @@ the last case.
 
   $ for last in '_ -> 0' '(_, _), _ -> 0' '_, _ -> 0'; do
   >   cat > base.kn <<KN
-  > fn g (a b : int) (c : bool) : int =
+  > fn g (a b : int) (c : bool) : int [@extensible] =
   >   match (a, b), c with
   >   | (1, 2), true -> 5
   >   | $last
@@ -65,20 +66,20 @@ the last case.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  45:                 then some ((5 : Int))
-  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  61:    then some ((5 : Int))
+  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === (_, _), _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | ((_, _), _) -> Z.zero
-  45:                 then some ((5 : Int))
-  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  61:    then some ((5 : Int))
+  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _) -> Z.zero
-  45:                 then some ((5 : Int))
-  50:      (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))]).getD
+  61:    then some ((5 : Int))
+  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
 `x, _` and `_ as x` are not blanks: the added case is last, so it cannot be
 reached, which is an error, not a silent omission.
@@ -123,17 +124,20 @@ Without one, they are before `default`.
   >   $last
   > KN
   >   echo "=== $last"
-  >   kanon lean-model lang.knl base.kn ext.kn | grep 'firstSome'
+  >   kanon lean-rules lang.knl base.kn ext.kn | grep -A1 'firstSome \['
   >   kanon ocaml lang.knl base.kn ext.kn | grep -c 'Z.one'
   > done
   === | fin: _ -> v1
-    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_«fin» O v1 v2]).getD (Base.add.spec v1 v2)
+    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_«fin» (S := sem) O.toBaseOps v1 v2]).getD
+      (Kanon.Base.Base.add.spec (S := sem) v1 v2)
   1
   === | fin: _, _ -> v1
-    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_«fin» O v1 v2]).getD (Base.add.spec v1 v2)
+    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_«fin» (S := sem) O.toBaseOps v1 v2]).getD
+      (Kanon.Base.Base.add.spec (S := sem) v1 v2)
   1
   === 
-    (firstSome [Base.add.r_zero O v1 v2, Base.add.r_one O v1 v2, Base.add.r_default O v1 v2]).getD (Base.add.spec v1 v2)
+    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_default (S := sem) O.toBaseOps v1 v2]).getD
+      (Kanon.Base.Base.add.spec (S := sem) v1 v2)
   1
 
 `extend rule Base.f before r` and a rule that is not a catch-all, `x, _`: the

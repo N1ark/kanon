@@ -48,8 +48,5 @@ rule round : WRound (m, n, v) =
 (* a choice, by the rule of the bool module that this module lifts *)
 rule choose : Ite (g, a, b) = Bool.ite g a b
 
-(* a spec that is a helper: proved once, and by each language *)
+(* a spec that is a helper *)
 rule double (n : int) (v : t) : twice n v = WAdd (plain, n, v, v)
-
-rule double_closed (n : int) (v : t) : twice n v [@lean_closed] =
-  WAdd (plain, n, v, v)

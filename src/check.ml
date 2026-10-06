@@ -3255,9 +3255,7 @@ let raw_fn (vb : value_binding) =
   let rdoc, rattrs = take_doc vb.pvb_attributes in
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
-    check_attrs
-      [ "spec"; "cases"; "untyped"; "lean_heartbeats" ]
-      rattrs)
+    check_attrs [ "spec"; "cases"; "untyped"; "lean_heartbeats" ] rattrs)
   else check_attrs [ "ty_only"; "no_lean"; "total"; "extensible" ] rattrs;
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
@@ -3956,11 +3954,6 @@ let extend_rules (str : structure) =
                    | Ppat_var { txt; _ } -> define vb.pvb_pat.ppat_loc txt = f
                    | _ -> false)
                  && Option.is_some (spec_of_attrs vb.pvb_attributes) <> fn -> (
-              if fn && not (has_attr "extensible" vb.pvb_attributes) then
-                error loc
-                  "extend fn %s: %s is not [@@extensible], which its module \
-                   needs, as each language puts it together in Lean"
-                  f f;
               match vb.pvb_expr.pexp_desc with
               | Pexp_function (ps, ret, Pfunction_body body) ->
                   let body = insert loc f before ext body in

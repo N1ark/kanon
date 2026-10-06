@@ -1,1 +1,1 @@
-import DivisionExample.Soundness
+import DivisionExample.Rules

@@ -1,12 +1,12 @@
-The typing law of a node, in the interface of its module: its typing, the
-typing of the terms among its arguments, and the invariants of the node and of
-its sort ([@lean_inv "P"]), which are fields of the interface.
+The typing of a node, in Lang.lean of its module: its typing, and the
+invariants of the node and of its sort ([@lean_inv "P"]), predicates over the
+nodes of the module that its hand-written Sem.lean defines. The typing of the
+terms among its arguments is that of its children (`Node.All`).
 
   $ kanon lean-all out lang.knl
-  $ grep -E '_inv|_wt|_wf|WT_' out/CoreMod/Syntax.lean
-    seq_wt : S.Term → Prop
-    exists_wf : S.Term → Prop
-    even_inv : S.Term → Prop
-    WT_Ev : ∀ (x1 : Int) (t : S.Ty), S.WT (B.node (EvK x1) t) ↔ t = TEven ∧ even_inv (B.node (EvK x1) t)
-    WT_Seq : ∀ (x1 : (List S.Term)) (t : S.Ty), S.WT (B.node (SeqK x1) t) ↔ (∀ y ∈ x1, S.WT y) ∧ seq_wt (B.node (SeqK x1) t)
-    WT_Exists : ∀ (x1 : (List Int)) (x2 : S.Term) (t : S.Ty), S.WT (B.node (ExistsK x1 x2) t) ↔ t = LBool.TBool ∧ S.WT x2 ∧ exists_wf (B.node (ExistsK x1 x2) t)
+  $ sed -n '/^def Node.wt/,/^$/p' out/CoreMod/Lang.lean
+  def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sCore : CoreMod.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
+    | (.Ev x1), t => (t = (sCore .TEven)) ∧ even_inv (T := T) (.Ev x1)
+    | (.Seq l1), t => seq_wt (T := T) (.Seq l1)
+    | (.Exists x1 a2), t => (t = (sBool .TBool)) ∧ exists_wf (T := T) (.Exists x1 a2)
+  

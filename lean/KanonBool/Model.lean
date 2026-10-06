@@ -7,6 +7,8 @@ import KanonCore.Attr
 import KanonCore.Embed
 
 set_option linter.unusedVariables false
+set_option linter.unusedSimpArgs false
+set_option linter.unusedSectionVars false
 set_option maxHeartbeats 1000000
 
 noncomputable section
@@ -550,7 +552,7 @@ structure Ops.Sound (O : Ops S) : Prop where
   bool_eq : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (Bool.eq.spec v1 v2) (O.bool_eq v1 v2)
   bool_eq_untyped : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (Bool.eq_untyped.spec v1 v2) (O.bool_eq_untyped v1 v2)
   bool_distinct : ∀ (l : (List S.Term)), S.Refines (Bool.distinct.spec l) (O.bool_distinct l)
-  bool_orc : Oracle.Compat O.bool_sort_by_tag
+  bool_orc : Oracle.Compat (S := S) O.bool_sort_by_tag
   bool_sure_neq : ∀ (a : S.Term) (b : S.Term), Bool.sure_neq.post a b (O.bool_sure_neq a b)
 
 end KanonBool

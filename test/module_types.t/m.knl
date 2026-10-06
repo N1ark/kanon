@@ -1,4 +1,4 @@
-[@@@lean_module "MMod"]
+[@@@lean_root "MMod"]
 
 use builtin "bool"
 

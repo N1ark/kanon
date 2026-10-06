@@ -15,6 +15,14 @@ def firstSome {α : Type} : List (Option α) → Option α
   | [] => none
   | o :: os => o <|> firstSome os
 
+@[simp] theorem firstSome_nil' {α : Type} : firstSome ([] : List (Option α)) = none := rfl
+
+@[simp] theorem firstSome_some {α : Type} {a : α} {l : List (Option α)} :
+    firstSome (some a :: l) = some a := rfl
+
+@[simp] theorem firstSome_none {α : Type} {l : List (Option α)} :
+    firstSome (none :: l) = firstSome l := rfl
+
 theorem orElse_some {α} {a b : Option α} {r : α} (h : (a <|> b) = some r) :
     a = some r ∨ b = some r := by
   cases a <;> simp_all

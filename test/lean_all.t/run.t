@@ -1,107 +1,76 @@
-kanon lean-all DIR writes the Lean files of a language under DIR, in the
-directory of its root (Ex, by [@@@lean_root "Ex"]): one file per rule function
-and per helper (or group of mutually recursive helpers), in the directory of its
-module, for its model, its statements and its proofs.
+kanon lean-all DIR writes the Lean files of a language under DIR. Each module
+has its own, under the directory of its root: those of its nodes (Node.lean,
+Lang.lean) and of its rules (Model.lean, Statements.lean, Soundness.lean). The
+language has its terms, their semantics and its rule functions (Syntax.lean,
+Semantics.lean, Rules.lean) under its root (Ex, by [@@@lean_root "Ex"]), which
+is also that of its own module; the int module is under Ex/Int.
 
   $ kanon lean-all out lang.knl
   $ find out -name '*.lean' | sort
-  out/Ex/Lifts.lean
+  out/Ex/Int/Lang.lean
+  out/Ex/Int/Model.lean
+  out/Ex/Int/Node.lean
+  out/Ex/Int/Soundness.lean
+  out/Ex/Int/Statements.lean
+  out/Ex/Lang.lean
   out/Ex/Model.lean
-  out/Ex/Model/Int/add.lean
-  out/Ex/Model/Int/neg.lean
-  out/Ex/Model/Int/negate.lean
-  out/Ex/Model/Int/plus.lean
-  out/Ex/Model/mk_commut_binop.lean
-  out/Ex/Nodes.lean
-  out/Ex/Ops.lean
-  out/Ex/Signatures.lean
+  out/Ex/Node.lean
+  out/Ex/Rules.lean
+  out/Ex/Semantics.lean
   out/Ex/Soundness.lean
-  out/Ex/Soundness/Int/neg.lean
-  out/Ex/Soundness/Int/plus.lean
-  out/Ex/Soundness/Laws/Op2/Plus.lean
   out/Ex/Statements.lean
-  out/Ex/Statements/Int/neg.lean
-  out/Ex/Statements/Int/plus.lean
   out/Ex/Syntax.lean
-  out/Ex/Types.lean
-  out/Ex/Typing.lean
-
-Each file imports what it needs: the model of a rule function, the record of
-the rule functions and the helpers that its rules call.
-
-  $ grep '^import' out/Ex/Model/Int/neg.lean
-  import Ex.Ops
-  import Ex.Model.Int.negate
 
 Each generated proof of an arm has its own bound on heartbeats: that of its
 rule function ([@lean_heartbeats 800000] on neg), else that of the language
 ([@@@lean_heartbeats "300000"]).
 
-  $ grep -B1 'kanon_proof%' out/Ex/Soundness/Int/neg.lean out/Ex/Soundness/Int/plus.lean
-  out/Ex/Soundness/Int/neg.lean-set_option maxHeartbeats 800000 in
-  out/Ex/Soundness/Int/neg.lean:theorem Int.neg.r_lit.main.ok : Int.neg.r_lit.main.Stmt := kanon_proof% Int.neg.r_lit.main
-  --
-  out/Ex/Soundness/Int/neg.lean-set_option maxHeartbeats 800000 in
-  out/Ex/Soundness/Int/neg.lean:theorem Int.neg.r_twice.main.ok : Int.neg.r_twice.main.Stmt := kanon_proof% Int.neg.r_twice.main
-  --
-  out/Ex/Soundness/Int/neg.lean-set_option maxHeartbeats 800000 in
-  out/Ex/Soundness/Int/neg.lean:theorem Int.neg.r_default.main.ok : Int.neg.r_default.main.Stmt := kanon_proof% Int.neg.r_default.main
-  --
-  out/Ex/Soundness/Int/plus.lean-set_option maxHeartbeats 300000 in
-  out/Ex/Soundness/Int/plus.lean:theorem Int.plus.r_lits.main.ok : Int.plus.r_lits.main.Stmt := kanon_proof% Int.plus.r_lits.main
-  --
-  out/Ex/Soundness/Int/plus.lean-set_option maxHeartbeats 300000 in
-  out/Ex/Soundness/Int/plus.lean:theorem Int.plus.r_unit_zero.main.ok : Int.plus.r_unit_zero.main.Stmt := kanon_proof% Int.plus.r_unit_zero.main
-  --
-  out/Ex/Soundness/Int/plus.lean-set_option maxHeartbeats 300000 in
-  out/Ex/Soundness/Int/plus.lean:theorem Int.plus.r_default.main.ok : Int.plus.r_default.main.Stmt := kanon_proof% Int.plus.r_default.main
+  $ grep 'maxHeartbeats [0-9]* in' out/Ex/Int/Soundness.lean | sort | uniq -c
+        5 set_option maxHeartbeats 300000 in
+        3 set_option maxHeartbeats 800000 in
 
-Nodes.lean states the typing and the evaluation of each node, as the simp sets
-kanon_wt and kanon_ev of the language unfold them.
+Lang.lean states the typing of each node, at the sorts of a language.
 
-  $ sed -n '/Nodes.Op2.Plus.wt/,/^$/p' out/Ex/Nodes.lean
-  kanon_node_lemma kanon_node_wt Nodes.Op2.Plus.wt (a1 : Term) (a2 : Term) (t : Ty) :
-    sem.WT (Term.mk (Kind.Op2 Op2.Plus a1 a2) t)
+  $ sed -n '/^def Node.wt/,/^$/p' out/Ex/Int/Lang.lean
+  def Node.wt {T Ty : Type} (sInt : Ex.Int.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
+    | (.Int x1), t => (t = (sInt .TInt))
+    | (.Plus a1 a2), t => (ty a1 = (sInt .TInt) ∧ ty a2 = (sInt .TInt) ∧ t = (sInt .TInt))
+    | (.Neg a1), t => (ty a1 = (sInt .TInt) ∧ t = (sInt .TInt))
   
 
 With --check, kanon lean-all only checks that the files are up to date.
 
   $ kanon lean-all --check out lang.knl
 
-The hand-written proofs of a rule function, under Proofs, are imported by its
-generated proofs, under Soundness, when they exist (Proofs/Laws.lean for each
-Soundness/Laws/Op/C.lean). A generated proof imports only what it uses: the
-commutativity of the operators that its arms may meet.
+The hand-written proofs of a module, Proofs.lean, are imported by its generated
+proofs, Soundness.lean, when they exist.
 
-  $ mkdir -p out/Ex/Proofs/Int
-  $ echo 'import Ex.Statements.Int.neg' > out/Ex/Proofs/Int/neg.lean
+  $ echo 'import Ex.Int.Statements' > out/Ex/Int/Proofs.lean
   $ kanon lean-all --check out lang.knl
-  kanon: out/Ex/Soundness/Int/neg.lean is not up to date (run kanon lean-all)
+  kanon: out/Ex/Int/Soundness.lean is not up to date (run kanon lean-all)
   [1]
   $ kanon lean-all out lang.knl
-  $ grep '^import' out/Ex/Soundness/Int/neg.lean
-  import KanonCore.Tactics
-  import Ex.Statements.Int.neg
-  import Ex.Lifts
-  import Ex.Nodes
-  import Ex.Lib.Rule
-  import Ex.Proofs.Int.neg
+  $ grep '^import' out/Ex/Int/Soundness.lean
+  import Ex.Int.Statements
+  import Ex.Int.Proofs
 
 The files that kanon generated and no longer does are removed; the others are
 kept.
 
-  $ echo '-- Generated by kanon from int.kn. Do not edit.' > out/Ex/Model/Int/old.lean
-  $ echo '-- A file of mine.' > out/Ex/Model/Int/mine.lean
+  $ echo '-- Generated by kanon from int.kn. Do not edit.' > out/Ex/Int/Old.lean
+  $ echo '-- A file of mine.' > out/Ex/Int/Mine.lean
   $ kanon lean-all --check out lang.knl
-  kanon: out/Ex/Model/Int/old.lean is no longer generated (run kanon lean-all)
+  kanon: out/Ex/Int/Old.lean is no longer generated (run kanon lean-all)
   [1]
   $ kanon lean-all out lang.knl
-  $ ls out/Ex/Model/Int
-  add.lean
-  mine.lean
-  neg.lean
-  negate.lean
-  plus.lean
+  $ ls out/Ex/Int
+  Lang.lean
+  Mine.lean
+  Model.lean
+  Node.lean
+  Proofs.lean
+  Soundness.lean
+  Statements.lean
 
 The bound on heartbeats is a positive number.
 
