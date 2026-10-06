@@ -90,7 +90,7 @@ and their values refined. -/
 theorem forall₂_refines {l l' : List S.Term} (h : Forall₂ S.Refines l l')
     (w : ∀ x ∈ l, S.WT x) :
     (∀ x ∈ l', S.WT x) ∧ (∀ e, (∀ x ∈ l, S.ty x = e) → ∀ x ∈ l', S.ty x = e) ∧
-      ∀ ρ, Forall₂ OLe (l.map (S.ev ρ)) (l'.map (S.ev ρ)) := by
+      Forall₂ FLe (l.map fun c ρ => S.ev ρ c) (l'.map fun c ρ => S.ev ρ c) := by
   induction h with
   | nil => simp
   | @cons a a' l l' ha _ ih =>
@@ -98,9 +98,9 @@ theorem forall₂_refines {l l' : List S.Term} (h : Forall₂ S.Refines l l')
     obtain ⟨wa, wl⟩ := w
     obtain ⟨ih1, ih2, ih3⟩ := ih wl
     obtain ⟨wa', sa⟩ := ha.syn wa
-    refine ⟨⟨wa', ih1⟩, fun e ⟨he, hl⟩ => ⟨sa.trans he, ih2 e hl⟩, fun ρ => ?_⟩
+    refine ⟨⟨wa', ih1⟩, fun e ⟨he, hl⟩ => ⟨sa.trans he, ih2 e hl⟩, ?_⟩
     simp only [List.map_cons, forall₂_cons]
-    exact ⟨ha.ev wa ρ, ih3 ρ⟩
+    exact ⟨ha.ev wa, ih3⟩
 
 @[simp] theorem forall₂_refines_refl (l : List S.Term) : Forall₂ S.Refines l l :=
   Forall₂.refl (fun _ => Refines.refl) l
@@ -116,6 +116,15 @@ theorem OLe.mapM {α : Type} {l l' : List (Option α)} (h : Forall₂ OLe l l') 
       Option.bind_eq_some_iff] at e ⊢
     obtain ⟨x, hx, xs, hxs, e⟩ := e
     exact ⟨x, ha _ hx, xs, ih _ hxs, e⟩
+
+/-- The values of a list of children in an environment, if none is poison,
+refined. -/
+theorem FLe.mapM {E α : Type} {l l' : List (E → Option α)} (h : Forall₂ FLe l l') (ρ : E) :
+    OLe ((l.map (· ρ)).mapM id) ((l'.map (· ρ)).mapM id) := by
+  apply OLe.mapM
+  induction h with
+  | nil => exact .nil
+  | cons ha _ ih => exact .cons (ha ρ) ih
 
 end Sem
 

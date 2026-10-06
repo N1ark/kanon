@@ -36,16 +36,16 @@ mutual
 
 /-- The evaluation of the terms. -/
 def ev (ρ : Env) : Term → Option Val
-  | .int n t => DivMod.Node.eval (D := dom) ρ t (evInt ρ n)
-  | .lang n t => DivisionExample.Node.eval (D := dom) ρ t (evLang ρ n)
+  | .int n t => DivMod.Node.eval (D := dom) ρ t (evInt n)
+  | .lang n t => DivisionExample.Node.eval (D := dom) ρ t (evLang n)
 
-def evInt (ρ : Env) : DivMod.Node Term → DivMod.Node (Option Val)
+def evInt : DivMod.Node Term → DivMod.Node (Env → Option Val)
   | (.Int x1) => (.Int x1)
-  | (.Plus a1 a2) => (.Plus (ev ρ a1) (ev ρ a2))
-  | (.Div a1 a2) => (.Div (ev ρ a1) (ev ρ a2))
-  | (.Sq1 a1) => (.Sq1 (ev ρ a1))
+  | (.Plus a1 a2) => (.Plus (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Div a1 a2) => (.Div (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Sq1 a1) => (.Sq1 (fun ρ => ev ρ a1))
 
-def evLang (ρ : Env) : DivisionExample.Node Term → DivisionExample.Node (Option Val)
+def evLang : DivisionExample.Node Term → DivisionExample.Node (Env → Option Val)
   | (.Var x1) => (.Var x1)
 
 end
@@ -53,13 +53,13 @@ end
 theorem allInt_iff (n : DivMod.Node Term) : allInt n ↔ n.All Term.WT := by
   cases n <;> simp [allInt, DivMod.Node.All]
 
-theorem evInt_eq (ρ : Env) (n : DivMod.Node Term) : evInt ρ n = n.map (ev ρ) := by
+theorem evInt_eq (n : DivMod.Node Term) : evInt n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evInt, DivMod.Node.map]
 
 theorem allLang_iff (n : DivisionExample.Node Term) : allLang n ↔ n.All Term.WT := by
   cases n <;> simp [allLang, DivisionExample.Node.All]
 
-theorem evLang_eq (ρ : Env) (n : DivisionExample.Node Term) : evLang ρ n = n.map (ev ρ) := by
+theorem evLang_eq (n : DivisionExample.Node Term) : evLang n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evLang, DivisionExample.Node.map]
 
 /-- The typing of a node of `Int`. -/
@@ -69,8 +69,8 @@ theorem WT_int (n : DivMod.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Int`. -/
 theorem ev_int (ρ : Env) (n : DivMod.Node Term) (t : Ty) :
-  ev ρ (.int n t) = DivMod.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (DivMod.Node.eval (D := dom) ρ t) (evInt_eq ρ n)
+  ev ρ (.int n t) = DivMod.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (DivMod.Node.eval (D := dom) ρ t) (evInt_eq n)
 
 /-- The typing of a node of `Lang`. -/
 theorem WT_lang (n : DivisionExample.Node Term) (t : Ty) :
@@ -79,8 +79,8 @@ theorem WT_lang (n : DivisionExample.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Lang`. -/
 theorem ev_lang (ρ : Env) (n : DivisionExample.Node Term) (t : Ty) :
-  ev ρ (.lang n t) = DivisionExample.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (DivisionExample.Node.eval (D := dom) ρ t) (evLang_eq ρ n)
+  ev ρ (.lang n t) = DivisionExample.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (DivisionExample.Node.eval (D := dom) ρ t) (evLang_eq n)
 
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where

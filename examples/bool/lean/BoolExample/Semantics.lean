@@ -43,24 +43,24 @@ mutual
 
 /-- The evaluation of the terms. -/
 def ev (ρ : Env) : Term → Option Val
-  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool ρ n)
-  | .lang n t => BoolExample.Node.eval (D := dom) ρ t (evLang ρ n)
+  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool n)
+  | .lang n t => BoolExample.Node.eval (D := dom) ρ t (evLang n)
 
-def evBool (ρ : Env) : KanonBool.Node Term → KanonBool.Node (Option Val)
+def evBool : KanonBool.Node Term → KanonBool.Node (Env → Option Val)
   | (.Bool x1) => (.Bool x1)
-  | (.Not a1) => (.Not (ev ρ a1))
-  | (.And a1 a2) => (.And (ev ρ a1) (ev ρ a2))
-  | (.Or a1 a2) => (.Or (ev ρ a1) (ev ρ a2))
-  | (.Eq a1 a2) => (.Eq (ev ρ a1) (ev ρ a2))
-  | (.Ite a1 a2 a3) => (.Ite (ev ρ a1) (ev ρ a2) (ev ρ a3))
-  | (.Distinct l1) => (.Distinct (evList ρ l1))
+  | (.Not a1) => (.Not (fun ρ => ev ρ a1))
+  | (.And a1 a2) => (.And (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Or a1 a2) => (.Or (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Eq a1 a2) => (.Eq (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Ite a1 a2 a3) => (.Ite (fun ρ => ev ρ a1) (fun ρ => ev ρ a2) (fun ρ => ev ρ a3))
+  | (.Distinct l1) => (.Distinct (evList l1))
 
-def evLang (ρ : Env) : BoolExample.Node Term → BoolExample.Node (Option Val)
+def evLang : BoolExample.Node Term → BoolExample.Node (Env → Option Val)
   | (.Var x1) => (.Var x1)
 
-def evList (ρ : Env) : List Term → List (Option Val)
+def evList : List Term → List (Env → Option Val)
   | [] => []
-  | x :: xs => ev ρ x :: evList ρ xs
+  | x :: xs => (fun ρ => ev ρ x) :: evList xs
 
 end
 
@@ -68,20 +68,20 @@ theorem allList_iff : ∀ l, allList l ↔ ∀ x ∈ l, Term.WT x
   | [] => by simp [allList]
   | x :: xs => by simp [allList, allList_iff xs]
 
-theorem evList_eq (ρ : Env) : ∀ l, evList ρ l = l.map (ev ρ)
+theorem evList_eq : ∀ l, evList l = l.map (fun c ρ => ev ρ c)
   | [] => rfl
-  | x :: xs => by rw [evList, evList_eq ρ xs]; rfl
+  | x :: xs => by rw [evList, evList_eq xs]; rfl
 
 theorem allBool_iff (n : KanonBool.Node Term) : allBool n ↔ n.All Term.WT := by
   cases n <;> simp [allBool, KanonBool.Node.All, allList_iff]
 
-theorem evBool_eq (ρ : Env) (n : KanonBool.Node Term) : evBool ρ n = n.map (ev ρ) := by
+theorem evBool_eq (n : KanonBool.Node Term) : evBool n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evBool, KanonBool.Node.map, evList_eq]
 
 theorem allLang_iff (n : BoolExample.Node Term) : allLang n ↔ n.All Term.WT := by
   cases n <;> simp [allLang, BoolExample.Node.All, allList_iff]
 
-theorem evLang_eq (ρ : Env) (n : BoolExample.Node Term) : evLang ρ n = n.map (ev ρ) := by
+theorem evLang_eq (n : BoolExample.Node Term) : evLang n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evLang, BoolExample.Node.map, evList_eq]
 
 /-- The typing of a node of `Bool`. -/
@@ -91,8 +91,8 @@ theorem WT_bool (n : KanonBool.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Bool`. -/
 theorem ev_bool (ρ : Env) (n : KanonBool.Node Term) (t : Ty) :
-  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq ρ n)
+  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq n)
 
 /-- The typing of a node of `Lang`. -/
 theorem WT_lang (n : BoolExample.Node Term) (t : Ty) :
@@ -101,8 +101,8 @@ theorem WT_lang (n : BoolExample.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Lang`. -/
 theorem ev_lang (ρ : Env) (n : BoolExample.Node Term) (t : Ty) :
-  ev ρ (.lang n t) = BoolExample.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (BoolExample.Node.eval (D := dom) ρ t) (evLang_eq ρ n)
+  ev ρ (.lang n t) = BoolExample.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (BoolExample.Node.eval (D := dom) ρ t) (evLang_eq n)
 
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where

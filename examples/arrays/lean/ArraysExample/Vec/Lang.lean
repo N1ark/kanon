@@ -29,7 +29,7 @@ class Lang (S : Kanon.Sem) extends Values S.toDom where
   node : Kanon.NodeEmbed Node S
   srt : Kanon.Embed Srt S.Ty
   WT_inj : ∀ n t, S.WT (node.inj n t) ↔ Node.wt srt.inj S.ty n t ∧ n.All S.WT
-  ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (S.ev ρ))
+  ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (fun c ρ => S.ev ρ c))
   size_proj : ∀ e n, node.proj e = some n → n.All (fun c => S.size c < S.size e)
 
 section
@@ -50,7 +50,7 @@ abbrev proj (e : S.Term) : Option (Node S.Term) := L.node.proj e
   L.WT_inj n t
 
 @[kanon_ev] theorem ev_mk (ρ : S.Env) (n : Node S.Term) (t : S.Ty) :
-  S.ev ρ (mk n t) = Node.eval ρ t (n.map (S.ev ρ)) :=
+  S.ev ρ (mk n t) = Node.eval ρ t (n.map (fun c ρ => S.ev ρ c)) :=
   L.ev_inj ρ n t
 
 @[simp] theorem proj_mk (n : Node S.Term) (t : S.Ty) : proj (mk n t) = some n :=
@@ -87,7 +87,7 @@ abbrev sortProj (τ : S.Ty) : Option Srt := L.srt.proj τ
 /-- Refined children: the node is typed and evaluated as refined. -/
 theorem Node.rel_refines {n n' : Node S.Term} (h : n.Rel S.Refines n') (w : n.All S.WT) :
   n'.All S.WT ∧ (∀ t, Node.wt L.srt.inj S.ty n t → Node.wt L.srt.inj S.ty n' t) ∧
-    ∀ ρ, (n.map (S.ev ρ)).Rel Kanon.Sem.OLe (n'.map (S.ev ρ)) := by
+    (n.map (fun c ρ => S.ev ρ c)).Rel Kanon.Sem.FLe (n'.map (fun c ρ => S.ev ρ c)) := by
   cases n <;> cases n' <;> simp only [Node.Rel, Node.All, Node.wt, Node.map] at h w ⊢ <;>
     kanon_rel_refines
 
@@ -99,7 +99,7 @@ theorem Node.rel_refines {n n' : Node S.Term} (h : n.Rel S.Refines n') (w : n.Al
   · obtain ⟨h1, h2, -⟩ := Node.rel_refines h w.2
     exact ⟨(WT_mk _ _).2 ⟨h2 t w.1, h1⟩, by simp only [ty_mk]⟩
   · rw [ev_mk] at e ⊢
-    exact Node.eval_mono ρ t ((Node.rel_refines h w.2).2.2 ρ) v e
+    exact Node.eval_mono ρ t (Node.rel_refines h w.2).2.2 v e
 
 end
 

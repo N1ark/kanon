@@ -25,6 +25,10 @@
 - Hand-written `Sem`, `Prims` and `Proofs` files per module.
 - Helpers may recurse on terms, decreasing by `Sem.size`.
 - Lean backends `lean-node`, `lean-lang`, `lean-semantics`, `lean-rules`.
+- Lean sorts and nodes may take sorts: `Srt Ty`.
+- Lean binders: nodes may evaluate children in other environments.
+- Cases of extensible helpers may call rule functions and helpers.
+- Example `two_langs`: a pack module, with a quantifier.
 
 ### Changed
 
@@ -38,6 +42,8 @@
 - `Foo.x` is a qualified name, not a field access.
 - [`kanon lean-all DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes a few Lean files per module.
 - Languages write `Val.lean` and `Typing.lean` by hand.
+- `Node.eval` gets the children's values in every environment.
+- Lean invariants take the arguments of the typing.
 - Removed backends `lean-signatures`, `lean-typing`, `lean-lifts`, `lean-nodes`.
 - Removed `[@@@lean_param]`.
 - A module's `Oracle.Compat` is over any semantics `S`.

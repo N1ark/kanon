@@ -62,40 +62,40 @@ mutual
 
 /-- The evaluation of the terms. -/
 def ev (ρ : Env) : Term → Option Val
-  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool ρ n)
-  | .num n t => NumMod.Node.eval (D := dom) ρ t (evNum ρ n)
-  | .even n t => EvenMod.Node.eval (D := dom) ρ t (evEven ρ n)
-  | .neg n t => NegMod.Node.eval (D := dom) ρ t (evNeg ρ n)
-  | .l3 n t => L3.Node.eval (D := dom) ρ t (evL3 ρ n)
+  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool n)
+  | .num n t => NumMod.Node.eval (D := dom) ρ t (evNum n)
+  | .even n t => EvenMod.Node.eval (D := dom) ρ t (evEven n)
+  | .neg n t => NegMod.Node.eval (D := dom) ρ t (evNeg n)
+  | .l3 n t => L3.Node.eval (D := dom) ρ t (evL3 n)
 
-def evBool (ρ : Env) : KanonBool.Node Term → KanonBool.Node (Option Val)
+def evBool : KanonBool.Node Term → KanonBool.Node (Env → Option Val)
   | (.Bool x1) => (.Bool x1)
-  | (.Not a1) => (.Not (ev ρ a1))
-  | (.And a1 a2) => (.And (ev ρ a1) (ev ρ a2))
-  | (.Or a1 a2) => (.Or (ev ρ a1) (ev ρ a2))
-  | (.Eq a1 a2) => (.Eq (ev ρ a1) (ev ρ a2))
-  | (.Ite a1 a2 a3) => (.Ite (ev ρ a1) (ev ρ a2) (ev ρ a3))
-  | (.Distinct l1) => (.Distinct (evList ρ l1))
+  | (.Not a1) => (.Not (fun ρ => ev ρ a1))
+  | (.And a1 a2) => (.And (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Or a1 a2) => (.Or (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Eq a1 a2) => (.Eq (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Ite a1 a2 a3) => (.Ite (fun ρ => ev ρ a1) (fun ρ => ev ρ a2) (fun ρ => ev ρ a3))
+  | (.Distinct l1) => (.Distinct (evList l1))
 
-def evNum (ρ : Env) : NumMod.Node Term → NumMod.Node (Option Val)
+def evNum : NumMod.Node Term → NumMod.Node (Env → Option Val)
   | (.Num x1) => (.Num x1)
-  | (.Add a1 a2) => (.Add (ev ρ a1) (ev ρ a2))
-  | (.Lt a1 a2) => (.Lt (ev ρ a1) (ev ρ a2))
-  | (.Max a1 a2) => (.Max (ev ρ a1) (ev ρ a2))
+  | (.Add a1 a2) => (.Add (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Lt a1 a2) => (.Lt (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Max a1 a2) => (.Max (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
 
-def evEven (ρ : Env) : EvenMod.Node Term → EvenMod.Node (Option Val)
+def evEven : EvenMod.Node Term → EvenMod.Node (Env → Option Val)
   | (.Ev x1) => (.Ev x1)
-  | (.Rem2 a1) => (.Rem2 (ev ρ a1))
+  | (.Rem2 a1) => (.Rem2 (fun ρ => ev ρ a1))
 
-def evNeg (ρ : Env) : NegMod.Node Term → NegMod.Node (Option Val)
-  | (.Neg a1) => (.Neg (ev ρ a1))
+def evNeg : NegMod.Node Term → NegMod.Node (Env → Option Val)
+  | (.Neg a1) => (.Neg (fun ρ => ev ρ a1))
 
-def evL3 (ρ : Env) : L3.Node Term → L3.Node (Option Val)
+def evL3 : L3.Node Term → L3.Node (Env → Option Val)
   | (.Var x1) => (.Var x1)
 
-def evList (ρ : Env) : List Term → List (Option Val)
+def evList : List Term → List (Env → Option Val)
   | [] => []
-  | x :: xs => ev ρ x :: evList ρ xs
+  | x :: xs => (fun ρ => ev ρ x) :: evList xs
 
 end
 
@@ -103,38 +103,38 @@ theorem allList_iff : ∀ l, allList l ↔ ∀ x ∈ l, Term.WT x
   | [] => by simp [allList]
   | x :: xs => by simp [allList, allList_iff xs]
 
-theorem evList_eq (ρ : Env) : ∀ l, evList ρ l = l.map (ev ρ)
+theorem evList_eq : ∀ l, evList l = l.map (fun c ρ => ev ρ c)
   | [] => rfl
-  | x :: xs => by rw [evList, evList_eq ρ xs]; rfl
+  | x :: xs => by rw [evList, evList_eq xs]; rfl
 
 theorem allBool_iff (n : KanonBool.Node Term) : allBool n ↔ n.All Term.WT := by
   cases n <;> simp [allBool, KanonBool.Node.All, allList_iff]
 
-theorem evBool_eq (ρ : Env) (n : KanonBool.Node Term) : evBool ρ n = n.map (ev ρ) := by
+theorem evBool_eq (n : KanonBool.Node Term) : evBool n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evBool, KanonBool.Node.map, evList_eq]
 
 theorem allNum_iff (n : NumMod.Node Term) : allNum n ↔ n.All Term.WT := by
   cases n <;> simp [allNum, NumMod.Node.All, allList_iff]
 
-theorem evNum_eq (ρ : Env) (n : NumMod.Node Term) : evNum ρ n = n.map (ev ρ) := by
+theorem evNum_eq (n : NumMod.Node Term) : evNum n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evNum, NumMod.Node.map, evList_eq]
 
 theorem allEven_iff (n : EvenMod.Node Term) : allEven n ↔ n.All Term.WT := by
   cases n <;> simp [allEven, EvenMod.Node.All, allList_iff]
 
-theorem evEven_eq (ρ : Env) (n : EvenMod.Node Term) : evEven ρ n = n.map (ev ρ) := by
+theorem evEven_eq (n : EvenMod.Node Term) : evEven n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evEven, EvenMod.Node.map, evList_eq]
 
 theorem allNeg_iff (n : NegMod.Node Term) : allNeg n ↔ n.All Term.WT := by
   cases n <;> simp [allNeg, NegMod.Node.All, allList_iff]
 
-theorem evNeg_eq (ρ : Env) (n : NegMod.Node Term) : evNeg ρ n = n.map (ev ρ) := by
+theorem evNeg_eq (n : NegMod.Node Term) : evNeg n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evNeg, NegMod.Node.map, evList_eq]
 
 theorem allL3_iff (n : L3.Node Term) : allL3 n ↔ n.All Term.WT := by
   cases n <;> simp [allL3, L3.Node.All, allList_iff]
 
-theorem evL3_eq (ρ : Env) (n : L3.Node Term) : evL3 ρ n = n.map (ev ρ) := by
+theorem evL3_eq (n : L3.Node Term) : evL3 n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evL3, L3.Node.map, evList_eq]
 
 /-- The typing of a node of `Bool`. -/
@@ -144,8 +144,8 @@ theorem WT_bool (n : KanonBool.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Bool`. -/
 theorem ev_bool (ρ : Env) (n : KanonBool.Node Term) (t : Ty) :
-  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq ρ n)
+  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq n)
 
 /-- The typing of a node of `Num`. -/
 theorem WT_num (n : NumMod.Node Term) (t : Ty) :
@@ -154,8 +154,8 @@ theorem WT_num (n : NumMod.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Num`. -/
 theorem ev_num (ρ : Env) (n : NumMod.Node Term) (t : Ty) :
-  ev ρ (.num n t) = NumMod.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (NumMod.Node.eval (D := dom) ρ t) (evNum_eq ρ n)
+  ev ρ (.num n t) = NumMod.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (NumMod.Node.eval (D := dom) ρ t) (evNum_eq n)
 
 /-- The typing of a node of `Even`. -/
 theorem WT_even (n : EvenMod.Node Term) (t : Ty) :
@@ -164,8 +164,8 @@ theorem WT_even (n : EvenMod.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Even`. -/
 theorem ev_even (ρ : Env) (n : EvenMod.Node Term) (t : Ty) :
-  ev ρ (.even n t) = EvenMod.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (EvenMod.Node.eval (D := dom) ρ t) (evEven_eq ρ n)
+  ev ρ (.even n t) = EvenMod.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (EvenMod.Node.eval (D := dom) ρ t) (evEven_eq n)
 
 /-- The typing of a node of `Neg`. -/
 theorem WT_neg (n : NegMod.Node Term) (t : Ty) :
@@ -174,8 +174,8 @@ theorem WT_neg (n : NegMod.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Neg`. -/
 theorem ev_neg (ρ : Env) (n : NegMod.Node Term) (t : Ty) :
-  ev ρ (.neg n t) = NegMod.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (NegMod.Node.eval (D := dom) ρ t) (evNeg_eq ρ n)
+  ev ρ (.neg n t) = NegMod.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (NegMod.Node.eval (D := dom) ρ t) (evNeg_eq n)
 
 /-- The typing of a node of `L3`. -/
 theorem WT_l3 (n : L3.Node Term) (t : Ty) :
@@ -184,8 +184,8 @@ theorem WT_l3 (n : L3.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `L3`. -/
 theorem ev_l3 (ρ : Env) (n : L3.Node Term) (t : Ty) :
-  ev ρ (.l3 n t) = L3.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (L3.Node.eval (D := dom) ρ t) (evL3_eq ρ n)
+  ev ρ (.l3 n t) = L3.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (L3.Node.eval (D := dom) ρ t) (evL3_eq n)
 
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where

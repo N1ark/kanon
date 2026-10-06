@@ -1,0 +1,19 @@
+(* The pack module: lists of terms of a sort, and a quantifier. Its sort takes
+   a sort ([TPack of ty]); its quantifier binds names at sorts, and its meaning
+   evaluates its body in other environments; the invariants of its nodes use
+   their typing; its case of [sure_neq] calls [sure_neq]. *)
+
+[@@@lean_root "PackMod"]
+
+use builtin "bool"
+
+type name [@ocaml "string"] [@lean "String"]
+
+(** Lists of terms of a sort. *)
+sort TPack of ty
+
+(** A list of terms, of the sort of its elements. *)
+node Pack of t list [@lean_inv "pack_wt"]
+
+(** Whether some values of the names, of their sorts, make the body true. *)
+node Some_ of (name * ty) list * t : TBool [@lean_inv "some_wt"]

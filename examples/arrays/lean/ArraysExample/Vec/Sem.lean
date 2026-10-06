@@ -50,25 +50,26 @@ end
 /-! The operations are unfolded once the values of their operands are known. -/
 attribute [kanon_val] lenV getV setV inBounds
 
-/-- The evaluation of a node, given the values of its children. -/
+/-- The evaluation of a node, given the values of its children in every
+environment. -/
 def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
-    Node (Option D.Val) → Option D.Val
+    Node (D.Env → Option D.Val) → Option D.Val
   | .Int z => some (Values.vint.inj z)
   | .Vec a => some (Values.vvec.inj a)
-  | .Len a => lenV a
-  | .Get a i => getV a i
-  | .Set a i x => setV a i x
+  | .Len a => lenV (a ρ)
+  | .Get a i => getV (a ρ) (i ρ)
+  | .Set a i x => setV (a ρ) (i ρ) (x ρ)
 
 theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
-    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+    {n n' : Node (D.Env → Option D.Val)} (h : n.Rel Sem.FLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
   cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
   all_goals simp only [Node.eval]
   · subst h; exact OLe.refl _
   · subst h; exact OLe.refl _
-  · rcases h.cases with h | h <;> simp [h, lenV]
-  · rcases h.1.cases with h1 | h1 <;> rcases h.2.cases with h2 | h2 <;> simp [h1, h2, getV]
-  · rcases h.1.cases with h1 | h1 <;> rcases h.2.1.cases with h2 | h2 <;>
-      rcases h.2.2.cases with h3 | h3 <;> simp [h1, h2, h3, setV]
+  · rcases (h ρ).cases with h | h <;> simp [h, lenV]
+  · rcases (h.1 ρ).cases with h1 | h1 <;> rcases (h.2 ρ).cases with h2 | h2 <;> simp [h1, h2, getV]
+  · rcases (h.1 ρ).cases with h1 | h1 <;> rcases (h.2.1 ρ).cases with h2 | h2 <;>
+      rcases (h.2.2 ρ).cases with h3 | h3 <;> simp [h1, h2, h3, setV]
 
 /-- The values of the sorts of the module: integers and arrays. -/
 def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop

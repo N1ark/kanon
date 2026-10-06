@@ -51,31 +51,31 @@ mutual
 
 /-- The evaluation of the terms. -/
 def ev (ρ : Env) : Term → Option Val
-  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool ρ n)
-  | .num n t => NumMod.Node.eval (D := dom) ρ t (evNum ρ n)
-  | .l1 n t => L1.Node.eval (D := dom) ρ t (evL1 ρ n)
+  | .bool n t => KanonBool.Node.eval (D := dom) ρ t (evBool n)
+  | .num n t => NumMod.Node.eval (D := dom) ρ t (evNum n)
+  | .l1 n t => L1.Node.eval (D := dom) ρ t (evL1 n)
 
-def evBool (ρ : Env) : KanonBool.Node Term → KanonBool.Node (Option Val)
+def evBool : KanonBool.Node Term → KanonBool.Node (Env → Option Val)
   | (.Bool x1) => (.Bool x1)
-  | (.Not a1) => (.Not (ev ρ a1))
-  | (.And a1 a2) => (.And (ev ρ a1) (ev ρ a2))
-  | (.Or a1 a2) => (.Or (ev ρ a1) (ev ρ a2))
-  | (.Eq a1 a2) => (.Eq (ev ρ a1) (ev ρ a2))
-  | (.Ite a1 a2 a3) => (.Ite (ev ρ a1) (ev ρ a2) (ev ρ a3))
-  | (.Distinct l1) => (.Distinct (evList ρ l1))
+  | (.Not a1) => (.Not (fun ρ => ev ρ a1))
+  | (.And a1 a2) => (.And (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Or a1 a2) => (.Or (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Eq a1 a2) => (.Eq (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Ite a1 a2 a3) => (.Ite (fun ρ => ev ρ a1) (fun ρ => ev ρ a2) (fun ρ => ev ρ a3))
+  | (.Distinct l1) => (.Distinct (evList l1))
 
-def evNum (ρ : Env) : NumMod.Node Term → NumMod.Node (Option Val)
+def evNum : NumMod.Node Term → NumMod.Node (Env → Option Val)
   | (.Num x1) => (.Num x1)
-  | (.Add a1 a2) => (.Add (ev ρ a1) (ev ρ a2))
-  | (.Lt a1 a2) => (.Lt (ev ρ a1) (ev ρ a2))
-  | (.Max a1 a2) => (.Max (ev ρ a1) (ev ρ a2))
+  | (.Add a1 a2) => (.Add (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Lt a1 a2) => (.Lt (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Max a1 a2) => (.Max (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
 
-def evL1 (ρ : Env) : L1.Node Term → L1.Node (Option Val)
+def evL1 : L1.Node Term → L1.Node (Env → Option Val)
   | (.Var x1) => (.Var x1)
 
-def evList (ρ : Env) : List Term → List (Option Val)
+def evList : List Term → List (Env → Option Val)
   | [] => []
-  | x :: xs => ev ρ x :: evList ρ xs
+  | x :: xs => (fun ρ => ev ρ x) :: evList xs
 
 end
 
@@ -83,26 +83,26 @@ theorem allList_iff : ∀ l, allList l ↔ ∀ x ∈ l, Term.WT x
   | [] => by simp [allList]
   | x :: xs => by simp [allList, allList_iff xs]
 
-theorem evList_eq (ρ : Env) : ∀ l, evList ρ l = l.map (ev ρ)
+theorem evList_eq : ∀ l, evList l = l.map (fun c ρ => ev ρ c)
   | [] => rfl
-  | x :: xs => by rw [evList, evList_eq ρ xs]; rfl
+  | x :: xs => by rw [evList, evList_eq xs]; rfl
 
 theorem allBool_iff (n : KanonBool.Node Term) : allBool n ↔ n.All Term.WT := by
   cases n <;> simp [allBool, KanonBool.Node.All, allList_iff]
 
-theorem evBool_eq (ρ : Env) (n : KanonBool.Node Term) : evBool ρ n = n.map (ev ρ) := by
+theorem evBool_eq (n : KanonBool.Node Term) : evBool n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evBool, KanonBool.Node.map, evList_eq]
 
 theorem allNum_iff (n : NumMod.Node Term) : allNum n ↔ n.All Term.WT := by
   cases n <;> simp [allNum, NumMod.Node.All, allList_iff]
 
-theorem evNum_eq (ρ : Env) (n : NumMod.Node Term) : evNum ρ n = n.map (ev ρ) := by
+theorem evNum_eq (n : NumMod.Node Term) : evNum n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evNum, NumMod.Node.map, evList_eq]
 
 theorem allL1_iff (n : L1.Node Term) : allL1 n ↔ n.All Term.WT := by
   cases n <;> simp [allL1, L1.Node.All, allList_iff]
 
-theorem evL1_eq (ρ : Env) (n : L1.Node Term) : evL1 ρ n = n.map (ev ρ) := by
+theorem evL1_eq (n : L1.Node Term) : evL1 n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evL1, L1.Node.map, evList_eq]
 
 /-- The typing of a node of `Bool`. -/
@@ -112,8 +112,8 @@ theorem WT_bool (n : KanonBool.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Bool`. -/
 theorem ev_bool (ρ : Env) (n : KanonBool.Node Term) (t : Ty) :
-  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq ρ n)
+  ev ρ (.bool n t) = KanonBool.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (KanonBool.Node.eval (D := dom) ρ t) (evBool_eq n)
 
 /-- The typing of a node of `Num`. -/
 theorem WT_num (n : NumMod.Node Term) (t : Ty) :
@@ -122,8 +122,8 @@ theorem WT_num (n : NumMod.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Num`. -/
 theorem ev_num (ρ : Env) (n : NumMod.Node Term) (t : Ty) :
-  ev ρ (.num n t) = NumMod.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (NumMod.Node.eval (D := dom) ρ t) (evNum_eq ρ n)
+  ev ρ (.num n t) = NumMod.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (NumMod.Node.eval (D := dom) ρ t) (evNum_eq n)
 
 /-- The typing of a node of `L1`. -/
 theorem WT_l1 (n : L1.Node Term) (t : Ty) :
@@ -132,8 +132,8 @@ theorem WT_l1 (n : L1.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `L1`. -/
 theorem ev_l1 (ρ : Env) (n : L1.Node Term) (t : Ty) :
-  ev ρ (.l1 n t) = L1.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (L1.Node.eval (D := dom) ρ t) (evL1_eq ρ n)
+  ev ρ (.l1 n t) = L1.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (L1.Node.eval (D := dom) ρ t) (evL1_eq n)
 
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where

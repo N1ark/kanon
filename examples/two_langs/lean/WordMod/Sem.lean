@@ -24,11 +24,13 @@ class Values (D : Kanon.Dom) where
 def fit (z : Int) : Int := z.natAbs.log2 + 1
 
 /-- The invariant of blobs and fitted integers: their integer fits their
-width. -/
-def word_wf {T : Type} : Node T → Prop
-  | .WBlob b _ => b.bits < 256
-  | .WFit z => 0 ≤ z
-  | _ => True
+width. Like the typing of the nodes, it is given the sorts of the modules in
+a language and the types of the children, which it does not use. -/
+def word_wf {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sWord : Srt → Ty) (ty : T → Ty) :
+    Node T → Ty → Prop
+  | .WBlob b _, _ => b.bits < 256
+  | .WFit z, _ => 0 ≤ z
+  | _, _ => True
 
 /-- The sum of two words; poison otherwise. -/
 def addV {D : Kanon.Dom} [Values D] (a b : Option D.Val) : Option D.Val :=
@@ -48,19 +50,19 @@ def addV {D : Kanon.Dom} [Values D] (a b : Option D.Val) : Option D.Val :=
   · rintro ⟨m, n, rfl, rfl, rfl⟩
     simp [addV]
 
-/-- The evaluation of a node, given the values of its children: rounding and
-widening keep the integer. -/
+/-- The evaluation of a node, given the values of its children in every
+environment: rounding and widening keep the integer. -/
 def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
-    Node (Option D.Val) → Option D.Val
+    Node (D.Env → Option D.Val) → Option D.Val
   | .Wd z _ => some (Values.vword.inj z)
   | .WBlob b _ => some (Values.vword.inj b.bits)
   | .WFit z => some (Values.vword.inj z)
-  | .WAdd _ _ a b => addV a b
-  | .WRound _ _ a => a
-  | .WExt _ a => a
+  | .WAdd _ _ a b => addV (a ρ) (b ρ)
+  | .WRound _ _ a => a ρ
+  | .WExt _ a => a ρ
 
 theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
-    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+    {n n' : Node (D.Env → Option D.Val)} (h : n.Rel Sem.FLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
   cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
   all_goals simp only [Node.eval]
   · obtain ⟨rfl, -⟩ := h; exact OLe.refl _
@@ -69,9 +71,9 @@ theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
   · intro v e
     rw [addV_eq_some] at e ⊢
     obtain ⟨m, k, h1, h2, rfl⟩ := e
-    exact ⟨m, k, h.2.2.1 _ h1, h.2.2.2 _ h2, rfl⟩
-  · exact h.2.2
-  · exact h.2
+    exact ⟨m, k, h.2.2.1 ρ _ h1, h.2.2.2 ρ _ h2, rfl⟩
+  · exact h.2.2 ρ
+  · exact h.2 ρ
 
 /-- The values of the sorts of the module: words. -/
 def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop

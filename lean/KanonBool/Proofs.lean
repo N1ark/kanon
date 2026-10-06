@@ -154,7 +154,8 @@ theorem ev_distinct_eq_some {ρ : S.Env} {l : List S.Term} {t : S.Ty} {v : S.Val
         (decide (l.map fun x => (S.ev ρ x).getD (Values.vbool.inj false)).Nodup) := by
   rw [ev_mk, Node.map, Node.eval, pdistinct, Option.map_eq_some_iff] at e
   obtain ⟨vs, hvs, rfl⟩ := e
-  rw [List.mapM_map] at hvs
+  rw [List.map_map, List.mapM_map] at hvs
+  change l.mapM (S.ev ρ) = some vs at hvs
   obtain ⟨h, rfl⟩ := (mapM_eq_some (d := Values.vbool.inj false)).1 hvs
   exact ⟨fun x hx => h x hx, rfl⟩
 
@@ -163,8 +164,8 @@ theorem ev_distinct {ρ : S.Env} {l : List S.Term} {t : S.Ty}
     S.ev ρ (mk (.Distinct l) t) =
       some (Values.vbool.inj
         (decide (l.map fun x => (S.ev ρ x).getD (Values.vbool.inj false)).Nodup)) := by
-  rw [ev_mk, Node.map, Node.eval, pdistinct, List.mapM_map]
-  rw [show (id ∘ S.ev ρ) = S.ev ρ from rfl, (mapM_eq_some (d := Values.vbool.inj false)).2 ⟨h, rfl⟩]
+  rw [ev_mk, Node.map, Node.eval, pdistinct, List.map_map, List.mapM_map]
+  rw [show (id ∘ (· ρ) ∘ fun c ρ => S.ev ρ c) = S.ev ρ from rfl, (mapM_eq_some (d := Values.vbool.inj false)).2 ⟨h, rfl⟩]
   rfl
 
 end

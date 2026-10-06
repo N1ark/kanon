@@ -1,0 +1,10 @@
+(* Packs of one term are different when their terms are *)
+extend fn Bool.sure_neq =
+  | Pack [ a ], Pack [ b ] -> Bool.sure_neq a b
+
+fn no_names (l : (name * ty) list) : bool =
+  match l with [] -> true | _ -> false
+
+(* a quantifier that binds no name is its body *)
+rule some_ : Some_ (names, (body : TBool)) =
+  | empty: _ when no_names names -> body

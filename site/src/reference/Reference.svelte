@@ -401,12 +401,12 @@
         <td><code>{`[@lean_inv "P"]{:kanon}`}</code></td>
         <td>a sort or a node</td>
         <td>
-          The invariant of its terms: the Lean predicate
-          <code>{`P {T : Type} : Node T → Prop{:lean}`}</code> on the nodes of its module, written by
-          hand in its <code>Sem.lean</code>, that is part of the well-typedness of the nodes whose
-          typing gives that sort, or of that node
+          The invariant of its terms: the Lean predicate <code>P</code> on the nodes of its module
+          and their sort, over the arguments of their typing (the embeddings of the sorts and the
+          types of the children), written by hand in its <code>Sem.lean</code>, that is part of
+          the well-typedness of the nodes whose typing gives that sort, or of that node
           (<code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code>): their typing
-          (<code>Node.wt</code>) ends with <code>{`P (node …){:lean}`}</code> (see
+          (<code>Node.wt</code>) ends with <code>{`P sBool sEven ty (node …) t{:lean}`}</code> (see
           <a href="proving.html#invariants">Invariants</a>). The sorts and nodes that name the same
           <code>P</code> share it.
         </td>
@@ -577,7 +577,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           body is a <code>match</code> that ends with a case that always applies, and each language
           puts its cases together. Its module proves its rules without its body, from what its
           <code>Prims.lean</code> says of it, <code>f.post</code>, which every case proves (as the
-          bool module's <code>sure_neq</code>; see <a href="proving.html#modules">Modules</a>).
+          bool module's <code>sure_neq</code>; see <a href="proving.html#modules">Modules</a>). A
+          case may call rule functions, oracles and extensible helpers, itself included.
         </td>
       </tr>
       <tr>
@@ -1277,7 +1278,8 @@ end`}
   <ul>
     <li>
       The nodes of a module are <code>Node T</code>, over the terms <code>T</code> of a language,
-      and its sorts <code>Srt</code>; in its files, <code>{`mk (.Plus a b) t{:lean}`}</code> is the
+      and its sorts <code>Srt</code>; those that take sorts are <code>Node Ty T</code> and
+      <code>Srt Ty</code>, over the sorts <code>Ty</code> of a language; in its files, <code>{`mk (.Plus a b) t{:lean}`}</code> is the
       term of a node, <code>proj e</code> the node of a term (if it is one of the module's),
       <code>sort s</code> a sort, and <code>Node.wt</code> the typing of the nodes. The terms of the
       language are a node of a module at a sort (<code>{`.int (.Plus a b) t{:lean}`}</code>).

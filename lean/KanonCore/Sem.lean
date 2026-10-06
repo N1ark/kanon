@@ -69,6 +69,13 @@ theorem OLe.cases {α : Type} {a b : Option α} (h : OLe a b) : a = .none ∨ b 
   | none => exact .inl rfl
   | some x => exact .inr (h x rfl)
 
+/-- `a` is below `b` in every environment: the relation of the children of
+nodes whose children are refined, which `M.Node.eval` sees as functions of the
+environment. -/
+def FLe {E α : Type} (a b : E → Option α) : Prop := ∀ ρ, OLe (a ρ) (b ρ)
+
+@[simp] theorem FLe.refl {E α : Type} (a : E → Option α) : FLe a a := fun _ => OLe.refl _
+
 theorem eval_WT {ρ t v} (h : S.eval ρ t = some v) : S.WT t := by
   unfold eval at h; split at h <;> simp_all
 

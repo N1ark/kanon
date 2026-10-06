@@ -28,11 +28,11 @@ structure Oracle.Compat (orc : Oracle) : Prop where
   bool : KanonBool.Oracle.Compat (S := sem) orc.bool_sort_by_tag
   word : WordMod.Oracle.Compat (S := sem) orc.word_wsum orc.word_wcheck
 
-def Bool.sure_neq (a : Term) (b : Term) : Bool :=
+def Bool.sure_neq (O : L4.Ops sem) (a : Term) (b : Term) : Bool :=
   (firstSome [KanonBool.Bool.sure_neq.c1 (S := sem) a b, KanonBool.Bool.sure_neq.c2 (S := sem) a b]).getD (KanonBool.Bool.sure_neq.default (S := sem) a b)
 
-theorem Bool.sure_neq.sound (a : Term) (b : Term) :
-    KanonBool.Bool.sure_neq.post (S := sem) a b (Bool.sure_neq a b) := by
+theorem Bool.sure_neq.sound (O : L4.Ops sem) (hO : O.Sound) (a : Term) (b : Term) :
+    KanonBool.Bool.sure_neq.post (S := sem) a b (Bool.sure_neq O a b) := by
   unfold Bool.sure_neq
   refine Kanon.getD_firstSome_cons (fun r h => KanonBool.Bool.sure_neq.c1.ok (S := sem) a b r h) ?_
   refine Kanon.getD_firstSome_cons (fun r h => KanonBool.Bool.sure_neq.c2.ok (S := sem) a b r h) ?_
@@ -204,7 +204,7 @@ def opsRaw (orc : Oracle) : L4.Ops sem :=
     bool_sort_by_tag := orc.bool_sort_by_tag,
     word_wsum := orc.word_wsum,
     word_wcheck := orc.word_wcheck,
-    bool_sure_neq := Bool.sure_neq,
+    bool_sure_neq := fun a b => KanonBool.Bool.sure_neq.default (S := sem) a b,
     bool_and_ := fun v1 v2 => KanonBool.Bool.and_.spec (S := sem) v1 v2,
     bool_or_ := fun v1 v2 => KanonBool.Bool.or_.spec (S := sem) v1 v2,
     bool_not_ := fun sv => KanonBool.Bool.not_.spec (S := sem) sv,
@@ -220,6 +220,7 @@ def opsRaw (orc : Oracle) : L4.Ops sem :=
 /-- One step of the rule functions, over those of `O`. -/
 def opsStep (O : L4.Ops sem) : L4.Ops sem :=
   { O with
+    bool_sure_neq := Bool.sure_neq O,
     bool_and_ := Bool.and_.step O,
     bool_or_ := Bool.or_.step O,
     bool_not_ := Bool.not_.step O,
@@ -253,7 +254,7 @@ theorem opsN_sound (orc : Oracle) (h : orc.Compat) : ∀ n, (opsN orc n).Sound
       word_double := fun n v => Kanon.Sem.Refines.refl,
       bool_orc := h.bool,
       word_orc := h.word,
-      bool_sure_neq := Bool.sure_neq.sound }
+      bool_sure_neq := fun a b => KanonBool.Bool.sure_neq.default.ok (S := sem) a b }
   | n + 1 =>
     have hO := opsN_sound orc h n
     { bool_and_ := Bool.and_.step_sound _ hO,
@@ -269,6 +270,6 @@ theorem opsN_sound (orc : Oracle) (h : orc.Compat) : ∀ n, (opsN orc n).Sound
       word_double := Word.double.step_sound _ hO,
       bool_orc := hO.bool_orc,
       word_orc := hO.word_orc,
-      bool_sure_neq := hO.bool_sure_neq }
+      bool_sure_neq := Bool.sure_neq.sound _ hO }
 
 end L4

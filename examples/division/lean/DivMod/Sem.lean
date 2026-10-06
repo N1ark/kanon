@@ -70,22 +70,23 @@ theorem op2_mono {f : Int → Int → Int} {a a' b b' : Option V} (ha : OLe a a'
   exact ⟨m, n, ha _ h1, hb _ h2, rfl⟩
 end
 
-/-- The evaluation of a node, given the values of its children. -/
+/-- The evaluation of a node, given the values of its children in every
+environment. -/
 def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
-    Node (Option D.Val) → Option D.Val
+    Node (D.Env → Option D.Val) → Option D.Val
   | .Int z => some (Values.vint.inj z)
-  | .Plus a b => op2 Values.vint (· + ·) a b
-  | .Div a b => op2 Values.vint (· / ·) a b
-  | .Sq1 a => op1 Values.vint (fun m => m * m + 1) a
+  | .Plus a b => op2 Values.vint (· + ·) (a ρ) (b ρ)
+  | .Div a b => op2 Values.vint (· / ·) (a ρ) (b ρ)
+  | .Sq1 a => op1 Values.vint (fun m => m * m + 1) (a ρ)
 
 theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
-    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+    {n n' : Node (D.Env → Option D.Val)} (h : n.Rel Sem.FLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
   cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
   all_goals simp only [Node.eval]
   · subst h; exact OLe.refl _
-  · exact op2_mono _ h.1 h.2
-  · exact op2_mono _ h.1 h.2
-  · exact op1_mono _ h
+  · exact op2_mono _ (h.1 ρ) (h.2 ρ)
+  · exact op2_mono _ (h.1 ρ) (h.2 ρ)
+  · exact op1_mono _ (h ρ)
 
 /-- The values of the sorts of the module: integers. -/
 def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop

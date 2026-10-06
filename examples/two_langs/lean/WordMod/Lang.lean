@@ -19,8 +19,8 @@ open Classical Kanon
 of the sorts of the modules), given the types of their children (`ty`). -/
 def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sWord : WordMod.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
   | (.Wd x1 n), t => (t = (sWord (.TWord n)))
-  | (.WBlob x1 x2), t => (t = (sWord (.TWord (8 : Int)))) ∧ word_wf (T := T) (.WBlob x1 x2)
-  | (.WFit z), t => (t = (sWord (.TWord (WordMod.fit z)))) ∧ word_wf (T := T) (.WFit z)
+  | (.WBlob x1 x2), t => (t = (sWord (.TWord (8 : Int)))) ∧ word_wf sBool sWord ty (.WBlob x1 x2) t
+  | (.WFit z), t => (t = (sWord (.TWord (WordMod.fit z)))) ∧ word_wf sBool sWord ty (.WFit z) t
   | (.WAdd x1 n a3 a4), t => (ty a3 = (sWord (.TWord n)) ∧ ty a4 = (sWord (.TWord n)) ∧ t = (sWord (.TWord n)))
   | (.WRound x1 n a3), t => (ty a3 = (sWord (.TWord n)) ∧ t = (sWord (.TWord n)))
   | (.WExt k a2), t => (∃ n : Int, ty a2 = (sWord (.TWord n)) ∧ (0 : Int) ≤ k ∧ t = (sWord (.TWord (n + k))))
@@ -31,7 +31,7 @@ class Lang (S : Kanon.Sem) [KanonBool.Lang S] extends Values S.toDom where
   node : Kanon.NodeEmbed Node S
   srt : Kanon.Embed Srt S.Ty
   WT_inj : ∀ n t, S.WT (node.inj n t) ↔ Node.wt (KanonBool.Lang.srt (S := S)).inj srt.inj S.ty n t ∧ n.All S.WT
-  ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (S.ev ρ))
+  ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (fun c ρ => S.ev ρ c))
   size_proj : ∀ e n, node.proj e = some n → n.All (fun c => S.size c < S.size e)
   proj_Bool_inj_Word : ∀ n t, (KanonBool.Lang.node (S := S)).proj (node.inj n t) = none
   proj_Word_inj_Bool : ∀ n t, node.proj ((KanonBool.Lang.node (S := S)).inj n t) = none
@@ -56,7 +56,7 @@ abbrev proj (e : S.Term) : Option (Node S.Term) := L.node.proj e
   L.WT_inj n t
 
 @[kanon_ev] theorem ev_mk (ρ : S.Env) (n : Node S.Term) (t : S.Ty) :
-  S.ev ρ (mk n t) = Node.eval ρ t (n.map (S.ev ρ)) :=
+  S.ev ρ (mk n t) = Node.eval ρ t (n.map (fun c ρ => S.ev ρ c)) :=
   L.ev_inj ρ n t
 
 @[simp] theorem proj_mk (n : Node S.Term) (t : S.Ty) : proj (mk n t) = some n :=
@@ -117,7 +117,7 @@ abbrev sortProj (τ : S.Ty) : Option Srt := L.srt.proj τ
 /-- Refined children: the node is typed and evaluated as refined. -/
 theorem Node.rel_refines {n n' : Node S.Term} (h : n.Rel S.Refines n') (w : n.All S.WT) :
   n'.All S.WT ∧ (∀ t, Node.wt KanonBool.Lang.srt.inj L.srt.inj S.ty n t → Node.wt KanonBool.Lang.srt.inj L.srt.inj S.ty n' t) ∧
-    ∀ ρ, (n.map (S.ev ρ)).Rel Kanon.Sem.OLe (n'.map (S.ev ρ)) := by
+    (n.map (fun c ρ => S.ev ρ c)).Rel Kanon.Sem.FLe (n'.map (fun c ρ => S.ev ρ c)) := by
   cases n <;> cases n' <;> simp only [Node.Rel, Node.All, Node.wt, Node.map] at h w ⊢ <;>
     kanon_rel_refines
 
@@ -129,7 +129,7 @@ theorem Node.rel_refines {n n' : Node S.Term} (h : n.Rel S.Refines n') (w : n.Al
   · obtain ⟨h1, h2, -⟩ := Node.rel_refines h w.2
     exact ⟨(WT_mk _ _).2 ⟨h2 t w.1, h1⟩, by simp only [ty_mk]⟩
   · rw [ev_mk] at e ⊢
-    exact Node.eval_mono ρ t ((Node.rel_refines h w.2).2.2 ρ) v e
+    exact Node.eval_mono ρ t (Node.rel_refines h w.2).2.2 v e
 
 end
 

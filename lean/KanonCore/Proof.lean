@@ -355,12 +355,14 @@ macro "kanon_rel_refines" : tactic => `(tactic| (
   refine ⟨?_, ?_, ?_⟩
   · simp_all
   · intro t hw
-    (try kanon_split)
-    (try subst_vars)
-    (first
-      | (simp_all; done)
-      | exact ⟨_, by simp_all, by apply_assumption <;> assumption⟩)
-  · intro ρ; simp_all))
+    (try simp only [kanon_wt] at hw ⊢)
+    all_goals
+      (try kanon_split)
+      (try subst_vars)
+      (first
+        | (simp_all; done)
+        | exact ⟨_, by simp_all, by apply_assumption <;> assumption⟩)
+  · simp_all [Kanon.Sem.FLe]))
 
 /-! ## Congruence -/
 

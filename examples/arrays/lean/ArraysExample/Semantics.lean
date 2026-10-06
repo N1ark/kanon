@@ -32,21 +32,21 @@ mutual
 
 /-- The evaluation of the terms. -/
 def ev (ρ : Env) : Term → Option Val
-  | .vec n t => ArraysExample.Vec.Node.eval (D := dom) ρ t (evVec ρ n)
+  | .vec n t => ArraysExample.Vec.Node.eval (D := dom) ρ t (evVec n)
 
-def evVec (ρ : Env) : ArraysExample.Vec.Node Term → ArraysExample.Vec.Node (Option Val)
+def evVec : ArraysExample.Vec.Node Term → ArraysExample.Vec.Node (Env → Option Val)
   | (.Int x1) => (.Int x1)
   | (.Vec x1) => (.Vec x1)
-  | (.Len a1) => (.Len (ev ρ a1))
-  | (.Get a1 a2) => (.Get (ev ρ a1) (ev ρ a2))
-  | (.Set a1 a2 a3) => (.Set (ev ρ a1) (ev ρ a2) (ev ρ a3))
+  | (.Len a1) => (.Len (fun ρ => ev ρ a1))
+  | (.Get a1 a2) => (.Get (fun ρ => ev ρ a1) (fun ρ => ev ρ a2))
+  | (.Set a1 a2 a3) => (.Set (fun ρ => ev ρ a1) (fun ρ => ev ρ a2) (fun ρ => ev ρ a3))
 
 end
 
 theorem allVec_iff (n : ArraysExample.Vec.Node Term) : allVec n ↔ n.All Term.WT := by
   cases n <;> simp [allVec, ArraysExample.Vec.Node.All]
 
-theorem evVec_eq (ρ : Env) (n : ArraysExample.Vec.Node Term) : evVec ρ n = n.map (ev ρ) := by
+theorem evVec_eq (n : ArraysExample.Vec.Node Term) : evVec n = n.map (fun c ρ => ev ρ c) := by
   cases n <;> simp only [evVec, ArraysExample.Vec.Node.map]
 
 /-- The typing of a node of `Vec`. -/
@@ -56,8 +56,8 @@ theorem WT_vec (n : ArraysExample.Vec.Node Term) (t : Ty) :
 
 /-- The evaluation of a node of `Vec`. -/
 theorem ev_vec (ρ : Env) (n : ArraysExample.Vec.Node Term) (t : Ty) :
-  ev ρ (.vec n t) = ArraysExample.Vec.Node.eval (D := dom) ρ t (n.map (ev ρ)) :=
-  congrArg (ArraysExample.Vec.Node.eval (D := dom) ρ t) (evVec_eq ρ n)
+  ev ρ (.vec n t) = ArraysExample.Vec.Node.eval (D := dom) ρ t (n.map (fun c ρ => ev ρ c)) :=
+  congrArg (ArraysExample.Vec.Node.eval (D := dom) ρ t) (evVec_eq n)
 
 /-- The semantics of the language. -/
 @[reducible] def sem : Kanon.Sem where

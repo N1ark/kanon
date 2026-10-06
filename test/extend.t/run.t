@@ -189,3 +189,37 @@ without a guard matches all that it matches) is an error, also for a rule.
   $ kanon ocaml lang.knl base.kn ext.kn
   ext.kn:2:4: extend Base.g: this case is unreachable (an earlier case of Base.g matches everything it does), so it was not added
   [1]
+
+A case of an extensible helper may call rule functions, oracles and extensible
+helpers, itself included: it then takes the record `O` of the model. Each
+language puts the cases together at each step of fuel, over the record of the
+step before, and its default case at the first.
+
+  $ cat > base.kn <<'KN'
+  > fn h (a : t) : int [@extensible] =
+  >   match a with
+  >   | Int z -> z
+  >   | _ -> 0
+  > KN
+  $ cat > ext.kn <<'KN'
+  > extend fn Base.h =
+  >   | x + _ -> Base.h x
+  > KN
+  $ kanon lean-model lang.knl base.kn ext.kn | grep '^def Base.h.c1'
+  def Base.h.c1 (a : S.Term) : Option Int :=
+  def Base.h.c1 (O : Ops S) (a : S.Term) : Option Int :=
+  $ kanon lean-rules lang.knl base.kn ext.kn | grep -A1 '^def Base.h\|base_h :='
+  def Base.h (O : Kanon.Ext.Ops sem) (a : Term) : Int :=
+    (firstSome [Kanon.Base.Base.h.c1 (S := sem) a, Kanon.Ext.Base.h.c1 (S := sem) O a]).getD (Kanon.Base.Base.h.default (S := sem) a)
+  --
+      base_h := fun a => Kanon.Base.Base.h.default (S := sem) a }
+  
+  --
+      base_h := Base.h O }
+  
+  --
+      { base_h := fun a => Kanon.Base.Base.h.default.ok (S := sem) a }
+    | n + 1 =>
+  --
+      { base_h := Base.h.sound _ hO }
+  

@@ -23,11 +23,11 @@ class Values (D : Kanon.Dom) where
 
 /-- The value of a variable, at its sort. -/
 def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
-    Node (Option D.Val) → Option D.Val
+    Node (D.Env → Option D.Val) → Option D.Val
   | .Var x => (Values.lookup ρ x).bind fun v => if Values.Of v t then some v else none
 
 theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
-    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+    {n n' : Node (D.Env → Option D.Val)} (h : n.Rel Sem.FLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
   cases n; cases n'; simp only [Node.Rel] at h; subst h; exact OLe.refl _
 
 end L3

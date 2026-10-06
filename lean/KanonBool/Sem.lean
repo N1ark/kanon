@@ -7,7 +7,7 @@ import KanonCore.ProofAttr
 
 The bool module needs the booleans among the values of a language
 (`KanonBool.Values`), and evaluates its nodes by the operations below, given the
-values of their children, where `none` is poison:
+values of their children in the environment, where `none` is poison:
 
 - `pand` and `por` are "parallel": a `false` (resp. `true`) operand wins over a
   poisoned one, as it would over any value of the unspecified one;
@@ -62,16 +62,17 @@ def pdistinct (vs : Option (List V)) : Option V :=
   vs.map fun vs => vb (decide vs.Nodup)
 end
 
-/-- The evaluation of a node, given the values of its children. -/
+/-- The evaluation of a node in the environment `ρ`, given the values of its
+children in every environment. -/
 def Node.eval {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty) :
-    Node (Option D.Val) → Option D.Val
+    Node (D.Env → Option D.Val) → Option D.Val
   | .Bool b => some (Values.vbool.inj b)
-  | .Not a => pnot Values.vbool.inj a
-  | .And a b => pand Values.vbool.inj a b
-  | .Or a b => por Values.vbool.inj a b
-  | .Eq a b => peq Values.vbool.inj a b
-  | .Ite g a b => pite Values.vbool.inj g a b
-  | .Distinct l => pdistinct Values.vbool.inj (l.mapM id)
+  | .Not a => pnot Values.vbool.inj (a ρ)
+  | .And a b => pand Values.vbool.inj (a ρ) (b ρ)
+  | .Or a b => por Values.vbool.inj (a ρ) (b ρ)
+  | .Eq a b => peq Values.vbool.inj (a ρ) (b ρ)
+  | .Ite g a b => pite Values.vbool.inj (g ρ) (a ρ) (b ρ)
+  | .Distinct l => pdistinct Values.vbool.inj ((l.map (· ρ)).mapM id)
 
 /-- The values of the sorts of the module: `true` and `false`. -/
 def Srt.val {D : Kanon.Dom} [Values D] : Srt → D.Val → Prop
@@ -174,16 +175,17 @@ end
 
 /-- The evaluation of the nodes is monotone in poison. -/
 theorem Node.eval_mono {D : Kanon.Dom} [Values D] (ρ : D.Env) (t : D.Ty)
-    {n n' : Node (Option D.Val)} (h : n.Rel OLe n') : OLe (n.eval ρ t) (n'.eval ρ t) := by
+    {n n' : Node (D.Env → Option D.Val)} (h : n.Rel Sem.FLe n') :
+    OLe (n.eval ρ t) (n'.eval ρ t) := by
   cases n <;> cases n' <;> simp only [Node.Rel] at h <;> (try contradiction)
   all_goals simp only [Node.eval]
   · subst h; exact OLe.refl _
-  · exact pnot_mono h
-  · exact pand_mono h.1 h.2
-  · exact por_mono h.1 h.2
-  · exact peq_mono h.1 h.2
-  · exact pite_mono h.1 h.2.1 h.2.2
-  · exact pdistinct_mono (OLe.mapM h)
+  · exact pnot_mono (h ρ)
+  · exact pand_mono (h.1 ρ) (h.2 ρ)
+  · exact por_mono (h.1 ρ) (h.2 ρ)
+  · exact peq_mono (h.1 ρ) (h.2 ρ)
+  · exact pite_mono (h.1 ρ) (h.2.1 ρ) (h.2.2 ρ)
+  · exact pdistinct_mono (Sem.FLe.mapM h ρ)
 
 end KanonBool
 

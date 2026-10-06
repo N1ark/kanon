@@ -51,7 +51,8 @@
     are quoted whole: they are templates.
     <a href="{REPO}/examples/bool"><code>examples/bool</code></a>, the bool module alone, is the
     minimal case, and <a href="{REPO}/examples/two_langs"><code>examples/two_langs</code></a> has
-    four languages that share modules, with a diamond, invariants, data types and oracles.
+    five languages that share modules, with a diamond, invariants, data types, oracles and a
+    binder.
   </p>
   {#each ["lang.knl", "int.knl", "int.kn"] as name (name)}
     <p class="file"><code>examples/ints/{name}</code></p>
@@ -85,7 +86,9 @@
           the terms <code>T</code> of any language, with the documentation comments of the
           declarations; <code>Node.map</code>, <code>Node.All</code> (every child satisfies a
           predicate) and <code>Node.Rel</code> (two nodes with the same arguments and related
-          children).
+          children). Sorts that take sorts are over the sorts of a language,
+          <code>{`Srt (Ty : Type){:lean}`}</code>, and so are nodes that take sorts,
+          <code>{`Node (Ty T : Type){:lean}`}</code> (see <a href="#sorts">Sorts of sorts</a>).
         </td>
       </tr>
       <tr>
@@ -151,8 +154,10 @@
         <td>
           The meaning of its nodes, for any language: <code>{`class Values (D : Kanon.Dom){:lean}`}</code>,
           the values it needs of a language (<code>{`vint : Embed Int D.Val{:lean}`}</code>), the
-          evaluation of a node given the values of its children,
-          <code>{`Node.eval (ρ : D.Env) (t : D.Ty) : Node (Option D.Val) → Option D.Val{:lean}`}</code>,
+          evaluation of a node in an environment given the values of its children in every
+          environment,
+          <code>{`Node.eval (ρ : D.Env) (t : D.Ty) : Node (D.Env → Option D.Val) → Option D.Val{:lean}`}</code>
+          (most nodes take those at <code>ρ</code>, <code>a ρ</code>; a binder those at others),
           that it is monotone (<code>Node.eval_mono</code>: poison children give poison or the same
           value), the values of its sorts (<code>Srt.val</code>), its invariants (see
           <a href="#invariants">Invariants</a>) and its primitives over plain data, which its typing
@@ -262,7 +267,12 @@
     <code>Rules.lean</code>. Its module states what it satisfies in <code>Prims.lean</code>
     (<code>Bool.sure_neq.post</code>), which each case of each module proves
     (<code>Bool.sure_neq.c1.Stmt</code>), as its default (<code>Bool.sure_neq.default.Stmt</code>),
-    and which the rules of every module may use (<code>hO.bool_sure_neq</code>).
+    and which the rules of every module may use (<code>hO.bool_sure_neq</code>). A case that calls
+    rule functions, oracles or extensible helpers (itself, on the children of a node) takes the
+    record <code>O</code> of the model, and its statement assumes <code>O.Sound</code>: each
+    language puts the cases together at each step of fuel, over the record of the step before,
+    and the default alone at the first. The pack module of <code>examples/two_langs</code> tells
+    two packs of one term apart by their terms.
   </p>
   <p>
     The oracles that the rules of a module call are fields of its <code>Ops</code>, and what it
@@ -310,14 +320,32 @@
   <p>
     The typing of a node (<code>Node.wt</code>) says what Kanon knows of it: the sorts of its
     typing, and the invariants of the node and of its sort. An invariant is a Lean predicate on the
-    nodes of the module, <code>{`P {T : Type} : Node T → Prop{:lean}`}</code>, that its
-    <code>Sem.lean</code> defines, declared on a sort or a node:
+    nodes of the module and their sort, over the same arguments as their typing (the embeddings
+    of the sorts of the modules it uses, and the types of the children),
+    <code>{`P {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sWord : Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop{:lean}`}</code>,
+    that its <code>Sem.lean</code> defines, declared on a sort or a node:
     <code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code> holds of the nodes whose typing gives
     that sort, and <code>{`node WFit of int (z) : TWord (fit z) [@lean_inv "word_wf"]{:kanon}`}</code>
     of that node. The nodes and sorts that name the same predicate share it. Tag it
     <code>{`@[kanon_wt]{:lean}`}</code> for the tactics to unfold it. The even module of
     <code>examples/two_langs</code> proves <code>Rem2 (Ev z) → 0</code>, which holds of even
-    literals only.
+    literals only. An invariant may state what the typing cannot: the pack module of
+    <code>examples/two_langs</code> gives a pack the sort of its terms,
+    <code>{`∃ e, t = sPack (.TPack e) ∧ ∀ x ∈ l, ty x = e{:lean}`}</code>.
+  </p>
+
+  <Heading level={3} id="sorts">Sorts of sorts and binders</Heading>
+  <p>
+    A sort may take sorts (<code>{`sort TPack of ty{:kanon}`}</code>), and a node may take sorts
+    among its arguments (<code>{`node Some_ of (name * ty) list * t : TBool{:kanon}`}</code>): its
+    <code>Srt</code> (or <code>Node</code>) is then over the sorts of a language,
+    <code>{`Srt (Ty : Type){:lean}`}</code> (<code>{`Node (Ty T : Type){:lean}`}</code>), which the
+    language gives (<code>{`.pack (s : PackMod.Srt Ty){:lean}`}</code>). The children of a node are
+    given to its meaning in every environment, so that a binder evaluates its body in others: the
+    quantifier <code>Some_</code> of the pack module of <code>examples/two_langs</code> is whether
+    some environment that gives its names values makes its body true
+    (<code>examples/two_langs/lean/PackMod/Sem.lean</code>), and the language
+    <code>L5</code> proves the typing of its terms in every environment.
   </p>
 
   <Heading level={2} id="library">What the library gives</Heading>
