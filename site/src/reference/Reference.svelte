@@ -855,14 +855,11 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
 
   <Heading level={3} id="traversals">Traversals</Heading>
   <p>
-    A language that has <code>{`[@@@traversals]{:kanon}`}</code> gets, in the output of
-    <code>kanon ocaml</code>, functions that traverse its terms and its sorts, one case per node (and
-    per sort constructor), in the order of the arguments, with no intermediate list. A node added by
-    a later module, or by a later <code>extend</code>, has its case without more: the traversals are
-    generated from the final language. They are what a host writes the operations that Kanon does not
-    know of (the free variables, a substitution, an evaluation, a search) over: what a variable is,
-    or a binder, stays out of Kanon. They are language-wide: top-level functions of the rules module
-    (<code>Lang_rules.map_children</code>), in no Kanon module.
+    With <code>{`[@@@traversals]{:kanon}`}</code>, <code>kanon ocaml</code> also generates
+    functions that traverse the terms and the sorts, with one case per node and per sort
+    constructor, including those added by later modules. They are top-level functions of the rules
+    module (<code>Lang_rules.map_children</code>), on which a host writes what Kanon does not know
+    of: free variables, substitution, evaluation, search.
   </p>
   <Code
     lang="ocaml"
@@ -876,51 +873,91 @@ val map_ty_children : (ty -> ty) -> ty -> ty
   <ul>
     <li>
       The <em>children</em> of a node are the values of type <code>t</code> in its parameters and
-      operands, left to right: directly (<code>{`Not of t{:kanon}`}</code>), in a list, an array or an
-      option (<code>t list</code>, <code>t array</code>, <code>t option</code>), in a tuple
-      (<code>{`(int * t) option{:kanon}`}</code>), and in a type of the language that mentions
-      <code>t</code>, a record
-      (<code>{`type block = { owner : var; offset : t; size : t }{:kanon}`}</code>, its fields in
-      order) or a variant (the arguments of its constructors), possibly recursive, whose traversal is
-      generated (<code>kanon__map_block</code>, …). A value of an abstract type is opaque: it has no
-      children, even if its OCaml type contains terms. Every other type has none. The sorts have
-      children too: the values of type <code>ty</code> in the arguments of the sort constructors
-      (<code>{`TSeq of ty`}</code>, <code>{`TTuple of ty list`}</code>), in the same shapes.
+      operands, left to right: directly, in a list, an array, an option or a tuple, and in a record
+      or variant of the language (its fields or constructor arguments, in order, through a generated
+      <code>kanon__map_block</code>, …). Values of abstract types have no children. The children of
+      a sort are the values of type <code>ty</code> in its arguments, in the same shapes.
     </li>
     <li>
-      <code>iter_children f v</code> calls <code>f</code> on the children;
-      <code>exists_child f v</code> is true as soon as <code>f</code> is, and does not look at the
-      others (<code>for_all_child f v</code> is the dual, <code>false</code> as soon as
-      <code>f</code> is). <code>map_children f v</code> rebuilds <code>v</code> from <code>f</code>
-      applied to its children, in order: through the <em>smart constructor</em> of the node, if a rule
-      function has the node as its spec over its parameters (so that mapping a child to
-      <code>0</code> simplifies the sum), else as the raw node, whose sort is that of its typing from
-      the new children (the <code>Tuple</code> of <code>{`TTuple (types_of vs){:kanon}`}</code>, see
-      <a href="#declarations">node</a>), or, if the node has no typing (a leaf), the sort of
-      <code>v</code>. The rebuilt term is always built again (hash-consing finds the existing one). A
-      node without children, and a term that is not a node with children, is its own
-      <code>map_children</code>.
+      <code>iter_children f v</code> calls <code>f</code> on each child, in order.
+      <code>exists_child f v</code> stops at the first child where <code>f</code> is true, and
+      <code>for_all_child f v</code> at the first where it is false.
     </li>
     <li>
-      The searches compose with the recursion of the host, with no handler and no allocation:
-      <code>{`let rec has_var v = is_var v || exists_child has_var v{:ocaml}`}</code>. A host that wants
-      to leave a traversal from inside raises its own exception at the top level
-      (<code>iter_children</code> has no handler of its own), and Kanon has no <code>Break</code>: the
-      exception of a handler in each call would only stop the innermost loop of a recursive search. On
-      a term of 187,000 nodes, the predicate, the iteration with a top-level exception, a built-in
-      handler and the list of operands that the traversals replace are within the noise of each other
-      (3 to 6 ms), so the choice is that of simplicity.
+      <code>map_children f v</code> applies <code>f</code> to each child once, in order. If every
+      result is physically equal (<code>==</code>) to its child, it returns <code>v</code> itself:
+      nothing is rebuilt or allocated, and no smart constructor is called. Otherwise it rebuilds the
+      node with <code>kanon__rebuild_C</code>: through its <em>smart constructor</em> if a rule
+      function has the node as its spec, else as the raw node, at the sort that its typing gives (<a
+        href="#declarations">node</a>), or at the sort of <code>v</code> if it has none. A term
+      without children is its own <code>map_children</code>.
     </li>
     <li>
-      The functions that rebuild the nodes are <code>kanon__rebuild_C</code>,
-      <code>{`[@no_lean]{:kanon}`}</code> functions of the rules; the traversals are in OCaml only:
-      nothing is generated for Lean, and <code>ocaml-typed</code> does not type them.
+      The searches have no exception handler, so they compose with the host's recursion: <code>{`let rec has_var v = is_var v || exists_child has_var v{:ocaml}`}</code>.
+      To leave a traversal early, the host raises its own exception.
+    </li>
+    <li>
+      They are OCaml only: nothing is generated for Lean, and <code>ocaml-typed</code> does not type
+      them.
       <a href="https://github.com/N1ark/kanon/tree/main/examples/traversals"><code>examples/traversals</code></a>
-      is a small language, in two modules, with nodes whose children are in a list, an array, an
-      option of a tuple and a record: its OCaml is compiled and run by the tests. It has no Lean files
-      (a typing that calls a function is not in Lean's <code>Typing.lean</code>).
+      has nodes with children of every shape; its OCaml is compiled and run by the tests.
     </li>
   </ul>
+  <p>
+    For example, this language, whose rules have a smart constructor for <code>Add</code>
+    (<code>{`rule add : Add (v1, v2){:kanon}`}</code>, which drops a zero):
+  </p>
+  <Code
+    code={`[@@@traversals]
+use "rules"
+sort TInt
+node Int of int : TInt
+notation Int
+node Add : TInt -> TInt -> TInt [@unit 0]
+node Sum of t list : TInt`}
+  />
+  <p>
+    the generated traversals are as follows, where <code>kanon__rebuild_Add</code> is the smart
+    constructor <code>Rules.add</code>, and <code>kanon__rebuild_Sum</code> the raw node at
+    <code>TInt</code>:
+  </p>
+  <Code
+    lang="ocaml"
+    code={`let rec kanon__list_map f l =
+  match l with
+  | [] -> l
+  | x :: r ->
+      let y = f x in
+      let s = kanon__list_map f r in
+      if y == x && s == r then l else y :: s
+
+let map_children (f : t -> t) (v : t) : t =
+  match v with
+  | { kind = Sum (p1); _ } ->
+      let y_p1 = (kanon__list_map f) p1 in
+      if y_p1 == p1 then v else kanon__rebuild_Sum y_p1
+  | { kind = Op2 (Add, x1, x2); _ } ->
+      let y_x1 = f x1 in
+      let y_x2 = f x2 in
+      if y_x1 == x1 && y_x2 == x2 then v else kanon__rebuild_Add y_x1 y_x2
+  | _ -> v
+
+let iter_children (f : t -> unit) (v : t) : unit =
+  match v with
+  | { kind = Sum (p1); _ } ->
+      (List.iter f) p1
+  | { kind = Op2 (Add, x1, x2); _ } ->
+      f x1; f x2
+  | _ -> ()
+
+let exists_child (f : t -> bool) (v : t) : bool =
+  match v with
+  | { kind = Sum (p1); _ } ->
+      (List.exists f) p1
+  | { kind = Op2 (Add, x1, x2); _ } ->
+      f x1 || f x2
+  | _ -> false`}
+  />
 
   <Heading level={3} id="typed">Typed OCaml</Heading>
   <p>
