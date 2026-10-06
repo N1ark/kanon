@@ -61,17 +61,17 @@ the types of the language get a function of their own.
     match x with
     | Raw (a1) ->
         let y_a1 = f a1 in
-        Raw (y_a1)
+        if y_a1 == a1 then x else Raw (y_a1)
     | Pair (a1, a2) ->
         let y_a1 = f a1 in
-        Pair (y_a1, a2)
+        if y_a1 == a1 then x else Pair (y_a1, a2)
     | Nothing ->
-        Nothing
+        x
   
   and kanon__map_cell f (x : cell) : cell =
     let y_x_item = (kanon__map_item f) x.item in
-    let y_x_next = (Option.map (kanon__map_cell f)) x.next in
-    { x with item = y_x_item; next = y_x_next }
+    let y_x_next = (function Some x as o -> let y = (kanon__map_cell f) x in if y == x then o else Some y | None -> None) x.next in
+    if y_x_item == x.item && y_x_next == x.next then x else { x with item = y_x_item; next = y_x_next }
   
   let rec kanon__iter_item f (x : item) : unit =
     match x with
@@ -100,17 +100,17 @@ the types of the language get a function of their own.
   let map_children (f : t -> t) (v : t) : t =
     match v with
     | { kind = Seq (p1); _ } ->
-        let y_p1 = (List.map f) p1 in
-        kanon__rebuild_Seq y_p1
+        let y_p1 = (kanon__list_map f) p1 in
+        if y_p1 == p1 then v else kanon__rebuild_Seq y_p1
     | { kind = Cells (p1); _ } ->
         let y_p1 = (kanon__map_cell f) p1 in
-        kanon__rebuild_Cells y_p1
+        if y_p1 == p1 then v else kanon__rebuild_Cells y_p1
     | { kind = Lam (p1, p2); _ } ->
         let y_p2 = f p2 in
-        kanon__rebuild_Lam v.ty p1 y_p2
+        if y_p2 == p2 then v else kanon__rebuild_Lam v.ty p1 y_p2
     | { kind = Op1 (Neg, x1); _ } ->
         let y_x1 = f x1 in
-        kanon__rebuild_Neg y_x1
+        if y_x1 == x1 then v else kanon__rebuild_Neg y_x1
     | _ -> v
   
   let iter_children (f : t -> unit) (v : t) : unit =
@@ -144,7 +144,7 @@ the types of the language get a function of their own.
     match v with
     | TSeq (p1) ->
         let y_p1 = f p1 in
-        TSeq (y_p1)
+        if y_p1 == p1 then v else TSeq (y_p1)
     | _ -> v
   
   let iter_ty_children (f : ty -> unit) (v : ty) : unit =
@@ -232,7 +232,7 @@ The sorts have children too:
     match v with
     | TSeq (p1) ->
         let y_p1 = f p1 in
-        TSeq (y_p1)
+        if y_p1 == p1 then v else TSeq (y_p1)
     | _ -> v
   
   let iter_ty_children (f : ty -> unit) (v : ty) : unit =

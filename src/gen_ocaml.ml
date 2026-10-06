@@ -762,28 +762,28 @@ let rec mapper act target ty : string option =
     | TList t ->
         Option.map
           (fun m ->
-            Printf.sprintf "(List.%s %s)"
-              (match act with
-              | Map -> "map"
-              | Iter -> "iter"
-              | Exists -> "exists")
-              m)
+            match act with
+            | Map -> Printf.sprintf "(kanon__list_map %s)" m
+            | Iter -> Printf.sprintf "(List.iter %s)" m
+            | Exists -> Printf.sprintf "(List.exists %s)" m)
           (mapper act target t)
     | TArray t ->
         Option.map
           (fun m ->
-            Printf.sprintf "(Iarray.%s %s)"
-              (match act with
-              | Map -> "map"
-              | Iter -> "iter"
-              | Exists -> "exists")
-              m)
+            match act with
+            | Map -> Printf.sprintf "(kanon__iarray_map %s)" m
+            | Iter -> Printf.sprintf "(Iarray.iter %s)" m
+            | Exists -> Printf.sprintf "(Iarray.exists %s)" m)
           (mapper act target t)
     | TOption t ->
         Option.map
           (fun m ->
             match act with
-            | Map -> Printf.sprintf "(Option.map %s)" m
+            | Map ->
+                Printf.sprintf
+                  "(function Some x as o -> let y = %s x in if y == x then o \
+                   else Some y | None -> None)"
+                  m
             | Iter -> Printf.sprintf "(Option.iter %s)" m
             | Exists ->
                 Printf.sprintf "(function Some x -> %s x | None -> false)" m)
@@ -796,19 +796,18 @@ let rec mapper act target ty : string option =
         Some
           (match act with
           | Map ->
-              Printf.sprintf "(fun (%s) -> %s(%s))" pat
+              let some f =
+                List.concat (List.mapi (fun i m -> Option.to_list (f i m)) ms)
+              in
+              Printf.sprintf "(fun ((%s) as p) -> %sif %s then p else (%s))" pat
                 (String.concat ""
-                   (List.concat
-                      (List.mapi
-                         (fun i m ->
-                           match m with
-                           | Some m ->
-                               [
-                                 Printf.sprintf "let %s = %s %s in " (b i) m
-                                   (a i);
-                               ]
-                           | None -> [])
-                         ms)))
+                   (some (fun i ->
+                        Option.map (fun m ->
+                            Printf.sprintf "let %s = %s %s in " (b i) m (a i)))))
+                (String.concat " && "
+                   (some (fun i ->
+                        Option.map (fun _ ->
+                            Printf.sprintf "%s == %s" (b i) (a i)))))
                 (String.concat ", "
                    (List.mapi (fun i m -> if m = None then a i else b i) ms))
           | Iter ->
@@ -837,28 +836,36 @@ let rec mapper act target ty : string option =
 (** The body of [act] on the constructor [name] with the arguments [args], named
     [vars] ([(variable, type, kind of the argument)]), which [rebuild] makes the
     result of for [Map], from the names of the arguments: the children are done
-    in order, whatever the evaluation order of OCaml. *)
-let trav_body ?(indent = "      ") act target ~rebuild
+    in order, whatever the evaluation order of OCaml. If [f] returns every child
+    unchanged ([==]), [Map] returns [orig] and rebuilds nothing. *)
+let trav_body ?(indent = "      ") act target ~orig ~rebuild
     (args : (string * ty * [ `Small | `Arg ]) list) =
   let ms = List.map (fun (x, t, _) -> (x, mapper act target t)) args in
   let var x = "y_" ^ String.map (function '.' -> '_' | c -> c) x in
   match act with
   | Map ->
-      let lets =
-        List.concat_map
-          (function
-            | x, Some m ->
-                [ Printf.sprintf "let %s = %s %s in\n%s" (var x) m x indent ]
-            | _, None -> [])
-          ms
+      let mapped =
+        List.filter_map (fun (x, m) -> Option.map (fun m -> (x, m)) m) ms
       in
-      String.concat "" lets
-      ^ rebuild
-          (List.map2
-             (fun (x, m) (_, _, k) ->
-               let v = if m = None then x else var x in
-               (v, k))
-             ms args)
+      if mapped = [] then orig
+      else
+        String.concat ""
+          (List.map
+             (fun (x, m) ->
+               Printf.sprintf "let %s = %s %s in\n%s" (var x) m x indent)
+             mapped)
+        ^ Printf.sprintf "if %s then %s else "
+            (String.concat " && "
+               (List.map
+                  (fun (x, _) -> Printf.sprintf "%s == %s" (var x) x)
+                  mapped))
+            orig
+        ^ rebuild
+            (List.map2
+               (fun (x, m) (_, _, k) ->
+                 let v = if m = None then x else var x in
+                 (v, k))
+               ms args)
   | Iter ->
       String.concat "; "
         (List.concat_map
@@ -891,13 +898,11 @@ let decl_traversals ft target =
             match act with Map -> d.d_name | Iter -> "unit" | Exists -> "bool"
           in
           let body =
-            if d.d_fields <> [] then (
+            if d.d_fields <> [] then
               let args =
                 List.map (fun (f, t) -> ("x." ^ f, t, `Arg)) d.d_fields
               in
-              let ms = List.map (fun (f, t) -> (f, t)) d.d_fields in
-              ignore ms;
-              trav_body ~indent:"  " act target
+              trav_body ~indent:"  " act target ~orig:"x"
                 ~rebuild:(fun vs ->
                   Printf.sprintf "{ x with %s }"
                     (String.concat "; "
@@ -907,7 +912,7 @@ let decl_traversals ft target =
                                if v = "x." ^ f then []
                                else [ Printf.sprintf "%s = %s" f v ])
                              d.d_fields vs))))
-                args)
+                args
             else
               let cases =
                 List.filter_map
@@ -931,7 +936,7 @@ let decl_traversals ft target =
                                  (List.map (fun (x, _, _) -> x) l))
                       in
                       let body =
-                        trav_body act target
+                        trav_body act target ~orig:"x"
                           ~rebuild:(fun vs ->
                             match vs with
                             | [] -> c.c_name
@@ -984,9 +989,48 @@ let trav_nodes () =
     [map_ty_children], ... The children of a node are the values of type [t] in
     its parameters and operands (see {!mapper}). *)
 let traversals ft =
+  let nodes = trav_nodes () in
+  (* the maps of the lists and arrays return their argument if [f] returns each
+     element unchanged; the array one only if the language has arrays, which
+     need OCaml 5.4 *)
+  pf ft "%s"
+    "let rec kanon__list_map f l =\n\
+    \  match l with\n\
+    \  | [] -> l\n\
+    \  | x :: r ->\n\
+    \      let y = f x in\n\
+    \      let s = kanon__list_map f r in\n\
+    \      if y == x && s == r then l else y :: s\n\n";
+  let rec has_array = function
+    | TArray _ -> true
+    | TList t | TOption t -> has_array t
+    | TTuple l -> List.exists has_array l
+    | _ -> false
+  in
+  if
+    List.exists
+      (fun (c : constr) -> List.exists (fun a -> has_array (arg_ty a)) c.c_args)
+      !lang.constrs
+    || List.exists
+         (fun (d : decl) -> List.exists (fun (_, t) -> has_array t) d.d_fields)
+         !lang.decls
+    || List.exists (fun (_, ops) -> List.exists has_array ops) nodes
+  then
+    pf ft "%s"
+      "let rec kanon__iarray_map_from f a i =\n\
+      \  if i = Stdlib.Iarray.length a then a\n\
+      \  else\n\
+      \    let x = Stdlib.Iarray.get a i in\n\
+      \    let y = f x in\n\
+      \    if y == x then kanon__iarray_map_from f a (i + 1)\n\
+      \    else\n\
+      \      Stdlib.Iarray.init (Stdlib.Iarray.length a) (fun j ->\n\
+      \          if j < i then Stdlib.Iarray.get a j\n\
+      \          else if j = i then y\n\
+      \          else f (Stdlib.Iarray.get a j))\n\n\
+       let kanon__iarray_map f a = kanon__iarray_map_from f a 0\n\n";
   decl_traversals ft TTerm;
   decl_traversals ft TSty;
-  let nodes = trav_nodes () in
   let node_case act (c, operands) =
     let params = List.map (fun a -> arg_ty a) c.c_args in
     let kinds =
@@ -1018,7 +1062,7 @@ let traversals ft =
       in
       let typed = List.mem_assoc c.c_name !Check.node_typings in
       let body =
-        trav_body act TTerm
+        trav_body act TTerm ~orig:"v"
           ~rebuild:(fun vs ->
             Printf.sprintf "kanon__rebuild_%s%s%s" c.c_name
               (if typed then "" else " v.ty")
@@ -1067,7 +1111,7 @@ let traversals ft =
               (String.concat ", " (List.map (fun (x, _, _) -> x) l))
       in
       let body =
-        trav_body act TSty
+        trav_body act TSty ~orig:"v"
           ~rebuild:(fun vs ->
             Printf.sprintf "%s (%s)" c.c_name
               (String.concat ", " (List.map fst vs)))

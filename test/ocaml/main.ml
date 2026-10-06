@@ -130,7 +130,34 @@ let () =
     (map_children (fun c -> if c == two then zero else c) sum == one);
   let negx = node (Op1 (Neg, node (Op1 (Neg, var "x")) TInt)) TInt in
   check "map through the smart constructor of the extension"
-    (map_children (fun c -> c) negx == var "x");
+    (map_children
+       (fun c -> if c == negx then c else node (Op1 (Neg, var "y")) TInt)
+       negx
+    == var "y");
+  (* unchanged children: the node itself, without its smart constructor *)
+  let raw_sum = node (Op2 (Add, one, zero)) TInt in
+  check "an unchanged map is the node itself"
+    (List.for_all
+       (fun v -> map_children Fun.id v == v)
+       [ sum; raw_sum; negx; tuple; vec; opt; none; mem; var "x"; one ]);
+  let blk = { owner = "p"; offset = one; size = two } in
+  let l = [ one; two ] and a = Iarray.of_list [ one; two ] in
+  check "an unchanged map of a list, an array or a record is itself"
+    (kanon__list_map Fun.id l == l
+    && kanon__iarray_map Fun.id a == a
+    && kanon__map_block Fun.id blk == blk);
+  let order = ref [] in
+  let vec3 = node (Vec (Iarray.of_list [ two; one; two ])) TVec in
+  let mapped =
+    map_children
+      (fun c ->
+        order := c :: !order;
+        if c == one then zero else c)
+      vec3
+  in
+  check "a changed element of an array: each element once, in order"
+    (List.rev !order = [ two; one; two ]
+    && mapped.kind = Vec (Iarray.of_list [ two; zero; two ]));
   (* a node without a smart constructor is rebuilt raw, at the sort of its
      typing: the sort of a tuple follows its elements *)
   let empty = node (Vec (Iarray.of_list [])) TVec in
