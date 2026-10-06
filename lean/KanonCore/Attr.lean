@@ -70,8 +70,8 @@ initialize registerBuiltinAttribute {
     let .const stmt [] := info.type
       | throwError "kanon_arm: {decl} does not prove the statement of an arm"
     let arm := stmt.getPrefix
-    -- `R.f.r_rule.arm.Stmt` (or `R.Op.C.comm.Stmt`, or `R.C.comm.Stmt` in a module
-    -- proved once), in the namespace `R` of the model
+    -- `R.f.r_rule.arm.Stmt` (or `R.C.comm.Stmt`), in the namespace `R` of the
+    -- module
     unless stmt.getString! == "Stmt" && arm.components.length ≥ 3 do
       throwError "kanon_arm: {decl} does not prove the statement of an arm"
     if let some p := (Kanon.kanonArmExt.getState (← getEnv)).find? arm then

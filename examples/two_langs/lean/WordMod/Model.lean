@@ -52,6 +52,19 @@ def Word.left_lit (v : S.Term) : Int :=
                  | _ => none)]).getD
     (match v with | _ => (0 : Int)))
 
+mutual
+
+def Word.small (k : Int) (v : S.Term) : Bool :=
+  ((firstSome [(match kanon__h1 : (WordMod.proj v) with
+                 | some (.WAdd _ _ a b) =>
+                 some (((decide ((0 : Int) < k)) && ((WordMod.Word.small (k - (1 : Int)) a) && (WordMod.Word.small (k - (1 : Int)) b))))
+                 | _ => none)]).getD
+    (match v with | _ => true))
+termination_by S.size v
+decreasing_by all_goals ((try simp_wf) <;> kanon_decreasing)
+
+end
+
 def Word.plain : CfgMod.Flags :=
   ({ wrap := false, strict := false } : CfgMod.Flags)
 
@@ -102,7 +115,7 @@ def Word.add.r_lits (O : Ops S) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 :
 def Word.add.r_plain (O : Ops S) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term) : Option S.Term :=
   (match v1, v2 with
     | a, b =>
-    (whenSome ((decide ((WordMod.Word.left_lit a) = (0 : Int))) && (! f.strict))
+    (whenSome ((decide ((WordMod.Word.left_lit a) = (0 : Int))) && ((! f.strict) && (WordMod.Word.small (3 : Int) a)))
     ((WordMod.mk (.WAdd WordMod.Word.plain n a b) (WordMod.sort (.TWord n))))))
 
 def Word.add.r_default (O : Ops S) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term) : Option S.Term :=

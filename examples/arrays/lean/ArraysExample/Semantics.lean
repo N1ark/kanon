@@ -66,6 +66,7 @@ theorem ev_vec (ρ : Env) (n : ArraysExample.Vec.Node Term) (t : Ty) :
   ty := Term.ty
   WT := Term.WT
   ev := ev
+  size := sizeOf
 
 /-- The value of a term; `none` for poison. -/
 abbrev eval : Env → Term → Option Val := sem.eval
@@ -85,6 +86,7 @@ instance instVecLang : ArraysExample.Vec.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_vec
   ev_inj := ev_vec
+  size_proj := by kanon_size_proj
   srt := {
     inj := .vec
     proj := fun s => match s with | .vec s => some s

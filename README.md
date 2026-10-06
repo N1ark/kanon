@@ -50,10 +50,10 @@ dune exec -- kanon BACKEND FILE...
 
 `kanon BACKEND FILE...` reads the language that the files declare and writes
 the generated code on standard output. The backends are `ocaml-types`, `ocaml`,
-`ocaml-typed`, `ocaml-tests`, the Lean files (`lean-types`, `lean-syntax`,
-`lean-signatures`, `lean-typing`, `lean-model`, `lean-statements`, `lean-lifts`,
-`lean-nodes`, `lean-interface`, `lean-soundness`, `lean-modules`); `kanon lean-all DIR FILE...` writes the Lean
-files under `DIR`. `kanon lsp` runs the language server and
+`ocaml-typed`, `ocaml-tests`, the Lean files of the modules (`lean-types`,
+`lean-node`, `lean-lang`, `lean-model`, `lean-statements`, `lean-soundness`) and
+of the language (`lean-syntax`, `lean-semantics`, `lean-rules`);
+`kanon lean-all DIR FILE...` writes the Lean files under `DIR`. `kanon lsp` runs the language server and
 `kanon --version` prints the version. The Lean proofs build with `lake`, from
 `lean/` (Kanon's Lean library) and from the `lean/` directory of an example.
 

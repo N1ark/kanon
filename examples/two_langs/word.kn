@@ -22,6 +22,12 @@ fn left_lit (v : t) : int =
   | WAdd (_, _, Wd (z, _), _) -> z
   | _ -> 0
 
+(* whether [v] is a sum of at most [k] levels: a recursion on terms *)
+fn small (k : int) (v : t) : bool =
+  match v with
+  | WAdd (_, _, a, b) -> 0 < k && small (k - 1) a && small (k - 1) b
+  | _ -> true
+
 (* the flags of a plain sum *)
 fn plain : flags = { wrap = false; strict = false }
 
@@ -36,7 +42,8 @@ fn twice (n : int) (v : t) : t = WAdd (plain, n, v, v)
 
 rule add : WAdd (f, n, v1, v2) =
   | lits: Wd (x, _), Wd (y, _) -> Wd (wsum x y, n)
-  | plain: a, b when left_lit a = 0 && not f.strict -> WAdd (plain, n, a, b)
+  | plain: a, b when left_lit a = 0 && not f.strict && small 3 a ->
+      WAdd (plain, n, a, b)
 
 rule round : WRound (m, n, v) =
   | check: Wd (z, _) as x -> (

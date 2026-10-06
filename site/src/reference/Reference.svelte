@@ -168,7 +168,10 @@
       <code>ocaml-typed</code> types the function with the tags of its sorts (see
       <a href="#typed">Typed OCaml</a>); Lean does not model the annotation (the model of the
       function is the same, and the proofs assume and prove nothing about its sort). A function whose
-      result is not annotated is untyped.
+      result is not annotated is untyped. A helper may recurse on the first parameter that its
+      body matches: Lean proves that it decreases, by its size, and for a term by
+      <code>Sem.size</code>, of which the children of a node are smaller
+      (<code>kanon_decreasing</code>).
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>

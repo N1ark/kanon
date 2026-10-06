@@ -111,6 +111,7 @@ theorem ev_lang (ρ : Env) (n : BoolExample.Node Term) (t : Ty) :
   ty := Term.ty
   WT := Term.WT
   ev := ev
+  size := sizeOf
 
 /-- The value of a term; `none` for poison. -/
 abbrev eval : Env → Term → Option Val := sem.eval
@@ -130,6 +131,7 @@ instance instBoolLang : KanonBool.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_bool
   ev_inj := ev_bool
+  size_proj := by kanon_size_proj
   srt := {
     inj := .bool
     proj := fun s => match s with | .bool s => some s
@@ -146,6 +148,7 @@ instance instLangLang : BoolExample.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_lang
   ev_inj := ev_lang
+  size_proj := by kanon_size_proj
   proj_Bool_inj_Lang _ _ := rfl
   proj_Lang_inj_Bool _ _ := rfl
 

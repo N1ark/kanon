@@ -89,6 +89,7 @@ theorem ev_lang (ρ : Env) (n : DivisionExample.Node Term) (t : Ty) :
   ty := Term.ty
   WT := Term.WT
   ev := ev
+  size := sizeOf
 
 /-- The value of a term; `none` for poison. -/
 abbrev eval : Env → Term → Option Val := sem.eval
@@ -108,6 +109,7 @@ instance instIntLang : DivMod.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_int
   ev_inj := ev_int
+  size_proj := by kanon_size_proj
   srt := {
     inj := .int
     proj := fun s => match s with | .int s => some s
@@ -124,6 +126,7 @@ instance instLangLang : DivisionExample.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_lang
   ev_inj := ev_lang
+  size_proj := by kanon_size_proj
   proj_Int_inj_Lang _ _ := rfl
   proj_Lang_inj_Int _ _ := rfl
 

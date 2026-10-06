@@ -8,15 +8,15 @@
       terms are typed by the tags of their sorts and subsorts (see
       {!Gen_typed}), and its implementation from the rules;
     - [ocaml-tests]: the OCaml differential tests of their rule functions;
-    - [lean-types], [lean-node], [lean-lang], [lean-model],
-      [lean-statements], [lean-soundness]: the Lean files of each module, under
-      its root: its data types, its nodes and sorts, their typing in any
-      language that has them, the model of its rules, the statements of their
-      soundness and their proofs;
+    - [lean-types], [lean-node], [lean-lang], [lean-model], [lean-statements],
+      [lean-soundness]: the Lean files of each module, under its root: its data
+      types, its nodes and sorts, their typing in any language that has them,
+      the model of its rules, the statements of their soundness and their
+      proofs;
     - [lean-syntax], [lean-semantics], [lean-rules]: the Lean files of the
       language, under its root: its terms, their semantics, and its rule
-      functions, put together from those of its modules, with their proof.
-    Each backend prints its files one after the other, each after its name.
+      functions, put together from those of its modules, with their proof. Each
+      backend prints its files one after the other, each after its name.
 
     The output is written on standard output. [kanon lean-all DIR FILE...]
     writes every Lean file of the above under [DIR] (as [DIR/R/Model.lean], for

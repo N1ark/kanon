@@ -28,6 +28,7 @@ class Lang (S : Kanon.Sem) [KanonBool.Lang S] [NumMod.Lang S] [NegMod.Lang S] ex
   node : Kanon.NodeEmbed Node S
   WT_inj : ∀ n t, S.WT (node.inj n t) ↔ Node.wt (KanonBool.Lang.srt (S := S)).inj (NumMod.Lang.srt (S := S)).inj S.ty n t ∧ n.All S.WT
   ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (S.ev ρ))
+  size_proj : ∀ e n, node.proj e = some n → n.All (fun c => S.size c < S.size e)
   proj_Bool_inj_L2 : ∀ n t, (KanonBool.Lang.node (S := S)).proj (node.inj n t) = none
   proj_Num_inj_L2 : ∀ n t, (NumMod.Lang.node (S := S)).proj (node.inj n t) = none
   proj_Neg_inj_L2 : ∀ n t, (NegMod.Lang.node (S := S)).proj (node.inj n t) = none
@@ -62,6 +63,14 @@ abbrev proj (e : S.Term) : Option (Node S.Term) := L.node.proj e
 @[simp] theorem mk_inj_iff {n n' : Node S.Term} {t t' : S.Ty} :
   mk n t = mk n' t' ↔ n = n' ∧ t = t' :=
   L.node.inj_eq_iff
+
+/-- The children of a term of the module are smaller: the decreasing recursion of helpers on
+terms. -/
+@[kanon_size] theorem size_proj {e : S.Term} {n : Node S.Term} (h : proj e = some n) :
+  n.All (fun c => S.size c < S.size e) :=
+  L.size_proj e n h
+
+attribute [kanon_size_simp] Node.All
 
 @[simp] theorem proj_Bool_mk_L2 (n : L2.Node S.Term) (t : S.Ty) :
   KanonBool.proj (L2.mk n t) = none :=

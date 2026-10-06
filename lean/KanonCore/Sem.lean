@@ -34,6 +34,9 @@ structure Sem extends Dom where
   WT : Term → Prop
   /-- Evaluation, assuming well-typedness; `none` for poison. -/
   ev : Env → Term → Option Val
+  /-- The size of a term, larger than those of its children: the measure of the
+  helpers that recurse on terms. -/
+  size : Term → Nat
   /-- A term: the result of a `match` that no case covers. -/
   [inhabited : Inhabited Term]
 

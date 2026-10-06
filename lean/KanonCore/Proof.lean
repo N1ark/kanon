@@ -234,8 +234,8 @@ def namespacePrefixes : Name → List Name
 /-- The lifting lemmas of the head of `e`, a call `O.f args` of a rule function:
 `R.Lib.lift_f` for each namespace `R` that encloses the current one, innermost
 first (inside the theorem `M.f.r_a.main.ok` of the module `M`, `M.Lib.lift_f`:
-a module proved once has those of the functions of the modules it uses, for
-its own `O`), then in the namespace of the function. -/
+a module has those of the functions of the modules it uses, for its own
+`O`), then in the namespace of the function. -/
 def liftLemmas (e : Expr) : MetaM (List Name) := do
   let .const (.str (.str ns "Ops") f) _ := e.getAppFn | return []
   let env ← getEnv
@@ -871,5 +871,39 @@ elab "kanon_auto_by_goal" : tactic => do
     evalTactic (← `(tactic| kanon_post))
 
 macro_rules | `(tactic| kanon_auto) => `(tactic| ((try intro _); intros; kanon_auto_by_goal))
+
+
+/-- Proves the law `size_proj` of the instance of the `Lang` class of a module
+in a language whose `size` is `sizeOf`: the children of a node are smaller
+than its term. -/
+macro "kanon_size_proj" : tactic => `(tactic| (
+  intro e n h
+  cases e <;> cases h
+  all_goals
+    cases n <;> simp only [kanon_size_simp]
+    all_goals (repeat' (first | apply And.intro | intro _ _))
+    all_goals first
+      | trivial
+      | (have := List.sizeOf_lt_of_mem ‹_ ∈ _›; simp <;> omega)
+      | (simp <;> omega)))
+
+open Lean Meta Elab Tactic in
+/-- Proves that a recursive call of a helper on a term decreases (`S.size`):
+from the hypotheses `proj e = some n` that its matches name, by the
+`kanon_size` lemmas (the children of `n` are smaller than `e`), and `omega`. -/
+elab "kanon_decreasing" : tactic => withMainContext do
+  let lemmas := kanonLemmas (← getEnv) `kanon_size
+  let mut g ← getMainGoal
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    for l in lemmas do
+      let s ← saveState
+      try
+        let pf ← mkAppM l #[d.toExpr]
+        let (_, g') ← (← g.assert `kanon_sz (← inferType pf) pf).intro1P
+        g := g'
+      catch _ => s.restore
+  replaceMainGoal [g]
+  evalTactic (← `(tactic| ((try simp only [kanon_size_simp] at *); omega)))
 
 end Kanon.Proof

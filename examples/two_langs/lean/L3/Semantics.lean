@@ -194,6 +194,7 @@ theorem ev_l3 (ρ : Env) (n : L3.Node Term) (t : Ty) :
   ty := Term.ty
   WT := Term.WT
   ev := ev
+  size := sizeOf
 
 /-- The value of a term; `none` for poison. -/
 abbrev eval : Env → Term → Option Val := sem.eval
@@ -213,6 +214,7 @@ instance instBoolLang : KanonBool.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_bool
   ev_inj := ev_bool
+  size_proj := by kanon_size_proj
   srt := {
     inj := .bool
     proj := fun s => match s with | .bool s => some s | _ => none
@@ -229,6 +231,7 @@ instance instNumLang : NumMod.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_num
   ev_inj := ev_num
+  size_proj := by kanon_size_proj
   srt := {
     inj := .num
     proj := fun s => match s with | .num s => some s | _ => none
@@ -249,6 +252,7 @@ instance instEvenLang : EvenMod.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_even
   ev_inj := ev_even
+  size_proj := by kanon_size_proj
   srt := {
     inj := .even
     proj := fun s => match s with | .even s => some s | _ => none
@@ -273,6 +277,7 @@ instance instNegLang : NegMod.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_neg
   ev_inj := ev_neg
+  size_proj := by kanon_size_proj
   proj_Bool_inj_Neg _ _ := rfl
   proj_Num_inj_Neg _ _ := rfl
   proj_Neg_inj_Bool _ _ := rfl
@@ -288,6 +293,7 @@ instance instL3Lang : L3.Lang sem where
     inj_proj := by intro e n h; cases e <;> cases h <;> rfl }
   WT_inj := WT_l3
   ev_inj := ev_l3
+  size_proj := by kanon_size_proj
   proj_Bool_inj_L3 _ _ := rfl
   proj_Num_inj_L3 _ _ := rfl
   proj_Even_inj_Neg _ _ := rfl

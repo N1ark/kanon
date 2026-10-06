@@ -697,6 +697,12 @@ let binding xs k =
   subst := List.filter (fun (x, _) -> not (List.mem x xs)) saved;
   Fun.protect ~finally:(fun () -> subst := saved) k
 
+(** Whether the projections of the matches are named (see [nest]), and how many
+    are. *)
+let name_matches = ref false
+
+let match_names = ref 0
+
 (** Whether the rule being printed is a rule function's: its cases are guarded
     results ([whenSome]). *)
 let cases_style = ref false
@@ -905,12 +911,19 @@ and translate ctx (scruts : expr list) (c : case) =
   | l -> l
 
 (** The nested matches [ls] (see [translate]), then [rhs], or [none] when a
-    pattern fails. *)
+    pattern fails. With [name_matches], the projections are named, for the
+    proofs that a recursion on terms decreases. *)
 and nest ft (ls, rhs) =
   match ls with
   | [] -> rhs ft ()
   | l :: rest ->
-      let d = String.concat ", " (List.map (fun (d, _, _) -> d) l) in
+      let name (d, _, r) =
+        if r && !name_matches then (
+          incr match_names;
+          Printf.sprintf "kanon__h%d : %s" !match_names d)
+        else d
+      in
+      let d = String.concat ", " (List.map name l) in
       let p = String.concat ", " (List.map (fun (_, p, _) -> p) l) in
       let wild = String.concat ", " (List.map (fun _ -> "_") l) in
       if List.exists (fun (_, _, r) -> r) l then
@@ -2239,7 +2252,10 @@ let lang_file ctx (p : program) m =
       (wt_args ());
     pf ft
       "@ ev_inj : ∀ ρ n t, S.ev ρ (node.inj n t) = Node.eval ρ t (n.map (S.ev \
-       ρ))");
+       ρ))";
+    pf ft
+      "@ size_proj : ∀ e n, node.proj e = some n → n.All (fun c => S.size c < \
+       S.size e)");
   List.iter
     (fun (a, b) ->
       pf ft "@ proj_%s_inj_%s : ∀ n t, %s.proj (%s.inj n t) = none" a b
@@ -2283,7 +2299,13 @@ let lang_file ctx (p : program) m =
        some n :=@   L.node.proj_inj n t@ @ ";
     pf ft
       "@@[simp] theorem mk_inj_iff {n n' : Node S.Term} {t t' : S.Ty} :@   mk \
-       n t = mk n' t' ↔ n = n' ∧ t = t' :=@   L.node.inj_eq_iff@ @ ");
+       n t = mk n' t' ↔ n = n' ∧ t = t' :=@   L.node.inj_eq_iff@ @ ";
+    pf ft
+      "/-- The children of a term of the module are smaller: the decreasing \
+       recursion of helpers on@ terms. -/@ @@[kanon_size] theorem size_proj {e \
+       : S.Term} {n : Node S.Term} (h : proj e = some n) :@   n.All (fun c => \
+       S.size c < S.size e) :=@   L.size_proj e n h@ @ attribute \
+       [kanon_size_simp] Node.All@ @ ");
   ignore wt_args;
   if sorts <> [] then (
     pf ft
@@ -2394,20 +2416,31 @@ let rec decreasing (f : fn) (e : expr) =
   | _ -> None
 
 let fn_def ctx ft (f : fn) ~o ~recursive =
-  pf ft "%a@[<v 2>def %s%s%a : %a :=@ %a@]@ " doc f.fdoc (qn f.name)
-    (if o then " (O : Ops S)" else "")
-    (fun ft f -> if f.params <> [] then pf ft " %a" params f)
-    f lean_ty f.ret (expr ctx) f.body;
-  (if recursive then
-     match decreasing f f.body with
-     | Some x when List.assoc x f.params = TTerm ->
-         unsupported f.floc "%s: a recursion on terms" f.name
-     | Some x ->
-         pf ft
-           "termination_by sizeOf %s@ decreasing_by all_goals ((try simp_wf) \
-            <;> omega)@ "
-           (id x)
-     | None -> ());
+  let dec = if recursive then decreasing f f.body else None in
+  let on_terms =
+    match dec with Some x -> List.assoc x f.params = TTerm | None -> false
+  in
+  name_matches := on_terms;
+  match_names := 0;
+  Fun.protect
+    ~finally:(fun () -> name_matches := false)
+    (fun () ->
+      pf ft "%a@[<v 2>def %s%s%a : %a :=@ %a@]@ " doc f.fdoc (qn f.name)
+        (if o then " (O : Ops S)" else "")
+        (fun ft f -> if f.params <> [] then pf ft " %a" params f)
+        f lean_ty f.ret (expr ctx) f.body);
+  (match dec with
+  | Some x when on_terms ->
+      pf ft
+        "termination_by S.size %s@ decreasing_by all_goals ((try simp_wf) <;> \
+         kanon_decreasing)@ "
+        (id x)
+  | Some x ->
+      pf ft
+        "termination_by sizeOf %s@ decreasing_by all_goals ((try simp_wf) <;> \
+         omega)@ "
+        (id x)
+  | None -> ());
   pf ft "@ "
 
 (** The calls of [e] to the rule functions, oracles, extensible helpers and
@@ -3158,7 +3191,7 @@ let semantics_file ~sources (p : program) ms =
   pf ft
     "/-- The semantics of the language. -/@ @[<v 2>@@[reducible] def sem : \
      Kanon.Sem where@ toDom := dom@ Term := Term@ ty := Term.ty@ WT := \
-     Term.WT@ ev := ev@]@ @ ";
+     Term.WT@ ev := ev@ size := sizeOf@]@ @ ";
   pf ft
     "/-- The value of a term; `none` for poison. -/@ abbrev eval : Env → Term \
      → Option Val := sem.eval@ @ ";
@@ -3181,7 +3214,8 @@ let semantics_file ~sources (p : program) ms =
           c c
           (if single noded then "" else " | _ => none");
         pf ft "@ WT_inj := WT_%s" c;
-        pf ft "@ ev_inj := ev_%s" c);
+        pf ft "@ ev_inj := ev_%s" c;
+        pf ft "@ size_proj := by kanon_size_proj");
       if has_sorts m then
         pf ft
           "@ @[<v 2>srt := {@ inj := .%s@ proj := fun s => match s with | .%s \

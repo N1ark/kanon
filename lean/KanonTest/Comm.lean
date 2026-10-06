@@ -20,6 +20,7 @@ def slow : Nat → Bool
   ty _ := ()
   WT t := slow t = true
   ev _ t := some t
+  size _ := 0
 
 example (h : sem.Refines 3000 3001) : sem.Refines 3000 3001 := by
   fail_if_success kanon_refl

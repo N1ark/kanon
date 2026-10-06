@@ -15,6 +15,7 @@ open Kanon
   ty _ := ()
   WT _ := True
   ev _ t := some t
+  size _ := 0
 
 /-- A helper, which is not reducible. -/
 def twice (x : List Nat) : List Nat := x ++ x

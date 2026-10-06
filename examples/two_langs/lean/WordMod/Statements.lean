@@ -92,7 +92,7 @@ def Word.add.r_lits.main.Stmt : Prop :=
 def Word.add.r_plain.main.Stmt : Prop :=
   ∀ {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S), O.Sound →
   ∀ (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term),
-  ((decide ((WordMod.Word.left_lit v1) = (0 : Int))) && (! f.strict)) = true →
+  ((decide ((WordMod.Word.left_lit v1) = (0 : Int))) && ((! f.strict) && (WordMod.Word.small (3 : Int) v1))) = true →
   S.Refines (WordMod.Word.add.spec f n v1 v2)
   ((WordMod.mk (.WAdd WordMod.Word.plain n v1 v2) (WordMod.sort (.TWord n))))
 
