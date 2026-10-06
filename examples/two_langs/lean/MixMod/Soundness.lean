@@ -20,7 +20,7 @@ theorem Neg.neg.r_rem.main.ok : Neg.neg.r_rem.main.Stmt :=
 
 theorem Neg.neg.r_rem.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [EvenMod.Lang S] [NegMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] [EvenMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Neg.neg.r_rem O v = some res) : S.Refines (NegMod.Neg.neg.spec v) res := by
-  simp only [Neg.neg.r_rem] at h
+  unfold Neg.neg.r_rem at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Neg.neg.r_rem.main.ok O hO)
 

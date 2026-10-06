@@ -24,13 +24,13 @@ theorem Even.rem2.r_default.main.ok : Even.rem2.r_default.main.Stmt :=
 
 theorem Even.rem2.r_lit.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [EvenMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] [EvenMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Even.rem2.r_lit O v = some res) : S.Refines (EvenMod.Even.rem2.spec v) res := by
-  simp only [Even.rem2.r_lit] at h
+  unfold Even.rem2.r_lit at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Even.rem2.r_lit.main.ok O hO)
 
 theorem Even.rem2.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [EvenMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] [EvenMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Even.rem2.r_default O v = some res) : S.Refines (EvenMod.Even.rem2.spec v) res := by
-  simp only [Even.rem2.r_default] at h
+  unfold Even.rem2.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Even.rem2.r_default.main.ok O hO)
 

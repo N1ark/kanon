@@ -186,34 +186,34 @@ theorem Bool.and_.r_default.main.ok : Bool.and_.r_default.main.Stmt :=
 
 theorem Bool.and_.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_same O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_same] at h
+  unfold Bool.and_.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_same.main.ok O hO)
 
 theorem Bool.and_.r_false_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_false_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_false_] at h
+  unfold Bool.and_.r_false_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_false_.main.ok O hO)
   · kanon_arm h (Bool.and_.r_false_.swap.ok O hO)
 
 theorem Bool.and_.r_true_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_true_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_true_] at h
+  unfold Bool.and_.r_true_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_true_.main.ok O hO)
   · kanon_arm h (Bool.and_.r_true_.swap.ok O hO)
 
 theorem Bool.and_.r_not.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_not O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_not] at h
+  unfold Bool.and_.r_not at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_not.main.ok O hO)
   · kanon_arm h (Bool.and_.r_not.swap.ok O hO)
 
 theorem Bool.and_.r_and_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_and_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_and_] at h
+  unfold Bool.and_.r_and_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_and_.main.ok O hO)
   · kanon_arm h (Bool.and_.r_and_.swap1.ok O hO)
@@ -222,7 +222,7 @@ theorem Bool.and_.r_and_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typ
 
 theorem Bool.and_.r_or_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_or_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_or_] at h
+  unfold Bool.and_.r_or_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_or_.main.ok O hO)
   · kanon_arm h (Bool.and_.r_or_.swap1.ok O hO)
@@ -231,7 +231,7 @@ theorem Bool.and_.r_or_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Type
 
 theorem Bool.and_.r_eq_neq.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_eq_neq O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_eq_neq] at h
+  unfold Bool.and_.r_eq_neq at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_eq_neq.main.ok O hO)
   · kanon_arm h (Bool.and_.r_eq_neq.swap2.ok O hO)
@@ -240,7 +240,7 @@ theorem Bool.and_.r_eq_neq.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.T
 
 theorem Bool.and_.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_default O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by
-  simp only [Bool.and_.r_default] at h
+  unfold Bool.and_.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.and_.r_default.main.ok O hO)
 
@@ -365,34 +365,34 @@ theorem Bool.or_.r_default.main.ok : Bool.or_.r_default.main.Stmt :=
 
 theorem Bool.or_.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_same O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_same] at h
+  unfold Bool.or_.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_same.main.ok O hO)
 
 theorem Bool.or_.r_true_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_true_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_true_] at h
+  unfold Bool.or_.r_true_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_true_.main.ok O hO)
   · kanon_arm h (Bool.or_.r_true_.swap.ok O hO)
 
 theorem Bool.or_.r_false_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_false_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_false_] at h
+  unfold Bool.or_.r_false_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_false_.main.ok O hO)
   · kanon_arm h (Bool.or_.r_false_.swap.ok O hO)
 
 theorem Bool.or_.r_not.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_not O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_not] at h
+  unfold Bool.or_.r_not at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_not.main.ok O hO)
   · kanon_arm h (Bool.or_.r_not.swap.ok O hO)
 
 theorem Bool.or_.r_or_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_or_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_or_] at h
+  unfold Bool.or_.r_or_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_or_.main.ok O hO)
   · kanon_arm h (Bool.or_.r_or_.swap1.ok O hO)
@@ -401,7 +401,7 @@ theorem Bool.or_.r_or_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed
 
 theorem Bool.or_.r_and_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_and_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_and_] at h
+  unfold Bool.or_.r_and_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_and_.main.ok O hO)
   · kanon_arm h (Bool.or_.r_and_.swap1.ok O hO)
@@ -410,7 +410,7 @@ theorem Bool.or_.r_and_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Type
 
 theorem Bool.or_.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.or_.r_default O v1 v2 = some res) : S.Refines (KanonBool.Bool.or_.spec v1 v2) res := by
-  simp only [Bool.or_.r_default] at h
+  unfold Bool.or_.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.or_.r_default.main.ok O hO)
 
@@ -448,49 +448,49 @@ theorem Bool.not_.r_default.main.ok : Bool.not_.r_default.main.Stmt :=
 
 theorem Bool.not_.r_true_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_true_ O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_true_] at h
+  unfold Bool.not_.r_true_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_true_.main.ok O hO)
 
 theorem Bool.not_.r_false_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_false_ O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_false_] at h
+  unfold Bool.not_.r_false_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_false_.main.ok O hO)
 
 theorem Bool.not_.r_not.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_not O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_not] at h
+  unfold Bool.not_.r_not at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_not.main.ok O hO)
 
 theorem Bool.not_.r_or_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_or_ O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_or_] at h
+  unfold Bool.not_.r_or_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_or_.main.ok O hO)
 
 theorem Bool.not_.r_and_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_and_ O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_and_] at h
+  unfold Bool.not_.r_and_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_and_.main.ok O hO)
 
 theorem Bool.not_.r_ite.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_ite O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_ite] at h
+  unfold Bool.not_.r_ite at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_ite.main.ok O hO)
 
 theorem Bool.not_.r_distinct.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_distinct O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_distinct] at h
+  unfold Bool.not_.r_distinct at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_distinct.main.ok O hO)
 
 theorem Bool.not_.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (sv : S.Term) (res : S.Term)
     (h : Bool.not_.r_default O sv = some res) : S.Refines (KanonBool.Bool.not_.spec sv) res := by
-  simp only [Bool.not_.r_default] at h
+  unfold Bool.not_.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.not_.r_default.main.ok O hO)
 
@@ -572,105 +572,105 @@ theorem Bool.ite.r_default.main.ok : Bool.ite.r_default.main.Stmt :=
 
 theorem Bool.ite.r_true_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_true_ O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_true_] at h
+  unfold Bool.ite.r_true_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_true_.main.ok O hO)
 
 theorem Bool.ite.r_false_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_false_ O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_false_] at h
+  unfold Bool.ite.r_false_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_false_.main.ok O hO)
 
 theorem Bool.ite.r_bool.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_bool O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_bool] at h
+  unfold Bool.ite.r_bool at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_bool.main.ok O hO)
 
 theorem Bool.ite.r_not_bool.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_not_bool O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_not_bool] at h
+  unfold Bool.ite.r_not_bool at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_not_bool.main.ok O hO)
 
 theorem Bool.ite.r_false_then.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_false_then O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_false_then] at h
+  unfold Bool.ite.r_false_then at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_false_then.main.ok O hO)
 
 theorem Bool.ite.r_true_then.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_true_then O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_true_then] at h
+  unfold Bool.ite.r_true_then at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_true_then.main.ok O hO)
 
 theorem Bool.ite.r_false_else.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_false_else O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_false_else] at h
+  unfold Bool.ite.r_false_else at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_false_else.main.ok O hO)
 
 theorem Bool.ite.r_true_else.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_true_else O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_true_else] at h
+  unfold Bool.ite.r_true_else at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_true_else.main.ok O hO)
 
 theorem Bool.ite.r_not_guard.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_not_guard O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_not_guard] at h
+  unfold Bool.ite.r_not_guard at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_not_guard.main.ok O hO)
 
 theorem Bool.ite.r_guard_then.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_guard_then O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_guard_then] at h
+  unfold Bool.ite.r_guard_then at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_guard_then.main.ok O hO)
 
 theorem Bool.ite.r_guard_else.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_guard_else O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_guard_else] at h
+  unfold Bool.ite.r_guard_else at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_guard_else.main.ok O hO)
 
 theorem Bool.ite.r_ite_then.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_ite_then O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_ite_then] at h
+  unfold Bool.ite.r_ite_then at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_ite_then.main.ok O hO)
 
 theorem Bool.ite.r_ite_else.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_ite_else O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_ite_else] at h
+  unfold Bool.ite.r_ite_else at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_ite_else.main.ok O hO)
 
 theorem Bool.ite.r_and_ite_then.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_and_ite_then O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_and_ite_then] at h
+  unfold Bool.ite.r_and_ite_then at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_and_ite_then.main.ok O hO)
   · kanon_arm h (Bool.ite.r_and_ite_then.swap.ok O hO)
 
 theorem Bool.ite.r_or_ite_else.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_or_ite_else O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_or_ite_else] at h
+  unfold Bool.ite.r_or_ite_else at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_or_ite_else.main.ok O hO)
   · kanon_arm h (Bool.ite.r_or_ite_else.swap.ok O hO)
 
 theorem Bool.ite.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_same O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_same] at h
+  unfold Bool.ite.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_same.main.ok O hO)
 
 theorem Bool.ite.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (guard : S.Term) (if_ : S.Term) (else_ : S.Term) (res : S.Term)
     (h : Bool.ite.r_default O guard if_ else_ = some res) : S.Refines (KanonBool.Bool.ite.spec guard if_ else_) res := by
-  simp only [Bool.ite.r_default] at h
+  unfold Bool.ite.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.ite.r_default.main.ok O hO)
 
@@ -720,45 +720,45 @@ theorem Bool.eq.r_default.main.ok : Bool.eq.r_default.main.Stmt :=
 
 theorem Bool.eq.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_same O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_same] at h
+  unfold Bool.eq.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_same.main.ok O hO)
 
 theorem Bool.eq.r_bools.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_bools O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_bools] at h
+  unfold Bool.eq.r_bools at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_bools.main.ok O hO)
 
 theorem Bool.eq.r_ite_ite.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_ite_ite O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_ite_ite] at h
+  unfold Bool.eq.r_ite_ite at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_ite_ite.main.ok O hO)
 
 theorem Bool.eq.r_false_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_false_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_false_] at h
+  unfold Bool.eq.r_false_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_false_.main.ok O hO)
   · kanon_arm h (Bool.eq.r_false_.swap.ok O hO)
 
 theorem Bool.eq.r_true_.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_true_ O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_true_] at h
+  unfold Bool.eq.r_true_ at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_true_.main.ok O hO)
   · kanon_arm h (Bool.eq.r_true_.swap.ok O hO)
 
 theorem Bool.eq.r_nots.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_nots O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_nots] at h
+  unfold Bool.eq.r_nots at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_nots.main.ok O hO)
 
 theorem Bool.eq.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_default O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_default] at h
+  unfold Bool.eq.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_default.main.ok O hO)
 
@@ -772,13 +772,13 @@ theorem Bool.eq_untyped.r_typed.main.ok : Bool.eq_untyped.r_typed.main.Stmt :=
 
 theorem Bool.eq_untyped.r_ill_typed.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq_untyped.r_ill_typed O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq_untyped.spec v1 v2) res := by
-  simp only [Bool.eq_untyped.r_ill_typed] at h
+  unfold Bool.eq_untyped.r_ill_typed at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq_untyped.r_ill_typed.main.ok O hO)
 
 theorem Bool.eq_untyped.r_typed.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq_untyped.r_typed O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq_untyped.spec v1 v2) res := by
-  simp only [Bool.eq_untyped.r_typed] at h
+  unfold Bool.eq_untyped.r_typed at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq_untyped.r_typed.main.ok O hO)
 
@@ -800,25 +800,25 @@ theorem Bool.distinct.r_default.main.ok : Bool.distinct.r_default.main.Stmt :=
 
 theorem Bool.distinct.r_small.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (l : (List S.Term)) (res : S.Term)
     (h : Bool.distinct.r_small O l = some res) : S.Refines (KanonBool.Bool.distinct.spec l) res := by
-  simp only [Bool.distinct.r_small] at h
+  unfold Bool.distinct.r_small at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.distinct.r_small.main.ok O hO)
 
 theorem Bool.distinct.r_distinct.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (l : (List S.Term)) (res : S.Term)
     (h : Bool.distinct.r_distinct O l = some res) : S.Refines (KanonBool.Bool.distinct.spec l) res := by
-  simp only [Bool.distinct.r_distinct] at h
+  unfold Bool.distinct.r_distinct at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.distinct.r_distinct.main.ok O hO)
 
 theorem Bool.distinct.r_not_distinct.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (l : (List S.Term)) (res : S.Term)
     (h : Bool.distinct.r_not_distinct O l = some res) : S.Refines (KanonBool.Bool.distinct.spec l) res := by
-  simp only [Bool.distinct.r_not_distinct] at h
+  unfold Bool.distinct.r_not_distinct at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.distinct.r_not_distinct.main.ok O hO)
 
 theorem Bool.distinct.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (l : (List S.Term)) (res : S.Term)
     (h : Bool.distinct.r_default O l = some res) : S.Refines (KanonBool.Bool.distinct.spec l) res := by
-  simp only [Bool.distinct.r_default] at h
+  unfold Bool.distinct.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.distinct.r_default.main.ok O hO)
 

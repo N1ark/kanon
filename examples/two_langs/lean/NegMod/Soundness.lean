@@ -29,7 +29,7 @@ theorem Num.add.r_negself.swap.ok : Num.add.r_negself.swap.Stmt := by
 
 theorem Num.add.r_negself.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [NegMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.add.r_negself O v1 v2 = some res) : S.Refines (NumMod.Num.add.spec v1 v2) res := by
-  simp only [Num.add.r_negself] at h
+  unfold Num.add.r_negself at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.add.r_negself.main.ok O hO)
   · kanon_arm h (Num.add.r_negself.swap.ok O hO)
@@ -48,19 +48,19 @@ theorem Neg.neg.r_default.main.ok : Neg.neg.r_default.main.Stmt :=
 
 theorem Neg.neg.r_lit.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [NegMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Neg.neg.r_lit O v = some res) : S.Refines (NegMod.Neg.neg.spec v) res := by
-  simp only [Neg.neg.r_lit] at h
+  unfold Neg.neg.r_lit at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Neg.neg.r_lit.main.ok O hO)
 
 theorem Neg.neg.r_neg.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [NegMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Neg.neg.r_neg O v = some res) : S.Refines (NegMod.Neg.neg.spec v) res := by
-  simp only [Neg.neg.r_neg] at h
+  unfold Neg.neg.r_neg at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Neg.neg.r_neg.main.ok O hO)
 
 theorem Neg.neg.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [NegMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Neg.neg.r_default O v = some res) : S.Refines (NegMod.Neg.neg.spec v) res := by
-  simp only [Neg.neg.r_default] at h
+  unfold Neg.neg.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Neg.neg.r_default.main.ok O hO)
 

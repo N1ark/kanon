@@ -23,7 +23,7 @@ theorem Bool.eq.r_nums.main.ok : Bool.eq.r_nums.main.Stmt :=
 
 theorem Bool.eq.r_nums.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.eq.r_nums O v1 v2 = some res) : S.Refines (KanonBool.Bool.eq.spec v1 v2) res := by
-  simp only [Bool.eq.r_nums] at h
+  unfold Bool.eq.r_nums at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Bool.eq.r_nums.main.ok O hO)
 
@@ -50,20 +50,20 @@ theorem Num.add.r_default.main.ok : Num.add.r_default.main.Stmt :=
 
 theorem Num.add.r_unit_zero.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.add.r_unit_zero O v1 v2 = some res) : S.Refines (NumMod.Num.add.spec v1 v2) res := by
-  simp only [Num.add.r_unit_zero] at h
+  unfold Num.add.r_unit_zero at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.add.r_unit_zero.main.ok O hO)
   · kanon_arm h (Num.add.r_unit_zero.swap.ok O hO)
 
 theorem Num.add.r_lits.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.add.r_lits O v1 v2 = some res) : S.Refines (NumMod.Num.add.spec v1 v2) res := by
-  simp only [Num.add.r_lits] at h
+  unfold Num.add.r_lits at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.add.r_lits.main.ok O hO)
 
 theorem Num.add.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.add.r_default O v1 v2 = some res) : S.Refines (NumMod.Num.add.spec v1 v2) res := by
-  simp only [Num.add.r_default] at h
+  unfold Num.add.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.add.r_default.main.ok O hO)
 
@@ -85,25 +85,25 @@ theorem Num.less.r_default.main.ok : Num.less.r_default.main.Stmt :=
 
 theorem Num.less.r_lits.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.less.r_lits O v1 v2 = some res) : S.Refines (NumMod.Num.less.spec v1 v2) res := by
-  simp only [Num.less.r_lits] at h
+  unfold Num.less.r_lits at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.less.r_lits.main.ok O hO)
 
 theorem Num.less.r_pos.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.less.r_pos O v1 v2 = some res) : S.Refines (NumMod.Num.less.spec v1 v2) res := by
-  simp only [Num.less.r_pos] at h
+  unfold Num.less.r_pos at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.less.r_pos.main.ok O hO)
 
 theorem Num.less.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.less.r_same O v1 v2 = some res) : S.Refines (NumMod.Num.less.spec v1 v2) res := by
-  simp only [Num.less.r_same] at h
+  unfold Num.less.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.less.r_same.main.ok O hO)
 
 theorem Num.less.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.less.r_default O v1 v2 = some res) : S.Refines (NumMod.Num.less.spec v1 v2) res := by
-  simp only [Num.less.r_default] at h
+  unfold Num.less.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.less.r_default.main.ok O hO)
 
@@ -117,13 +117,13 @@ theorem Num.max.r_default.main.ok : Num.max.r_default.main.Stmt :=
 
 theorem Num.max.r_same.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.max.r_same O v1 v2 = some res) : S.Refines (NumMod.Num.max.spec v1 v2) res := by
-  simp only [Num.max.r_same] at h
+  unfold Num.max.r_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.max.r_same.main.ok O hO)
 
 theorem Num.max.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [NumMod.Lang S] [KanonBool.Typed S] [NumMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Num.max.r_default O v1 v2 = some res) : S.Refines (NumMod.Num.max.spec v1 v2) res := by
-  simp only [Num.max.r_default] at h
+  unfold Num.max.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Num.max.r_default.main.ok O hO)
 

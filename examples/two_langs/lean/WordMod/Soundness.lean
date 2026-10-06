@@ -28,19 +28,19 @@ theorem Word.add.r_default.main.ok : Word.add.r_default.main.Stmt :=
 
 theorem Word.add.r_lits.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Word.add.r_lits O f n v1 v2 = some res) : S.Refines (WordMod.Word.add.spec f n v1 v2) res := by
-  simp only [Word.add.r_lits] at h
+  unfold Word.add.r_lits at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.add.r_lits.main.ok O hO)
 
 theorem Word.add.r_plain.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Word.add.r_plain O f n v1 v2 = some res) : S.Refines (WordMod.Word.add.spec f n v1 v2) res := by
-  simp only [Word.add.r_plain] at h
+  unfold Word.add.r_plain at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.add.r_plain.main.ok O hO)
 
 theorem Word.add.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (f : CfgMod.Flags) (n : Int) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Word.add.r_default O f n v1 v2 = some res) : S.Refines (WordMod.Word.add.spec f n v1 v2) res := by
-  simp only [Word.add.r_default] at h
+  unfold Word.add.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.add.r_default.main.ok O hO)
 
@@ -58,19 +58,19 @@ theorem Word.round.r_default.main.ok : Word.round.r_default.main.Stmt :=
 
 theorem Word.round.r_check.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (m : CfgMod.Rounding) (n : Int) (v : S.Term) (res : S.Term)
     (h : Word.round.r_check O m n v = some res) : S.Refines (WordMod.Word.round.spec m n v) res := by
-  simp only [Word.round.r_check] at h
+  unfold Word.round.r_check at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.round.r_check.main.ok O hO)
 
 theorem Word.round.r_keep.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (m : CfgMod.Rounding) (n : Int) (v : S.Term) (res : S.Term)
     (h : Word.round.r_keep O m n v = some res) : S.Refines (WordMod.Word.round.spec m n v) res := by
-  simp only [Word.round.r_keep] at h
+  unfold Word.round.r_keep at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.round.r_keep.main.ok O hO)
 
 theorem Word.round.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (m : CfgMod.Rounding) (n : Int) (v : S.Term) (res : S.Term)
     (h : Word.round.r_default O m n v = some res) : S.Refines (WordMod.Word.round.spec m n v) res := by
-  simp only [Word.round.r_default] at h
+  unfold Word.round.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.round.r_default.main.ok O hO)
 
@@ -80,7 +80,7 @@ theorem Word.choose.r_main.main.ok : Word.choose.r_main.main.Stmt :=
 
 theorem Word.choose.r_main.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (g : S.Term) (a : S.Term) (b : S.Term) (res : S.Term)
     (h : Word.choose.r_main O g a b = some res) : S.Refines (WordMod.Word.choose.spec g a b) res := by
-  simp only [Word.choose.r_main] at h
+  unfold Word.choose.r_main at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.choose.r_main.main.ok O hO)
 
@@ -90,7 +90,7 @@ theorem Word.double.r_main.main.ok : Word.double.r_main.main.Stmt :=
 
 theorem Word.double.r_main.sound {S : Kanon.Sem} [KanonBool.Lang S] [WordMod.Lang S] [KanonBool.Typed S] [WordMod.Typed S] (O : Ops S) (hO : O.Sound) (n : Int) (v : S.Term) (res : S.Term)
     (h : Word.double.r_main O n v = some res) : S.Refines (WordMod.Word.double.spec n v) res := by
-  simp only [Word.double.r_main] at h
+  unfold Word.double.r_main at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Word.double.r_main.main.ok O hO)
 

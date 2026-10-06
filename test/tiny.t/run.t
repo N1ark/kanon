@@ -738,20 +738,20 @@ The Lean statements and their proofs:
   
   theorem Rules.plus.r_lits.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.plus.r_lits O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.plus.spec v1 v2) res := by
-    simp only [Rules.plus.r_lits] at h
+    unfold Rules.plus.r_lits at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.plus.r_lits.main.ok O hO)
   
   theorem Rules.plus.r_unit_zero.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.plus.r_unit_zero O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.plus.spec v1 v2) res := by
-    simp only [Rules.plus.r_unit_zero] at h
+    unfold Rules.plus.r_unit_zero at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.plus.r_unit_zero.main.ok O hO)
     · kanon_arm h (Rules.plus.r_unit_zero.swap.ok O hO)
   
   theorem Rules.plus.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.plus.r_default O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.plus.spec v1 v2) res := by
-    simp only [Rules.plus.r_default] at h
+    unfold Rules.plus.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.plus.r_default.main.ok O hO)
   
@@ -787,21 +787,21 @@ The Lean statements and their proofs:
   
   theorem Rules.times.r_unit_one.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.times.r_unit_one O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.times.spec v1 v2) res := by
-    simp only [Rules.times.r_unit_one] at h
+    unfold Rules.times.r_unit_one at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.times.r_unit_one.main.ok O hO)
     · kanon_arm h (Rules.times.r_unit_one.swap.ok O hO)
   
   theorem Rules.times.r_zero_zero.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.times.r_zero_zero O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.times.spec v1 v2) res := by
-    simp only [Rules.times.r_zero_zero] at h
+    unfold Rules.times.r_zero_zero at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.times.r_zero_zero.main.ok O hO)
     · kanon_arm h (Rules.times.r_zero_zero.swap.ok O hO)
   
   theorem Rules.times.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.times.r_default O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.times.spec v1 v2) res := by
-    simp only [Rules.times.r_default] at h
+    unfold Rules.times.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.times.r_default.main.ok O hO)
   
@@ -815,13 +815,13 @@ The Lean statements and their proofs:
   
   theorem Rules.lt_.r_lits.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.lt_.r_lits O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.lt_.spec v1 v2) res := by
-    simp only [Rules.lt_.r_lits] at h
+    unfold Rules.lt_.r_lits at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.lt_.r_lits.main.ok O hO)
   
   theorem Rules.lt_.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.lt_.r_default O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.lt_.spec v1 v2) res := by
-    simp only [Rules.lt_.r_default] at h
+    unfold Rules.lt_.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.lt_.r_default.main.ok O hO)
   
@@ -839,19 +839,19 @@ The Lean statements and their proofs:
   
   theorem Rules.not_.r_lit.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
       (h : Rules.not_.r_lit O v = some res) : S.Refines (Kanon.Rules.Rules.not_.spec v) res := by
-    simp only [Rules.not_.r_lit] at h
+    unfold Rules.not_.r_lit at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.not_.r_lit.main.ok O hO)
   
   theorem Rules.not_.r_not_not.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
       (h : Rules.not_.r_not_not O v = some res) : S.Refines (Kanon.Rules.Rules.not_.spec v) res := by
-    simp only [Rules.not_.r_not_not] at h
+    unfold Rules.not_.r_not_not at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.not_.r_not_not.main.ok O hO)
   
   theorem Rules.not_.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
       (h : Rules.not_.r_default O v = some res) : S.Refines (Kanon.Rules.Rules.not_.spec v) res := by
-    simp only [Rules.not_.r_default] at h
+    unfold Rules.not_.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.not_.r_default.main.ok O hO)
   
@@ -904,34 +904,34 @@ The Lean statements and their proofs:
   
   theorem Rules.and_.r_unit_true.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.and_.r_unit_true O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) res := by
-    simp only [Rules.and_.r_unit_true] at h
+    unfold Rules.and_.r_unit_true at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.and_.r_unit_true.main.ok O hO)
     · kanon_arm h (Rules.and_.r_unit_true.swap.ok O hO)
   
   theorem Rules.and_.r_zero_false.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.and_.r_zero_false O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) res := by
-    simp only [Rules.and_.r_zero_false] at h
+    unfold Rules.and_.r_zero_false at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.and_.r_zero_false.main.ok O hO)
     · kanon_arm h (Rules.and_.r_zero_false.swap.ok O hO)
   
   theorem Rules.and_.r_same.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.and_.r_same O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) res := by
-    simp only [Rules.and_.r_same] at h
+    unfold Rules.and_.r_same at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.and_.r_same.main.ok O hO)
   
   theorem Rules.and_.r_not_.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.and_.r_not_ O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) res := by
-    simp only [Rules.and_.r_not_] at h
+    unfold Rules.and_.r_not_ at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.and_.r_not_.main.ok O hO)
     · kanon_arm h (Rules.and_.r_not_.swap.ok O hO)
   
   theorem Rules.and_.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.and_.r_default O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.and_.spec v1 v2) res := by
-    simp only [Rules.and_.r_default] at h
+    unfold Rules.and_.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.and_.r_default.main.ok O hO)
   
@@ -949,19 +949,19 @@ The Lean statements and their proofs:
   
   theorem Rules.eq.r_same.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.eq.r_same O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.eq.spec v1 v2) res := by
-    simp only [Rules.eq.r_same] at h
+    unfold Rules.eq.r_same at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.eq.r_same.main.ok O hO)
   
   theorem Rules.eq.r_lits.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.eq.r_lits O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.eq.spec v1 v2) res := by
-    simp only [Rules.eq.r_lits] at h
+    unfold Rules.eq.r_lits at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.eq.r_lits.main.ok O hO)
   
   theorem Rules.eq.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
       (h : Rules.eq.r_default O v1 v2 = some res) : S.Refines (Kanon.Rules.Rules.eq.spec v1 v2) res := by
-    simp only [Rules.eq.r_default] at h
+    unfold Rules.eq.r_default at h
     repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
     · kanon_arm h (Rules.eq.r_default.main.ok O hO)
   

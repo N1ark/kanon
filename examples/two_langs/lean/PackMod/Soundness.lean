@@ -24,13 +24,13 @@ theorem Pack.some_.r_default.main.ok : Pack.some_.r_default.main.Stmt :=
 
 theorem Pack.some_.r_empty.sound {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] (O : Ops S) (hO : O.Sound) (names : (List (String × S.Ty))) (body : S.Term) (res : S.Term)
     (h : Pack.some_.r_empty O names body = some res) : S.Refines (PackMod.Pack.some_.spec names body) res := by
-  simp only [Pack.some_.r_empty] at h
+  unfold Pack.some_.r_empty at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Pack.some_.r_empty.main.ok O hO)
 
 theorem Pack.some_.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [PackMod.Lang S] [KanonBool.Typed S] [PackMod.Typed S] [PackMod.Laws S] (O : Ops S) (hO : O.Sound) (names : (List (String × S.Ty))) (body : S.Term) (res : S.Term)
     (h : Pack.some_.r_default O names body = some res) : S.Refines (PackMod.Pack.some_.spec names body) res := by
-  simp only [Pack.some_.r_default] at h
+  unfold Pack.some_.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Pack.some_.r_default.main.ok O hO)
 

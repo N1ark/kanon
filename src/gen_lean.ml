@@ -3331,9 +3331,8 @@ let soundness_file ctx m =
           let thm name concl suffix =
             pf ft
               "@[<v 2>theorem %s.%s %s (O : Ops S) (hO : O.Sound) %a%a (res : \
-               S.Term)@   (h : %s O %a = some res) : %s := by@ simp only [%s] \
-               at h@ repeat' (replace h := Kanon.orElse_some h; rcases h with \
-               h | h)"
+               S.Term)@   (h : %s O %a = some res) : %s := by@ unfold %s at h@ \
+               repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)"
               n name (lang_binders m) params f (pre_binders ?rename:None) f n
               args f concl n;
             List.iteri

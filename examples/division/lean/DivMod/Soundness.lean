@@ -40,20 +40,20 @@ theorem Int.plus.r_default.main.ok : Int.plus.r_default.main.Stmt :=
 
 theorem Int.plus.r_lits.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Int.plus.r_lits O v1 v2 = some res) : S.Refines (DivMod.Int.plus.spec v1 v2) res := by
-  simp only [Int.plus.r_lits] at h
+  unfold Int.plus.r_lits at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.plus.r_lits.main.ok O hO)
 
 theorem Int.plus.r_unit_zero.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Int.plus.r_unit_zero O v1 v2 = some res) : S.Refines (DivMod.Int.plus.spec v1 v2) res := by
-  simp only [Int.plus.r_unit_zero] at h
+  unfold Int.plus.r_unit_zero at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.plus.r_unit_zero.main.ok O hO)
   · kanon_arm h (Int.plus.r_unit_zero.swap.ok O hO)
 
 theorem Int.plus.r_default.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Int.plus.r_default O v1 v2 = some res) : S.Refines (DivMod.Int.plus.spec v1 v2) res := by
-  simp only [Int.plus.r_default] at h
+  unfold Int.plus.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.plus.r_default.main.ok O hO)
 
@@ -67,13 +67,13 @@ theorem Int.div.r_default.main.ok : Int.div.r_default.main.Stmt :=
 
 theorem Int.div.r_self.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (hs_v2 : DivMod.Nonzero v2) (res : S.Term)
     (h : Int.div.r_self O v1 v2 = some res) : S.Refines (DivMod.Int.div.spec v1 v2) res := by
-  simp only [Int.div.r_self] at h
+  unfold Int.div.r_self at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.div.r_self.main.ok O hO)
 
 theorem Int.div.r_default.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (hs_v2 : DivMod.Nonzero v2) (res : S.Term)
     (h : Int.div.r_default O v1 v2 = some res) : S.Refines (DivMod.Int.div.spec v1 v2) res := by
-  simp only [Int.div.r_default] at h
+  unfold Int.div.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.div.r_default.main.ok O hO)
 
@@ -87,13 +87,13 @@ theorem Int.sq1.r_default.main.post.ok : Int.sq1.r_default.main.post.Stmt :=
 
 theorem Int.sq1.r_default.sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Int.sq1.r_default O v = some res) : S.Refines (DivMod.Int.sq1.spec v) res := by
-  simp only [Int.sq1.r_default] at h
+  unfold Int.sq1.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.sq1.r_default.main.ok O hO)
 
 theorem Int.sq1.r_default.post_sound {S : Kanon.Sem} [DivMod.Lang S] [DivMod.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Int.sq1.r_default O v = some res) : DivMod.Nonzero res := by
-  simp only [Int.sq1.r_default] at h
+  unfold Int.sq1.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Int.sq1.r_default.main.post.ok O hO)
 

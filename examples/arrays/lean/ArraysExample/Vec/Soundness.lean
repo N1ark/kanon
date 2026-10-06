@@ -23,13 +23,13 @@ theorem Vec.len.r_default.main.ok : Vec.len.r_default.main.Stmt :=
 
 theorem Vec.len.r_lit.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Vec.len.r_lit O v = some res) : S.Refines (ArraysExample.Vec.Vec.len.spec v) res := by
-  simp only [Vec.len.r_lit] at h
+  unfold Vec.len.r_lit at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.len.r_lit.main.ok O hO)
 
 theorem Vec.len.r_default.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     (h : Vec.len.r_default O v = some res) : S.Refines (ArraysExample.Vec.Vec.len.spec v) res := by
-  simp only [Vec.len.r_default] at h
+  unfold Vec.len.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.len.r_default.main.ok O hO)
 
@@ -47,19 +47,19 @@ theorem Vec.get.r_default.main.ok : Vec.get.r_default.main.Stmt :=
 
 theorem Vec.get.r_lit.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (i : S.Term) (res : S.Term)
     (h : Vec.get.r_lit O v i = some res) : S.Refines (ArraysExample.Vec.Vec.get.spec v i) res := by
-  simp only [Vec.get.r_lit] at h
+  unfold Vec.get.r_lit at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.get.r_lit.main.ok O hO)
 
 theorem Vec.get.r_set_same.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (i : S.Term) (res : S.Term)
     (h : Vec.get.r_set_same O v i = some res) : S.Refines (ArraysExample.Vec.Vec.get.spec v i) res := by
-  simp only [Vec.get.r_set_same] at h
+  unfold Vec.get.r_set_same at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.get.r_set_same.main.ok O hO)
 
 theorem Vec.get.r_default.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (i : S.Term) (res : S.Term)
     (h : Vec.get.r_default O v i = some res) : S.Refines (ArraysExample.Vec.Vec.get.spec v i) res := by
-  simp only [Vec.get.r_default] at h
+  unfold Vec.get.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.get.r_default.main.ok O hO)
 
@@ -73,13 +73,13 @@ theorem Vec.set.r_default.main.ok : Vec.set.r_default.main.Stmt :=
 
 theorem Vec.set.r_lit.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (i : S.Term) (x : S.Term) (res : S.Term)
     (h : Vec.set.r_lit O v i x = some res) : S.Refines (ArraysExample.Vec.Vec.set.spec v i x) res := by
-  simp only [Vec.set.r_lit] at h
+  unfold Vec.set.r_lit at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.set.r_lit.main.ok O hO)
 
 theorem Vec.set.r_default.sound {S : Kanon.Sem} [ArraysExample.Vec.Lang S] [ArraysExample.Vec.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (i : S.Term) (x : S.Term) (res : S.Term)
     (h : Vec.set.r_default O v i x = some res) : S.Refines (ArraysExample.Vec.Vec.set.spec v i x) res := by
-  simp only [Vec.set.r_default] at h
+  unfold Vec.set.r_default at h
   repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)
   · kanon_arm h (Vec.set.r_default.main.ok O hO)
 
