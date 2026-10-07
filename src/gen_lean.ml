@@ -2002,7 +2002,9 @@ let node_names (p : program) (n : gnode) =
         t.t_constr.c_name = n.gc.c_name && t.t_constr.c_res = n.gc.c_res)
       (p.typing @ p.leaf_typing)
   in
-  let reserved = [ "t"; "ty"; "kanon__e"; "kanon__x" ] in
+  let reserved =
+    [ "t"; "ty"; "f"; "y"; "ev"; "evList"; "allList"; "kanon__e"; "kanon__x" ]
+  in
   List.mapi
     (fun i t ->
       match t with

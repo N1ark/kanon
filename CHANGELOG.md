@@ -98,6 +98,7 @@
 - Record fields named like Lean keywords are quoted.
 - Modules named like Lean keywords generate valid Lean.
 - `Node.Rel` is valid for node arguments `x` and `x'`.
+- `lean-node` rejects node arguments named `f`, `y` or `ev`.
 
 ## 0.3.0 (2026-10-04)
 
