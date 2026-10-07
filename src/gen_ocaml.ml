@@ -108,29 +108,79 @@ let doc_comment ~opening ~closing ~escape ft text =
     closing
 
 (** [text] without what would end or open a comment, or start a string, in an
-    OCaml comment: the closing and opening delimiters get a space inside, an
-    unbalanced double quote becomes a character literal, and a quoted string
-    opening (a brace, an identifier, a bar) gets a space after the brace. *)
+    OCaml comment, which OCaml reads token by token: the closing and opening
+    delimiters get a space inside, an unbalanced double quote becomes a string,
+    and a quoted string opening (a brace, an extension, an identifier, a bar)
+    gets a space after the brace. Character literals and identifiers are kept
+    whole. *)
 let escape_ocaml_comment text =
   let n = String.length text in
   let b = Buffer.create n in
   let at i = if i < n then text.[i] else '\000' in
-  (* a quote as a character literal, apart from the identifier before it, which
-     would take its first quote *)
-  let char_quote () =
-    let l = Buffer.length b in
-    (if l > 0 then
-       match Buffer.nth b (l - 1) with
-       | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' ->
-           Buffer.add_char b ' '
-       | _ -> ());
-    Buffer.add_string b "'\"'"
+  let is_ident_char c =
+    match c with
+    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true
+    | _ -> false
   in
+  let lone_quote () = Buffer.add_string b "\"\\\"\"" in
   let rec close j =
     if j >= n then None
     else if text.[j] = '\\' then close (j + 2)
     else if text.[j] = '"' then Some j
     else close (j + 1)
+  in
+  (* the length of the character literal at [i], if there is one *)
+  let char_literal i =
+    let digit c = '0' <= c && c <= '9' in
+    let hex c = digit c || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F') in
+    match (at (i + 1), at (i + 2)) with
+    | '\'', _ -> Some 2
+    | '\\', ('\\' | '"' | '\'' | 'n' | 't' | 'b' | 'r' | ' ')
+      when at (i + 3) = '\'' ->
+        Some 4
+    | '\\', c
+      when digit c
+           && digit (at (i + 3))
+           && digit (at (i + 4))
+           && at (i + 5) = '\'' ->
+        Some 6
+    | '\\', 'x' when hex (at (i + 3)) && hex (at (i + 4)) && at (i + 5) = '\''
+      ->
+        Some 6
+    | '\\', 'o'
+      when at (i + 3) >= '0'
+           && at (i + 3) <= '3'
+           && at (i + 4) >= '0'
+           && at (i + 4) <= '7'
+           && at (i + 5) >= '0'
+           && at (i + 5) <= '7'
+           && at (i + 6) = '\'' ->
+        Some 7
+    | c, '\'' when c <> '\\' && n > i + 2 -> Some 3
+    | _ -> None
+  in
+  (* whether a quoted string opens at the brace at [i]: after it, an extension
+     (a percent sign and a name) and an identifier, either of them empty, then a
+     bar *)
+  let quoted_string i =
+    let rec lower j =
+      if j < n && (('a' <= text.[j] && text.[j] <= 'z') || text.[j] = '_') then
+        lower (j + 1)
+      else j
+    in
+    let rec blanks j =
+      if j < n && (text.[j] = ' ' || text.[j] = '\t') then blanks (j + 1) else j
+    in
+    let rec ext j =
+      if j < n && (is_ident_char text.[j] || text.[j] = '.') then ext (j + 1)
+      else j
+    in
+    let j =
+      if at (i + 1) = '%' then
+        blanks (ext (if at (i + 2) = '%' then i + 3 else i + 2))
+      else i + 1
+    in
+    at (lower j) = '|'
   in
   let rec go instr i stop =
     if i < stop then
@@ -139,11 +189,19 @@ let escape_ocaml_comment text =
           Buffer.add_string b "* )";
           go instr (i + 2) stop
       | '(' when at (i + 1) = '*' ->
-          Buffer.add_string b "( *";
+          Buffer.add_string b (if at (i + 2) = ')' then "( * " else "( *");
           go instr (i + 2) stop
-      | '\'' when at (i + 1) = '"' && at (i + 2) = '\'' ->
-          char_quote ();
-          go instr (i + 3) stop
+      | '\'' when (not instr) && char_literal i <> None ->
+          let len = Option.get (char_literal i) in
+          Buffer.add_string b (String.sub text i len);
+          go instr (i + len) stop
+      | ('a' .. 'z' | 'A' .. 'Z' | '_') when not instr ->
+          let rec ident j =
+            if j < stop && is_ident_char text.[j] then ident (j + 1) else j
+          in
+          let j = ident i in
+          Buffer.add_string b (String.sub text i (j - i));
+          go instr j stop
       | '\\' when instr && (at (i + 1) = '"' || at (i + 1) = '\\') ->
           Buffer.add_char b '\\';
           Buffer.add_char b (at (i + 1));
@@ -156,16 +214,11 @@ let escape_ocaml_comment text =
               Buffer.add_char b '"';
               go instr (j + 1) stop
           | _ ->
-              char_quote ();
+              lone_quote ();
               go instr (i + 1) stop)
       | '{' ->
           Buffer.add_char b '{';
-          let rec id j =
-            if j < n && (('a' <= text.[j] && text.[j] <= 'z') || text.[j] = '_')
-            then id (j + 1)
-            else j
-          in
-          if at (id (i + 1)) = '|' then Buffer.add_char b ' ';
+          if (not instr) && quoted_string i then Buffer.add_char b ' ';
           go instr (i + 1) stop
       | c ->
           Buffer.add_char b c;
