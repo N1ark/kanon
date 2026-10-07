@@ -2016,6 +2016,23 @@ let check_extends ctx =
       | _ -> ())
     ctx.fns
 
+(** The names that the theorems about a rule function bind besides its
+    parameters. *)
+let reserved_params = [ "h"; "hO"; "res"; "sem" ]
+
+(** The parameters of a rule function may not have the names that its theorems
+    bind. *)
+let check_params ctx =
+  List.iter
+    (fun (f : fn) ->
+      List.iter
+        (fun (x, _) ->
+          if List.mem x reserved_params then
+            unsupported f.floc "the parameter %s of the rule function %s" x
+              f.name)
+        f.params)
+    (rule_fns ctx)
+
 (** The cases of [f] that the module [m] adds, with their names. *)
 let module_ext_cases m (f : fn) =
   let _, cases, _ = ext_cases f in
@@ -4181,6 +4198,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
     lazy
       (compute_refs (Lazy.force prog');
        check_extends (Lazy.force ctx);
+       check_params (Lazy.force ctx);
        has_model_ref := has_model (Lazy.force ctx))
   in
   let modules () =
