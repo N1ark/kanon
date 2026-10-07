@@ -130,3 +130,17 @@ supported:
   lang7.knl:3:5: the name evList of an argument of Seq: not supported in Lean
   lang7.knl:3:5: the name allList of an argument of Seq: not supported in Lean
   [1]
+
+The parameters of a rule function are bound in its theorems, with the
+hypotheses `h` and `hO`, the result `res` and the semantics `sem`, whose names
+they may not have:
+
+  $ for n in h hO res sem; do
+  >   printf 'use "rules9"\nsort TInt\nnode Int of int : TInt\nnode Add : TInt -> TInt -> TInt\n' > lang9.knl
+  >   printf 'rule add : Add (%s, v)\n' $n > rules9.kn
+  >   kanon lean-model lang9.knl 2>&1 | head -1
+  > done
+  ./rules9.kn:1:0: the parameter h of the rule function Rules9.add: not supported in Lean
+  ./rules9.kn:1:0: the parameter hO of the rule function Rules9.add: not supported in Lean
+  ./rules9.kn:1:0: the parameter res of the rule function Rules9.add: not supported in Lean
+  ./rules9.kn:1:0: the parameter sem of the rule function Rules9.add: not supported in Lean
