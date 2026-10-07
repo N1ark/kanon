@@ -133,12 +133,12 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   let node : kind -> ty -> t =
     let module H = Ephemeron.K1.Make (struct
       type nonrec t = t
-      let equal a b = equal_kind a.kind b.kind && equal_ty a.ty b.ty
-      let hash a = hash_combine (hash_kind a.kind) (hash_ty a.ty)
+      let equal (a : t) (b : t) = equal_kind a.kind b.kind && equal_ty a.ty b.ty
+      let hash (a : t) = hash_combine (hash_kind a.kind) (hash_ty a.ty)
     end) in
     let table = H.create 1024 and tags = ref 0 in
     fun kind ty ->
-      let v = { kind; ty; tag = -1 } in
+      let v : t = { kind; ty; tag = -1 } in
       match H.find table v with
       | t -> t
       | exception Not_found ->

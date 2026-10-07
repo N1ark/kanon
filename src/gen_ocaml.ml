@@ -1356,10 +1356,12 @@ let types ~sources ft =
   pf ft "(* Not safe across domains (TODO). *)@ ";
   pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
   pf ft "@[<v 2>let module H = Ephemeron.K1.Make (struct@ type nonrec t = t@ ";
-  pf ft "let equal a b = equal_kind a.kind b.kind && equal_ty a.ty b.ty@ ";
-  pf ft "let hash a = hash_combine (hash_kind a.kind) (hash_ty a.ty)@]@ ";
+  pf ft
+    "let equal (a : t) (b : t) = equal_kind a.kind b.kind && equal_ty a.ty \
+     b.ty@ ";
+  pf ft "let hash (a : t) = hash_combine (hash_kind a.kind) (hash_ty a.ty)@]@ ";
   pf ft "end) in@ let table = H.create 1024 and tags = ref 0 in@ ";
-  pf ft "@[<v 2>fun kind ty ->@ let v = { kind; ty; tag = -1 } in@ ";
+  pf ft "@[<v 2>fun kind ty ->@ let v : t = { kind; ty; tag = -1 } in@ ";
   pf ft "@[<v>match H.find table v with@ | t -> t@ ";
   pf ft "@[<v 2>| exception Not_found ->@ ";
   pf ft "let t = { v with tag = !tags } in@ incr tags;@ H.add table t t;@ ";
