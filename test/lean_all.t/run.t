@@ -95,8 +95,9 @@ With [@lean_proofs "F"], the generated proofs of a function import
 Proofs/F.lean instead of Proofs.lean, so that editing another proof file does
 not rebuild them.
 
-  $ sed 's/\[@lean_heartbeats 800000\]/[@lean_heartbeats 800000] [@lean_proofs "Neg"]/' int.kn > int2.kn && mv int2.kn int.kn
-  $ kanon lean-all out lang.knl
+  $ mkdir split && cp lang.knl int.knl split
+  $ sed 's/\[@lean_heartbeats 800000\]/[@lean_heartbeats 800000] [@lean_proofs "Neg"]/' int.kn > split/int.kn
+  $ kanon lean-all out split/lang.knl
   $ grep '^import' out/Ex/Int/Soundness/Int/neg.lean out/Ex/Int/Soundness/Int/plus.lean
   out/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Statements.Int.neg
   out/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Proofs.Neg
