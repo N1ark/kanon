@@ -31,6 +31,19 @@
       }
     },
     {
+      "id": "traversals",
+      "title": "Traversals: map, iter and exists over the children",
+      "description": "examples/traversals: [@@@traversals], over nodes with children in a list, an array, an option and a record",
+      "template": true,
+      "files": {
+        "lang.knl": "../examples/traversals/lang.knl",
+        "term.knl": "../examples/traversals/term.knl",
+        "term.kn": "../examples/traversals/term.kn",
+        "ext.knl": "../examples/traversals/ext.knl",
+        "ext.kn": "../examples/traversals/ext.kn"
+      }
+    },
+    {
       "id": "tiny",
       "title": "Tiny: booleans and integers",
       "description": "test/tiny.t: one module, with laws",

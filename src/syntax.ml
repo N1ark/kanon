@@ -190,6 +190,9 @@ type lang = {
   ocaml_rules : string option;
       (** [[@@@ocaml_rules "M"]]: the OCaml module of the rules, which the
           implementation of [ocaml-typed] is made of *)
+  traversals : bool;
+      (** [[@@@traversals]]: [ocaml] also generates the traversals of the terms
+          and of the sorts (see [Gen_ocaml.traversals]) *)
   operators : operator list;
   raw_typing : (string * raw_typing) list;
   laws : (string * law * Location.t * Location.t) list;
@@ -216,6 +219,7 @@ let lang =
       ocaml_types = None;
       ocaml_prims = None;
       ocaml_rules = None;
+      traversals = false;
       operators = [];
       raw_typing = [];
       laws = [];
@@ -270,6 +274,32 @@ let decl_of_ty t =
   match Option.bind (decl_name t) find_decl with
   | Some d -> d
   | None -> Fmt.failwith "type %a is not declared by the language" pp_ty t
+
+(** Whether the values of the type [ty] contain values of the type [target]
+    ([TTerm] or [TSty]): as [target], in a list, an array, an option or a tuple,
+    or in a type of the language (the fields of a record, the arguments of the
+    constructors of a variant), which may be recursive. An abstract type has no
+    contents that Kanon knows of. *)
+let mentions target ty =
+  let rec go seen ty =
+    ty = target
+    ||
+    match ty with
+    | TList t | TOption t | TArray t -> go seen t
+    | TTuple l -> List.exists (go seen) l
+    | TData d when not (List.mem d seen) ->
+        let seen = d :: seen in
+        (match find_decl d with
+          | Some decl -> List.exists (fun (_, t) -> go seen t) decl.d_fields
+          | None -> false)
+        || List.exists
+             (fun c ->
+               c.c_res = TData d
+               && List.exists (fun a -> go seen (arg_ty a)) c.c_args)
+             !lang.constrs
+    | _ -> false
+  in
+  go [] ty
 
 let find_operator ~arity sym =
   List.find_opt (fun o -> o.sym = sym && o.arity = arity) !lang.operators

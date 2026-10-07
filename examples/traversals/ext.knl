@@ -1,0 +1,3 @@
+(* A module that adds a node: the traversals have its case without a line more. *)
+
+node Neg : TInt -> TInt [@invol]

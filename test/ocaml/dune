@@ -2,7 +2,8 @@
 ; of ../tiny.t, as modules (Tiny_types, Tiny_rules, opened through
 ; [@@@ocaml_types] and the primitives of Tiny_prims), and of the example
 ; language of examples/bool, included in one module (Bool_lang), and that of
-; examples/arrays (Arrays_lang), with its arrays.
+; examples/arrays (Arrays_lang), with its arrays, and that of
+; examples/traversals (Trav_lang), with its traversals.
 
 (rule
  (deps
@@ -60,6 +61,25 @@
    arrays_rules.gen.ml
    (run %{bin:kanon} ocaml %{project_root}/examples/arrays/lang.knl))))
 
+(rule
+ (deps
+  (glob_files %{project_root}/examples/traversals/*.kn*))
+ (action
+  (with-stdout-to
+   trav_types.gen.ml
+   (run
+    %{bin:kanon}
+    ocaml-types
+    %{project_root}/examples/traversals/lang.knl))))
+
+(rule
+ (deps
+  (glob_files %{project_root}/examples/traversals/*.kn*))
+ (action
+  (with-stdout-to
+   trav_rules.gen.ml
+   (run %{bin:kanon} ocaml %{project_root}/examples/traversals/lang.knl))))
+
 (test
  (name main)
  (libraries zarith)
@@ -69,7 +89,9 @@
   bool_types.gen.ml
   bool_rules.gen.ml
   arrays_types.gen.ml
-  arrays_rules.gen.ml))
+  arrays_rules.gen.ml
+  trav_types.gen.ml
+  trav_rules.gen.ml))
 
 ; The literals of a [@fold] law do not capture the parameters of the node,
 ; named like them (hygiene/lang.knl).
