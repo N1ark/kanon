@@ -14,5 +14,5 @@ from the code that comes after, such as the tests, so a file may not be named
   > fn add (x y : int) : int = x + y
   > KN
   $ kanon ocaml lang.knl
-  ./z.knl:1:5: the module Z has the name of a generated module
+  ./z.knl:1:5: the module Z has the name of a module that the generated code uses
   [1]

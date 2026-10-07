@@ -294,5 +294,5 @@ the names of the generated modules:
   $ printf '[@@@ocaml_rules "R"]\nuse "tag"\n' > named.knl
   $ echo 'sort TInt' > tag.knl
   $ kanon ocaml-typed named.knl none.kn
-  ./tag.knl:1:5: the module Tag has the name of a generated module
+  ./tag.knl:1:5: the module Tag has the name of a module that the generated code uses
   [1]

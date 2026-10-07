@@ -91,6 +91,7 @@
 - `ocaml-tests` builds with unused-case warnings as errors.
 - Languages with one sort build with warnings as errors.
 - A file named `z` is an error: `Z` is Zarith's.
+- A module named like the `ocaml_prims` module is an error.
 
 ## 0.3.0 (2026-10-04)
 

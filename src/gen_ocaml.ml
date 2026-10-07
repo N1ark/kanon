@@ -749,8 +749,19 @@ let module_of ?(reserved = []) (loc : Location.t) =
   if List.mem m ("Kanon_flat" :: "Z" :: reserved) then
     raise
       (Check.Error
-         (loc, Fmt.str "the module %s has the name of a generated module" m));
+         ( loc,
+           Fmt.str
+             "the module %s has the name of a module that the generated code \
+              uses"
+             m ));
   m
+
+(** The module of the primitives, which the tests call by its name once they
+    open the rules: no module of the rules may have it. *)
+let prims_reserved () =
+  match !lang.ocaml_prims with
+  | Some m -> [ List.hd (String.split_on_char '.' m) ]
+  | None -> []
 
 (** An item of a module of the rules: [let name = ...], which [print] prints,
     declared at [loc]; a [block] has several lines. *)
@@ -1312,7 +1323,7 @@ let program ~sources ft (p : program) =
   let ctx =
     { prims = List.map (fun p -> p.pname) p.prims; consts; public = false }
   in
-  let mods = module_entries p in
+  let mods = module_entries ~reserved:(prims_reserved ()) p in
   check_names p;
   header ~sources ft;
   prim_sigs ft p;
