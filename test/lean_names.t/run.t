@@ -83,3 +83,19 @@ the access to a field:
   --
   def Rec.start (s : Kanon.Span) : Int :=
     s.«from»
+
+The same goes for a module named after a keyword, in the names of the theorems
+about its nodes:
+
+  $ cat > lang5.knl <<'KN'
+  > use "open"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ cat > open.knl <<'KN'
+  > sort TOpen
+  > node Op : TOpen -> TOpen
+  > KN
+  $ kanon lean-semantics lang5.knl | grep -o "\(WT\|ev\)_[^ ]*open[^ ]*" | sort -u
+  WT_open
+  ev_open
