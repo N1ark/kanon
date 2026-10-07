@@ -297,3 +297,23 @@ to it in parentheses, as an argument:
   $ kanon lean-model lang16.knl | grep -A1 "def Rules16.use_two"
   def Rules16.use_two (O : Ops S) (x : S.Term) : S.Term :=
     (O.rules16_plus x (Kanon.Rules16.Rules16.two O))
+
+The primed parameters of a lifting lemma are not parameters of the rule
+function, even if it has parameters `x` and `x'`:
+
+  $ cat > lang17.knl <<'KN'
+  > use "rules17"
+  > KN
+  $ cat > rules17.knl <<'KN'
+  > sort TInt
+  > node Int of int : TInt
+  > node Plus : TInt -> TInt -> TInt
+  > KN
+  $ cat > rules17.kn <<'KN'
+  > rule plus : Plus (x, x')
+  > KN
+  $ kanon lean-statements lang17.knl | grep -A3 "theorem lift_" | head -4
+  theorem lift_rules17_plus (hO : O.Sound) {x x'' : S.Term} {x' x''' : S.Term}
+    (h_x : S.Refines x x'')
+    (h_x' : S.Refines x' x''') :
+    S.Refines (Kanon.Rules17.Rules17.plus.spec x x') (O.rules17_plus x'' x''') :=
