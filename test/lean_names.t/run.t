@@ -42,3 +42,20 @@ not as a prefix of it (`«from»'` is a quoted name and a quote):
     (h_at : S.Refines «at» at') :
     S.Refines (Kanon.Rules2.Rules2.add.spec «from» «at») (O.rules2_add from' at') :=
     Kanon.Sem.Refines.trans (Kanon.Sem.Refines.of_WT fun kw => by
+
+All the words that Lean reserves are quoted, not only the common ones:
+
+  $ cat > lang3.knl <<'KN'
+  > use "kw"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ cat > kw.kn <<'KN'
+  > fn f (exists forall include repeat sorry : int) (try : int) : int =
+  >   let while = exists + forall in
+  >   while + include + repeat + sorry + try
+  > KN
+  $ kanon lean-model lang3.knl | grep -A2 "def Kw.f"
+  def Kw.f («exists» : Int) («forall» : Int) («include» : Int) («repeat» : Int) («sorry» : Int) («try» : Int) : Int :=
+    (let «while» := («exists» + «forall»);
+    ((((«while» + «include») + «repeat») + «sorry») + «try»))
