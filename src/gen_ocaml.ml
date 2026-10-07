@@ -115,6 +115,17 @@ let escape_ocaml_comment text =
   let n = String.length text in
   let b = Buffer.create n in
   let at i = if i < n then text.[i] else '\000' in
+  (* a quote as a character literal, apart from the identifier before it, which
+     would take its first quote *)
+  let char_quote () =
+    let l = Buffer.length b in
+    (if l > 0 then
+       match Buffer.nth b (l - 1) with
+       | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' ->
+           Buffer.add_char b ' '
+       | _ -> ());
+    Buffer.add_string b "'\"'"
+  in
   let rec close j =
     if j >= n then None
     else if text.[j] = '\\' then close (j + 2)
@@ -131,7 +142,7 @@ let escape_ocaml_comment text =
           Buffer.add_string b "( *";
           go instr (i + 2) stop
       | '\'' when at (i + 1) = '"' && at (i + 2) = '\'' ->
-          Buffer.add_string b "'\"'";
+          char_quote ();
           go instr (i + 3) stop
       | '\\' when instr && (at (i + 1) = '"' || at (i + 1) = '\\') ->
           Buffer.add_char b '\\';
@@ -145,7 +156,7 @@ let escape_ocaml_comment text =
               Buffer.add_char b '"';
               go instr (j + 1) stop
           | _ ->
-              Buffer.add_string b "'\"'";
+              char_quote ();
               go instr (i + 1) stop)
       | '{' ->
           Buffer.add_char b '{';

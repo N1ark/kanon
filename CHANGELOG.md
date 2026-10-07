@@ -83,6 +83,7 @@
 - Literals and repeated variables work in `let` patterns.
 - OCaml keywords like `end` and `to` are valid names.
 - `ocaml-tests` compiles when a rule parameter is named `src`.
+- Doc comments with a lone quote after a letter compile.
 
 ## 0.3.0 (2026-10-04)
 
