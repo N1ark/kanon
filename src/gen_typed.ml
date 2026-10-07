@@ -38,9 +38,12 @@ let tag_of_sort vars (s : expr) sub =
 (** The type of a term with the tag [tag]: [[< Tag.tag ] t] for an operand, and
     [[> Tag.tag ] t] for a result, over the type [t] ([ty] for a sort). *)
 let term ~operand ~t ft = function
-  | Tag s -> pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") s t
+  | Tag s ->
+      pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") (Gen_ocaml.id s) t
   | Var x ->
-      pf ft "'%s%s %s" (if String.ends_with ~suffix:"'" x then " " else "") x t
+      pf ft "'%s%s %s"
+        (if String.ends_with ~suffix:"'" x then " " else "")
+        (Gen_ocaml.id x) t
   | Unknown -> pf ft "_ %s" t
 
 (** The OCaml type of a value that is not a term, in the signature, where a term
@@ -182,7 +185,7 @@ let tag_types () =
       @ [
           ( tag_name c.c_name,
             Fmt.str "`%s" c.c_name
-            :: List.map (fun s -> tag_name s.ss_name) subs );
+            :: List.map (fun s -> Gen_ocaml.id (tag_name s.ss_name)) subs );
         ])
     sorts
 
@@ -328,7 +331,8 @@ let print_items ft ~(print : Format.formatter -> item -> unit) items =
     items
 
 let print_sig ft it =
-  pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc it.name it.sig_
+  pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc (Gen_ocaml.id it.name)
+    it.sig_
 
 (** The signature [S] and the module [Derived]. *)
 let interface ft mods =
@@ -407,7 +411,7 @@ let program ~sources ft (p : program) =
   pf ft "@[<v 2>module Tag = struct";
   List.iter
     (fun (n, variants) ->
-      pf ft "@ type %s = [ %s ]" n (String.concat " | " variants))
+      pf ft "@ type %s = [ %s ]" (Gen_ocaml.id n) (String.concat " | " variants))
     tags;
   pf ft "@]@ end@ @ ";
   interface ft mods;

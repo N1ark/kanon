@@ -30,7 +30,8 @@ let rec draw t : (Format.formatter -> unit) option =
           Option.map
             (fun l ft ->
               pf ft "{ %a }"
-                (Gen_ocaml.list ~sep:"; " (fun ft (f, d) -> pf ft "%s = %t" f d))
+                (Gen_ocaml.list ~sep:"; " (fun ft (f, d) ->
+                     pf ft "%s = %t" (Gen_ocaml.id f) d))
                 (List.combine (List.map fst fields) l))
             (all (fun (_, t) -> draw t) fields)
       | [] -> (
@@ -94,11 +95,13 @@ let rule_fn ctx ft (f : fn) (spec : expr) draws =
   pf ft "@[<v 2>( %S,@ [ %a ],@ fun src ->@ " f.name
     (Gen_ocaml.list ~sep:"; " (fun ft r -> pf ft "%S" r))
     (rule_names f.body);
-  List.iter2 (fun (x, _) d -> pf ft "let %s = %t in@ " x d) f.params draws;
+  List.iter2
+    (fun (x, _) d -> pf ft "let %s = %t in@ " (Gen_ocaml.id x) d)
+    f.params draws;
   pf ft "@[<v 2>{@ spec = (fun () -> %a);@ " (Gen_ocaml.expr ctx) spec;
   pf ft "call = (fun () -> %s%a);@ "
     (Gen_ocaml.fn_name ctx f.name)
-    (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
+    (fun ft -> List.iter (fun (x, _) -> pf ft " %s" (Gen_ocaml.id x)))
     f.params;
   pf ft "fired = (fun () -> %a);@]@ })@]" (fired ctx) f.body
 

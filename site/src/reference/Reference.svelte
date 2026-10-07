@@ -216,6 +216,8 @@
     <code>prefix</code>, <code>constant</code>, <code>prim</code>, <code>oracle</code>, <code>fn</code>, <code>rule</code>, <code>extend</code>
     and <code>before</code> are keywords, with those of OCaml that Kanon uses (<code>let</code>,
     <code>match</code>, <code>if</code>, <code>when</code>, <code>as</code>, <code>not</code>, …).
+    The other keywords of OCaml (<code>end</code>, <code>to</code>, <code>val</code>, …) are names;
+    the generated OCaml writes them as raw identifiers (<code>\#end</code>).
   </p>
 
   <Heading level={3} id="names">Names and modules</Heading>

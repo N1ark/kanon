@@ -81,6 +81,7 @@
 - Variables named like a function's OCaml name are an error.
 - Variables and local functions shadow each other, as in OCaml.
 - Literals and repeated variables work in `let` patterns.
+- OCaml keywords like `end` and `to` are valid names.
 
 ## 0.3.0 (2026-10-04)
 

@@ -76,7 +76,7 @@ functions named last in their declarations (z_land for &&&).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -198,7 +198,7 @@ k < (1 lsl (n - 1)).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -346,7 +346,7 @@ language.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -485,7 +485,7 @@ spaces: x - -y.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -802,7 +802,7 @@ on terms, they compare hash-consed terms (their tags in OCaml).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -980,7 +980,7 @@ number of operands, whose elements all have that sort.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked

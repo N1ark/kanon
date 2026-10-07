@@ -8,6 +8,71 @@ open Syntax
 
 let pf = Format.fprintf
 
+(** The keywords of OCaml, which a name of the language may be (those of Kanon
+    are not names). *)
+let keywords =
+  [
+    "and";
+    "as";
+    "assert";
+    "asr";
+    "begin";
+    "class";
+    "constraint";
+    "do";
+    "done";
+    "downto";
+    "else";
+    "end";
+    "exception";
+    "external";
+    "false";
+    "for";
+    "fun";
+    "function";
+    "functor";
+    "if";
+    "in";
+    "include";
+    "inherit";
+    "initializer";
+    "land";
+    "lazy";
+    "let";
+    "lor";
+    "lsl";
+    "lsr";
+    "lxor";
+    "match";
+    "method";
+    "mod";
+    "module";
+    "mutable";
+    "new";
+    "nonrec";
+    "object";
+    "of";
+    "open";
+    "or";
+    "private";
+    "rec";
+    "sig";
+    "struct";
+    "then";
+    "to";
+    "true";
+    "try";
+    "type";
+    "val";
+    "virtual";
+    "when";
+    "while";
+    "with";
+  ]
+
+(** The OCaml identifier of the name [x]: a keyword is a raw identifier. *)
+let id x = if List.mem x keywords then "\\#" ^ x else x
+
 (** The OCaml type of [t], where the types of {!types} are in scope: a declared
     type has its Kanon name, and the kinds of terms (the constructors of [t])
     are [kind]. *)
@@ -16,7 +81,7 @@ let rec ocaml_ty ft = function
   | TBool -> pf ft "bool"
   | TUnit -> pf ft "unit"
   | TTerm -> pf ft "t"
-  | (TKind | TSty | TData _) as t -> pf ft "%s" (decl_of_ty t).d_name
+  | (TKind | TSty | TData _) as t -> pf ft "%s" (id (decl_of_ty t).d_name)
   | TTuple l ->
       pf ft "(%a)"
         (Format.pp_print_list ~pp_sep:(fun ft () -> pf ft " * ") ocaml_ty)
@@ -177,8 +242,8 @@ let small_binders p =
 let rec pat ft (p : pat) =
   match p.p with
   | PAny -> pf ft "_"
-  | PVar x -> pf ft "%s" x
-  | PAs (p', x) -> pf ft "(%a as %s)" pat p' x
+  | PVar x -> pf ft "%s" (id x)
+  | PAs (p', x) -> pf ft "(%a as %s)" pat p' (id x)
   | POr (a, b) | PComm (a, b) -> pf ft "(%a | %a)" pat a pat b
   | PInt z -> pf ft "%s" (Z.to_string z)
   | PBool b -> pf ft "%b" b
@@ -190,7 +255,7 @@ let rec pat ft (p : pat) =
   | PCons (h, t) -> pf ft "(%a :: %a)" pat h pat t
   | PRecord fields ->
       pf ft "{ %a; _ }"
-        (list ~sep:"; " (fun ft (f, q) -> pf ft "%s = %a" f pat q))
+        (list ~sep:"; " (fun ft (f, q) -> pf ft "%s = %a" (id f) pat q))
         fields
   | PConstr (c, args) ->
       let inner ft () =
@@ -249,13 +314,15 @@ type ctx = {
 (** The OCaml name of the function [f], as [ctx] calls it. *)
 let fn_name ctx f =
   if not ctx.public then flat_name f
-  else if Option.is_some (split_name f) then f
-  else "Kanon_flat." ^ f
+  else
+    match split_name f with
+    | Some (m, x) -> m ^ "." ^ id x
+    | None -> "Kanon_flat." ^ f
 
 let rec expr ctx ft (e : expr) =
   let expr = expr ctx in
   match e.e with
-  | EVar x -> pf ft "%s" x
+  | EVar x -> pf ft "%s" (id x)
   | EInt z -> int_lit ft z
   | EBool b -> pf ft "%b" b
   | EUnit -> pf ft "()"
@@ -286,16 +353,16 @@ let rec expr ctx ft (e : expr) =
       pf ft "(Stdlib.Int.compare %a.tag %a.tag <= 0)" expr a expr b
   | ECall (f, []) ->
       if List.mem f ctx.prims then
-        pf ft "%s.%s" (prims_module ()) (plain_name f)
+        pf ft "%s.%s" (prims_module ()) (id (plain_name f))
       else if List.mem f ctx.consts then pf ft "%s" (fn_name ctx f)
       else pf ft "(%s ())" (fn_name ctx f)
   | ECall (f, args) ->
       let f =
-        if List.mem f ctx.prims then prims_module () ^ "." ^ plain_name f
+        if List.mem f ctx.prims then prims_module () ^ "." ^ id (plain_name f)
         else fn_name ctx f
       in
       pf ft "(%s %a)" f (list ~sep:" " expr) args
-  | ELocalCall (f, args) -> pf ft "(%s %a)" f (list ~sep:" " expr) args
+  | ELocalCall (f, args) -> pf ft "(%s %a)" (id f) (list ~sep:" " expr) args
   | EUnop (Neg, a) -> pf ft "(Z.neg %a)" expr a
   | EUnop (Not, a) -> pf ft "(not %a)" expr a
   | EBinop (op, a, b) -> (
@@ -321,8 +388,8 @@ let rec expr ctx ft (e : expr) =
       pf ft "@[<v>(let %a = %a in@ %a%a)@]" pat p expr rhs (small_lets body) p
         expr body
   | ELetFun (f, params, fbody, body) ->
-      pf ft "@[<v>(let %s %a =@;<1 2>%a in@ %a)@]" f
-        (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %a)" x ocaml_ty t))
+      pf ft "@[<v>(let %s %a =@;<1 2>%a in@ %a)@]" (id f)
+        (list ~sep:" " (fun ft (x, t) -> pf ft "(%s : %a)" (id x) ocaml_ty t))
         params expr fbody expr body
   | EMatch (scruts, cases) ->
       pf ft "@[<v>(match %a with@ %a)@]" (list expr) scruts
@@ -335,9 +402,9 @@ let rec expr ctx ft (e : expr) =
   | ECons (h, t) -> pf ft "(%a :: %a)" expr h expr t
   | ERecord fields ->
       pf ft "{ %a }"
-        (list ~sep:"; " (fun ft (f, e) -> pf ft "%s = %a" f expr e))
+        (list ~sep:"; " (fun ft (f, e) -> pf ft "%s = %a" (id f) expr e))
         fields
-  | EField (r, f) -> pf ft "%a.%s" expr r f
+  | EField (r, f) -> pf ft "%a.%s" expr r (id f)
   | EAssert (c, body) ->
       (* the check of the sorts of a spec has a last case [_], which is unused
          when [ty] has only the sorts that it matches *)
@@ -346,7 +413,7 @@ let rec expr ctx ft (e : expr) =
 (** Converts the binders of [p] that [e] uses. *)
 and small_lets e ft p =
   List.iter
-    (fun x -> pf ft "let %s = Z.of_int %s in@ " x x)
+    (fun x -> pf ft "let %s = Z.of_int %s in@ " (id x) (id x))
     (List.filter (fun x -> mentions x e) (small_binders p))
 
 and case ctx ft (c : case) =
@@ -445,7 +512,7 @@ let fn ctx ft (f : fn) =
   let params ft = function
     | [] when List.mem f.name ctx.consts -> ()
     | [] -> pf ft " ()"
-    | ps -> List.iter (fun (x, t) -> pf ft " (%s : %a)" x ocaml_ty t) ps
+    | ps -> List.iter (fun (x, t) -> pf ft " (%s : %a)" (id x) ocaml_ty t) ps
   in
   pf ft "%s%a : %a =@;<1 2>%a" (flat_name f.name) params f.params ocaml_ty f.ret
     (expr ctx) f.body
@@ -682,7 +749,8 @@ let module_entries ?reserved (p : program) =
               block = false;
               is_fn = true;
               print =
-                (fun ft -> pf ft "let %s = Kanon_flat.%s" x (flat_name f.name));
+                (fun ft ->
+                  pf ft "let %s = Kanon_flat.%s" (id x) (flat_name f.name));
             }
       | None -> ())
     p.fns;
@@ -726,7 +794,7 @@ let prim_sigs ft (p : program) =
         (List.fold_left
            (fun prev (f, t, d) ->
              if prev || d <> None then pf ft "@ ";
-             pf ft "@ %aval %s : %s" doc d f t;
+             pf ft "@ %aval %s : %s" doc d (id f) t;
              d <> None)
            false fns);
       pf ft "@]@ end = %s@ @ " (prims_module ())
@@ -841,7 +909,16 @@ let rec mapper act target ty : string option =
 let trav_body ?(indent = "      ") act target ~orig ~rebuild
     (args : (string * ty * [ `Small | `Arg ]) list) =
   let ms = List.map (fun (x, t, _) -> (x, mapper act target t)) args in
-  let var x = "y_" ^ String.map (function '.' -> '_' | c -> c) x in
+  let var x =
+    "y_"
+    ^ String.concat ""
+        (List.filter_map
+           (function
+             | '.' -> Some "_"
+             | '\\' | '#' -> None
+             | c -> Some (String.make 1 c))
+           (List.of_seq (String.to_seq x)))
+  in
   match act with
   | Map ->
       let mapped =
@@ -895,12 +972,15 @@ let decl_traversals ft target =
         (fun i (d : decl) ->
           let name = trav_name act target d.d_name in
           let res =
-            match act with Map -> d.d_name | Iter -> "unit" | Exists -> "bool"
+            match act with
+            | Map -> id d.d_name
+            | Iter -> "unit"
+            | Exists -> "bool"
           in
           let body =
             if d.d_fields <> [] then
               let args =
-                List.map (fun (f, t) -> ("x." ^ f, t, `Arg)) d.d_fields
+                List.map (fun (f, t) -> ("x." ^ id f, t, `Arg)) d.d_fields
               in
               trav_body ~indent:"  " act target ~orig:"x"
                 ~rebuild:(fun vs ->
@@ -909,8 +989,8 @@ let decl_traversals ft target =
                        (List.concat
                           (List.map2
                              (fun (f, _) (v, _) ->
-                               if v = "x." ^ f then []
-                               else [ Printf.sprintf "%s = %s" f v ])
+                               if v = "x." ^ id f then []
+                               else [ Printf.sprintf "%s = %s" (id f) v ])
                              d.d_fields vs))))
                 args
             else
@@ -966,7 +1046,7 @@ let decl_traversals ft target =
           pf ft "%s"
             (Printf.sprintf "%s %s f (x : %s) : %s =\n  %s\n\n"
                (if i = 0 then "let rec" else "and")
-               name d.d_name res body))
+               name (id d.d_name) res body))
         decls)
     [ Map; Iter; Exists ]
 
@@ -1242,14 +1322,14 @@ let type_def ft (d : decl) =
   let reexport ft = Option.iter (pf ft " %s =") in
   let arg ft = function Small -> pf ft "int" | Arg t -> ocaml_ty ft t in
   match (constrs_of d, d.d_fields, d.d_ocaml) with
-  | [], [], Some o -> pf ft "%s = %s" d.d_name o
-  | [], [], None -> pf ft "%s = |" d.d_name
+  | [], [], Some o -> pf ft "%s = %s" (id d.d_name) o
+  | [], [], None -> pf ft "%s = |" (id d.d_name)
   | [], fields, o ->
-      pf ft "%s =%a {" d.d_name reexport o;
-      List.iter (fun (f, t) -> pf ft "@ %s : %a;" f ocaml_ty t) fields;
+      pf ft "%s =%a {" (id d.d_name) reexport o;
+      List.iter (fun (f, t) -> pf ft "@ %s : %a;" (id f) ocaml_ty t) fields;
       pf ft "@;<1 -2>}"
   | cs, _, o ->
-      pf ft "%s =%a" d.d_name reexport o;
+      pf ft "%s =%a" (id d.d_name) reexport o;
       List.iter
         (fun c ->
           match c.c_args with
@@ -1265,6 +1345,7 @@ let type_def ft (d : decl) =
     constructor is hashed by its index, combined with its arguments. *)
 let eq_hash_def ft (d : decl) =
   let n = d.d_name in
+  let ty = id n in
   (* the arguments of the constructor [c], as variables [x1], [x2], ... *)
   let args x (c : constr) =
     List.mapi (fun i a -> (a, Printf.sprintf "%s%d" x (i + 1))) c.c_args
@@ -1293,22 +1374,22 @@ let eq_hash_def ft (d : decl) =
   | [], [] when d.d_ocaml = None ->
       (* an empty type *)
       pf ft "and equal_%s (_ : %s) (_ : %s) = true@ @ and hash_%s (_ : %s) = 0"
-        n n n n n
+        n ty ty n ty
   | [], [] ->
       pf ft
         "and equal_%s (a : %s) (b : %s) = %s a b@ @ and hash_%s (a : %s) = %s a"
-        n n n
+        n ty ty
         (Option.value d.d_equal ~default:"Stdlib.( = )")
-        n n
+        n ty
         (Option.value d.d_hash ~default:"Hashtbl.hash")
   | [], fields ->
-      let fs x = List.map (fun (f, t) -> (Arg t, x ^ "." ^ f)) fields in
-      pf ft "@[<hv 2>and equal_%s (a : %s) (b : %s) =@ %a@]@ @ " n n n conj
+      let fs x = List.map (fun (f, t) -> (Arg t, x ^ "." ^ id f)) fields in
+      pf ft "@[<hv 2>and equal_%s (a : %s) (b : %s) =@ %a@]@ @ " n ty ty conj
         (List.map2 (fun (t, a) (_, b) -> (t, a, b)) (fs "a") (fs "b"));
-      pf ft "@[<hv 2>and hash_%s (a : %s) =@ %a@]" n n (combine hash)
+      pf ft "@[<hv 2>and hash_%s (a : %s) =@ %a@]" n ty (combine hash)
         (List.map (fun a -> `Arg a) (fs "a"))
   | cs, _ ->
-      pf ft "@[<v 2>and equal_%s (a : %s) (b : %s) =@ match (a, b) with" n n n;
+      pf ft "@[<v 2>and equal_%s (a : %s) (b : %s) =@ match (a, b) with" n ty ty;
       List.iter
         (fun c ->
           pf ft "@ @[<hv 4>| %s, %s ->@ %a@]" (pat "a" c) (pat "b" c)
@@ -1318,7 +1399,7 @@ let eq_hash_def ft (d : decl) =
                (args "a" c) (args "b" c)))
         cs;
       if List.length cs > 1 then pf ft "@ | _ -> false";
-      pf ft "@]@ @ @[<v 2>and hash_%s (a : %s) =@ match a with" n n;
+      pf ft "@]@ @ @[<v 2>and hash_%s (a : %s) =@ match a with" n ty;
       List.iteri
         (fun i c ->
           match args "a" c with
