@@ -3266,8 +3266,18 @@ let raw_fn (vb : value_binding) =
   let rdoc, rattrs = take_doc vb.pvb_attributes in
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
-    check_attrs [ "spec"; "cases"; "untyped"; "lean_heartbeats" ] rattrs)
-  else check_attrs [ "ty_only"; "no_lean"; "total"; "extensible" ] rattrs;
+    check_attrs
+      [ "spec"; "cases"; "untyped"; "lean_heartbeats"; "lean_proofs" ]
+      rattrs)
+  else (
+    check_attrs
+      [ "ty_only"; "no_lean"; "total"; "extensible"; "lean_proofs" ]
+      rattrs;
+    match find_attr "lean_proofs" rattrs with
+    | Some a when not (has_attr "extensible" rattrs) ->
+        error a.attr_name.loc
+          "[@lean_proofs] is only for a rule or an extensible helper"
+    | _ -> ());
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -4636,6 +4646,7 @@ let check_fn env0 globals r =
           | [ n ] -> heartbeats_arg a.attr_loc n
           | _ -> error a.attr_loc "expected [@lean_heartbeats n]")
         (find_attr "lean_heartbeats" r.rattrs);
+    lean_proofs = Option.map string_attr (find_attr "lean_proofs" r.rattrs);
     extensible = has_attr "extensible" r.rattrs;
     param_sorts =
       List.filter_map

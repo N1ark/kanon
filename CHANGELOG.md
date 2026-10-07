@@ -12,6 +12,7 @@
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.
 - [`[@lean_heartbeats n]`](https://n1ark.github.io/kanon/reference.html#on-functions) bounds each generated arm proof.
+- [`[@lean_proofs "F"]`](https://n1ark.github.io/kanon/reference.html#on-functions) imports `Proofs/F.lean` instead of `Proofs.lean`.
 - `kanon lean-all --check DIR` checks the Lean files are current.
 - `[@extensible]` marks helpers that other modules extend.
 - Example `two_langs`: four languages share modules, with a diamond.

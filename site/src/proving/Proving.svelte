@@ -244,6 +244,12 @@
           division module, quoted in <a href="#subsorts">Subsorts</a>, starts with:
         </p>
         <Code lang="lean" code={imports("examples/division/lean/DivMod/Proofs.lean")} />
+        <p>
+          A module with many hand proofs may split them: a function with
+          <a href="reference.html#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a> has its
+          proofs import <code>Proofs/F.lean</code> instead, which imports what it needs, so that
+          editing one file of proofs only rebuilds the functions that it proves.
+        </p>
 
         <Heading level={4} id="file-soundness-comm">Soundness/Comm.lean</Heading>
         <p>
@@ -260,8 +266,8 @@
           <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), of the
           arms that only swap commutative operands (from the commutativity), and of each rule from
           its arms (<code>f.r_rule.sound</code>). It imports the statements of <code>f</code>, the
-          <code>Proofs.lean</code> of the module and the commutativities, and nothing of the other
-          functions.
+          <code>Proofs.lean</code> of the module (or its <code>Proofs/F.lean</code>) and the
+          commutativities, and nothing of the other functions.
         </p>
         <Code
           lang="lean"

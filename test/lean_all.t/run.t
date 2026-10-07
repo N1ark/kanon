@@ -90,3 +90,24 @@ The bound on heartbeats is a positive number.
   $ kanon lean-all out bad/lang.knl
   bad/int.kn:7:17: [@lean_heartbeats n]: n must be a positive integer
   [1]
+
+With [@lean_proofs "F"], the generated proofs of a function import
+Proofs/F.lean instead of Proofs.lean, so that editing another proof file does
+not rebuild them.
+
+  $ sed 's/\[@lean_heartbeats 800000\]/[@lean_heartbeats 800000] [@lean_proofs "Neg"]/' int.kn > int2.kn && mv int2.kn int.kn
+  $ kanon lean-all out lang.knl
+  $ grep '^import' out/Ex/Int/Soundness/Int/neg.lean out/Ex/Int/Soundness/Int/plus.lean
+  out/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Statements.Int.neg
+  out/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Proofs.Neg
+  out/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Soundness.Comm
+  out/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Statements.Int.plus
+  out/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Proofs
+  out/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Soundness.Comm
+
+It is only for a rule or an extensible helper.
+
+  $ sed 's/^fn negate (x : int) : int/fn negate (x : int) : int [@lean_proofs "Neg"]/' int.kn > bad/int.kn
+  $ kanon lean-all out bad/lang.knl
+  bad/int.kn:3:28: [@lean_proofs] is only for a rule or an extensible helper
+  [1]

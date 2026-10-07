@@ -424,6 +424,10 @@ type fn = {
   heartbeats : int option;
       (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
           generated proof of its arms in Lean *)
+  lean_proofs : string option;
+      (** [[@lean_proofs "F"]], on a rule or an extensible helper: its proofs in
+          its module of root [R] import [R/Proofs/F.lean] instead of
+          [R/Proofs.lean] *)
   extensible : bool;
       (** [[@extensible]], on a helper: other modules may add cases to it with
           [extend fn] *)

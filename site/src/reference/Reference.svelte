@@ -570,6 +570,18 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@lean_proofs "F"]{:kanon}`}</code></td>
+        <td>a rule function, after its spec, or an extensible <code>fn</code></td>
+        <td>
+          Its generated proofs in its module (<code>Soundness/M/f.lean</code>, under the root
+          <code>R</code>) import the hand-written <code>R/Proofs/F.lean</code> instead of
+          <code>R/Proofs.lean</code>, so that editing the proofs of another function does not
+          rebuild them (see <a href="proving.html#file-proofs">Proofs.lean</a>).
+          <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
+          <code>R/Proofs/Bv/Arith.lean</code>.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@extensible]{:kanon}`}</code></td>
         <td>a <code>fn</code>, after its result type</td>
         <td>
@@ -595,7 +607,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   <p>
     <code>{`[@ty_only]{:kanon}`}</code> on a rule is an error, and so are the other attributes on
     <code>fn</code>, <code>prim</code> and <code>rule</code> (a rule has
-    <code>{`[@untyped]{:kanon}`}</code> and <code>{`[@lean_heartbeats n]{:kanon}`}</code>).
+    <code>{`[@untyped]{:kanon}`}</code>, <code>{`[@lean_heartbeats n]{:kanon}`}</code> and
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>, an extensible <code>fn</code>
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>).
   </p>
 
   <Heading level={3} id="floating">Floating attributes</Heading>
