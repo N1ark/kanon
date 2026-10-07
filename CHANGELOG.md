@@ -88,6 +88,7 @@
 - Generated types call `Stdlib.Int`, not a module named `Int`.
 - A case of variables like `x, y` hides later cases.
 - `ocaml-typed` keeps the order of a rule's parameters.
+- `ocaml-tests` builds with unused-case warnings as errors.
 
 ## 0.3.0 (2026-10-04)
 

@@ -30,13 +30,13 @@ variables of the sorts, and an operand of another sort fails its assertion.
         spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (TBv ((Z.to_int (Z.add (Z.sub to' from') Z.one))))));
         call = (fun () -> Rules.bv_ext from' to' v');
         fired = (fun () -> (let sz' = (Rules.size v') in
-                           (assert (match v'.ty with
-                                   | (TBv (kanon__n))
-                                     when (let kanon__n = Z.of_int kanon__n in
-                                     ((Z.leq Z.zero from') && ((Z.leq from' to') && (Z.lt to' kanon__n)))) ->
-                                     true
-                                   | _ -> false
-                                   );
+                           (assert ((match v'.ty with
+                                    | (TBv (kanon__n))
+                                      when (let kanon__n = Z.of_int kanon__n in
+                                      ((Z.leq Z.zero from') && ((Z.leq from' to') && (Z.lt to' kanon__n)))) ->
+                                      true
+                                    | _ -> false
+                                    ) [@warning "-11"]);
                            (match v' with
                            | _
                              when ((((Z.equal from' Z.zero)) && ((Z.equal to' (Z.sub sz' Z.one))))) ->

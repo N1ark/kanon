@@ -56,7 +56,8 @@ let rec draw t : (Format.formatter -> unit) option =
 let rec fired ctx ft (e : expr) =
   match e.e with
   | EAssert (c, body) ->
-      pf ft "@[<v>(assert %a;@ %a)@]" (Gen_ocaml.expr ctx) c (fired ctx) body
+      pf ft "@[<v>(assert (%a [@@warning \"-11\"]);@ %a)@]" (Gen_ocaml.expr ctx)
+        c (fired ctx) body
   | ELet (p, rhs, body) ->
       pf ft "@[<v>(let %a = %a in@ %a%a)@]" Gen_ocaml.pat p (Gen_ocaml.expr ctx)
         rhs
