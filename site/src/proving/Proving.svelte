@@ -5,15 +5,16 @@
   import { Heading } from "purr";
   import Code from "../components/Code.svelte";
   import DocPage from "../components/DocPage.svelte";
+  import FileTree from "./FileTree.svelte";
+  import { fileTree } from "./files";
 
   const sources = import.meta.glob(
     [
       "../../../examples/ints/*.kn",
       "../../../examples/ints/*.knl",
-      "../../../examples/ints/lean/*.lean",
+      "../../../examples/ints/lean/**/*.lean",
+      "!**/.lake/**",
       "../../../examples/ints/lean/lakefile.toml",
-      "../../../examples/ints/lean/IntsExample/*.lean",
-      "../../../examples/ints/lean/IntMod/*.lean",
       "../../../examples/division/lean/DivMod/*.lean",
       "../../../examples/two_langs/lean/WordMod/Prims.lean",
       "../../../lean/KanonBool/Prims.lean",
@@ -32,6 +33,54 @@
   function file(path: string): string {
     return repo(`examples/ints/${path}`);
   }
+
+  /** The lines of the file at `path` from the first that starts with `start`, to a blank one. */
+  function block(path: string, start: string): string {
+    const lines = repo(path).split("\n");
+    const i = lines.findIndex((l) => l.startsWith(start));
+    if (i < 0) throw new Error(`proving: ${path} has no ${start}`);
+    const j = lines.indexOf("", i);
+    return lines.slice(i, j < 0 ? undefined : j).join("\n");
+  }
+
+  /** The imports of the file at `path`. */
+  function imports(path: string): string {
+    return repo(path)
+      .split("\n")
+      .filter((l) => l.startsWith("import "))
+      .join("\n");
+  }
+
+  const EXAMPLE = "../../../examples/ints/lean/";
+
+  /** The tree of the files of examples/ints/lean, with the files that a module may have. */
+  const tree = fileTree(
+    Object.fromEntries(
+      Object.entries(sources)
+        .filter(([path]) => path.startsWith(EXAMPLE))
+        .map(([path, text]) => [path.slice(EXAMPLE.length), text]),
+    ),
+    {
+      keep: ["Int/plus.lean", "Bool/eq.lean"],
+      absent: ["IntMod/Prims.lean", "IntMod/Proofs.lean"],
+      project: ["IntsExample.lean", "check_axioms.lean", "lakefile.toml"],
+    },
+  );
+
+  // The section of the files in view, which the tree marks.
+  let sections = $state<HTMLElement | null>(null);
+  let current = $state<string | undefined>();
+  $effect(() => {
+    if (!sections) return;
+    const seen = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) current = e.target.id;
+      },
+      { rootMargin: "0px 0px -70% 0px" },
+    );
+    sections.querySelectorAll("h4[id]").forEach((h) => seen.observe(h));
+    return () => seen.disconnect();
+  });
 
   const REPO = "https://github.com/N1ark/kanon/tree/main";
 </script>
@@ -68,91 +117,43 @@
     and its name (<code>IntsExample.Vec</code>). Here the int module is <code>IntMod</code> and the
     language <code>IntsExample</code>. <code>kanon lean-all DIR lang.knl</code> writes the
     generated files of every module under <code>DIR/R</code>, but those of the modules built into
-    kanon (the bool module), which are in Kanon's library. A few files per module, each importing
-    the files of the modules it uses: a change to a module rebuilds its files and those of the
-    modules and languages that use it, never those of the modules it uses. Those of a module:
+    kanon (the bool module), which are in Kanon's library. A few files per module, and two per
+    function, each importing the files it needs: a change to a module rebuilds its files and those
+    of the modules and languages that use it, never those of the modules it uses, and the
+    functions of a module are proved apart, in parallel.
   </p>
-  <table>
-    <thead><tr><th>File</th><th>Contents</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><code>Types.lean</code></td>
-        <td>Its data types, if it declares some (see <a href="#data">Data types</a>).</td>
-      </tr>
-      <tr>
-        <td><code>Node.lean</code></td>
-        <td>
+  <p>
+    The tree is that of <code>examples/ints/lean</code>: the files written by hand are in bold, the
+    others are generated, and those that a module may have but the int module has not are dashed.
+    Of the files of the functions, two are shown. Each file links to its section.
+  </p>
+  <div class="files-box">
+    <div class="files">
+      <div class="tree">
+        <FileTree title="examples/ints/lean" entries={tree} {current} />
+      </div>
+      <div class="sections" bind:this={sections}>
+        <Heading level={3} id="module-files">The files of a module</Heading>
+        <p>
+          Under <code>IntMod/</code> for the int module, and under <code>IntsExample/</code> for the
+          language's own module, the variables.
+        </p>
+
+        <Heading level={4} id="file-node">Node.lean</Heading>
+        <p>
           Its sorts, <code>Srt</code>, and its nodes, <code>{`Node (T : Type){:lean}`}</code>, over
           the terms <code>T</code> of any language, with the documentation comments of the
           declarations; <code>Node.map</code>, <code>Node.All</code> (every child satisfies a
-          predicate), <code>Node.Rel</code> (two nodes with the same arguments and related
-          children) and <code>Node.children</code> (its children, in order). Sorts that take sorts are over the sorts of a language,
-          <code>{`Srt (Ty : Type){:lean}`}</code>, and so are nodes that take sorts,
-          <code>{`Node (Ty T : Type){:lean}`}</code> (see <a href="#sorts">Sorts of sorts</a>).
-        </td>
-      </tr>
-      <tr>
-        <td><code>Lang.lean</code></td>
-        <td>
-          The typing of its nodes, <code>Node.wt</code>, at the sorts of any language, and
-          <code>{`class Lang (S : Kanon.Sem) [KanonBool.Lang S] … extends Values S.toDom{:lean}`}</code>:
-          what it needs of a language <code>S</code>, given the instances of the modules it uses.
-          Its values (<code>Values</code>, from <code>Sem.lean</code>), its nodes and sorts
-          embedded in the terms and sorts of <code>S</code> (<code>node</code>,
-          <code>srt</code>), which <code>S</code> types and evaluates as the module says
-          (<code>WT_inj</code>, <code>ev_inj</code>), and which are not those of the other modules
-          (<code>proj_Int_inj_Bool</code>, …). From them, <code>mk</code> (the term of a node),
-          <code>proj</code> (the node of a term, if it is one), <code>sort</code> and
-          <code>sortProj</code>, with their lemmas for the tactics. And
-          <code>{`class Typed (S) … [Lang S] : Prop{:lean}`}</code>, if it has sorts: well-typed
-          terms of its sorts evaluate to values of these sorts (<code>Srt.val</code>).
-        </td>
-      </tr>
-      <tr>
-        <td><code>Model.lean</code></td>
-        <td>
-          The model of its helpers and rules, over the terms of any language: its record
-          <code>{`Ops S{:lean}`}</code> (which extends those of the modules it uses, or
-          <code>Kanon.OpsBase</code>, the oracle <code>tag_le</code>) of its rule functions, oracles
-          and extensible helpers, its helpers, the specs of its rule functions, each rule a
-          function to <code>{`Option S.Term{:lean}`}</code>, and <code>Ops.Sound</code>, what the
-          proofs assume of a model: that its rule functions refine their specs, and that its oracles
-          and extensible helpers satisfy what <code>Prims.lean</code> says of them. The
-          documentation comments of the helpers, the oracles and the rule functions are carried to
-          it. A helper or a primitive marked <code>{`[@no_lean]{:kanon}`}</code> is not in it (nor in
-          any other generated file).
-        </td>
-      </tr>
-      <tr>
-        <td><code>Statements.lean</code></td>
-        <td>
-          The lifting lemmas (<code>Lib.lift_f</code>: a spec is refined by the rule function on
-          refined arguments), the commutativity of each <code>{`[@comm]{:kanon}`}</code> node
-          (<code>Plus.comm.Stmt</code>), and the statement of each arm of each rule
-          (<code>Int.plus.r_lits.main.Stmt</code>), for any language that has the module:
-          <code>{`∀ {S : Kanon.Sem} [KanonBool.Lang S] [Lang S] [KanonBool.Typed S] [Typed S] (O : Ops S), O.Sound → …{:lean}`}</code>.
-        </td>
-      </tr>
-      <tr>
-        <td><code>Soundness.lean</code></td>
-        <td>
-          The proofs of the commutativities and of the arms (<code>{`kanon_proof% X{:lean}`}</code>,
-          each with its own bound on heartbeats, see
-          <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), the
-          arms that only swap commutative operands (from the commutativity), and each rule from its
-          arms (<code>f.r_rule.sound</code>).
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p>And by hand, for each module:</p>
-  <table>
-    <thead><tr><th>File</th><th>Contents</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><code>Sem.lean</code></td>
-        <td>
-          The meaning of its nodes, for any language: <code>{`class Values (D : Kanon.Dom){:lean}`}</code>,
+          predicate), <code>Node.Rel</code> (two nodes with the same arguments and related children)
+          and <code>Node.children</code> (its children, in order). Sorts that take sorts are over the
+          sorts of a language, <code>{`Srt (Ty : Type){:lean}`}</code>, and so are nodes that take
+          sorts, <code>{`Node (Ty T : Type){:lean}`}</code> (see <a href="#sorts">Sorts of sorts</a>).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Node.lean", "inductive Node")} />
+
+        <Heading level={4} id="file-sem">Sem.lean</Heading>
+        <p>
+          By hand: the meaning of its nodes, for any language. <code>{`class Values (D : Kanon.Dom){:lean}`}</code>,
           the values it needs of a language (<code>{`vint : Embed Int D.Val{:lean}`}</code>), the
           evaluation of a node in an environment given the values of its children in every
           environment,
@@ -161,91 +162,174 @@
           that it is monotone (<code>Node.eval_mono</code>: poison children give poison or the same
           value), the values of its sorts (<code>Srt.val</code>), its invariants (see
           <a href="#invariants">Invariants</a>) and its primitives over plain data, which its typing
-          may use.
-        </td>
-      </tr>
-      <tr>
-        <td><code>Prims.lean</code></td>
-        <td>
-          If it has some: its primitives over terms (the literals <code>v_true</code> of the bool
-          module), the predicates of its subsorts (<code>Nonzero</code>), what its rules assume of
-          its oracles (<code>Oracle.Compat</code>), and what its extensible helpers satisfy
-          (<code>Bool.sure_neq.post</code>).
-        </td>
-      </tr>
-      <tr>
-        <td><code>Proofs.lean</code></td>
-        <td>
-          If it has some: the proofs that the tactics do not find, as
+          may use. That of the int module is quoted whole <a href="#sem">below</a>.
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Sem.lean", "def Node.eval")} />
+
+        <Heading level={4} id="file-lang">Lang.lean</Heading>
+        <p>
+          The typing of its nodes, <code>Node.wt</code>, at the sorts of any language, and
+          <code>{`class Lang (S : Kanon.Sem) [KanonBool.Lang S] … extends Values S.toDom{:lean}`}</code>:
+          what it needs of a language <code>S</code>, given the instances of the modules it uses. Its
+          values (<code>Values</code>, from <code>Sem.lean</code>), its nodes and sorts embedded in
+          the terms and sorts of <code>S</code> (<code>node</code>, <code>srt</code>), which
+          <code>S</code> types and evaluates as the module says (<code>WT_inj</code>,
+          <code>ev_inj</code>), and which are not those of the other modules
+          (<code>proj_Int_inj_Bool</code>, …). From them, <code>mk</code> (the term of a node),
+          <code>proj</code> (the node of a term, if it is one), <code>sort</code> and
+          <code>sortProj</code>, with their lemmas for the tactics. And
+          <code>{`class Typed (S) … [Lang S] : Prop{:lean}`}</code>, if it has sorts: well-typed terms
+          of its sorts evaluate to values of these sorts (<code>Srt.val</code>).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Lang.lean", "def Node.wt")} />
+
+        <Heading level={4} id="file-prims">Prims.lean</Heading>
+        <p>
+          By hand, if it has some: its primitives over terms (the literals <code>v_true</code> of the
+          bool module), the predicates of its subsorts (<code>Nonzero</code>), what its rules assume
+          of its oracles (<code>Oracle.Compat</code>), and what its extensible helpers satisfy
+          (<code>Bool.sure_neq.post</code>). The int module has none; that of the bool module is
+          quoted in <a href="#modules">Modules</a>.
+        </p>
+        <Code lang="lean" code={block("lean/KanonBool/Prims.lean", "def v_true")} />
+
+        <Heading level={4} id="file-model">Model.lean</Heading>
+        <p>
+          The model of its helpers and rules, over the terms of any language: its record
+          <code>{`Ops S{:lean}`}</code> (which extends those of the modules it uses, or
+          <code>Kanon.OpsBase</code>, the oracle <code>tag_le</code>) of its rule functions, oracles
+          and extensible helpers, its helpers, the specs of its rule functions, each rule a function
+          to <code>{`Option S.Term{:lean}`}</code>, and <code>Ops.Sound</code>, what the proofs
+          assume of a model: that its rule functions refine their specs, and that its oracles and
+          extensible helpers satisfy what <code>Prims.lean</code> says of them. The documentation
+          comments of the helpers, the oracles and the rule functions are carried to it. A helper or
+          a primitive marked <code>{`[@no_lean]{:kanon}`}</code> is not in it (nor in any other
+          generated file).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Model.lean", "def Int.plus.r_lits")} />
+
+        <Heading level={4} id="file-lift">Lift.lean</Heading>
+        <p>
+          The lifting lemmas of the rule functions of the module and of the modules it uses
+          (<code>Lib.lift_f</code>: a spec is refined by the rule function on refined arguments),
+          with which the tactics lift the calls of rule functions to their specs.
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Lift.lean", "theorem lift_int_plus")} />
+
+        <Heading level={4} id="file-statements-comm">Statements/Comm.lean</Heading>
+        <p>
+          If it has some <code>{`[@comm]{:kanon}`}</code> nodes: the statement of the commutativity
+          of each (<code>Plus.comm.Stmt</code>), for any language that has the module.
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Comm.lean", "def Plus.comm.Stmt")} />
+
+        <Heading level={4} id="file-statements">Statements/M/f.lean</Heading>
+        <p>
+          One per function <code>M.f</code> whose arms the module proves: its rule functions, the
+          rules it adds to those of others (<code>Bool/eq.lean</code>), and the cases it adds to the
+          extensible helpers (<code>Bool/sure_neq.lean</code>). The statement of each arm of each rule
+          (<code>Int.plus.r_lits.main.Stmt</code>), for any language that has the module,
+          <code>{`∀ {S : Kanon.Sem} [KanonBool.Lang S] [Lang S] [KanonBool.Typed S] [Typed S] (O : Ops S), O.Sound → …{:lean}`}</code>,
+          and of what the function must satisfy (see <a href="#subsorts">Subsorts</a>), or of each
+          case of the helper (<code>Bool.sure_neq.c1.Stmt</code>).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
+
+        <Heading level={4} id="file-proofs">Proofs.lean</Heading>
+        <p>
+          By hand, if it has some: the proofs that the tactics do not find, as
           <code>{`@[kanon_arm]{:lean}`}</code> theorems of the statements (see
-          <a href="#loop">The proof loop</a>). <code>Soundness.lean</code> imports it when it
-          exists.
-        </td>
-      </tr>
-      <tr><td><code>Abstract.lean</code></td><td>Only if it declares abstract types: their Lean types (see <a href="#data">Data types</a>).</td></tr>
-    </tbody>
-  </table>
-  <p>The language has its own files, under its root, the generated ones:</p>
-  <table>
-    <thead><tr><th>File</th><th>Contents</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><code>Syntax.lean</code></td>
-        <td>
+          <a href="#loop">The proof loop</a>). It imports the statements it proves, and the files
+          under <code>Soundness/</code> import it when it exists. The int module has none; that of the
+          division module, quoted in <a href="#subsorts">Subsorts</a>, starts with:
+        </p>
+        <Code lang="lean" code={imports("examples/division/lean/DivMod/Proofs.lean")} />
+
+        <Heading level={4} id="file-soundness-comm">Soundness/Comm.lean</Heading>
+        <p>
+          The proofs of the commutativities (<code>{`kanon_proof% X{:lean}`}</code>), which
+          <code>kanon_comm</code> uses: the proofs of the functions of the module, and of the modules
+          that use it, import them.
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntMod/Soundness/Comm.lean", "set_option maxHeartbeats")} />
+
+        <Heading level={4} id="file-soundness-fn">Soundness/M/f.lean</Heading>
+        <p>
+          The proofs of the statements of <code>Statements/M/f.lean</code>
+          (<code>{`kanon_proof% X{:lean}`}</code>, each with its own bound on heartbeats, see
+          <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), of the
+          arms that only swap commutative operands (from the commutativity), and of each rule from
+          its arms (<code>f.r_rule.sound</code>). It imports the statements of <code>f</code>, the
+          <code>Proofs.lean</code> of the module and the commutativities, and nothing of the other
+          functions.
+        </p>
+        <Code
+          lang="lean"
+          code={`${imports("examples/ints/lean/IntMod/Soundness/Int/plus.lean")}\n\n${block("examples/ints/lean/IntMod/Soundness/Int/plus.lean", "theorem Int.plus.r_lits.sound")}`}
+        />
+
+        <Heading level={4} id="file-soundness">Soundness.lean</Heading>
+        <p>The proofs of the module, which its languages import.</p>
+        <Code lang="lean" code={imports("examples/ints/lean/IntMod/Soundness.lean")} />
+        <p>
+          And, if it declares data types, <code>Types.lean</code> and, by hand, its abstract types in
+          <code>Abstract.lean</code> (see <a href="#data">Data types</a>).
+        </p>
+
+        <Heading level={3} id="language-files">The files of the language</Heading>
+        <p>
+          Under its root, with the files of its own module (here, the variables), which is a module as
+          any other: its <code>Sem.lean</code> evaluates the variables, by what it needs of the
+          language (the values of the environment).
+        </p>
+
+        <Heading level={4} id="file-syntax">Syntax.lean</Heading>
+        <p>
           Its sorts, <code>Ty</code>, a constructor per module with sorts
           (<code>{`.int (s : IntMod.Srt){:lean}`}</code>), and its terms, <code>Term</code>, a node
           of a module at a sort (<code>{`.int (n : IntMod.Node Term) (t : Ty){:lean}`}</code>).
-        </td>
-      </tr>
-      <tr>
-        <td><code>Semantics.lean</code></td>
-        <td>
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Syntax.lean", "inductive Term")} />
+
+        <Heading level={4} id="file-val">Val.lean</Heading>
+        <p>
+          By hand: its values, <code>Val</code>, its environments, <code>Env</code>,
+          <code>{`abbrev dom : Kanon.Dom{:lean}`}</code>, and the instance of the
+          <code>Values</code> class of each module, with embeddings by its constructors, whose laws
+          hold by cases (quoted whole <a href="#val">below</a>).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Val.lean", "inductive Val")} />
+
+        <Heading level={4} id="file-semantics">Semantics.lean</Heading>
+        <p>
           The typing <code>Term.WT</code> and the evaluation <code>ev</code> of the terms, by those
           of the nodes of the modules, the semantics <code>sem</code> (a <code>Kanon.Sem</code>),
           <code>eval</code>, <code>Refines</code>, and the instance of <code>Lang</code> of each
           module, whose laws hold by <code>rfl</code>.
-        </td>
-      </tr>
-      <tr>
-        <td><code>Rules.lean</code></td>
-        <td>
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Semantics.lean", "@[reducible] def sem")} />
+
+        <Heading level={4} id="file-typing">Typing.lean</Heading>
+        <p>
+          By hand: that well-typed terms evaluate to values of their sorts (<code>ev_ty</code>, by
+          recursion on terms, with the generated <code>WT_int</code> and <code>ev_int</code>), and
+          from it the instance of <code>Typed</code> of each module with sorts (quoted whole
+          <a href="#typing">below</a>).
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Typing.lean", "instance : IntMod.Typed sem")} />
+
+        <Heading level={4} id="file-rules">Rules.lean</Heading>
+        <p>
           The rule functions of the language: each the first of the rules of the modules that
           applies (<code>firstSome</code>), over the oracles (<code>Oracle</code>), its extensible
           helpers put together from the cases of its modules, the rule functions with fuel
           (<code>opsN</code>), and <code>opsN_sound</code>, the proof that the whole simplifier is
           sound, given <code>Oracle.Compat</code>, what the modules assume of their oracles.
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p>And by hand:</p>
-  <table>
-    <thead><tr><th>File</th><th>Contents</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><code>Val.lean</code></td>
-        <td>
-          Its values, <code>Val</code>, its environments, <code>Env</code>,
-          <code>{`abbrev dom : Kanon.Dom{:lean}`}</code>, and the instance of the
-          <code>Values</code> class of each module, with embeddings by its constructors, whose laws
-          hold by cases.
-        </td>
-      </tr>
-      <tr>
-        <td><code>Typing.lean</code></td>
-        <td>
-          That well-typed terms evaluate to values of their sorts (<code>ev_ty</code>, by recursion
-          on terms, with the generated <code>WT_int</code> and <code>ev_int</code>), and from it the
-          instance of <code>Typed</code> of each module with sorts.
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <p>
-    The language's own module (here, the variables) is a module as any other: its
-    <code>Sem.lean</code> evaluates the variables, by what it needs of the language (the values of
-    the environment).
-  </p>
+        </p>
+        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Rules.lean", "def Int.plus.step")} />
+      </div>
+    </div>
+  </div>
 
   <Heading level={2} id="modules">Modules</Heading>
   <p>
@@ -480,8 +564,8 @@
   <p class="chain">
     <code>Types</code> → <strong><code>Abstract</code></strong> → <code>Node</code> →
     <strong><code>Sem</code></strong> → <code>Lang</code> → <strong><code>Prims</code></strong> →
-    <code>Model</code> → <code>Statements</code> → <strong><code>Proofs</code></strong> →
-    <code>Soundness</code>
+    <code>Model</code> → <code>Lift</code> → <code>Statements/…</code> →
+    <strong><code>Proofs</code></strong> → <code>Soundness/…</code> → <code>Soundness</code>
   </p>
   <p>And those of the language, after those of its modules:</p>
   <p class="chain">
@@ -536,7 +620,8 @@
   <ol>
     <li>
       <p>
-        <code>lake build</code>. <code>Soundness.lean</code> proves each arm <code>X</code> by
+        <code>lake build</code>. <code>Soundness/M/f.lean</code> proves each arm <code>X</code> of
+        <code>M.f</code> by
         <code>{`theorem X.ok : X.Stmt := no_implicit_lambda% (kanon_proof% X){:lean}`}</code>; an
         arm that its tactic does not prove is an error there, at its theorem (or exceeds its
         heartbeats, and fails then).
@@ -544,18 +629,11 @@
     </li>
     <li>
       <p>
-        Read its statement in <code>Statements.lean</code>: for any language that has the module,
+        Read its statement in <code>Statements/M/f.lean</code>: for any language that has the module,
         its result refines its spec, over the variables of its pattern, with its guard as a
         hypothesis.
       </p>
-      <Code
-        lang="lean"
-        code={`def Int.plus.r_lits.main.Stmt : Prop :=
-  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [IntMod.Lang S] [KanonBool.Typed S] [IntMod.Typed S] (O : Ops S), O.Sound →
-  ∀ (i1 : Int) (t__2 : S.Ty) (i2 : Int) (t__4 : S.Ty),
-  S.Refines (IntMod.Int.plus.spec (IntMod.mk (.Int i1) t__2) (IntMod.mk (.Int i2) t__4))
-  ((IntMod.mk (.Int (IntMod.Int.add i1 i2)) (IntMod.sort .TInt)))`}
-      />
+      <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
     </li>
     <li>
       <p>
@@ -565,11 +643,12 @@
       </p>
       <Code lang="lean" code={`attribute [kanon_tactic "kanon_int"] Int.plus.spec`} />
       <p>
-        or prove the statement by hand, in the module's <code>Proofs.lean</code>: a theorem
+        or prove the statement by hand, in the module's <code>Proofs.lean</code>, which imports
+        its statement (<code>{`import IntMod.Statements.Int.plus{:lean}`}</code>): a theorem
         <code>X.proof</code> of <code>X.Stmt</code>, tagged <code>{`@[kanon_arm]{:lean}`}</code>
-        (then run <code>kanon lean-all</code> if the file is new, so that
-        <code>Soundness.lean</code> imports it). Editing it rebuilds the module's
-        <code>Soundness.lean</code> and what imports it only.
+        (then run <code>kanon lean-all</code> if the file is new, so that the files under
+        <code>Soundness/</code> import it). Editing it rebuilds the module's proofs, under
+        <code>Soundness/</code>, and what imports them only.
       </p>
     </li>
     <li>
@@ -695,6 +774,49 @@ lake env lean check_axioms.lean
   }
   .chain {
     line-height: 2;
+  }
+  /* The files, with their tree on the side, sticky, or above them on narrow screens. */
+  .files-box {
+    container-type: inline-size;
+    max-width: none;
+  }
+  .files {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 15rem;
+    gap: calc(var(--sp-5) * 2);
+  }
+  .files .tree {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--btn) + var(--sp-5) * 3);
+    align-self: start;
+    max-height: calc(100vh - var(--btn) - var(--sp-5) * 4);
+    overflow-y: auto;
+    margin-top: var(--sp-4);
+  }
+  .sections {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .sections :global(h4) {
+    scroll-margin-top: calc(var(--btn) + var(--sp-5) * 2);
+  }
+  @container (max-width: 44rem) {
+    .files {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    .files .tree,
+    .sections {
+      grid-column: 1;
+      grid-row: auto;
+    }
+    .files .tree {
+      position: static;
+      max-height: none;
+    }
   }
   .file {
     margin-bottom: 0;
