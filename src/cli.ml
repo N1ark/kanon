@@ -77,6 +77,20 @@ let rec mkdir_p d =
     kanon generated there before and no longer does; with [check], only checks
     that the files are up to date, and is whether they are. *)
 let lean_all ~check ~err dir (files : Gen_lean.file list) =
+  let seen = Hashtbl.create 64 in
+  List.iter
+    (fun (f : Gen_lean.file) ->
+      let name = Gen_lean.file_name f in
+      if Hashtbl.mem seen name then
+        raise
+          (Check.Error
+             ( Location.none,
+               Printf.sprintf
+                 "two modules write the Lean file %s: give them different \
+                  roots with [@@@lean_root]"
+                 name ))
+      else Hashtbl.add seen name ())
+    files;
   let ok = ref true in
   let report fmt =
     ok := false;

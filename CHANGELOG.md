@@ -101,6 +101,7 @@
 - `lean-node` rejects node arguments named `f`, `y` or `ev`.
 - Lean files import the modules whose types a module mentions.
 - Lean rejects rule parameters named `h`, `hO`, `res` or `sem`.
+- `kanon lean-all` rejects two modules with the same Lean root.
 
 ## 0.3.0 (2026-10-04)
 
