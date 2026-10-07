@@ -787,7 +787,7 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   > KN
   $ kanon ocaml ops.knl eq.knl ops.kn eq.kn | sed -n '/ eq_same /,$p'
     let[@inline] eq_same (a : t) (b : t) (l : (t list)) : bool =
-        ((Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
+        ((Stdlib.Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
   end
   
   (** The Kanon module ops. *)
@@ -1335,8 +1335,8 @@ constant gives it.
                  | _ -> false
                  ) [@warning "-11"]);
         (match v1, v2 with
-        | (x, y) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
-        | (y, x) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (x, y) when ((Stdlib.Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (y, x) when ((Stdlib.Int.equal y.tag (Prims.ones_of x).tag)) -> x
         | (_, { kind = BitVec (kanon__2); _ })
           when (((Z.equal kanon__2 Z.zero))) ->
           (node (BitVec (Z.zero)) v1.ty)

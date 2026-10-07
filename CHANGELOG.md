@@ -75,6 +75,7 @@
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
 - `-(-5)` is `5`, not a crash.
 - `ocaml-typed` accepts sort variables like `a'`.
+- Generated term equality works beside a module named `Int`.
 
 ## 0.3.0 (2026-10-04)
 

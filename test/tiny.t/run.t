@@ -247,12 +247,12 @@ The rules, in the scope of the types:
         | ({ kind = Bool (true); _ }, x) -> x
         | (_, { kind = Bool (false); _ }) -> Tiny_prims.v_false
         | ({ kind = Bool (false); _ }, _) -> Tiny_prims.v_false
-        | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
+        | (v, kanon__2) when ((Stdlib.Int.equal v.tag kanon__2.tag)) -> v
         | (x, { kind = Op1 ((Not), kanon__3); _ })
-          when ((Int.equal x.tag kanon__3.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__3.tag)) ->
           Tiny_prims.v_false
         | ({ kind = Op1 ((Not), kanon__3); _ }, x)
-          when ((Int.equal x.tag kanon__3.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__3.tag)) ->
           Tiny_prims.v_false
         | _ -> (node (mk_commut_binop And v1 v2) TBool)
         ))
@@ -266,7 +266,7 @@ The rules, in the scope of the types:
                  ) [@warning "-11"]);
         (match v1, v2 with
         | (x, kanon__2)
-          when ((Int.equal x.tag kanon__2.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__2.tag)) ->
           Tiny_prims.v_true
         | ({ kind = Int (x); _ }, { kind = Int (y); _ }) ->
           (rules_of_bool ((Z.equal x y)))
@@ -1256,12 +1256,12 @@ the sort of the spec, as Bool has no typing.
         | ({ kind = Bool (true); _ }, x) -> x
         | (_, { kind = Bool (false); _ }) -> (node (Bool (false)) TBool)
         | ({ kind = Bool (false); _ }, _) -> (node (Bool (false)) TBool)
-        | (v, kanon__2) when ((Int.equal v.tag kanon__2.tag)) -> v
+        | (v, kanon__2) when ((Stdlib.Int.equal v.tag kanon__2.tag)) -> v
         | (x, { kind = Op1 ((Not), kanon__3); _ })
-          when ((Int.equal x.tag kanon__3.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__3.tag)) ->
           Tiny_prims.v_false
         | ({ kind = Op1 ((Not), kanon__3); _ }, x)
-          when ((Int.equal x.tag kanon__3.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__3.tag)) ->
           Tiny_prims.v_false
         | _ -> (node (mk_commut_binop And v1 v2) TBool)
         ))
@@ -1275,7 +1275,7 @@ the sort of the spec, as Bool has no typing.
                  ) [@warning "-11"]);
         (match v1, v2 with
         | (x, kanon__2)
-          when ((Int.equal x.tag kanon__2.tag)) ->
+          when ((Stdlib.Int.equal x.tag kanon__2.tag)) ->
           Tiny_prims.v_true
         | ({ kind = Int (x); _ }, { kind = Int (y); _ }) ->
           (rules_of_bool ((Z.equal x y)))

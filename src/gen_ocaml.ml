@@ -311,7 +311,7 @@ let rec expr ctx ft (e : expr) =
       | Eq | Ne ->
           let neg = if op = Ne then "not " else "" in
           if a.ety = TTerm then
-            pf ft "(%sInt.equal %a.tag %a.tag)" neg expr a expr b
+            pf ft "(%sStdlib.Int.equal %a.tag %a.tag)" neg expr a expr b
           else pf ft "(%s(%a %a %a))" neg equal_fn a.ety expr a expr b
       | And -> pf ft "(%a && %a)" expr a expr b
       | Or -> pf ft "(%a || %a)" expr a expr b)
