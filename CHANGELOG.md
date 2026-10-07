@@ -108,6 +108,7 @@
 - `Node.All`, `Rel` and `children` are valid with nodes named `True`.
 - Lean rejects a pattern variable named as another parameter.
 - Lean rejects an `as` variable named as another parameter.
+- Lean rejects a module `List` with list-of-terms nodes.
 
 ## 0.3.0 (2026-10-04)
 

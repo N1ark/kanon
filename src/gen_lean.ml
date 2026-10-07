@@ -3656,6 +3656,10 @@ let semantics_file ~sources (p : program) ms =
           (module_nodes m))
       noded
   in
+  if lists && List.mem "List" noded then
+    unsupported Location.none
+      "the module List: its functions allList and evList are those of the \
+       lists of children";
   lean_file ~sources r [ "Semantics" ]
     ((r ^ ".Val") :: List.map (fun m -> module_root m ^ ".Lang") langs)
   @@ fun ft ->
