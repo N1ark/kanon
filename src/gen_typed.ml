@@ -39,7 +39,8 @@ let tag_of_sort vars (s : expr) sub =
     [[> Tag.tag ] t] for a result, over the type [t] ([ty] for a sort). *)
 let term ~operand ~t ft = function
   | Tag s -> pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") s t
-  | Var x -> pf ft "'%s %s" x t
+  | Var x ->
+      pf ft "'%s%s %s" (if String.ends_with ~suffix:"'" x then " " else "") x t
   | Unknown -> pf ft "_ %s" t
 
 (** The OCaml type of a value that is not a term, in the signature, where a term
