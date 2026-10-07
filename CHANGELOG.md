@@ -109,6 +109,7 @@
 - Lean rejects a pattern variable named as another parameter.
 - Lean rejects an `as` variable named as another parameter.
 - Lean rejects a module `List` with list-of-terms nodes.
+- Rule functions without parameters are valid Lean.
 
 ## 0.3.0 (2026-10-04)
 

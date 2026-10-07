@@ -1185,6 +1185,9 @@ let params ft (f : fn) =
 let args ft (f : fn) =
   list ~sep:" " (fun ft (x, _) -> pf ft "%s" (id x)) ft f.params
 
+(** [∀ params, ] before a statement about [f], nothing for a constant. *)
+let forall_params ft (f : fn) = if f.params <> [] then pf ft "∀ %a, " params f
+
 let arrow ft (f : fn) =
   List.iter (fun (_, t) -> pf ft "%a → " lean_ty t) f.params;
   lean_ty ft f.ret
@@ -1241,6 +1244,13 @@ let pre_binders ?(rename = Fun.id) ft (f : fn) =
 *)
 let pre_names ft (f : fn) =
   List.iter (fun (x, _, _) -> pf ft " %s" (hyp_name x)) (preconditions f)
+
+(** [fun args => ], nothing for a constant. *)
+let fun_args ft (f : fn) = if f.params <> [] then pf ft "fun %a => " args f
+
+(** [fun args hyps => ]: with the assumptions on the arguments. *)
+let fun_hyps ft (f : fn) =
+  if f.params <> [] then pf ft "fun %a%a => " args f pre_names f
 
 let rules (f : fn) =
   let pre, scruts, groups = split_body f.body in
@@ -3114,11 +3124,11 @@ let model_file ctx (p : program) m =
   if rules <> [] || oracles <> [] || exts <> [] then pf ft " where";
   List.iter
     (fun f ->
-      pf ft "@ %s : ∀ %a, %aS.Refines (%s.spec %a) (O.%s %a)" (fld f.name)
-        params f pre_arrows f (qn f.name) args f (fld f.name) args f;
+      pf ft "@ %s : %a%aS.Refines (%s.spec %a) (O.%s %a)" (fld f.name)
+        forall_params f pre_arrows f (qn f.name) args f (fld f.name) args f;
       Option.iter
         (fun post ->
-          pf ft "@ %s_post : ∀ %a, %a%s (O.%s %a)" (fld f.name) params f
+          pf ft "@ %s_post : %a%a%s (O.%s %a)" (fld f.name) forall_params f
             pre_arrows f
             (pre_prop ~text:Fun.id ("", post, false) |> String.trim)
             (fld f.name) args f)
@@ -3358,9 +3368,9 @@ let fn_statements_file ctx m (f : fn) =
         (fun post ->
           pf ft
             "/-- The spec of `%s` satisfies `%s`. -/@ @[<v 2>def \
-             %s.spec_post.Stmt : Prop :=@ ∀ %s, ∀ %a, %a%s (%s.spec %a)@]@ @ "
-            f.name post (qn f.name) (lang_binders m) params f pre_arrows f
-            (pred_ref post) (qn f.name) args f)
+             %s.spec_post.Stmt : Prop :=@ ∀ %s, %a%a%s (%s.spec %a)@]@ @ "
+            f.name post (qn f.name) (lang_binders m) forall_params f pre_arrows
+            f (pred_ref post) (qn f.name) args f)
         (postcondition f))
   else (
     List.iter
@@ -4148,7 +4158,7 @@ let rules_file ~sources ctx ms =
     exts;
   List.iter
     (fun (f : fn) ->
-      pf ft ",@   %s := fun %a => %s.spec (S := sem) %a" (fld f.name) args f
+      pf ft ",@   %s := %a%s.spec (S := sem) %a" (fld f.name) fun_args f
         (fn_ref f.name) args f)
     rfs;
   pf ft " }@]@ @ ";
@@ -4173,10 +4183,7 @@ let rules_file ~sources ctx ms =
     List.concat_map
       (fun (f : fn) ->
         (if raw then
-           [
-             Fmt.str "%s := fun %a%a => Kanon.Sem.Refines.refl" (fld f.name)
-               args f pre_names f;
-           ]
+           [ Fmt.str "%s := %aKanon.Sem.Refines.refl" (fld f.name) fun_hyps f ]
          else [ Fmt.str "%s := %s.step_sound _ hO" (fld f.name) (qn f.name) ])
         @
         match postcondition f with
@@ -4184,9 +4191,8 @@ let rules_file ~sources ctx ms =
         | Some _ ->
             if raw then
               [
-                Fmt.str "%s_post := fun %a%a => %s.spec_post.ok (S := sem) %a%a"
-                  (fld f.name) args f pre_names f (fn_ref f.name) args f
-                  pre_names f;
+                Fmt.str "%s_post := %a%s.spec_post.ok (S := sem) %a%a"
+                  (fld f.name) fun_hyps f (fn_ref f.name) args f pre_names f;
               ]
             else
               [
