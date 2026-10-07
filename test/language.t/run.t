@@ -1521,11 +1521,11 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   
   $ kanon lean-statements bv.knl shadow.knl bv.kn shadow.kn | sed -n '/Shadow.ext.r_extend.main.Stmt/,/^$/p'
   def Shadow.ext.r_extend.main.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (k : Int) (j : Int) (v : Term) (t__4 : Ty),
-    (decide ((Bv.size (Term.mk (Kind.Op1 (Op1.BvExtend j) v) t__4)) > (3 : Int))) = true →
-    Refines (Shadow.ext.spec k (Term.mk (Kind.Op1 (Op1.BvExtend j) v) t__4))
-    ((Term.mk (Kind.Op1 (Op1.BvExtend (k + j)) v) (Ty.TBitVector ((Bv.size v) + (k + j)))))
+    ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Shadow.Lang S] [Kanon.Typed S] [Kanon.Shadow.Typed S] (O : Ops S), O.Sound →
+    ∀ (k : Int) (j : Int) (v : S.Term) (t__4 : S.Ty),
+    (decide ((Kanon.Bv.size (Kanon.Shadow.mk (.BvExtend j v) t__4)) > (3 : Int))) = true →
+    S.Refines (Kanon.Shadow.Shadow.ext.spec k (Kanon.Shadow.mk (.BvExtend j v) t__4))
+    ((Kanon.Shadow.mk (.BvExtend (k + j) v) (Kanon.sort (.TBitVector ((Kanon.Bv.size v) + (k + j))))))
   
 
 The rules call the primitives in the module of [@@@ocaml_prims], which the

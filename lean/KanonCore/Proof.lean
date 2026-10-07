@@ -1,7 +1,6 @@
 import KanonCore.Tactics
 import KanonCore.Sem
 import KanonCore.ProofAttr
-import KanonCore.Node
 
 /-!
 # The rule tactics, for any language
@@ -139,7 +138,8 @@ possible values. Atoms applied to constructors, which their evaluation usually
 unfolds, come last. -/
 def findAtomCase (g : MVarId) (ls : Option (Array Name) := none) :
     MetaM (Option (Expr × Expr)) := g.withContext do
-  let ls := ls.getD (kanonLemmas (← getEnv) `kanon_atom_cases)
+  -- the lemmas tagged last (of the modules, with hypotheses) first
+  let ls := ls.getD (kanonLemmas (← getEnv) `kanon_atom_cases).reverse
   let lemmas ← ls.filterMapM fun n => return (← atomHead n).map (n, ·)
   if lemmas.isEmpty then return none
   let mut exprs := #[← instantiateMVars (← g.getType)]
@@ -234,8 +234,8 @@ def namespacePrefixes : Name → List Name
 /-- The lifting lemmas of the head of `e`, a call `O.f args` of a rule function:
 `R.Lib.lift_f` for each namespace `R` that encloses the current one, innermost
 first (inside the theorem `M.f.r_a.main.ok` of the module `M`, `M.Lib.lift_f`:
-a module proved once has those of the functions of the modules it uses, for
-its own `O`), then in the namespace of the function. -/
+a module has those of the functions of the modules it uses, for its own
+`O`), then in the namespace of the function. -/
 def liftLemmas (e : Expr) : MetaM (List Name) := do
   let .const (.str (.str ns "Ops") f) _ := e.getAppFn | return []
   let env ← getEnv
@@ -311,25 +311,100 @@ elab "kanon_on_refines " tac:tactic : tactic => do
   let ty ← withMainContext do whnfR (← instantiateMVars (← getMainTarget))
   if ty.isAppOfArity ``Kanon.Sem.Refines 3 then evalTactic tac
 
+/-! ## Refined children -/
+
+/-- For each hypothesis `h : S.Refines a b`, the facts it gives:
+`S.WT a → S.WT b ∧ S.ty b = S.ty a`, and `S.WT a → ∀ ρ, OLe (S.ev ρ a) (S.ev ρ b)`;
+for each `h : Kanon.Forall₂ S.Refines l l'`, those of `Kanon.Sem.forall₂_refines`. -/
+elab "kanon_refines_facts" : tactic => do
+  let g ← getMainGoal
+  let g ← g.withContext do
+    let mut g := g
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let ty ← whnfR (← instantiateMVars d.type)
+      let facts ←
+        if ty.isAppOfArity ``Kanon.Sem.Refines 3 then
+          pure [← mkAppM ``Kanon.Sem.Refines.syn #[d.toExpr],
+            ← mkAppM ``Kanon.Sem.Refines.ev #[d.toExpr]]
+        else if ty.isAppOfArity ``Kanon.Forall₂ 5 &&
+            (ty.getArg! 2).getAppFn.isConstOf ``Kanon.Sem.Refines then
+          pure [← mkAppM ``Kanon.Sem.forall₂_refines #[d.toExpr]]
+        else pure []
+      for f in facts do
+        -- applied to the well-typedness of the refined term, if it is known
+        let fty ← whnfR (← inferType f)
+        let f ← match fty with
+          | .forallE _ dom _ _ =>
+            match ← Kanon.Proof.findHyp dom with
+            | some w => pure (mkApp f w)
+            | none => pure f
+          | _ => pure f
+        let (_, g') ← (← g.assert `kanon_fact (← inferType f) f).intro1
+        g := g'
+    pure g
+  replaceMainGoal [g]
+
+open Lean Meta Elab Tactic in
+/-- Proves `∃ x y …, P x y …` by `simp_all`, with witnesses among the local
+variables of the types of `x`, `y`, …, tried in turn. -/
+partial def kanonExists (g : MVarId) : TacticM Bool := g.withContext do
+  let s ← saveState
+  setGoals [g]
+  try
+    evalTactic (← `(tactic| (simp_all; done)))
+    return true
+  catch _ => s.restore
+  let ty ← whnfR (← instantiateMVars (← g.getType))
+  let some (α, _) := ty.app2? ``Exists | return false
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    unless ← isDefEq d.type α do continue
+    let s ← saveState
+    try
+      setGoals [g]
+      evalTactic (← `(tactic| refine ⟨$(mkIdent d.userName), ?_⟩))
+      let [g'] ← getGoals | throwError "kanon_exists"
+      if ← kanonExists g' then return true
+      s.restore
+    catch _ => s.restore
+  return false
+
+open Lean Meta Elab Tactic in
+/-- Proves an existential goal by `simp_all`, with witnesses among the local
+variables (see `kanonExists`). -/
+elab "kanon_exists" : tactic => do
+  unless ← kanonExists (← getMainGoal) do throwError "kanon_exists: no witnesses"
+
+/-- The goals of `Node.rel_refines`, for one node: the children of the
+refined node are well-typed, of the same types, and their values refined. -/
+macro "kanon_rel_refines" : tactic => `(tactic| (
+  (try kanon_split)
+  (try subst_vars)
+  kanon_refines_facts
+  (try kanon_split)
+  refine ⟨?_, ?_, ?_⟩
+  · simp_all
+  · intro t hw
+    (try simp only [kanon_wt] at hw ⊢)
+    all_goals
+      (try kanon_split)
+      (try subst_vars)
+      (first
+        | (simp_all; done)
+        | exact ⟨_, by simp_all, by apply_assumption <;> assumption⟩
+        | kanon_exists)
+  · simp_all [Kanon.Sem.FLe]))
+
 /-! ## Congruence -/
 
-/-- The head of `e` unfolded once, with the proof of `e = e'` if it is not by
-definition: a definition, by delta (a helper of the model of a language, or
-the spec of a rule), or a helper `L.f args` of the interface of a module, by
-the law `f_eq` of its field `f`. `none` for any other head (a constructor, a
+/-- The head of `e` unfolded once (a definition, by delta: a helper of the
+model, or the spec of a rule); `none` for any other head (a constructor, a
 variable, a field of `Ops`). -/
 def unfoldHead? (e : Expr) : MetaM (Option (Expr × Option Expr)) := do
   let e := e.headBeta
   let .const n _ := e.getAppFn | return none
-  if (← getProjectionFnInfo? n).isSome then
-    let .str p s := n | return none
-    let law := Name.str p (s ++ "_eq")
-    unless (← getEnv).contains law do return none
-    let c ← mkConstWithFreshMVarLevels law
-    let (xs, _, ty) ← forallMetaTelescopeReducing (← inferType c)
-    let some (_, lhs, rhs) := ty.eq? | return none
-    unless ← withReducible (isDefEq lhs e) do return none
-    return some (← instantiateMVars rhs, some (← instantiateMVars (mkAppN c xs)))
+  if (← getProjectionFnInfo? n).isSome then return none
   return (← unfoldDefinition? e).map (·, none)
 
 /-- Proves `Refines s s` by reflexivity, up to reducible definitions only: on
@@ -389,15 +464,62 @@ elab "kanon_apply_lemmas " "[" attrs:ident,* "]" tac:tactic : tactic => do
       catch _ => s.restore
   throwError "kanon_apply_lemmas: no lemma applies"
 
+open Lean Meta Elab Tactic in
+/-- For each hypothesis `h : S.Refines a a'` whose `a` is well-typed (a
+hypothesis), rewrites `S.ty a'` into `S.ty a` in the goal. -/
+elab "kanon_lift_ty_core" : tactic => withMainContext do
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    let ty ← whnfR (← instantiateMVars d.type)
+    unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do continue
+    let s ← saveState
+    try
+      let w ← mkAppM ``Kanon.Sem.WT #[ty.getArg! 0, ty.getArg! 1]
+      let some hw ← Kanon.Proof.findHyp w | continue
+      let eq ← mkAppM ``And.right #[← mkAppM ``Kanon.Sem.Refines.syn #[d.toExpr, hw]]
+      let g ← getMainGoal
+      let r ← g.rewrite (← g.getType) eq
+      let g' ← g.replaceTargetEq r.eNew r.eqProof
+      replaceMainGoal (g' :: r.mvarIds)
+    catch _ => s.restore
+
+/-- In a goal `S.Refines s s'` under `kw : S.WT s`: rewrites the sorts of the
+refined terms `a'` of `s'` into those of `a`, when `kw` says that `a` is
+well-typed, so that what `s` builds from the sorts of its arguments is the same
+in `s'`. -/
+macro "kanon_lift_ty " kw:ident : tactic => `(tactic| (
+  (try simp only [kanon_wt] at $kw:ident)
+  (try kanon_split)
+  kanon_lift_ty_core))
+
 /-- The side goals of `kanon_congr`, given by the language with `macro_rules`:
 it is tried on each hypothesis of a congruence lemma, before `kanon_congr`
 itself, and must close it. -/
 syntax "kanon_congr_side" : tactic
 
+/-- The side goals of `kanon_congr` on the sorts of nodes: the sort of a
+well-typed node is that of the refined one. -/
+macro_rules | `(tactic| kanon_congr_side) => `(tactic| (
+  intro w
+  simp only [kanon_wt, true_and, and_true] at w
+  (try kanon_split)
+  kanon_refines_facts
+  simp_all))
+
+
 /-- What `kanon_congr` does first to a refinement, before applying a congruence
 lemma (e.g. rewriting the types of the refined terms in it), given by the
 language with `macro_rules`. -/
 syntax "kanon_congr_pre" : tactic
+
+/-- `kanon_rel tac`: proves that two nodes of a module are related
+(`Node.Rel R n n'`, the hypothesis of the congruence lemma `mk_congr` of the
+module): their arguments are equal, and `tac` proves `R` of their children. -/
+macro "kanon_rel " tac:tactic : tactic => `(tactic| (
+  simp only [kanon_rel, Kanon.forall₂_cons, Kanon.forall₂_nil, Kanon.Sem.forall₂_refines_refl,
+    true_and, and_true]
+  all_goals (repeat' (with_reducible apply And.intro))
+  all_goals first | rfl | ($tac:tactic)))
 
 /-- Proves `Refines s s'`, where `s'` is `s` with some of its subterms replaced
 by terms that refine them (hypotheses of the context). -/
@@ -412,6 +534,7 @@ macro_rules
                (first
                  | (intro _; rfl)
                  | (kanon_congr_side; done)
+                 | kanon_rel kanon_congr
                  | kanon_congr)))
 
 /-- `kanon_swap_lemmas tac`: proves `R s s'` by transitivity, from the first
@@ -450,6 +573,7 @@ macro_rules
           (first
             | (intro _; rfl)
             | (kanon_congr_side; done)
+            | kanon_rel kanon_comm
             | kanon_comm)
       | kanon_swap_lemmas (first
           | kanon_refl
@@ -457,6 +581,7 @@ macro_rules
               (first
                 | (intro _; rfl)
                 | (kanon_congr_side; done)
+                | kanon_rel kanon_comm
                 | kanon_comm)))
 
 /-! ## Closing by lemmas -/
@@ -571,6 +696,56 @@ macro "kanon_guards" : tactic => `(tactic| first
   | simp only [kanon_guards, decide_eq_true_eq, Bool.and_eq_true, Bool.or_eq_true,
       Bool.not_eq_true', decide_eq_false_iff_not] at *)
 
+/-- Splits the matches at the heads of the left-hand sides of the equations
+among the hypotheses. -/
+partial def splitAllMatches : TacticM Unit := do
+  let names ← withMainContext do
+    let mut ns := #[]
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let some (_, lhs, _) := (← instantiateMVars d.type).eq? | continue
+      let lhs := lhs.consumeMData
+      if (← Meta.isMatcherApp lhs) || lhs.isAppOf ``ite || lhs.isAppOf ``dite then
+        ns := ns.push d.userName
+    return ns
+  for n in names do
+    Kanon.Tactic.splitMatches n
+
+elab "kanon_split_all_matches" : tactic => splitAllMatches
+
+/-- Splits the matches and conditionals anywhere in the equations among the
+hypotheses (the guards of an arm, once its helpers are unfolded), repeatedly. -/
+partial def splitHypMatches (fuel : Nat := 16) : TacticM Unit := do
+  if fuel = 0 then return
+  let g ← getMainGoal
+  let h? ← g.withContext do
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let ty ← instantiateMVars d.type
+      unless ty.isEq do continue
+      let hasMatch := (ty.find? fun e => e.isAppOf ``ite || e.isAppOf ``dite ||
+        (match e.getAppFn with
+          | .const n _ => (n.isStr && n.getString!.startsWith "match_")
+          | _ => false)).isSome
+      if hasMatch then return some d.userName
+    return none
+  let some h := h? | return
+  let s ← saveState
+  try
+    evalTactic (← `(tactic| split at $(mkIdent h):ident))
+  catch _ =>
+    s.restore
+    return
+  let gs ← getGoals
+  let mut out := []
+  for g in gs do
+    setGoals [g]
+    splitHypMatches (fuel - 1)
+    out := out ++ (← getGoals)
+  setGoals out
+
+elab "kanon_split_hyps" : tactic => splitHypMatches
+
 /-- Closes the refinements left by `kanon_rule_lift` in a way of the language,
 given with `macro_rules`. -/
 syntax "kanon_rule_close" : tactic
@@ -580,12 +755,20 @@ splits the conditionals of its body, lifts the calls of the body to their
 specs, and closes the refinement if it is one of reflexivity or commutativity
 (or `kanon_rule_close`, or a `kanon_close_lemma`). -/
 macro "kanon_rule_lift" : tactic => `(tactic| (
-  intro _
+  (try intro _)
   intros
   (try kanon_guards)
   (try kanon_split)
   (try subst_vars)
-  (try simp only [kanon_spec, kanon_body])
+  (try simp only [kanon_body] at *)
+  (try kanon_split_hyps)
+  all_goals (try (simp only [reduceCtorEq, Bool.false_eq_true, Kanon.firstSome_nil',
+    Kanon.firstSome_some, Kanon.firstSome_none, Option.getD_some, Option.getD_none] at *; done))
+  all_goals (try kanon_proj)
+  all_goals (try kanon_guards)
+  all_goals (try kanon_split)
+  all_goals (try subst_vars)
+  all_goals (try simp only [kanon_spec, kanon_body])
   (repeat' split)
   all_goals (try kanon_lift_body)
   all_goals (try simp only [kanon_spec, kanon_body])
@@ -595,10 +778,8 @@ macro "kanon_rule_lift" : tactic => `(tactic| (
     | kanon_rule_close
     | kanon_close_lemmas)))
 
-/-- The typing of the nodes: by the lemmas of each node (`kanon_node_wt`, which
-Kanon generates), then by the language's `kanon_wt` for what they leave. -/
+/-- The typing of the nodes (`kanon_wt`). -/
 macro "kanon_wt_simp" : tactic => `(tactic| (
-  (try simp only [kanon_node_wt, true_and, and_true] at *)
   (try simp only [kanon_wt, true_and, and_true] at *)))
 
 /-- Proves the typing half of a refinement between raw terms. -/
@@ -608,6 +789,7 @@ macro "kanon_wt" : tactic => `(tactic| (
   kanon_wt_simp
   (try kanon_split)
   (try subst_vars)
+  kanon_wt_simp
   (try simp_all)))
 
 set_option hygiene false in
@@ -619,10 +801,10 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   kanon_wt_simp
   (try kanon_split)
   (try subst_vars)
-  (try simp only [kanon_node_ev] at e ⊢)
+  kanon_wt_simp
   (try simp only [kanon_ev] at e ⊢)
   kanon_cases
-  all_goals (try simp only [kanon_val] at e ⊢)
+  all_goals (try simp only [kanon_val] at *)
   all_goals (try simp only [kanon_val, Option.some.injEq, reduceCtorEq, false_and, and_false,
     ite_true, ite_false, Bool.not_true, Bool.not_false, Option.ite_none_left_eq_some,
     Option.ite_none_right_eq_some] at e ⊢)
@@ -635,11 +817,54 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   all_goals (try subst e)
   all_goals (try (kanon_split; subst_vars))))
 
+/-- Splits the hypotheses that are disjunctions of equations of a variable (the
+values of a sort, `Srt.val`), substituting it. -/
+partial def orCases : TacticM Unit := do
+  let progress ← withMainContext do
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let ty ← instantiateMVars d.type
+      unless ty.isAppOfArity ``Or 2 do continue
+      let rec eqs (e : Expr) : Bool :=
+        if e.isAppOfArity ``Or 2 then eqs (e.getArg! 0) && eqs (e.getArg! 1)
+        else match e.eq? with
+          | some (_, a, b) => a.isFVar || b.isFVar
+          | none => false
+      unless eqs ty do continue
+      let s ← saveState
+      try
+        let g ← (← getMainGoal).rename d.fvarId `kanon_ho
+        replaceMainGoal [g]
+        let tac := s!"rcases kanon_ho with {casesPattern ty}"
+        evalTactic (← ofExcept (Parser.runParserCategory (← getEnv) `tactic tac))
+        return true
+      catch _ => s.restore
+    return false
+  if progress then
+    let gs ← getGoals
+    let mut out := []
+    for g in gs do
+      setGoals [g]
+      orCases
+      out := out ++ (← getGoals)
+    setGoals out
+
+elab "kanon_or_cases" : tactic => do
+  let gs ← getGoals
+  let mut out := []
+  for g in gs do
+    setGoals [g]
+    orCases
+    out := out ++ (← getGoals)
+  setGoals out
+
 /-- Closes a goal on integers and booleans (with the `kanon_close_simp` lemmas),
 or by a `kanon_close_lemma`. -/
 macro "kanon_close" : tactic => `(tactic| first
-  | (simp_all [kanon_close_simp]; first | done | omega)
+  | (kanon_or_cases <;> simp_all [kanon_close_simp]; done)
+  | (simp_all [kanon_close_simp]; first | done | omega | grind)
   | omega
+  | grind
   | kanon_close_lemmas)
 
 set_option hygiene false in
@@ -659,5 +884,96 @@ macro "kanon_rule" : tactic => `(tactic| (
     refine Kanon.Sem.Refines.intro ?_ ?_
     · kanon_wt
     · kanon_sem)))
+
+/-! ## The default proof of an arm -/
+
+/-- The values of a term: poison, or some value. -/
+theorem _root_.Kanon.Sem.ev_opt {S : Kanon.Sem} {ρ : S.Env} {t : S.Term} :
+    S.ev ρ t = none ∨ ∃ v, S.ev ρ t = some v := by
+  cases S.ev ρ t <;> simp
+
+attribute [kanon_atom_cases] Kanon.Embed.proj_cases Kanon.Sem.ev_opt
+
+attribute [kanon_val] Kanon.Embed.inj_eq_iff Kanon.Embed.proj_inj List.mapM_cons List.mapM_nil
+  Option.bind_eq_bind Option.bind_some Option.bind_none Option.pure_def id
+
+attribute [kanon_ev] List.map_cons List.map_nil
+
+attribute [kanon_guards] Kanon.firstSome_nil' Kanon.firstSome_some Kanon.firstSome_none
+  Option.getD_some Option.getD_none
+
+attribute [kanon_close_simp] List.nodup_cons List.nodup_nil List.mem_cons List.not_mem_nil
+
+
+/-- Proves what a case of an extensible helper must satisfy (its
+postcondition `f.post`, by hand in the module of the helper): unfolds the case
+and the postcondition, splits its matches, reads the nodes back, and closes
+the goals on the values of the terms. -/
+macro "kanon_post" : tactic => `(tactic| (
+  (try intro _)
+  intros
+  (try simp only [kanon_body] at *)
+  (try intros)
+  kanon_split_all_matches
+  all_goals (try kanon_proj)
+  all_goals (try simp only [kanon_wt, kanon_ev, kanon_val, Option.some.injEq] at *)
+  all_goals (try (kanon_split; subst_vars))
+  all_goals first
+    | (simp_all [kanon_close_simp]; done)
+    | (kanon_or_cases <;> simp_all [kanon_close_simp]; done)
+    | grind))
+
+/-- `kanon_auto`, once the hypotheses are introduced: `kanon_rule` on a
+refinement, else `kanon_post`. -/
+elab "kanon_auto_by_goal" : tactic => do
+  let ty ← withMainContext do whnfR (← instantiateMVars (← getMainTarget))
+  if ty.isAppOfArity ``Kanon.Sem.Refines 3 then
+    evalTactic (← `(tactic| kanon_rule))
+  else
+    evalTactic (← `(tactic| kanon_post))
+
+macro_rules | `(tactic| kanon_auto) => `(tactic| ((try intro _); intros; kanon_auto_by_goal))
+
+
+open Lean Meta Elab Tactic in
+/-- The facts that the `kanon_size` lemmas give of the hypotheses: the children
+of a node (`proj e = some n`), or the terms of a value (`y ∈ p.flat x`), are
+smaller than it. -/
+elab "kanon_size_facts" : tactic => withMainContext do
+  let lemmas := kanonLemmas (← getEnv) `kanon_size
+  let mut g ← getMainGoal
+  for d in (← getLCtx) do
+    if d.isImplementationDetail then continue
+    for l in lemmas do
+      let s ← saveState
+      try
+        let pf ← mkAppM l #[d.toExpr]
+        let (_, g') ← (← g.assert `kanon_sz (← inferType pf) pf).intro1P
+        g := g'
+      catch _ => s.restore
+  replaceMainGoal [g]
+
+/-- Proves the law `size_proj` of the instance of the `Lang` class of a module
+in a language whose `size` is `sizeOf`: the children of a node are smaller
+than its term. -/
+macro "kanon_size_proj" : tactic => `(tactic| (
+  intro e n h
+  cases e <;> cases h
+  all_goals
+    cases n <;> simp only [kanon_size_simp]
+    all_goals (repeat' (first | apply And.intro | intro _ _))
+    all_goals first
+      | trivial
+      | (have := List.sizeOf_lt_of_mem ‹_ ∈ _›; simp <;> omega)
+      | (simp <;> omega)
+      | (kanon_size_facts; simp <;> omega)))
+
+open Lean Meta Elab Tactic in
+/-- Proves that a recursive call of a helper on a term decreases (`S.size`):
+from the hypotheses `proj e = some n` that its matches name, by the
+`kanon_size` lemmas (the children of `n` are smaller than `e`), and `omega`. -/
+elab "kanon_decreasing" : tactic => withMainContext do
+  evalTactic (← `(tactic| kanon_size_facts))
+  evalTactic (← `(tactic| ((try simp only [kanon_size_simp] at *); omega)))
 
 end Kanon.Proof

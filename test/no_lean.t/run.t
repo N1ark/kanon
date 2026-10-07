@@ -37,21 +37,21 @@ it does not exist in the Lean files.
   $ kanon ocaml-tests lang.knl rules.kn | grep -c "hidden"
   0
   [1]
-  $ for b in signatures model statements lifts soundness; do
+  $ for b in node lang model statements soundness syntax semantics rules; do
   >   echo "$b: $(kanon lean-$b lang.knl rules.kn | grep -c "hidden")"
   > done
-  signatures: 0
+  node: 0
+  lang: 0
   model: 0
   statements: 0
-  lifts: 0
   soundness: 0
-  $ for b in signatures model; do
-  >   kanon lean-$b lang.knl rules.kn | grep "p_lean\|lean_helper"
-  > done
-  example : Int → Int := p_lean
-  -- Kanon/Model/Rules/lean_helper.lean
+  syntax: 0
+  semantics: 0
+  rules: 0
+  $ kanon lean-model lang.knl rules.kn | grep "p_lean\|lean_helper"
   def Rules.lean_helper (x : Int) : Int :=
-    (p_lean x)
+    (Kanon.Rules.p_lean x)
+  attribute [kanon_body] Rules.lean_helper
 
 A `[@no_lean]` function may call anything. A function or a rule that Lean models
 may not call one, or a `[@no_lean]` primitive, even through a derived rule or in

@@ -38,7 +38,7 @@ and bind the operands in any way.
         | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
         )
   end
-  $ for b in ocaml-types ocaml-typed ocaml-tests lean-signatures lean-model lean-statements lean-lifts lean-soundness; do
+  $ for b in ocaml-types ocaml-typed ocaml-tests lean-node lean-lang lean-model lean-statements lean-soundness lean-syntax lean-semantics lean-rules; do
   >   kanon $b lang.knl ok.kn > /dev/null || echo "$b failed"
   > done
 

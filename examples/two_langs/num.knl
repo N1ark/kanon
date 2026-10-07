@@ -2,7 +2,7 @@
    languages use it (l1.knl, l2.knl and l3.knl): it is proved once, in Lean,
    under NumMod (lean/NumMod), and each language only gives its interface. *)
 
-[@@@lean_module "NumMod"]
+[@@@lean_root "NumMod"]
 
 node Num of int : TNum
 node Add : TNum -> TNum -> TNum [@comm] [@unit 0]

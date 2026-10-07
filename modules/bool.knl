@@ -2,7 +2,7 @@
    and [Distinct]. See the reference of Kanon for the syntax. It is proved once
    in Lean, for every language, under KanonBool (Kanon's Lean library). *)
 
-[@@@lean_module "KanonBool"]
+[@@@lean_root "KanonBool"]
 
 node Bool of bool : TBool
 notation Bool

@@ -1,7 +1,7 @@
 (* The int module: integers, their sum and their quotient. It is proved once,
    in Lean, under DivMod (lean/DivMod), for any language that uses it. *)
 
-[@@@lean_module "DivMod"]
+[@@@lean_root "DivMod"]
 
 node Int of int : TInt
 node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]

@@ -3,7 +3,7 @@
    language (CfgMod/Types.lean, generated, and CfgMod/Abstract.lean, by hand,
    for the abstract type [blob]). *)
 
-[@@@lean_module "CfgMod"]
+[@@@lean_root "CfgMod"]
 
 (** The flags of a sum. *)
 type flags = { wrap : bool; strict : bool }

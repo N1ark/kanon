@@ -14,14 +14,15 @@ Simp sets, used in this order by the tactics:
 - `kanon_wt`: the typing of the nodes;
 - `kanon_ev`: the evaluation of the nodes;
 - `kanon_val`: the operations on values, once the atoms are split;
-- `kanon_close_simp`: the lemmas that the closing steps add to `simp_all`.
+- `kanon_close_simp`: the lemmas that the closing steps add to `simp_all`;
+- `kanon_size_simp`: what `kanon_decreasing` unfolds (`Node.All`).
 
 Lemmas:
 - `kanon_atom_cases`: the possible values of an atom, the left-hand side of
   the first equation of its conclusion (e.g. `ev ρ t`, for a hypothesis-free
   `ev_opt : ev ρ t = none ∨ ∃ v, ev ρ t = some v`, or one with hypotheses such as
   `ev_int : t.WT → t.ty = .TInt → ev ρ t = none ∨ ∃ z, ev ρ t = some (.int z)`).
-  `kanon_cases` uses, for each atom, the first of them (in the order they are
+  `kanon_cases` uses, for each atom, the last of them (in the order they are
   tagged) whose hypotheses are in the context (and determine its other
   arguments);
 - `kanon_congr_lemma`: refining the operands of a node refines the node
@@ -30,6 +31,9 @@ Lemmas:
 - `kanon_comm_lemma`: the commutativity of an operator
   (`Refines (op a b) (op b a)`), for `kanon_comm`: the theorems `Op.comm.ok`
   that Kanon generates;
+- `kanon_size`: the children of a node are smaller than its term
+  (`proj e = some n → n.All (fun c => S.size c < S.size e)`), for
+  `kanon_decreasing`;
 - `kanon_close_lemma`: a lemma that closes the goals that are its conclusion
   (or the symmetric of an equation, or one of its conjuncts), its hypotheses
   being in the context or proved by `kanon_close_side`, for
@@ -43,6 +47,8 @@ register_simp_attr kanon_wt
 register_simp_attr kanon_ev
 register_simp_attr kanon_val
 register_simp_attr kanon_close_simp
+register_simp_attr kanon_rel
+register_simp_attr kanon_size_simp
 
 open Lean
 
@@ -85,6 +91,9 @@ syntax (name := kanon_comm_lemma) "kanon_comm_lemma" : attr
 /-- `@[kanon_close_lemma]`: a lemma that closes the goals it concludes, for
 `kanon_close_lemmas`. -/
 syntax (name := kanon_close_lemma) "kanon_close_lemma" : attr
+/-- `@[kanon_size]`: the children of a node are smaller than its term, for
+`kanon_decreasing`. -/
+syntax (name := kanon_size) "kanon_size" : attr
 
 initialize
   Kanon.registerKanonLemmaAttr `kanon_atom_cases
@@ -95,3 +104,5 @@ initialize
     "the commutativity of an operator, for kanon_comm"
   Kanon.registerKanonLemmaAttr `kanon_close_lemma
     "a lemma that closes the goals it concludes, for kanon_close_lemmas"
+  Kanon.registerKanonLemmaAttr `kanon_size
+    "the children of a node are smaller than its term, for kanon_decreasing"

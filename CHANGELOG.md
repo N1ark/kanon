@@ -12,30 +12,33 @@
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.
 - [`[@lean_heartbeats n]`](https://n1ark.github.io/kanon/reference.html#on-functions) bounds each generated arm proof.
-- `Nodes.lean`: the typing and evaluation lemmas of each node.
-- Hand-written proofs of a function go in `Proofs/M/f.lean`.
+- [`[@lean_proofs "F"]`](https://n1ark.github.io/kanon/reference.html#on-functions) imports `Proofs/F.lean` instead of `Proofs.lean`.
+- `[@lean_proofs "F"]` also on `extend` items and `[@comm]` nodes.
 - `kanon lean-all --check DIR` checks the Lean files are current.
-- [`[@@@lean_module "M"]`](https://n1ark.github.io/kanon/proving.html#modules): prove a module once, for every language.
-- `[@lean_closed]` proves a rule function with each language.
 - `[@extensible]` marks helpers that other modules extend.
-- Backends `lean-interface` and `lean-modules`.
-- `kanon_law` and `kanon_bridge` prove the laws of interfaces.
-- Interface matchers fail on other nodes: `asX_other`, by kind names.
-- Example `two_langs`: languages share modules proved once, with a diamond.
-- Module interfaces are unbundled, so that diamonds of modules work.
-- Modules proved once that use each other are an error.
+- Example `two_langs`: four languages share modules, with a diamond.
+- Modules that use each other are an error.
 - [`[@lean_inv "P"]`](https://n1ark.github.io/kanon/reference.html#on-sorts): invariants of sorts and nodes, in their typing.
-- Interface typing laws type the terms among node arguments.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
 - `kanon_refl` unfolds helpers, so a helper spec is refined.
-- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules proved once, in `M/Types.lean`.
-- Helpers of modules proved once match sorts, nested nodes, data.
-- Interfaces have a matcher `asT` per sort.
-- A module's `Sem` instance may go in `Lang/M.lean`.
+- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules, in `R/Types.lean`.
+- [Every module](https://n1ark.github.io/kanon/proving.html#modules) is proved once in Lean, for every language.
+- `[@@@lean_root "R"]` in a module sets its Lean root.
+- Hand-written `Sem`, `Prims` and `Proofs` files per module.
+- Helpers may recurse on terms, decreasing by `Sem.size`.
+- Lean backends `lean-node`, `lean-lang`, `lean-semantics`, `lean-rules`.
+- Lean sorts and nodes may take sorts: `Srt Ty`.
+- Lean binders: nodes may evaluate children in other environments.
+- Cases of extensible helpers may call rule functions and helpers.
+- Example `two_langs`: a pack module, with a quantifier.
+- Lean children inside arrays, options, tuples and data types.
+- Lean data types may hold terms: `Two T`.
+- `[@@@lean_laws]`: a module's proofs assume facts each language proves.
+- Lean `Node.children` lists the children of a node.
+- Lifting lemmas hold of specs that read their arguments' sorts.
 
 ### Changed
 
-- A module's `Oracle.Compat` takes its interface and `Sem` instances.
 - Generated code qualifies names by module: `Rules.Bitvec.add`.
 - Bool functions lose prefixes: `b_not` is `Bool.not_`.
 - `ocaml-typed` generates only the module type `S`.
@@ -44,36 +47,32 @@
 - Primitives of different modules may not share a name.
 - `Kanon_flat` is a reserved module name.
 - `Foo.x` is a qualified name, not a field access.
-- [`kanon lean-all DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes one Lean file per rule function.
+- [`kanon lean-all DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes a few Lean files per module.
+- Languages write `Val.lean` and `Typing.lean` by hand.
+- `Node.eval` gets the children's values in every environment.
+- Lean invariants take the arguments of the typing.
+- Removed backends `lean-signatures`, `lean-typing`, `lean-lifts`, `lean-nodes`.
+- Removed `[@@@lean_param]`.
+- A module's `Oracle.Compat` is over any semantics `S`.
 - Lean backends print every file of their part.
-- `Semantics.lean` imports `R.Ops`; `Prims.lean` imports `KanonCore.Model`.
 - More arms that swap commutative operands are derived.
 - The bool module's Lean proofs move to library `KanonBool`.
-- Languages define `lang` in `Lang.lean`, replacing `Bool.lean`.
-- `kanon_tactic` on `Syntax` proves a module's extension arms.
+- `kanon_tactic` on `Ops` proves a module's extension arms.
 - `[@lean "N"]` names generated records and variants.
-- `Soundness/Laws/Op/C.lean`, one per operator, replaces `Soundness/Laws.lean`.
-- `Instance/M.lean`, one per module, replaces `Instance.lean`.
-- `Interface/M.lean`, one per module; `Interface.lean` has `modBase` only.
-- Generated proofs import only the laws and instances they use.
+- [Lean statements and proofs](https://n1ark.github.io/kanon/proving.html#files): a file per function.
 
 ### Fixed
 
+- Rule soundness unfolds functions whose equation lemmas fail.
+- Commuted arms reading a swapped term's type are proved directly.
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.
 - `@[kanon_arm]` proofs of a file elaborate in parallel.
 - `kanon_lift` leaves subsort predicates as goals instead of failing.
 - `kanon_congr` needs `kanon_congr_side` to close its goal.
 - `kanon_lift_body` lifts calls under goals that `split` tagged.
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
-- `kanon_law` no longer fails when its lemmas close the goal.
 - Record literals in Lean use the Lean name of their type.
-- Interface typing laws keep the `when` condition.
-- Interfaces declare primitives and helpers before the typing laws.
-- Interface helper laws name the `_` parameters.
-- Nodes sharing a `[@lean_inv]` share one interface field.
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
-- Modules proved once accept matches without a catch-all case.
-- `kanon_lift` no longer fails on hypotheses over introduced interfaces.
 
 ## 0.3.0 (2026-10-04)
 

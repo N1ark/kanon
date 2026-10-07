@@ -1,4 +1,4 @@
-[@@@lean_module "AMod"]
+[@@@lean_root "AMod"]
 
 sort TA
 

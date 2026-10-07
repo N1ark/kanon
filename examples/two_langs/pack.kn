@@ -1,0 +1,14 @@
+(* The names among [names] that occur free in [body] *)
+prim used_names : (name * ty) list -> t -> (name * ty) list
+
+(* Packs of one term are different when their terms are *)
+extend fn Bool.sure_neq =
+  | Pack [ a ], Pack [ b ] -> Bool.sure_neq a b
+
+fn no_names (l : (name * ty) list) : bool =
+  match l with [] -> true | _ -> false
+
+(* the names that the body of a quantifier does not use are dropped *)
+rule some_ : Some_ (names, (body : TBool)) =
+  | empty: _ when no_names (used_names names body) -> body
+  | default: _ -> Some_ (used_names names body, body)

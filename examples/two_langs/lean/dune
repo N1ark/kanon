@@ -1,6 +1,6 @@
-; The generated Lean files of the four languages (under L1/, L2/, L3/ and L4/)
+; The generated Lean files of the five languages (under L1/ to L5/)
 ; and of their modules proved once (under NumMod/, NegMod/, EvenMod/, MixMod/,
-; CfgMod/ and WordMod/), from ../l1.knl to ../l4.knl: `dune test` checks that
+; CfgMod/, WordMod/ and PackMod/), from ../l1.knl to ../l5.knl: `dune test` checks that
 ; they are up to date (run `dune exec -- kanon lean-all . ../lN.knl` here after
 ; changing a language or a module), and CI checks their proofs with `lake
 ; build`. The languages generate the same files of the modules they share.
@@ -62,3 +62,14 @@
   ../word.kn)
  (action
   (run %{bin:kanon} lean-all --check . ../l4.knl)))
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree L5)
+  (source_tree PackMod)
+  ../l5.knl
+  ../pack.knl
+  ../pack.kn)
+ (action
+  (run %{bin:kanon} lean-all --check . ../l5.knl)))

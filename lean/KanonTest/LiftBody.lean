@@ -14,6 +14,7 @@ open Kanon
   ty _ := ()
   WT _ := True
   ev _ t := some t
+  size _ := 0
 
 structure Ops where
   f : Nat → Nat

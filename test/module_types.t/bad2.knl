@@ -1,3 +1,3 @@
-[@@@lean_module "Bad2Mod"]
+[@@@lean_root "Bad2Mod"]
 
-type pair = { l : t; r : t }
+type tree = Leaf of t | Br of tree * tree

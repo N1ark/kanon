@@ -1,6 +1,5 @@
-Modules proved once cannot use each other: the interface of each would be a
-part of the other's.
+Modules cannot use each other: the Lean files of each would import the other's.
 
   $ kanon lean-all out lang.knl
-  kanon: the modules proved once in Lean ([@@@lean_module]) use each other: A -> B -> A; prove them per language, or merge them
+  kanon: the modules use each other: A -> B -> A; merge them
   [1]

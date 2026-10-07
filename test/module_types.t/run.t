@@ -1,5 +1,5 @@
-The data types of a module proved once (records, variants, abstract types) are
-defined once in Lean, under its root: in Types.lean, generated, and in
+The data types of a module (records, variants, abstract types) are defined once
+in Lean, under its root: in Types.lean, generated, and in
 Abstract.lean, by hand, for the abstract types that [@lean] does not name. A
 type's [@lean] name is its Lean name; Lean qualifies it by the root.
 
@@ -20,49 +20,51 @@ type's [@lean] name is its Lean name; Lean qualifies it by the root.
     deriving DecidableEq, Repr, Inhabited
   
   end MMod
-  $ grep '^import' out/MMod/Syntax.lean
-  import KanonCore.Generic
+  $ grep '^import' out/MMod/Node.lean
+  import KanonCore.Embed
   import MMod.Types
   import MMod.Abstract
-  import KanonBool.Syntax
-  $ grep 'NK :' out/MMod/Syntax.lean
-    NK : MMod.Flags → MMod.Rounding → String → MMod.Blob → S.Term → B.Kind
+  $ grep '| N ' out/MMod/Node.lean
+    | N (x1 : MMod.Flags) (x2 : MMod.Rounding) (x3 : String) (x4 : MMod.Blob) (a5 : T)
 
 The languages that use the module use its types, rather than defining them:
 
-  $ grep -h '^import\|N :' out/Ex/Types.lean out/Ex/Syntax.lean
-  import MMod.Types
-  import Ex.Abstract
-  import MMod.Types
-  import MMod.Abstract
-    | N : MMod.Flags → MMod.Rounding → String → MMod.Blob → Op1
-    | OpN : OpN → (List Term) → Kind
+  $ grep -h '^import' out/Ex/Syntax.lean
+  import KanonBool.Node
+  import MMod.Node
 
-Its helpers may build data, and match data, sorts (by the matcher of the sort)
-and nodes inside nodes (by nested matches):
+Its helpers may build data, and match data, sorts (by the projection of the
+sorts of the module) and nodes inside nodes (by nested matches):
 
-  $ sed -n '/m_plain_eq/,/^$/p' out/MMod/Syntax.lean
-    m_plain_eq : m_plain = ({ wrap := false, strict := false } : MMod.Flags)
-    m_is_w_eq : ∀ (s : S.Ty), (m_is_w s) =
-        ((firstSome [(match (asTW s) with | some _ => some (true) | _ => none)]).getD
-          (match s with | _ => false))
-    m_inner_down_eq : ∀ (v : S.Term), (m_inner_down v) =
-        ((firstSome [(match (asN v) with
-                       | some (_, _, _, _, kanon__n1) =>
-                       (match (asN kanon__n1) with
-                         | some (_, MMod.Rounding.Down, _, _, _) =>
-                         some (true)
-                         | _ => none)
-                       | _ => none)]).getD
-          (match v with | _ => false))
+  $ sed -n '/^def M.plain/,/^attribute/p' out/MMod/Model.lean
+  def M.plain : MMod.Flags :=
+    ({ wrap := false, strict := false } : MMod.Flags)
   
+  def M.is_w (s : S.Ty) : Bool :=
+    ((firstSome [(match (MMod.sortProj s) with
+                   | some (.TW _) =>
+                   some (true)
+                   | _ => none)]).getD
+      (match s with | _ => false))
+  
+  def M.inner_down (v : S.Term) : Bool :=
+    ((firstSome [(match (MMod.proj v) with
+                   | some (.N _ _ _ _ kanon__n1) =>
+                   (match (MMod.proj kanon__n1) with
+                     | some (.N _ MMod.Rounding.Down _ _ _) =>
+                     some (true)
+                     | _ => none)
+                   | _ => none)]).getD
+      (match v with | _ => false))
+  
+  attribute [kanon_body] M.plain M.is_w M.inner_down
 
-A type of such a module cannot hold terms, nor use an abstract type of its
-module (Abstract.lean is defined after Types.lean):
+A type of a module cannot hold both terms and itself, nor use an abstract
+type of its module (Abstract.lean is defined after Types.lean):
 
   $ kanon lean-all out lang1.knl
-  ./bad1.knl:4:5: the type boxed: a type of a module proved once in Lean ([@@@lean_module]) cannot use an abstract type of its module, which Lean defines after it
+  ./bad1.knl:4:5: the type boxed, which uses blob, an abstract type of its module (Lean defines it after, in Abstract.lean): not supported in Lean
   [1]
   $ kanon lean-all out lang2.knl
-  ./bad2.knl:3:5: the type pair: a type of a module proved once in Lean ([@@@lean_module]) cannot hold terms
+  ./bad2.knl:3:5: the type tree, which holds terms and itself: not supported in Lean
   [1]

@@ -1,4 +1,4 @@
-[@@@lean_module "BMod"]
+[@@@lean_root "BMod"]
 
 sort TB
 

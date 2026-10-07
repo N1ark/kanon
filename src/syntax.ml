@@ -177,19 +177,20 @@ type lang = {
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
-  lean_root : string;
-      (** [[@@@lean_root "R"]]: the namespace of the Lean model, and the root of
-          its modules *)
-  lean_params : (string * string) list;
-      (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
-  lean_modules : (string * string) list;
-      (** [[@@@lean_module "R"]], in the declarations of a module: the modules
-          proved once for every language, in Lean, by module name, with the root
-          of their Lean files *)
+  lean_roots : (string * string) list;
+      (** [[@@@lean_root "R"]], in the declarations of a module: the root of its
+          Lean files, and its namespace, by module *)
+  lean_comm_proofs : (string * string) list;
+      (** [[@lean_proofs "F"]] on a [[@comm]] node: the proofs of its
+          commutativity import [R/Proofs/F.lean] instead of [R/Proofs.lean], by
+          constructor *)
   lean_invs : (string * string) list;
-      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on terms,
-          [P : Term -> Prop], that its terms satisfy, as part of their
-          well-typedness, by constructor *)
+      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
+          of its module, [P : Node T -> Prop], that they satisfy, as part of
+          their typing, by constructor *)
+  lean_laws : string list;
+      (** [[@@@lean_laws]], in the declarations of a module: its proofs assume
+          the class [Laws] of its [Prims.lean], which each language gives *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -225,10 +226,10 @@ let lang =
       constants = [];
       constant_docs = [];
       ty_only = [ "type_of" ];
-      lean_root = "Kanon";
-      lean_params = [];
-      lean_modules = [];
+      lean_roots = [];
+      lean_comm_proofs = [];
       lean_invs = [];
+      lean_laws = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;
@@ -428,9 +429,13 @@ type fn = {
   heartbeats : int option;
       (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
           generated proof of its arms in Lean *)
-  lean_closed : bool;
-      (** [[@lean_closed]], on a rule of a module proved once in Lean: its arms
-          are proved by each language instead *)
+  lean_proofs : string option;
+      (** [[@lean_proofs "F"]], on a rule or an extensible helper: its proofs in
+          its module of root [R] import [R/Proofs/F.lean] instead of
+          [R/Proofs.lean] *)
+  ext_lean_proofs : (string * string option) list;
+      (** the [[@lean_proofs "F"]] of each [extend] of the function, if it has
+          one, with the module of the [extend] *)
   extensible : bool;
       (** [[@extensible]], on a helper: other modules may add cases to it with
           [extend fn] *)

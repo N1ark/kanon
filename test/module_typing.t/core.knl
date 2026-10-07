@@ -1,8 +1,11 @@
-[@@@lean_module "CoreMod"]
+[@@@lean_root "CoreMod"]
 
 sort TEven [@lean_inv "even_inv"]
 sort TSeq of ty
 
 node Ev of int : TEven
 node Seq of t list [@lean_inv "seq_wt"]
-node Exists of int list * t : TBool [@lean_inv "exists_wf"]
+node Exists of (int * ty) list * t : TBool [@lean_inv "exists_wf"]
+
+(** Children in an array and in an option of a pair. *)
+node Arr of t array * (int * t) option
