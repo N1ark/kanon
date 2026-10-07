@@ -77,6 +77,7 @@
 - `ocaml-typed` accepts sort variables like `a'`.
 - Generated term equality works beside a module named `Int`.
 - Record fields may be named `kind`, `ty` or `tag`.
+- Types named like OCaml's (`string`) are an error.
 
 ## 0.3.0 (2026-10-04)
 

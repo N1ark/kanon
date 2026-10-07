@@ -2693,6 +2693,26 @@ let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
     d_doc = doc;
   }
 
+(** The predefined OCaml types that Kanon has no type of the same name for,
+    which the generated types use or may refer to. *)
+let ocaml_predefined_types =
+  [
+    "char";
+    "string";
+    "bytes";
+    "float";
+    "exn";
+    "array";
+    "list";
+    "option";
+    "int32";
+    "int64";
+    "nativeint";
+    "lazy_t";
+    "floatarray";
+    "extension_constructor";
+  ]
+
 (** Reads the declaration of a language, which the rules are then checked
     against. The terms are generated from its nodes, and their types from its
     sorts. *)
@@ -2838,6 +2858,8 @@ let language (str : structure) =
             | Some (TInt | TBool | TUnit) when name <> "nat" ->
                 error loc "%s is a built-in type" name
             | _ -> ());
+            if List.mem name ocaml_predefined_types then
+              error loc "%s is a predefined OCaml type" name;
             if generated_type name then
               error loc "type %s is generated from the %s" name
                 (if name = "ty" then "sorts" else "nodes");

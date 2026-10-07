@@ -60,7 +60,9 @@
       synonym of <code>int</code> (<code>Z.t</code> in OCaml, not checked to be non-negative).
       <code>t</code>, the type of terms, and <code>ty</code>, the type of their
       sorts, are generated from the nodes and the sorts, and cannot be declared. A type declared
-      <code>nat</code> is used instead of the built-in one. Identifiers may have primes after their
+      <code>nat</code> is used instead of the built-in one. A type may not have the name of a
+      predefined OCaml type (<code>string</code>, <code>float</code>, <code>list</code>, …), which
+      the generated types use. Identifiers may have primes after their
       first character (<code>l'</code>, <code>x''</code>).
     </dd>
 
