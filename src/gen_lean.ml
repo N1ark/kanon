@@ -3495,9 +3495,13 @@ let soundness_file ctx m =
 (* ---------------------------------------------------------------- *)
 (* The files of a language *)
 
+(** The name of the module [m] in the names of the Lean theorems about its
+    nodes: uncapitalised. *)
+let lang_name m = String.uncapitalize_ascii m
+
 (** The constructor of the terms (or the sorts) of a language for the nodes (or
     sorts) of the module [m]: its name, uncapitalised. *)
-let lang_ctor m = id (String.uncapitalize_ascii m)
+let lang_ctor m = id (lang_name m)
 
 (** [Syntax.lean]: the sorts and the terms of the language. *)
 let syntax_file ~sources ms =
@@ -3800,7 +3804,7 @@ let semantics_file ~sources (p : program) ms =
         "/-- The typing of a node of `%s`. -/@ theorem WT_%s (n : %s) (t : Ty) \
          :@   Term.WT (.%s n t) ↔ %s.Node.wt %sTerm.ty n t ∧ n.All Term.WT := \
          by@   show (_ ∧ %s n) ↔ _; rw [%s_iff]@ @ "
-        m c (node_t m "Ty" "Term") c rm
+        m (lang_name m) (node_t m "Ty" "Term") c rm
         (String.concat ""
            (List.map (fun d -> "Ty." ^ lang_ctor d ^ " ") (sort_mods m)))
         (all m) (all m);
@@ -3809,7 +3813,7 @@ let semantics_file ~sources (p : program) ms =
          : %s) (t : Ty) :@   ev ρ (.%s n t) = %s.Node.eval (D := dom) ρ t \
          (n.map (fun c ρ => ev ρ c)) :=@   congrArg (%s.Node.eval (D := dom) ρ \
          t) (%s_eq n)@ @ "
-        m c (node_t m "Ty" "Term") c rm rm (evm m))
+        m (lang_name m) (node_t m "Ty" "Term") c rm rm (evm m))
     noded;
   (* the semantics *)
   pf ft
@@ -3837,8 +3841,8 @@ let semantics_file ~sources (p : program) ms =
            rfl@ inj_proj := by intro e n h; cases e <;> cases h <;> rfl }@]"
           c c
           (if single noded then "" else " | _ => none");
-        pf ft "@ WT_inj := WT_%s" c;
-        pf ft "@ ev_inj := ev_%s" c;
+        pf ft "@ WT_inj := WT_%s" (lang_name m);
+        pf ft "@ ev_inj := ev_%s" (lang_name m);
         pf ft "@ size_proj := by kanon_size_proj");
       if has_sorts m then
         pf ft
