@@ -97,6 +97,7 @@
 - Lean keywords like `exists` and `try` are quoted.
 - Record fields named like Lean keywords are quoted.
 - Modules named like Lean keywords generate valid Lean.
+- `Node.Rel` is valid for node arguments `x` and `x'`.
 
 ## 0.3.0 (2026-10-04)
 

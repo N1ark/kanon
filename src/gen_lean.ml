@@ -2483,7 +2483,15 @@ let node_file (p : program) m =
     List.iter
       (fun n ->
         let xs = names n in
-        let ys = List.map (fun x -> x ^ "'") xs in
+        let ys =
+          List.fold_left
+            (fun ys x ->
+              let rec fresh y =
+                if List.mem y xs || List.mem y ys then fresh (y ^ "'") else y
+              in
+              ys @ [ fresh (x ^ "'") ])
+            [] xs
+        in
         let conj =
           List.concat
             (List.map2
