@@ -115,7 +115,6 @@
     text-underline-offset: 0.2em;
   }
   a[aria-current] {
-    color: var(--theme);
     background: var(--theme-soft);
   }
   .legend {
