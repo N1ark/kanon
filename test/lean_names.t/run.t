@@ -178,3 +178,34 @@ is in scope: the types of the variables and numbers are then `_root_.Int`:
     | (.Int x1), t => ((∃ n : _root_.Int, 0 < n ∧ t = (sLang11 (.TW n))))
     | (.WExt k a2), t => (∃ n : _root_.Int, 0 < n ∧ ty a2 = (sLang11 (.TW n)) ∧ (0 : _root_.Int) ≤ k ∧ t = (sLang11 (.TW (n + k))))
   
+
+The same goes for the functions of `Node` (`All`, `Rel`, `children`), with
+nodes named `True`, `False` and `List`:
+
+  $ cat > lang12.knl <<'KN'
+  > sort TB
+  > node True : TB
+  > node False : TB
+  > node List of t list : TB
+  > KN
+  $ kanon lean-node lang12.knl | sed -n '/^def All/,/^theorem all_iff/p'
+  def All (P : T → Prop) : Node T → Prop
+    | .True => _root_.True
+    | .False => _root_.True
+    | (.List l1) => (∀ y ∈ l1, P y)
+  
+  /-- The nodes have the same arguments, and their children are related by `R`. -/
+  def Rel (R : T → U → Prop) : Node T → Node U → Prop
+    | .True, .True => _root_.True
+    | .False, .False => _root_.True
+    | (.List l1), (.List l1') => Kanon.Forall₂ R l1 l1'
+    | _, _ => _root_.False
+  
+  /-- The children of the node, in order. -/
+  def children : Node T → _root_.List T
+    | .True => []
+    | .False => []
+    | (.List l1) => l1
+  
+  /-- Every child of the node satisfies `P` when all its children do. -/
+  theorem all_iff (P : T → Prop) (n : Node T) : n.All P ↔ ∀ c ∈ n.children, P c := by
