@@ -209,3 +209,21 @@ nodes named `True`, `False` and `List`:
   
   /-- Every child of the node satisfies `P` when all its children do. -/
   theorem all_iff (P : T → Prop) (n : Node T) : n.All P ↔ ∀ c ∈ n.children, P c := by
+
+A pattern variable that has the name of another parameter (`v1` for the second
+operand, `v2` for the first) is rejected: the statements of the arm name the
+parameters and the pattern variables alike.
+
+  $ cat > lang13.knl <<'KN'
+  > use "rules13"
+  > sort TInt
+  > node Int of int : TInt
+  > node Sub : TInt -> TInt -> TInt
+  > KN
+  $ cat > rules13.kn <<'KN'
+  > rule sub : Sub (v1, v2) =
+  >   | crossed: v2, v1 -> v1
+  > KN
+  $ kanon lean-statements lang13.knl > /dev/null
+  ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
+  [1]
