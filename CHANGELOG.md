@@ -87,6 +87,7 @@
 - Doc comments with character literals and `{%ext|` compile.
 - Generated types call `Stdlib.Int`, not a module named `Int`.
 - A case of variables like `x, y` hides later cases.
+- `ocaml-typed` keeps the order of a rule's parameters.
 
 ## 0.3.0 (2026-10-04)
 

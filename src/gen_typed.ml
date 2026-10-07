@@ -101,11 +101,13 @@ let sort_item (c : constr) =
           term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)));
   }
 
-(** The item of a smart constructor: the leading parameters, then the operands.
-    [params] are the types of its parameters, and [operands] the kinds of its
-    operands: [`One] for a term, [`List] for the list of an n-ary node. It is
-    the rule function [name]. *)
-let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
+(** The item of a smart constructor: its parameters, in the order of the rule
+    function [name], which are values with their types, or operands, terms
+    ([`One]) or the list of an n-ary node ([`List]), whose tags are [ops]. *)
+let smart ~doc ~name
+    (args :
+      [ `Param of Format.formatter -> unit | `Operand of [ `One | `List ] ] list)
+    (ops, res) =
   let ops_tags = ref ops in
   let next () =
     match !ops_tags with
@@ -114,23 +116,26 @@ let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
         t
     | [] -> Unknown
   in
-  let nary = List.exists (fun o -> o = `List) operands in
-  let operands =
+  let nary = List.exists (fun a -> a = `Operand `List) args in
+  let args =
     List.map
-      (fun o ft ->
-        let tag =
-          if nary then match ops with t :: _ -> t | [] -> Unknown else next ()
-        in
-        match o with
-        | `One -> term ~operand:true ~t:"t" ft tag
-        | `List -> pf ft "%a list" (term ~operand:true ~t:"t") tag)
-      operands
+      (function
+        | `Param p -> p
+        | `Operand o -> (
+            let tag =
+              if nary then match ops with t :: _ -> t | [] -> Unknown
+              else next ()
+            in
+            fun ft ->
+              match o with
+              | `One -> term ~operand:true ~t:"t" ft tag
+              | `List -> pf ft "%a list" (term ~operand:true ~t:"t") tag))
+      args
   in
   {
     name = plain_name name;
     doc;
-    sig_ =
-      arrow (params @ operands) (fun ft -> term ~operand:false ~t:"t" ft res);
+    sig_ = arrow args (fun ft -> term ~operand:false ~t:"t" ft res);
   }
 
 (** The item of a function whose result is annotated with a sort,
@@ -281,17 +286,13 @@ let modules (p : program) =
                   operand_params,
                 res )
         in
-        let operands =
-          List.map
-            (fun (_, t) -> if t = TTerm then `One else `List)
-            operand_params
-        in
         (* the parameters have the types that the rule function declares *)
-        let params =
-          List.filter_map
+        let args =
+          List.map
             (fun (_, t) ->
-              if t = TTerm || t = TList TTerm then None
-              else Some (fun ft -> value_ty ft t))
+              if t = TTerm then `Operand `One
+              else if t = TList TTerm then `Operand `List
+              else `Param (fun ft -> value_ty ft t))
             f.params
         in
         let doc =
@@ -304,7 +305,7 @@ let modules (p : program) =
           | doc, _ -> doc
         in
         add ~loc:f.floc (module_of f.floc)
-          (smart ~doc ~name:f.name params ~operands (ops, res)))
+          (smart ~doc ~name:f.name args (ops, res)))
     p.fns;
   List.iter
     (fun (f : fn) ->
