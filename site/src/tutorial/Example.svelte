@@ -39,13 +39,14 @@
   const OCAML = ["ocaml-types", "ocaml", "ocaml-typed", "ocaml-tests"];
   const LEAN = [
     "lean-types",
-    "lean-syntax",
-    "lean-signatures",
-    "lean-typing",
+    "lean-node",
+    "lean-lang",
     "lean-model",
     "lean-statements",
-    "lean-lifts",
     "lean-soundness",
+    "lean-syntax",
+    "lean-semantics",
+    "lean-rules",
   ];
 </script>
 

@@ -177,11 +177,23 @@ type lang = {
   ty_only : string list;
       (** the functions of a term that only read its type: [type_of], and the
           helpers marked [[@ty_only]] *)
-  lean_root : string;
-      (** [[@@@lean_root "R"]]: the namespace of the Lean model, and the root of
-          its modules *)
-  lean_params : (string * string) list;
-      (** [[@@@lean_param "x" "T"]]: the parameters of the semantics *)
+  lean_roots : (string * string) list;
+      (** [[@@@lean_root "R"]], in the declarations of a module: the root of its
+          Lean files, and its namespace, by module *)
+  lean_comm_proofs : (string * string) list;
+      (** [[@lean_proofs "F"]] on a [[@comm]] node: the proofs of its
+          commutativity import [R/Proofs/F.lean] instead of [R/Proofs.lean], by
+          constructor *)
+  lean_invs : (string * string) list;
+      (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
+          of its module, [P : Node T -> Prop], that they satisfy, as part of
+          their typing, by constructor *)
+  lean_laws : string list;
+      (** [[@@@lean_laws]], in the declarations of a module: its proofs assume
+          the class [Laws] of its [Prims.lean], which each language gives *)
+  lean_heartbeats : int;
+      (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
+          generated proof of an arm, unless its function has one *)
   ocaml_types : string option;
       (** [[@@@ocaml_types "M"]]: the OCaml module of the types, which the rules
           open *)
@@ -214,8 +226,11 @@ let lang =
       constants = [];
       constant_docs = [];
       ty_only = [ "type_of" ];
-      lean_root = "Kanon";
-      lean_params = [];
+      lean_roots = [];
+      lean_comm_proofs = [];
+      lean_invs = [];
+      lean_laws = [];
+      lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;
       ocaml_rules = None;
@@ -411,6 +426,19 @@ type fn = {
       (** the head constructor of the sort of the result, if it is annotated
           with one: [fn f (v : t) : TBitVector n]. Such a function is typed by
           [ocaml-typed] *)
+  heartbeats : int option;
+      (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
+          generated proof of its arms in Lean *)
+  lean_proofs : string option;
+      (** [[@lean_proofs "F"]], on a rule or an extensible helper: its proofs in
+          its module of root [R] import [R/Proofs/F.lean] instead of
+          [R/Proofs.lean] *)
+  ext_lean_proofs : (string * string option) list;
+      (** the [[@lean_proofs "F"]] of each [extend] of the function, if it has
+          one, with the module of the [extend] *)
+  extensible : bool;
+      (** [[@extensible]], on a helper: other modules may add cases to it with
+          [extend fn] *)
 }
 
 type prim = {
@@ -463,4 +491,9 @@ type typing = {
   t_when : expr option;
 }
 
-type program = { prims : prim list; fns : fn list; typing : typing list }
+type program = {
+  prims : prim list;
+  fns : fn list;
+  typing : typing list;  (** of the operators *)
+  leaf_typing : typing list;  (** of the leaves (only their result) *)
+}

@@ -1,0 +1,4 @@
+fn is_ev (v : t) : bool =
+  match v with
+  | Ev _ -> true
+  | _ -> false

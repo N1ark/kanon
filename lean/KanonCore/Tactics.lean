@@ -1,11 +1,12 @@
 import KanonCore.Attr
 import KanonCore.Refinement
+import KanonCore.Embed
 
 /-!
 # The tactics of the generated proofs
 
 The generated proofs use the tactics below. `kanon_arm` and `kanon_proof%` are
-defined here; the language gives the others, which depend on its semantics,
+defined here; `kanon_auto` and `kanon_congr` are given by `KanonCore.Proof`
 with `macro_rules`:
 
 - `kanon_auto`: the default proof of an arm, and of the commutativity of an
@@ -14,30 +15,89 @@ with `macro_rules`:
   by terms that refine them (hypotheses of the context).
 
 The arms that only swap the operands of commutative operators are proved from
-the commutativity of the operators (`Op.comm.ok`) and `kanon_congr`.
+the commutativity of the operators (`C.comm.ok`) and `kanon_congr`.
 -/
 
-/-- The default proof of an arm, given by the language with `macro_rules`. -/
+/-- The default proof of an arm. -/
 syntax "kanon_auto" : tactic
 
-/-- Refinement by congruence, given by the language with `macro_rules`. -/
+/-- Refinement by congruence. -/
 syntax "kanon_congr" : tactic
 
-/-- Closes `R spec res` from `h : <one alternative> = some res`, with `p` the
-proof of that alternative: splits its match (unless its pattern always matches,
-so that the conditionals of its body are not split instead), takes its guard
-(`whenSome`, also for unguarded alternatives), and applies `p`, whose conclusion
-must then match the goal. -/
-macro "kanon_arm " h:ident p:term : tactic => `(tactic| first
-  | (obtain ⟨hg, heq⟩ := Kanon.whenSome_eq_some $h:ident
-     subst heq
-     apply $p <;> assumption)
-  | ((try split at $h:ident)
-     all_goals first
-       | (simp at $h:ident; done)
-       | (obtain ⟨hg, heq⟩ := Kanon.whenSome_eq_some $h:ident
-          subst heq
-          apply $p <;> assumption)))
+namespace Kanon.Tactic
+
+open Lean Meta Elab Tactic
+
+/-- Replaces each variable `v` with a hypothesis `E.proj v = some n`, for a
+node embedding `E`, by `E.inj n t`: the matches of the model on the nodes of
+the modules, read back as the nodes they matched. -/
+partial def projToInj : TacticM Unit := do
+  let progress ← withMainContext do
+    for d in (← getLCtx) do
+      if d.isImplementationDetail then continue
+      let ty ← instantiateMVars d.type
+      let some (_, lhs, _) := ty.eq? | continue
+      let lhs ← whnfR lhs
+      let isProj := lhs.isAppOfArity ``NodeEmbed.proj 4 ||
+        (lhs.getAppNumArgs == 1 && match lhs.getAppFn with
+          | .proj ``NodeEmbed 1 _ => true
+          | _ => false)
+      unless isProj && lhs.appArg!.isFVar do continue
+      let g ← (← getMainGoal).rename d.fvarId `kanon_hp
+      replaceMainGoal [g]
+      let h := mkIdent `kanon_hp
+      let e := mkIdent `kanon_he
+      evalTactic (← `(tactic| (
+        have $e := Kanon.NodeEmbed.exists_of_proj _ $h
+        clear $h
+        obtain ⟨_, $e⟩ := $e
+        subst $e)))
+      return true
+    return false
+  if progress then projToInj
+
+/-- `kanon_proj`: see `projToInj`. -/
+elab "kanon_proj" : tactic => projToInj
+
+/-- Splits the match at the head of the left-hand side of `h : lhs = rhs`,
+repeatedly: the nested matches of an alternative of the model, and not the
+conditionals of its result. -/
+partial def splitMatches (h : Name) : TacticM Unit := do
+  let gs ← getGoals
+  let mut out := []
+  for g in gs do
+    setGoals [g]
+    let isMatch ← g.withContext do
+      let some d := (← getLCtx).findFromUserName? h | return false
+      let some (_, lhs, _) := (← instantiateMVars d.type).eq? | return false
+      let lhs := lhs.consumeMData
+      return (← Meta.isMatcherApp lhs) || lhs.isAppOf ``ite || lhs.isAppOf ``dite
+    if isMatch then
+      let s ← saveState
+      try
+        evalTactic (← `(tactic| split at $(mkIdent h):ident))
+        splitMatches h
+      catch _ => s.restore
+    out := out ++ (← getGoals)
+  setGoals out
+
+elab "kanon_split_matches " h:ident : tactic => splitMatches h.getId
+
+end Kanon.Tactic
+
+/-- Closes `R spec res` from `h : <an alternative of a rule> = some res`, with
+`p` the proof of the statement of that alternative: splits its matches, reads
+the nodes they matched back (`kanon_proj`), takes its guard (`whenSome`), and
+applies `p`. The cases where a pattern does not match are closed by `cases`
+(`h : none = some res`). -/
+macro "kanon_arm " h:ident p:term : tactic => `(tactic| (
+  kanon_split_matches $h
+  all_goals first
+    | (cases $h:ident; done)
+    | (kanon_proj
+       obtain ⟨hg, heq⟩ := Kanon.whenSome_eq_some $h:ident
+       subst heq
+       apply $p <;> assumption)))
 
 open Lean in
 /-- The closest namespace, enclosing `ns`, of the statement of the arm `x`. -/
@@ -46,20 +106,32 @@ partial def Kanon.armRoot (env : Environment) (x ns : Name) : Option Name :=
   else if ns.isAnonymous then none
   else armRoot env x ns.getPrefix
 
+open Lean in
+/-- The rule function of the arm `x`: `f` for `f.r_rule.arm`,
+`f.r_rule.arm.post` and `f.spec_post`, where `f` may be qualified (`M.f`);
+`none` for the commutativity of an operator (`C.comm`). -/
+def Kanon.armFn : Name → Option Name
+  | .str (.str (.str f r) _) "post" =>
+    if !f.isAnonymous && r.startsWith "r_" then some f else none
+  | .str f "spec_post" => if f.isAnonymous then none else some f
+  | .str (.str f r) _ => if !f.isAnonymous && r.startsWith "r_" then some f else none
+  | _ => none
+
 open Lean Elab Term in
-/-- `kanon_proof% X`, in the namespace `R` of the model: the proof of the
+/-- `kanon_proof% X`, in the namespace `R` of a module: the proof of the
 statement `R.X.Stmt` of an arm (or of the commutativity of an operator,
-`X = Op.comm`), by its hand-written proof (`kanon_arm`) if there is one, and
-otherwise by the tactic of its function (`kanon_tactic`), or `kanon_auto`. -/
+`X = C.comm`), by its hand-written proof (`kanon_arm`) if there is one, and
+otherwise by the tactic of its function (`kanon_tactic` on its spec, or on the
+module's `Ops`), or `kanon_auto`. -/
 elab "kanon_proof% " x:ident : term => do
   let env ← getEnv
-  -- the namespace of the model: the closest enclosing one that has the arm
   let some ns := Kanon.armRoot env x.getId (← getCurrNamespace)
     | throwError "kanon_proof%: unknown arm {x.getId}"
   let n := ns ++ x.getId
   if let some p := (Kanon.kanonArmExt.getState env).find? n then return mkConst p
-  let f := x.getId.components.head!
-  let tac ← match (Kanon.kanonTacticExt.getState env).find? (ns ++ f ++ `spec) with
+  let tacs := Kanon.kanonTacticExt.getState env
+  let tac ← match ((Kanon.armFn x.getId).bind fun f => tacs.find? (ns ++ f ++ `spec)).orElse
+      fun _ => tacs.find? (ns ++ `Ops) with
     | some t => do
       let t ← ofExcept (Parser.runParserCategory env `tactic t)
       `(tactic| first | ($(⟨t⟩):tactic; done) | kanon_auto)

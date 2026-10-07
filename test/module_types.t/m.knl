@@ -1,0 +1,12 @@
+[@@@lean_root "MMod"]
+
+use builtin "bool"
+
+type flags = { wrap : bool; strict : bool }
+type mode [@lean "Rounding"] = Down | Up
+type name [@ocaml "string"] [@lean "String"]
+type blob [@ocaml "int"]
+
+sort TW of int
+
+node N of flags * mode * name * blob : TBool -> TBool

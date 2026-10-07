@@ -8,3 +8,7 @@ path = "../../../lean"
 
 [[lean_lib]]
 name = "IntsExample"
+
+# The int module (../int.kn), proved once for any language that uses it.
+[[lean_lib]]
+name = "IntMod"

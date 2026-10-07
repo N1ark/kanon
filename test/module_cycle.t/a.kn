@@ -1,0 +1,2 @@
+rule a : A v =
+  | same: x -> A x

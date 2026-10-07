@@ -4,7 +4,8 @@
    declaration of a language, types are OCaml type declarations, nodes are types
    [node] with a [[@node]] attribute (and sorts with a [[@sort]] one too), and
    operators [[@infix]] or [[@prefix]] expressions; [extend rule f] and [extend fn f] items are [function]s of the
-   cases they add to [f], with [[@extend]], [[@before]] and [[@fn]] attributes.
+   cases they add to [f], with [[@extend]], [[@before]] and [[@fn]] attributes,
+   and those written before [=].
    *)
 
 %{
@@ -238,13 +239,14 @@ other_item:
      [path.kn] (see [Main]) *)
   | USE BUILTIN m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) ("+" ^ m) }
   | USE m = STRING { use_item (mkloc $loc) (mkloc (unquote $loc(m))) m }
-  | EXTEND fn = extended x = fn_name before = option(before) EQ BAR? cs = cases
+  | EXTEND fn = extended x = fn_name before = option(before) eattrs = list(decl_attr) EQ BAR? cs = cases
     { let loc = mkloc $loc in
       (* the payloads are at the names of the function and of the rule *)
       let attrs =
         attr loc "extend" [ eval_item loc (string (mkloc $loc(x)) x) ]
         :: Option.to_list (Option.map (fun (r, rloc) -> attr loc "before" [ eval_item loc (string (mkloc rloc) r) ]) before)
         @ (if fn then [ attr loc "fn" [] ] else [])
+        @ eattrs
       in
       item loc (Pstr_eval (exp loc (Pexp_function ([], None, Pfunction_cases (cs, loc, []))), attrs)) }
   (* [notation C]: the constructor [C], with a [[@notation]] attribute *)

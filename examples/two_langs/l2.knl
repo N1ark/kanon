@@ -1,0 +1,13 @@
+(* The second language: that of l1.knl, with the negation of the neg module.
+   The num module is proved once for both: its proofs are not checked again
+   when this language changes. *)
+
+[@@@lean_root "L2"]
+
+use builtin "bool"
+use "num"
+use "neg"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

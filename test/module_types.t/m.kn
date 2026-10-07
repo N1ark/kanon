@@ -1,0 +1,11 @@
+fn plain : flags = { wrap = false; strict = false }
+
+fn is_w (s : ty) : bool =
+  match s with
+  | TW _ -> true
+  | _ -> false
+
+fn inner_down (v : t) : bool =
+  match v with
+  | N (_, _, _, _, N (_, Down, _, _, _)) -> true
+  | _ -> false

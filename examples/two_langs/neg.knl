@@ -1,0 +1,6 @@
+(* The neg module, which only the second language uses: the negation of an
+   integer. It adds a node to the num module, and a rule to its sums. *)
+
+[@@@lean_root "NegMod"]
+
+node Neg : TNum -> TNum

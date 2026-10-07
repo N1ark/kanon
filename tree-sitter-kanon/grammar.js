@@ -171,6 +171,7 @@ module.exports = grammar({
       field('kind', choice('rule', 'fn')),
       field('name', choice($.identifier, $.qualified_identifier)),
       optional(seq('before', field('before', $.rule_name))),
+      repeat($.attribute),
       '=',
       optional('|'),
       field('cases', $.cases),

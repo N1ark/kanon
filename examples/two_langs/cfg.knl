@@ -1,0 +1,20 @@
+(* The cfg module: data types, and nothing else. The word module takes them as
+   the arguments of its nodes: Lean defines them once, under CfgMod, for every
+   language (CfgMod/Types.lean, generated, and CfgMod/Abstract.lean, by hand,
+   for the abstract type [blob]). *)
+
+[@@@lean_root "CfgMod"]
+
+(** The flags of a sum. *)
+type flags = { wrap : bool; strict : bool }
+
+(** The rounding of a word, `Rounding` in Lean. *)
+type mode [@lean "Rounding"] =
+  | Down
+  | Up
+
+(* A name: Lean's [String]. *)
+type label [@ocaml "string"] [@lean "String"]
+
+(* Some bits, defined by hand in Lean. *)
+type blob [@ocaml "int"]

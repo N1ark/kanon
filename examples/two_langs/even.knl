@@ -1,0 +1,14 @@
+(* The even module: even integers, whose sort has an invariant. Its literals
+   are even: the invariant `even_inv` of their sort (a Lean predicate that each
+   language defines) is part of their well-typedness, so that the module proves
+   rules that hold of even literals only. It uses the num module, as the neg
+   module does: the mix module, which uses both, sits on a diamond. *)
+
+[@@@lean_root "EvenMod"]
+
+(** Even integers. *)
+sort TEven [@lean_inv "even_inv"]
+
+node Ev of int : TEven
+(** The remainder of an even integer by 2. *)
+node Rem2 : TEven -> TNum

@@ -1,0 +1,4 @@
+(* The mix module: a rule on the nodes of the neg and even modules, which both
+   use the num module (a diamond). It has no nodes of its own. *)
+
+[@@@lean_root "MixMod"]

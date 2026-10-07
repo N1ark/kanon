@@ -1,0 +1,2 @@
+extend rule Neg.neg =
+  | rem: Rem2 a when Even.is_ev a -> Num 0

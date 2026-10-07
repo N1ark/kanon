@@ -115,31 +115,12 @@ argument.
 
 Lean: `Array`, with the operations of Kanon's library (`KanonCore.Array`).
 
-  $ kanon lean-types lang.knl | grep Array
-    | Vec : (Array Int) → Kind
-  $ kanon lean-model lang.knl | sed -n '/^def Rules.swap/,/^\/-- The rule functions/p'
+  $ kanon lean-node lang.knl | grep Array
+    | Vec (x1 : (Array Int))
+  $ kanon lean-model lang.knl | sed -n '/^def Rules.swap/,/^$/p'
   def Rules.swap (a : (Array Int)) (i : Int) (j : Int) : (Array Int) :=
     (arraySet (arraySet a i (arrayGet a j)) j (arrayGet a i))
   
-  def Rules.of_list (l : (List Int)) : (Array Int) :=
-    (List.toArray l)
-  
-  def Rules.to_list (a : (Array Int)) : (List Int) :=
-    (Array.toList a)
-  
-  def Rules.size (a : (Array (Array (Int × Bool)))) : Int :=
-    (arrayLength a)
-  
-  def Rules.lit (x : Int) : (Array Int) :=
-    #[x, (x + (1 : Int))]
-  
-  def Rules.empty (a : (Array Int)) : (Array Int) :=
-    (if (decide ((arrayLength a) = (0 : Int))) then #[] else a)
-  
-  def Rules.same (a : (Array Int)) (b : (Array Int)) : Bool :=
-    ((decide (a = b)) && (! (decide (a ≠ b))))
-  
-  /-- The rule functions, as used by the rules. -/
 
 Arrays have no list syntax: no cons, no concatenation, no patterns. Their
 elements have one type, and their operations are checked.

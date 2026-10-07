@@ -1,0 +1,10 @@
+(* The fifth language: the pack module, whose sort takes a sort, and variables. *)
+
+[@@@lean_root "L5"]
+
+use builtin "bool"
+use "pack"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var
