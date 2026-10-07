@@ -82,6 +82,7 @@
 - Variables and local functions shadow each other, as in OCaml.
 - Literals and repeated variables work in `let` patterns.
 - OCaml keywords like `end` and `to` are valid names.
+- `ocaml-tests` compiles when a rule parameter is named `src`.
 
 ## 0.3.0 (2026-10-04)
 

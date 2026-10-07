@@ -8,18 +8,18 @@ open Syntax
 
 let pf = Format.fprintf
 
-(** The expression that draws a value of type [t] from the source [src], if the
-    source can produce one. *)
+(** The expression that draws a value of type [t] from the source [kanon__src],
+    if the source can produce one. *)
 let rec draw t : (Format.formatter -> unit) option =
   let all f l =
     let l = List.map f l in
     if List.for_all Option.is_some l then Some (List.map Option.get l) else None
   in
   match t with
-  | TInt -> Some (fun ft -> pf ft "(src.int ())")
-  | TBool -> Some (fun ft -> pf ft "(src.bool ())")
-  | TTerm -> Some (fun ft -> pf ft "(src.term ())")
-  | TList TTerm -> Some (fun ft -> pf ft "(src.terms ())")
+  | TInt -> Some (fun ft -> pf ft "(kanon__src.int ())")
+  | TBool -> Some (fun ft -> pf ft "(kanon__src.bool ())")
+  | TTerm -> Some (fun ft -> pf ft "(kanon__src.term ())")
+  | TList TTerm -> Some (fun ft -> pf ft "(kanon__src.terms ())")
   | TTuple l ->
       Option.map
         (fun l ft -> pf ft "(%a)" (Gen_ocaml.list (fun ft d -> d ft)) l)
@@ -40,7 +40,8 @@ let rec draw t : (Format.formatter -> unit) option =
           | _ :: _ when List.for_all (fun c -> c.c_args = []) constrs ->
               Some
                 (fun ft ->
-                  pf ft "(match src.choose %d with %a)" (List.length constrs)
+                  pf ft "(match kanon__src.choose %d with %a)"
+                    (List.length constrs)
                     (Gen_ocaml.list ~sep:" " (fun ft (i, c) ->
                          pf ft "| %s -> %s"
                            (if i = List.length constrs - 1 then "_"
@@ -92,7 +93,7 @@ let rec rule_names (e : expr) =
   | _ -> [ "main" ]
 
 let rule_fn ctx ft (f : fn) (spec : expr) draws =
-  pf ft "@[<v 2>( %S,@ [ %a ],@ fun src ->@ " f.name
+  pf ft "@[<v 2>( %S,@ [ %a ],@ fun kanon__src ->@ " f.name
     (Gen_ocaml.list ~sep:"; " (fun ft r -> pf ft "%S" r))
     (rule_names f.body);
   List.iter2

@@ -22,10 +22,10 @@ variables of the sorts, and an operand of another sort fails its assertion.
   let rule_fns : (string * string list * (source -> test)) list = [
     ( "Rules.bv_ext",
       [ "full"; "neg"; "default" ],
-      fun src ->
-      let from' = (src.int ()) in
-      let to' = (src.int ()) in
-      let v' = (src.term ()) in
+      fun kanon__src ->
+      let from' = (kanon__src.int ()) in
+      let to' = (kanon__src.int ()) in
+      let v' = (kanon__src.term ()) in
       {
         spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (TBv ((Z.to_int (Z.add (Z.sub to' from') Z.one))))));
         call = (fun () -> Rules.bv_ext from' to' v');
