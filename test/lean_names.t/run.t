@@ -144,3 +144,23 @@ they may not have:
   ./rules9.kn:1:0: the parameter hO of the rule function Rules9.add: not supported in Lean
   ./rules9.kn:1:0: the parameter res of the rule function Rules9.add: not supported in Lean
   ./rules9.kn:1:0: the parameter sem of the rule function Rules9.add: not supported in Lean
+
+The typing of a node whose sort takes sorts (`TPair of ty * ty`) applies the
+sorts of its operands to the constructor in parentheses, and quantifies sort
+variables over `Ty`, the sorts of the language:
+
+  $ cat > lang10.knl <<'KN'
+  > sort TInt
+  > sort TPair of ty * ty
+  > node Int of int : TInt
+  > node MkPair : a -> b -> TPair (a, b)
+  > node Fst : TPair (a, b) -> a
+  > node Swap : TPair (a, b) -> TPair (b, a)
+  > KN
+  $ kanon lean-lang lang10.knl | sed -n '/^def Node.wt/,/^$/p'
+  def Node.wt {T Ty : Type} (sLang10 : (Kanon.Srt Ty) → Ty) (ty : T → Ty) : Node T → Ty → Prop
+    | (.Int x1), t => (t = (sLang10 .TInt))
+    | (.MkPair a1 a2), t => (t = (sLang10 (.TPair (ty a1) (ty a2))))
+    | (.Fst a1), t => (∃ a : Ty, (∃ b : Ty, ty a1 = (sLang10 (.TPair a b))) ∧ t = a)
+    | (.Swap a1), t => (∃ a b : Ty, ty a1 = (sLang10 (.TPair a b)) ∧ t = (sLang10 (.TPair b a)))
+  
