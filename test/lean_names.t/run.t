@@ -114,3 +114,19 @@ and are new variables even if the first has an argument named so:
     | (.Int x1), (.Int x1') => x1 = x1'
     | (.Mk x x'), (.Mk x'' x''') => x = x'' ∧ x' = x'''
     | (.Pair a a'), (.Pair a'' a''') => R a a'' ∧ R a' a'''
+
+The arguments of a node are variables of the Lean files, in which the names
+that those files use themselves (`f`, the function of `Node.map`, `y`, the
+element of `Node.All`, `ev` and the like in `Semantics.lean`) are not
+supported:
+
+  $ for n in f y ev evList allList; do
+  >   printf 'sort TInt\nnode Int of int : TInt\nnode Seq of t list (%s) : TInt\n' $n > lang7.knl
+  >   kanon lean-node lang7.knl 2>&1
+  > done
+  lang7.knl:3:5: the name f of an argument of Seq: not supported in Lean
+  lang7.knl:3:5: the name y of an argument of Seq: not supported in Lean
+  lang7.knl:3:5: the name ev of an argument of Seq: not supported in Lean
+  lang7.knl:3:5: the name evList of an argument of Seq: not supported in Lean
+  lang7.knl:3:5: the name allList of an argument of Seq: not supported in Lean
+  [1]
