@@ -194,7 +194,8 @@
       catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
       <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
       rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
-      error.
+      error. Its only attribute, before <code>=</code>, is
+      <a href="#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a>.
     </dd>
   </dl>
   <p>
@@ -571,12 +572,18 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
       <tr>
         <td><code>{`[@lean_proofs "F"]{:kanon}`}</code></td>
-        <td>a rule function, after its spec, or an extensible <code>fn</code></td>
         <td>
-          Its generated proofs in its module (<code>Soundness/M/f.lean</code>, under the root
-          <code>R</code>) import the hand-written <code>R/Proofs/F.lean</code> instead of
-          <code>R/Proofs.lean</code>, so that editing the proofs of another function does not
-          rebuild them (see <a href="proving.html#file-proofs">Proofs.lean</a>).
+          a rule function, after its spec, an extensible <code>fn</code>, an <code>extend</code>,
+          before <code>=</code>, or a <code>{`[@comm]{:kanon}`}</code> node
+        </td>
+        <td>
+          Its generated proofs import the hand-written <code>R/Proofs/F.lean</code> of its module
+          (of root <code>R</code>) instead of <code>R/Proofs.lean</code>, so that editing the
+          proofs of another function does not rebuild them (see
+          <a href="proving.html#file-proofs">Proofs.lean</a>): those of a function or of an
+          <code>extend</code> are in <code>Soundness/M/f.lean</code>, and those of a
+          commutativity in <code>Soundness/Comm.lean</code>. A generated file imports the file of
+          each of the items that it proves, or <code>R/Proofs.lean</code> for one without it.
           <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
           <code>R/Proofs/Bv/Arith.lean</code>.
         </td>
@@ -609,6 +616,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <code>fn</code>, <code>prim</code> and <code>rule</code> (a rule has
     <code>{`[@untyped]{:kanon}`}</code>, <code>{`[@lean_heartbeats n]{:kanon}`}</code> and
     <code>{`[@lean_proofs "F"]{:kanon}`}</code>, an extensible <code>fn</code>
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>; a <code>{`[@comm]{:kanon}`}</code> node also has
     <code>{`[@lean_proofs "F"]{:kanon}`}</code>).
   </p>
 

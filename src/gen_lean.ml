@@ -3311,16 +3311,16 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
       pf ft "kanon_congr@]@ @ "
 
 (** What the proofs of [m] import: its hand-written proofs, and the
-    commutativity of the operators of [m] and of the modules it uses. The proofs
-    of a function [f] of [m] import [R/Proofs/F.lean] instead of
-    [R/Proofs.lean], by [[@lean_proofs "F"]]. *)
-let proof_imports ?(f : fn option) ctx m =
+    commutativity of the operators of [m] and of the modules it uses. The
+    hand-written proofs are [R/Proofs/F.lean] for each [Some "F"] of [files], by
+    [[@lean_proofs "F"]], and [R/Proofs.lean] for [None]. *)
+let proof_imports files ctx m =
   let r = module_root m in
-  (match f with
-    | Some { lean_proofs = Some p; name; _ } when module_of_name name = Some m
-      ->
-        [ lean_module r ("Proofs" :: String.split_on_char '/' p) ]
-    | _ -> if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
+  List.concat_map
+    (function
+      | Some p -> [ lean_module r ("Proofs" :: String.split_on_char '/' p) ]
+      | None -> if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
+    (List.sort_uniq compare files)
   @ List.map
       (fun d -> lean_module (module_root d) [ "Soundness"; "Comm" ])
       (List.filter
@@ -3333,7 +3333,13 @@ let comm_soundness_file ctx m =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r [ "Soundness"; "Comm" ]
     ((r ^ ".Statements.Comm")
-    :: List.filter (( <> ) (r ^ ".Soundness.Comm")) (proof_imports ctx m))
+    :: List.filter
+         (( <> ) (r ^ ".Soundness.Comm"))
+         (proof_imports
+            (List.map
+               (fun n -> List.assoc_opt n.gc.c_name !lang.lean_comm_proofs)
+               (module_comm m))
+            ctx m))
   @@ fun ft ->
   with_self m @@ fun () ->
   List.iter
@@ -3349,7 +3355,13 @@ let comm_soundness_file ctx m =
 let fn_soundness_file ctx m (f : fn) =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r (fn_path "Soundness" f)
-    (lean_module r (fn_path "Statements" f) :: proof_imports ~f ctx m)
+    (lean_module r (fn_path "Statements" f)
+    :: proof_imports
+         ((if module_of_name f.name = Some m then [ f.lean_proofs ] else [])
+         @ List.filter_map
+             (fun (m', p) -> if m' = m then Some p else None)
+             f.ext_lean_proofs)
+         ctx m)
   @@ fun ft ->
   with_self m @@ fun () ->
   if fn_kind ctx f.name = Rule then (

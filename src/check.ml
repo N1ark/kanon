@@ -296,6 +296,10 @@ let rec is_blank (p : pattern) =
     which must not be left out as unreachable. *)
 let extension_cases : (Location.t * string) list ref = ref []
 
+(** The [[@lean_proofs "F"]] of each [extend], if it has one, with the function
+    that it extends and its module. *)
+let extension_proofs : (string * string * string option) list ref = ref []
+
 let has_attr name (attrs : attributes) =
   List.exists (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
@@ -2458,7 +2462,8 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | _ -> "a node is part of the Lean model")
     attrs;
   check_attrs
-    ([ "comm"; "params"; "sorts"; "when"; "get"; "lean_inv" ] @ law_attrs)
+    ([ "comm"; "params"; "sorts"; "when"; "get"; "lean_inv"; "lean_proofs" ]
+    @ law_attrs)
     attrs;
   let payload n =
     Option.map
@@ -2525,6 +2530,18 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | Some a ->
         comm_locs := (name, a.attr_loc) :: !comm_locs;
         { l with commutative = l.commutative @ [ name ] }
+    | None -> l
+  in
+  let l =
+    match find_attr "lean_proofs" attrs with
+    | Some a when Option.is_none (find_attr "comm" attrs) ->
+        error a.attr_name.loc
+          "[@lean_proofs] on a node is only for a [@comm] one"
+    | Some a ->
+        {
+          l with
+          lean_comm_proofs = l.lean_comm_proofs @ [ (name, string_attr a) ];
+        }
     | None -> l
   in
   let l =
@@ -3906,6 +3923,7 @@ let operator_typing (t : typing) =
     [||] and [&&]. *)
 let extend_rules (str : structure) =
   extension_cases := [];
+  extension_proofs := [];
   let splice loc f before (ext : Ppxlib.case list) (cs : Ppxlib.case list) =
     extension_cases :=
       List.map (fun (c : Ppxlib.case) -> (c.pc_lhs.ppat_loc, f)) ext
@@ -3967,6 +3985,13 @@ let extend_rules (str : structure) =
         (* at the name of the extended function *)
         let f, loc = string_attr_loc (Option.get (find_attr "extend" attrs)) in
         let f = resolve loc f in
+        check_attrs [ "extend"; "before"; "fn"; "lean_proofs" ] attrs;
+        Option.iter
+          (fun m ->
+            extension_proofs :=
+              (f, m, Option.map string_attr (find_attr "lean_proofs" attrs))
+              :: !extension_proofs)
+          (module_of_loc si.pstr_loc);
         let before = Option.map string_attr_loc (find_attr "before" attrs) in
         let fn = has_attr "fn" attrs in
         let rec go = function
@@ -4647,6 +4672,11 @@ let check_fn env0 globals r =
           | _ -> error a.attr_loc "expected [@lean_heartbeats n]")
         (find_attr "lean_heartbeats" r.rattrs);
     lean_proofs = Option.map string_attr (find_attr "lean_proofs" r.rattrs);
+    ext_lean_proofs =
+      List.rev
+        (List.filter_map
+           (fun (f, m, p) -> if f = r.rname then Some (m, p) else None)
+           !extension_proofs);
     extensible = has_attr "extensible" r.rattrs;
     param_sorts =
       List.filter_map

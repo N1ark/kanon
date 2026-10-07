@@ -248,9 +248,11 @@
           A module with many hand proofs may split them: a function with
           <a href="reference.html#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a> has its
           proofs import <code>Proofs/F.lean</code> instead, which imports what it needs, so that
-          editing one file of proofs only rebuilds the functions that it proves. The other proofs
-          of the module still import <code>Proofs.lean</code>: those of its commutativities, which
-          every function imports, and of the cases it adds to the functions of other modules.
+          editing one file of proofs only rebuilds the functions that it proves. So may the
+          <code>extend</code>s of the module, for the cases they add to the functions of other
+          modules, and its <code>{`[@comm]{:kanon}`}</code> nodes, for their commutativities, which
+          every function imports: keep the file of these small. A generated file imports the file
+          of each item that it proves, and <code>Proofs.lean</code> for an item without one.
         </p>
 
         <Heading level={4} id="file-soundness-comm">Soundness/Comm.lean</Heading>
@@ -268,7 +270,7 @@
           <a href="reference.html#floating"><code>{`[@@@lean_heartbeats]{:kanon}`}</code></a>), of the
           arms that only swap commutative operands (from the commutativity), and of each rule from
           its arms (<code>f.r_rule.sound</code>). It imports the statements of <code>f</code>, the
-          <code>Proofs.lean</code> of the module (or its <code>Proofs/F.lean</code>) and the
+          <code>Proofs.lean</code> of the module (or its <code>Proofs/F.lean</code> files) and the
           commutativities, and nothing of the other functions.
         </p>
         <Code

@@ -180,6 +180,10 @@ type lang = {
   lean_roots : (string * string) list;
       (** [[@@@lean_root "R"]], in the declarations of a module: the root of its
           Lean files, and its namespace, by module *)
+  lean_comm_proofs : (string * string) list;
+      (** [[@lean_proofs "F"]] on a [[@comm]] node: the proofs of its
+          commutativity import [R/Proofs/F.lean] instead of [R/Proofs.lean], by
+          constructor *)
   lean_invs : (string * string) list;
       (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
           of its module, [P : Node T -> Prop], that they satisfy, as part of
@@ -223,6 +227,7 @@ let lang =
       constant_docs = [];
       ty_only = [ "type_of" ];
       lean_roots = [];
+      lean_comm_proofs = [];
       lean_invs = [];
       lean_laws = [];
       lean_heartbeats = 400000;
@@ -428,6 +433,9 @@ type fn = {
       (** [[@lean_proofs "F"]], on a rule or an extensible helper: its proofs in
           its module of root [R] import [R/Proofs/F.lean] instead of
           [R/Proofs.lean] *)
+  ext_lean_proofs : (string * string option) list;
+      (** the [[@lean_proofs "F"]] of each [extend] of the function, if it has
+          one, with the module of the [extend] *)
   extensible : bool;
       (** [[@extensible]], on a helper: other modules may add cases to it with
           [extend fn] *)
