@@ -254,3 +254,24 @@ of children, so a module `List` with such nodes is not supported:
   $ kanon lean-semantics lang14.knl > /dev/null
   kanon: the module List: its functions allList and evList are those of the lists of children: not supported in Lean
   [1]
+
+A rule function without parameters (the spec is a node without arguments) has
+no `∀` and no `fun` in the statements and the model of the language:
+
+  $ cat > lang15.knl <<'KN'
+  > use "rules15"
+  > sort TInt
+  > node Int of int : TInt
+  > node Zero : TInt
+  > KN
+  $ cat > rules15.kn <<'KN'
+  > rule zero : Zero
+  > KN
+  $ kanon lean-model lang15.knl | grep "rules15_zero :"
+    rules15_zero : S.Term
+    rules15_zero : S.Refines (Rules15.zero.spec ) (O.rules15_zero )
+  $ kanon lean-rules lang15.knl | grep "rules15_zero :="
+      rules15_zero := Kanon.Rules15.Rules15.zero.spec (S := sem)  }
+      rules15_zero := Rules15.zero.step O }
+      { rules15_zero := Kanon.Sem.Refines.refl }
+      { rules15_zero := Rules15.zero.step_sound _ hO }
