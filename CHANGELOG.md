@@ -104,6 +104,7 @@
 - `kanon lean-all` rejects two modules with the same Lean root.
 - `kanon_arm` proves rules of functions with annotated operands.
 - Lean typings of nodes whose sorts take sorts are valid.
+- Typings are valid Lean with a node named `Int`.
 
 ## 0.3.0 (2026-10-04)
 

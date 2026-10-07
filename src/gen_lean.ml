@@ -636,10 +636,18 @@ let with_tys ?ty t k =
       sort_ty := snd saved)
     k
 
+(** The types of Lean that a name in scope hides: a node of the module named
+    [Int] is [Node.Int], in [Node.wt]. *)
+let shadowed : string list ref = ref []
+
+(** The Lean type [t] of the language (the type [Int], say), whatever the nodes
+    in scope are named. *)
+let std t = if List.mem t !shadowed then "_root_." ^ t else t
+
 let rec lean_ty ft = function
-  | TInt -> pf ft "Int"
-  | TBool -> pf ft "Bool"
-  | TUnit -> pf ft "Unit"
+  | TInt -> pf ft "%s" (std "Int")
+  | TBool -> pf ft "%s" (std "Bool")
+  | TUnit -> pf ft "%s" (std "Unit")
   | TTerm -> pf ft "%s" !term_ty
   | TSty -> pf ft "%s" !sort_ty
   | TKind -> unsupported Location.none "the type of kinds"
@@ -652,9 +660,9 @@ let rec lean_ty ft = function
             (String.concat " "
                (List.map (fun x -> if x = "T" then !term_ty else !sort_ty) ps)))
   | TTuple l -> pf ft "(%a)" (list ~sep:" × " lean_ty) l
-  | TOption t -> pf ft "(Option %a)" lean_ty t
-  | TList t -> pf ft "(List %a)" lean_ty t
-  | TArray t -> pf ft "(Array %a)" lean_ty t
+  | TOption t -> pf ft "(%s %a)" (std "Option") lean_ty t
+  | TList t -> pf ft "(%s %a)" (std "List") lean_ty t
+  | TArray t -> pf ft "(%s %a)" (std "Array") lean_ty t
 
 let ty_str t = Fmt.str "%a" lean_ty t
 
@@ -857,7 +865,7 @@ let rec expr ctx ft (e : expr) =
       match List.assoc_opt x !subst with
       | Some t -> pf ft "%s" t
       | None -> pf ft "%s" (id x))
-  | EInt z -> pf ft "(%s : Int)" (Z.to_string z)
+  | EInt z -> pf ft "(%s : %s)" (Z.to_string z) (std "Int")
   | EBool b -> pf ft "%b" b
   | EUnit -> pf ft "()"
   | EUnreachable -> pf ft "default"
@@ -2649,6 +2657,11 @@ let lang_file ctx (p : program) m =
     Fun.protect ~finally:(fun () -> in_typing := false) @@ fun () ->
     with_self m @@ fun () ->
     with_tys ~ty:"Ty" "T" @@ fun () ->
+    shadowed :=
+      List.filter
+        (fun t -> List.exists (fun n -> n.gc.c_name = t) nodes)
+        [ "Int"; "Bool"; "Unit"; "Option"; "List"; "Array" ];
+    Fun.protect ~finally:(fun () -> shadowed := []) @@ fun () ->
     List.iter
       (fun n ->
         let xs = node_names p n in
