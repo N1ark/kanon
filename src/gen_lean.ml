@@ -644,6 +644,14 @@ let shadowed : string list ref = ref []
     in scope are named. *)
 let std t = if List.mem t !shadowed then "_root_." ^ t else t
 
+(** [k ()], with the types and propositions of Lean that the [nodes] hide. *)
+let with_shadowed nodes k =
+  shadowed :=
+    List.filter
+      (fun t -> List.exists (fun n -> n.gc.c_name = t) nodes)
+      [ "Int"; "Bool"; "Unit"; "Option"; "List"; "Array"; "True"; "False" ];
+  Fun.protect ~finally:(fun () -> shadowed := []) k
+
 let rec lean_ty ft = function
   | TInt -> pf ft "%s" (std "Int")
   | TBool -> pf ft "%s" (std "Bool")
@@ -1908,7 +1916,7 @@ let typing_rhs ?names ctx (ty : typing) =
                    @ [ text ])))
         conjs
   in
-  let body = if body = [] then "True" else String.concat " ∧ " body in
+  let body = if body = [] then std "True" else String.concat " ∧ " body in
   if long = [] then body else Printf.sprintf "∃ %s, %s" (binders long) body
 
 (* ---------------------------------------------------------------- *)
@@ -2494,6 +2502,7 @@ let node_file (p : program) m =
       nodes;
     pf ft "@]@ @ ";
     List.iter (shape_defs ft reg) reg.shapes;
+    with_shadowed nodes @@ fun () ->
     pf ft "namespace Node@ @ variable {%sT U : Type}@ @ "
       (if ty then "Ty " else "");
     let nested t = nested_name m t in
@@ -2536,7 +2545,7 @@ let node_file (p : program) m =
                xs (kinds n))
         in
         pf ft "@ | %s => %s" (pat n xs)
-          (if conj = [] then "True" else String.concat " ∧ " conj))
+          (if conj = [] then std "True" else String.concat " ∧ " conj))
       nodes;
     pf ft "@]@ @ ";
     pf ft
@@ -2575,12 +2584,12 @@ let node_file (p : program) m =
                (List.combine xs ys) (kinds n))
         in
         pf ft "@ | %s, %s => %s" (pat n xs) (pat n ys)
-          (if conj = [] then "True" else String.concat " ∧ " conj))
+          (if conj = [] then std "True" else String.concat " ∧ " conj))
       nodes;
-    if List.length nodes > 1 then pf ft "@ | _, _ => False";
+    if List.length nodes > 1 then pf ft "@ | _, _ => %s" (std "False");
     pf ft "@]@ @ ";
     pf ft "/-- The children of the node, in order. -/@ ";
-    pf ft "@[<v 2>def children : %s → List T" (nd "T");
+    pf ft "@[<v 2>def children : %s → %s T" (nd "T") (std "List");
     List.iter
       (fun n ->
         let xs = names n in
@@ -2657,11 +2666,7 @@ let lang_file ctx (p : program) m =
     Fun.protect ~finally:(fun () -> in_typing := false) @@ fun () ->
     with_self m @@ fun () ->
     with_tys ~ty:"Ty" "T" @@ fun () ->
-    shadowed :=
-      List.filter
-        (fun t -> List.exists (fun n -> n.gc.c_name = t) nodes)
-        [ "Int"; "Bool"; "Unit"; "Option"; "List"; "Array" ];
-    Fun.protect ~finally:(fun () -> shadowed := []) @@ fun () ->
+    with_shadowed nodes @@ fun () ->
     List.iter
       (fun n ->
         let xs = node_names p n in
@@ -2711,7 +2716,7 @@ let lang_file ctx (p : program) m =
           typing @ Option.to_list (inv n.gc) @ Option.to_list sort_inv
         in
         pf ft "@ | %s, t => %s" (ctor_app n.gc.c_name xs)
-          (if conj = [] then "True" else String.concat " ∧ " conj))
+          (if conj = [] then std "True" else String.concat " ∧ " conj))
       nodes;
     pf ft "@]@ @ ");
   (* the class *)
