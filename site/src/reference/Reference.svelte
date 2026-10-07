@@ -1330,8 +1330,16 @@ end`}
       <code>Bitvec.add.r_zero</code>, its spec <code>Bitvec.add.spec</code> and, in the language, its
       step <code>Bitvec.add.step</code>. The fields of the structures (<code>Ops</code>,
       <code>Ops.Sound</code>), which cannot have a dot, have the flat name,
-      <code>bitvec_add</code> (<code>O.bitvec_add</code>), and the primitives and oracles their plain
-      name.
+      <code>bitvec_add</code> (<code>O.bitvec_add</code>, and <code>O.word_wsum</code> for the oracle
+      <code>wsum</code> of the module <code>Word</code>), and the primitives their plain name.
+    </li>
+    <li>
+      The generated files use some names themselves, which are not supported in Lean as other
+      names: the parameters of a rule function may not be <code>h</code>, <code>hO</code>,
+      <code>res</code> or <code>sem</code>, nor the arguments of a node <code>f</code>, <code>y</code>,
+      <code>ev</code>, <code>evList</code> or <code>allList</code>, and a module <code>List</code> may
+      not have nodes with lists of terms. The names that Lean reserves
+      (<code>exists</code>, <code>at</code>, <code>from</code>, …) are quoted.
     </li>
     <li>
       The arrays of the language are Lean's <code>Array</code>, and their operations
