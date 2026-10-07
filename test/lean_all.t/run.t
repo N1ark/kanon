@@ -110,10 +110,10 @@ The proofs of the cases that an extend adds to the function of another module
 import its file, and the commutativity proofs those of the [@comm] nodes. A
 generated file imports the file of each item that it proves, or Proofs.lean.
 
-  $ printf 'use "int"\n\nextend rule Int.neg before lit [@lean_proofs "Zero"] =\n  | zero: Neg (Int 0) -> Int 0\n' > split/zero.kn
-  $ echo 'use "zero"' >> split/lang.knl
-  $ sed 's/\[@comm\]/[@comm] [@lean_proofs "Comm"]/' int.knl > split/int.knl
-  $ kanon lean-all out split/lang.knl
+  $ mkdir ext && cp int.kn ext && cat lang.knl > ext/lang.knl && echo 'use "zero"' >> ext/lang.knl
+  $ printf 'use "int"\n\nextend rule Int.neg before lit [@lean_proofs "Zero"] =\n  | zero: Neg (Int 0) -> Int 0\n' > ext/zero.kn
+  $ sed 's/\[@comm\]/[@comm] [@lean_proofs "Comm"]/' int.knl > ext/int.knl
+  $ kanon lean-all out ext/lang.knl
   $ grep '^import' out/Ex/Zero/Soundness/Int/neg.lean out/Ex/Int/Soundness/Comm.lean
   out/Ex/Zero/Soundness/Int/neg.lean:import Ex.Zero.Statements.Int.neg
   out/Ex/Zero/Soundness/Int/neg.lean:import Ex.Zero.Proofs.Zero
@@ -127,7 +127,7 @@ It is only for a rule, an extensible helper, an extend or a [@comm] node.
   $ kanon lean-all out bad/lang.knl
   bad/int.kn:3:28: [@lean_proofs] is only for a rule or an extensible helper
   [1]
-  $ cp int.kn bad && sed 's/^node Neg : TInt -> TInt/& [@lean_proofs "Neg"]/' int.knl > bad/int.knl
-  $ kanon lean-all out bad/lang.knl
-  bad/int.knl:3:26: [@lean_proofs] on a node is only for a [@comm] one
+  $ sed 's/^node Neg : TInt -> TInt/& [@lean_proofs "Neg"]/' int.knl > ext/int.knl
+  $ kanon lean-all out ext/lang.knl
+  ext/int.knl:3:26: [@lean_proofs] on a node is only for a [@comm] one
   [1]
