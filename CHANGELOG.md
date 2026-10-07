@@ -93,6 +93,7 @@
 - A file named `z` is an error: `Z` is Zarith's.
 - A module named like the `ocaml_prims` module is an error.
 - Rules named like Lean keywords generate valid Lean.
+- Lifting lemmas of keyword-named parameters are valid Lean.
 
 ## 0.3.0 (2026-10-04)
 

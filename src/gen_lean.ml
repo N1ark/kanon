@@ -3110,7 +3110,8 @@ let lift_file ctx m =
   List.iter
     (fun (f : fn) ->
       let term (_, t) = t = TTerm in
-      let prime (x, t) = if term (x, t) then id x ^ "'" else id x in
+      let primed x = id (x ^ "'") in
+      let prime (x, t) = if term (x, t) then primed x else id x in
       let helpers =
         List.filter
           (fun g ->
@@ -3124,13 +3125,13 @@ let lift_file ctx m =
       pf ft "@[<v 2>theorem lift_%s (hO : O.Sound)" (fld f.name);
       List.iter
         (fun (x, t) ->
-          if term (x, t) then pf ft " {%s %s' : S.Term}" (id x) (id x)
+          if term (x, t) then pf ft " {%s %s : S.Term}" (id x) (primed x)
           else pf ft " {%s : %a}" (id x) lean_ty t)
         f.params;
       List.iter
         (fun (x, t) ->
           if term (x, t) then
-            pf ft "@ (h_%s : S.Refines %s %s')" x (id x) (id x))
+            pf ft "@ (h_%s : S.Refines %s %s)" x (id x) (primed x))
         f.params;
       pre_binders
         ~rename:(fun x ->
