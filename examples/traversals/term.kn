@@ -1,0 +1,6 @@
+fn types_of (vs : t list) : ty list =
+  match vs with
+  | [] -> []
+  | v :: r -> type_of v :: types_of r
+
+rule add : Add (v1, v2)

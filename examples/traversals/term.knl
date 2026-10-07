@@ -1,0 +1,28 @@
+(* The module of the terms: integers, a sum, and nodes with children of every
+   shape. *)
+
+sort TInt
+sort TBlock
+sort TVec
+(** The sort of a tuple, over the sorts of its elements. *)
+sort TTuple of ty list
+
+(** Something with children in its fields, whose type is a record. *)
+type block = { owner : var; offset : t; size : t }
+
+node Int of int : TInt
+notation Int
+
+(** The sum: its smart constructor drops a zero. *)
+node Add : TInt -> TInt -> TInt [@unit 0]
+
+(** A tuple of any number of elements, whose sort is built from theirs. *)
+node Tuple of t list (vs) : TTuple (types_of vs)
+
+(** An array of elements. *)
+node Vec of t array : TVec
+
+(** An optional pair of an integer and a term, in a tuple in an option. *)
+node Opt of (int * t) option : TInt
+
+node Mem of block : TBlock

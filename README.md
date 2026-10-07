@@ -79,7 +79,7 @@ The sources of the site are in `site/src` (`reference/`, `proving/`,
 - `ppx/`: the ppx `kanon.ppx_include_file`, which includes generated OCaml;
 - `lean/`: Kanon's Lean library (`KanonCore`);
 - `modules/`: the built-in modules (the bool module, `use builtin "bool"`);
-- `examples/`: `bool`, `ints` and `division` (with Lean proofs) and `arrays`;
+- `examples/`: `bool`, `ints` and `division` (with Lean proofs), `arrays` and `traversals`;
 - `test/`: cram and compilation tests;
 - `site/` and `web/`: the website, and Kanon compiled to JavaScript for it;
 - `tree-sitter-kanon/` and `editors/zed/`: the grammar and the Zed extension.

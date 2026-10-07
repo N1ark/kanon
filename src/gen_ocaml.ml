@@ -731,6 +731,429 @@ let prim_sigs ft (p : program) =
            false fns);
       pf ft "@]@ end = %s@ @ " (prims_module ())
 
+(* ---------------------------------------------------------------- *)
+(* Traversals *)
+
+(** What a traversal does with the children, which [f] is applied to: [Map]
+    rebuilds, [Iter] calls [f] for its effect, [Exists] is [true] when [f] is
+    for one of them (the others are not looked at). *)
+type act = Map | Iter | Exists
+
+let act_name = function Map -> "map" | Iter -> "iter" | Exists -> "exists"
+
+(** The name of the function that traverses the declared type [d], looking for
+    values of the type [target] ([TTerm] or [TSty]). *)
+let trav_name act target d =
+  Printf.sprintf "kanon__%s_%s%s" (act_name act)
+    (if target = TSty then "ty_" else "")
+    d
+
+(** The OCaml function, as text, of one argument, that applies [act] to the
+    children of a value of the type [ty], those of the type [target], or none if
+    [ty] has none. [f] is the function of the user, applied to each child, in
+    the order of the arguments (the elements of a list or an array from the
+    first, the components of a tuple from the left, the fields of a record in
+    their order). *)
+let rec mapper act target ty : string option =
+  if not (Syntax.mentions target ty) then None
+  else
+    match ty with
+    | t when t = target -> Some "f"
+    | TList t ->
+        Option.map
+          (fun m ->
+            match act with
+            | Map -> Printf.sprintf "(kanon__list_map %s)" m
+            | Iter -> Printf.sprintf "(List.iter %s)" m
+            | Exists -> Printf.sprintf "(List.exists %s)" m)
+          (mapper act target t)
+    | TArray t ->
+        Option.map
+          (fun m ->
+            match act with
+            | Map -> Printf.sprintf "(kanon__iarray_map %s)" m
+            | Iter -> Printf.sprintf "(Iarray.iter %s)" m
+            | Exists -> Printf.sprintf "(Iarray.exists %s)" m)
+          (mapper act target t)
+    | TOption t ->
+        Option.map
+          (fun m ->
+            match act with
+            | Map ->
+                Printf.sprintf
+                  "(function Some x as o -> let y = %s x in if y == x then o \
+                   else Some y | None -> None)"
+                  m
+            | Iter -> Printf.sprintf "(Option.iter %s)" m
+            | Exists ->
+                Printf.sprintf "(function Some x -> %s x | None -> false)" m)
+          (mapper act target t)
+    | TTuple l ->
+        let ms = List.map (mapper act target) l in
+        let a i = Printf.sprintf "a%d" (i + 1)
+        and b i = Printf.sprintf "b%d" (i + 1) in
+        let pat = String.concat ", " (List.mapi (fun i _ -> a i) l) in
+        Some
+          (match act with
+          | Map ->
+              let some f =
+                List.concat (List.mapi (fun i m -> Option.to_list (f i m)) ms)
+              in
+              Printf.sprintf "(fun ((%s) as p) -> %sif %s then p else (%s))" pat
+                (String.concat ""
+                   (some (fun i ->
+                        Option.map (fun m ->
+                            Printf.sprintf "let %s = %s %s in " (b i) m (a i)))))
+                (String.concat " && "
+                   (some (fun i ->
+                        Option.map (fun _ ->
+                            Printf.sprintf "%s == %s" (b i) (a i)))))
+                (String.concat ", "
+                   (List.mapi (fun i m -> if m = None then a i else b i) ms))
+          | Iter ->
+              Printf.sprintf "(fun (%s) -> %s)" pat
+                (String.concat "; "
+                   (List.concat
+                      (List.mapi
+                         (fun i m ->
+                           match m with
+                           | Some m -> [ Printf.sprintf "%s %s" m (a i) ]
+                           | None -> [])
+                         ms)))
+          | Exists ->
+              Printf.sprintf "(fun (%s) -> %s)" pat
+                (String.concat " || "
+                   (List.concat
+                      (List.mapi
+                         (fun i m ->
+                           match m with
+                           | Some m -> [ Printf.sprintf "%s %s" m (a i) ]
+                           | None -> [])
+                         ms))))
+    | TData d -> Some (Printf.sprintf "(%s f)" (trav_name act target d))
+    | _ -> None
+
+(** The body of [act] on the constructor [name] with the arguments [args], named
+    [vars] ([(variable, type, kind of the argument)]), which [rebuild] makes the
+    result of for [Map], from the names of the arguments: the children are done
+    in order, whatever the evaluation order of OCaml. If [f] returns every child
+    unchanged ([==]), [Map] returns [orig] and rebuilds nothing. *)
+let trav_body ?(indent = "      ") act target ~orig ~rebuild
+    (args : (string * ty * [ `Small | `Arg ]) list) =
+  let ms = List.map (fun (x, t, _) -> (x, mapper act target t)) args in
+  let var x = "y_" ^ String.map (function '.' -> '_' | c -> c) x in
+  match act with
+  | Map ->
+      let mapped =
+        List.filter_map (fun (x, m) -> Option.map (fun m -> (x, m)) m) ms
+      in
+      if mapped = [] then orig
+      else
+        String.concat ""
+          (List.map
+             (fun (x, m) ->
+               Printf.sprintf "let %s = %s %s in\n%s" (var x) m x indent)
+             mapped)
+        ^ Printf.sprintf "if %s then %s else "
+            (String.concat " && "
+               (List.map
+                  (fun (x, _) -> Printf.sprintf "%s == %s" (var x) x)
+                  mapped))
+            orig
+        ^ rebuild
+            (List.map2
+               (fun (x, m) (_, _, k) ->
+                 let v = if m = None then x else var x in
+                 (v, k))
+               ms args)
+  | Iter ->
+      String.concat "; "
+        (List.concat_map
+           (function
+             | x, Some m -> [ Printf.sprintf "%s %s" m x ] | _, None -> [])
+           ms)
+  | Exists ->
+      String.concat " || "
+        (List.concat_map
+           (function
+             | x, Some m -> [ Printf.sprintf "%s %s" m x ] | _, None -> [])
+           ms)
+
+(** The functions that traverse the types of the language that contain values of
+    the type [target], in one recursive group for each [act]. *)
+let decl_traversals ft target =
+  let decls =
+    List.filter
+      (fun (d : decl) ->
+        (not (Check.generated_type d.d_name))
+        && Syntax.mentions target (TData d.d_name))
+      !lang.decls
+  in
+  List.iter
+    (fun act ->
+      List.iteri
+        (fun i (d : decl) ->
+          let name = trav_name act target d.d_name in
+          let res =
+            match act with Map -> d.d_name | Iter -> "unit" | Exists -> "bool"
+          in
+          let body =
+            if d.d_fields <> [] then
+              let args =
+                List.map (fun (f, t) -> ("x." ^ f, t, `Arg)) d.d_fields
+              in
+              trav_body ~indent:"  " act target ~orig:"x"
+                ~rebuild:(fun vs ->
+                  Printf.sprintf "{ x with %s }"
+                    (String.concat "; "
+                       (List.concat
+                          (List.map2
+                             (fun (f, _) (v, _) ->
+                               if v = "x." ^ f then []
+                               else [ Printf.sprintf "%s = %s" f v ])
+                             d.d_fields vs))))
+                args
+            else
+              let cases =
+                List.filter_map
+                  (fun (c : constr) ->
+                    if c.c_res <> TData d.d_name then None
+                    else
+                      let args =
+                        List.mapi
+                          (fun i a ->
+                            ( Printf.sprintf "a%d" (i + 1),
+                              arg_ty a,
+                              match a with Small -> `Small | Arg _ -> `Arg ))
+                          c.c_args
+                      in
+                      let pat =
+                        match args with
+                        | [] -> c.c_name
+                        | l ->
+                            Printf.sprintf "%s (%s)" c.c_name
+                              (String.concat ", "
+                                 (List.map (fun (x, _, _) -> x) l))
+                      in
+                      let body =
+                        trav_body act target ~orig:"x"
+                          ~rebuild:(fun vs ->
+                            match vs with
+                            | [] -> c.c_name
+                            | l ->
+                                Printf.sprintf "%s (%s)" c.c_name
+                                  (String.concat ", " (List.map fst l)))
+                          args
+                      in
+                      let body =
+                        if body = "" then
+                          match act with
+                          | Map -> "x"
+                          | Iter -> "()"
+                          | Exists -> "false"
+                        else body
+                      in
+                      Some (Printf.sprintf "  | %s ->\n      %s" pat body))
+                  !lang.constrs
+              in
+              "match x with\n" ^ String.concat "\n" cases
+          in
+          let body =
+            if body = "" then
+              match act with Map -> "x" | Iter -> "()" | Exists -> "false"
+            else body
+          in
+          pf ft "%s"
+            (Printf.sprintf "%s %s f (x : %s) : %s =\n  %s\n\n"
+               (if i = 0 then "let rec" else "and")
+               name d.d_name res body))
+        decls)
+    [ Map; Iter; Exists ]
+
+(** The nodes, with the types of their parameters and of their operands. *)
+let trav_nodes () =
+  List.filter_map
+    (fun (c : constr) ->
+      if
+        (c.c_res = TKind && not (List.mem c.c_name !lang.node_kinds))
+        || Option.is_some (Check.node_of_op c)
+      then
+        Some
+          (c, match Check.node_of_op c with Some (_, ops) -> ops | None -> [])
+      else None)
+    !lang.constrs
+
+(** The traversals of the terms and of the sorts, generated for the language
+    that has [[@@@traversals]]: for every node, a case of [map_children],
+    [iter_children] and [exists_child], and for every sort constructor one of
+    [map_ty_children], ... The children of a node are the values of type [t] in
+    its parameters and operands (see {!mapper}). *)
+let traversals ft =
+  let nodes = trav_nodes () in
+  (* the maps of the lists and arrays return their argument if [f] returns each
+     element unchanged; the array one only if the language has arrays, which
+     need OCaml 5.4 *)
+  pf ft "%s"
+    "let rec kanon__list_map f l =\n\
+    \  match l with\n\
+    \  | [] -> l\n\
+    \  | x :: r ->\n\
+    \      let y = f x in\n\
+    \      let s = kanon__list_map f r in\n\
+    \      if y == x && s == r then l else y :: s\n\n";
+  let rec has_array = function
+    | TArray _ -> true
+    | TList t | TOption t -> has_array t
+    | TTuple l -> List.exists has_array l
+    | _ -> false
+  in
+  if
+    List.exists
+      (fun (c : constr) -> List.exists (fun a -> has_array (arg_ty a)) c.c_args)
+      !lang.constrs
+    || List.exists
+         (fun (d : decl) -> List.exists (fun (_, t) -> has_array t) d.d_fields)
+         !lang.decls
+    || List.exists (fun (_, ops) -> List.exists has_array ops) nodes
+  then
+    pf ft "%s"
+      "let rec kanon__iarray_map_from f a i =\n\
+      \  if i = Stdlib.Iarray.length a then a\n\
+      \  else\n\
+      \    let x = Stdlib.Iarray.get a i in\n\
+      \    let y = f x in\n\
+      \    if y == x then kanon__iarray_map_from f a (i + 1)\n\
+      \    else\n\
+      \      Stdlib.Iarray.init (Stdlib.Iarray.length a) (fun j ->\n\
+      \          if j < i then Stdlib.Iarray.get a j\n\
+      \          else if j = i then y\n\
+      \          else f (Stdlib.Iarray.get a j))\n\n\
+       let kanon__iarray_map f a = kanon__iarray_map_from f a 0\n\n";
+  decl_traversals ft TTerm;
+  decl_traversals ft TSty;
+  let node_case act (c, operands) =
+    let params = List.map (fun a -> arg_ty a) c.c_args in
+    let kinds =
+      List.map (function Small -> `Small | Arg _ -> `Arg) c.c_args
+    in
+    let ps = List.mapi (fun i t -> (Printf.sprintf "p%d" (i + 1), t)) params in
+    let xs =
+      List.mapi (fun i t -> (Printf.sprintf "x%d" (i + 1), t)) operands
+    in
+    let args =
+      List.map2 (fun (x, t) k -> (x, t, k)) ps kinds
+      @ List.map (fun (x, t) -> (x, t, `Arg)) xs
+    in
+    if List.for_all (fun (_, t, _) -> mapper act TTerm t = None) args then None
+    else
+      let ctor =
+        match ps with
+        | [] -> c.c_name
+        | l ->
+            Printf.sprintf "%s (%s)" c.c_name
+              (String.concat ", " (List.map fst l))
+      in
+      let pat =
+        match Check.node_of_op c with
+        | Some (kc, _) ->
+            Printf.sprintf "{ kind = %s (%s); _ }" kc.c_name
+              (String.concat ", " (ctor :: List.map fst xs))
+        | None -> Printf.sprintf "{ kind = %s; _ }" ctor
+      in
+      let typed = List.mem_assoc c.c_name !Check.node_typings in
+      let body =
+        trav_body act TTerm ~orig:"v"
+          ~rebuild:(fun vs ->
+            Printf.sprintf "kanon__rebuild_%s%s%s" c.c_name
+              (if typed then "" else " v.ty")
+              (String.concat ""
+                 (List.map
+                    (fun (v, k) ->
+                      if k = `Small then Printf.sprintf " (Z.of_int %s)" v
+                      else " " ^ v)
+                    vs)))
+          args
+      in
+      Some (Printf.sprintf "  | %s ->\n      %s\n" pat body)
+  in
+  let map_doc =
+    "One level: [f] on each direct child, in order; does not recurse. [v] \
+     itself if [f] returns every child unchanged ([==]), else [v] rebuilt."
+  and iter_doc =
+    "One level: [f] on each direct child, in order; does not recurse."
+  and exists_doc =
+    "One level: whether [f] holds for a direct child, from the left; does not \
+     recurse."
+  and for_all_doc =
+    "One level: whether [f] holds for every direct child, from the left; does \
+     not recurse."
+  in
+  let fn_terms doc act name ty_f res default =
+    pf ft "%s"
+      (Printf.sprintf
+         "(** %s *)\n\
+          let %s (f : %s) (v : t) : %s =\n\
+         \  match v with\n\
+          %s  | _ -> %s\n\n"
+         doc name ty_f res
+         (String.concat "" (List.filter_map (node_case act) nodes))
+         default)
+  in
+  fn_terms map_doc Map "map_children" "t -> t" "t" "v";
+  fn_terms iter_doc Iter "iter_children" "t -> unit" "unit" "()";
+  fn_terms exists_doc Exists "exists_child" "t -> bool" "bool" "false";
+  pf ft "%s"
+  @@ Printf.sprintf "(** %s *)\n%s" for_all_doc
+       "let for_all_child (f : t -> bool) (v : t) : bool =\n\
+       \  not (exists_child (fun c -> not (f c)) v)\n\n";
+  (* the sorts *)
+  let sorts = List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs in
+  let sort_case act (c : constr) =
+    let args =
+      List.mapi
+        (fun i a ->
+          ( Printf.sprintf "p%d" (i + 1),
+            arg_ty a,
+            match a with Small -> `Small | Arg _ -> `Arg ))
+        c.c_args
+    in
+    if List.for_all (fun (_, t, _) -> mapper act TSty t = None) args then None
+    else
+      let pat =
+        match args with
+        | [] -> c.c_name
+        | l ->
+            Printf.sprintf "%s (%s)" c.c_name
+              (String.concat ", " (List.map (fun (x, _, _) -> x) l))
+      in
+      let body =
+        trav_body act TSty ~orig:"v"
+          ~rebuild:(fun vs ->
+            Printf.sprintf "%s (%s)" c.c_name
+              (String.concat ", " (List.map fst vs)))
+          args
+      in
+      Some (Printf.sprintf "  | %s ->\n      %s\n" pat body)
+  in
+  let fn_sorts doc act name ty_f res default =
+    pf ft "%s"
+      (Printf.sprintf
+         "(** %s *)\n\
+          let %s (f : %s) (v : ty) : %s =\n\
+         \  match v with\n\
+          %s  | _ -> %s\n\n"
+         doc name ty_f res
+         (String.concat "" (List.filter_map (sort_case act) sorts))
+         default)
+  in
+  fn_sorts map_doc Map "map_ty_children" "ty -> ty" "ty" "v";
+  fn_sorts iter_doc Iter "iter_ty_children" "ty -> unit" "unit" "()";
+  fn_sorts exists_doc Exists "exists_ty_child" "ty -> bool" "bool" "false";
+  pf ft "%s"
+  @@ Printf.sprintf "(** %s *)\n%s" for_all_doc
+       "let for_all_ty_child (f : ty -> bool) (v : ty) : bool =\n\
+       \  not (exists_ty_child (fun c -> not (f c)) v)\n\n"
+
 let program ~sources ft (p : program) =
   check_prims p;
   let groups = sccs p.fns in
@@ -768,6 +1191,10 @@ let program ~sources ft (p : program) =
         group)
     groups;
   pf ft "@]@ end@ @ ";
+  if !lang.traversals then (
+    pf ft "%a@ open Kanon_flat@ @ " ocaml_doc
+      "The traversals of the terms and sorts, which are not in a module.";
+    traversals ft);
   List.iter
     (fun (m, entries) ->
       pf ft "%a@ " ocaml_doc
