@@ -94,6 +94,7 @@
 - A module named like the `ocaml_prims` module is an error.
 - Rules named like Lean keywords generate valid Lean.
 - Lifting lemmas of keyword-named parameters are valid Lean.
+- Lean keywords like `exists` and `try` are quoted.
 
 ## 0.3.0 (2026-10-04)
 
