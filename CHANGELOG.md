@@ -86,6 +86,7 @@
 - Doc comments with a lone quote after a letter compile.
 - Doc comments with character literals and `{%ext|` compile.
 - Generated types call `Stdlib.Int`, not a module named `Int`.
+- A case of variables like `x, y` hides later cases.
 
 ## 0.3.0 (2026-10-04)
 

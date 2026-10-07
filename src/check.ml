@@ -4345,13 +4345,22 @@ let sort_binds env (r : raw_fn) =
 (* ---------------------------------------------------------------- *)
 (* Pruning redundant cases *)
 
+(** Whether [p] matches anything of its type: variables and wildcards, in tuples
+    and partial records. *)
+let rec irrefutable (p : Syntax.pat) =
+  match p.p with
+  | PAny | PVar _ -> true
+  | PAs (q, _) -> irrefutable q
+  | PTuple l -> List.for_all irrefutable l
+  | PRecord l -> List.for_all (fun (_, q) -> irrefutable q) l
+  | _ -> false
+
 (** Whether the (linearized) pattern [p] matches everything that [q] matches: a
     conservative check, which gives up on what it does not know. *)
 let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
   let all l m = List.length l = List.length m && List.for_all2 subsumes l m in
   match (p.p, q.p) with
-  | (PAny | PVar _), _ -> true
-  | _ when is_catch_all p -> true
+  | _ when irrefutable p -> true
   | PAs (p, _), _ -> subsumes p q
   | _, PAs (q, _) -> subsumes p q
   | PBool a, PBool b -> a = b
