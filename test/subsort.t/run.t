@@ -163,9 +163,9 @@ are some. The post-condition has a proof that the language gives:
     no_implicit_lambda% (kanon_proof% Nonzero_rules.pos.r_default.main.post)
   theorem Nonzero_rules.pos.r_default.post_sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
     · kanon_arm h (Nonzero_rules.pos.r_default.main.post.ok O hO)
-  theorem Nonzero_rules.all.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (vs : (List S.Term)) (hs_vs : (∀ y ∈ vs, Kanon.Nonzero y)) (res : S.Term)
   theorem Nonzero_rules.pos.spec_post.ok : Nonzero_rules.pos.spec_post.Stmt :=
     no_implicit_lambda% (kanon_proof% Nonzero_rules.pos.spec_post)
+  theorem Nonzero_rules.all.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (vs : (List S.Term)) (hs_vs : (∀ y ∈ vs, Kanon.Nonzero y)) (res : S.Term)
   $ kanon lean-rules nonzero.knl | grep "hs_"
   theorem Nonzero_rules.bv_div.step_sound (O : Kanon.Nonzero_rules.Ops sem) (hO : O.Sound) (s : Bool) (v1 : Term) (v2 : Term) (hs_v2 : Kanon.Nonzero (S := sem) v2) :
     refine Kanon.Refinement.firstSome_cons (fun res h => Kanon.Nonzero_rules.Nonzero_rules.bv_div.r_self.sound (S := sem) O hO s v1 v2 hs_v2 res h) ?_

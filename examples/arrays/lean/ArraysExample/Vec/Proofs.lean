@@ -1,4 +1,4 @@
-import ArraysExample.Vec.Statements
+import ArraysExample.Vec.Statements.Vec.get
 
 /-!
 # The arm `Set (_, j, x)[j] = x` of `Vec.get`, by hand

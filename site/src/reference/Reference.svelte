@@ -1258,9 +1258,12 @@ end`}
         <td><code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code></td>
         <td>
           <code>Model.lean</code> (<code>Ops</code>, the helpers, the specs, the rules,
-          <code>Ops.Sound</code>), <code>Statements.lean</code> (the lifting lemmas, the
-          commutativity of the nodes, the statements of the arms) and <code>Soundness.lean</code>
-          (their proofs, and the rules from their arms) of each module with rules or helpers
+          <code>Ops.Sound</code>), <code>Lift.lean</code> (the lifting lemmas),
+          <code>Statements/Comm.lean</code> and <code>Soundness/Comm.lean</code> (the
+          commutativity of its nodes, and its proof), <code>Statements/M/f.lean</code> and
+          <code>Soundness/M/f.lean</code> for each function <code>M.f</code> whose arms or cases
+          it proves (their statements; their proofs, and the rules from their arms) and
+          <code>Soundness.lean</code> (which imports them) of each module with rules or helpers
         </td>
       </tr>
       <tr>
@@ -1276,8 +1279,9 @@ end`}
   </table>
   <p>
     A module's <code>Lang.lean</code> imports its hand-written <code>Sem.lean</code>, its
-    <code>Model.lean</code> its <code>Prims.lean</code>, and its <code>Soundness.lean</code> its
-    <code>Proofs.lean</code> (where an <code>{`@[kanon_arm]{:lean}`}</code> theorem replaces the
+    <code>Model.lean</code> its <code>Prims.lean</code>, and the files under its
+    <code>Soundness/</code> its <code>Proofs.lean</code> (which imports the statements it proves,
+    <code>Statements/M/f.lean</code>, and where an <code>{`@[kanon_arm]{:lean}`}</code> theorem replaces the
     default proof of its statement), when they exist; the language's <code>Semantics.lean</code>
     imports its <code>Val.lean</code>, and its <code>Rules.lean</code> its <code>Typing.lean</code>.
     The backends, which do not see the files, print the files as if there were none. Their
@@ -1347,7 +1351,7 @@ end`}
       arguments of the call. The elements of a list of operands each satisfy it
       (<code>∀ y ∈ vs, P y</code>). One whose node has a subsort for its result must prove that what
       it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
-      <code>Statements.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
+      <code>Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
       <code>f.spec_post.Stmt</code>, which <code>kanon_proof%</code> proves from a hand-written
       proof (<code>{`@[kanon_arm] theorem … : f.spec_post.Stmt{:lean}`}</code>) or the
       <code>kanon_tactic</code> of <code>f</code>, else <code>kanon_auto</code>; they are fields

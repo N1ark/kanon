@@ -633,10 +633,10 @@ node Fill of int : TArray n`}
       <code>Model.lean</code> is a model of its helpers and rules, over the terms of any language;
     </li>
     <li>
-      <code>Statements.lean</code> states that every alternative of every rule is sound: its result
-      refines its spec;
+      <code>Statements/</code> states that every alternative of every rule is sound: its result
+      refines its spec, in a file per rule function;
     </li>
-    <li><code>Soundness.lean</code> proves them.</li>
+    <li><code>Soundness/</code> proves them, in a file per rule function.</li>
   </ul>
   <p>
     Written by hand, for each module: the meaning of its nodes (<code>Sem.lean</code>), its

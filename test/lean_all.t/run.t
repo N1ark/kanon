@@ -1,6 +1,7 @@
 kanon lean-all DIR writes the Lean files of a language under DIR. Each module
 has its own, under the directory of its root: those of its nodes (Node.lean,
-Lang.lean) and of its rules (Model.lean, Statements.lean, Soundness.lean). The
+Lang.lean) and of its rules (Model.lean, Lift.lean, Soundness.lean, and a file
+per function, under Statements/ and Soundness/, and for the commutativity). The
 language has its terms, their semantics and its rule functions (Syntax.lean,
 Semantics.lean, Rules.lean) under its root (Ex, by [@@@lean_root "Ex"]), which
 is also that of its own module; the int module is under Ex/Int.
@@ -8,25 +9,31 @@ is also that of its own module; the int module is under Ex/Int.
   $ kanon lean-all out lang.knl
   $ find out -name '*.lean' | sort
   out/Ex/Int/Lang.lean
+  out/Ex/Int/Lift.lean
   out/Ex/Int/Model.lean
   out/Ex/Int/Node.lean
   out/Ex/Int/Soundness.lean
-  out/Ex/Int/Statements.lean
+  out/Ex/Int/Soundness/Comm.lean
+  out/Ex/Int/Soundness/Int/neg.lean
+  out/Ex/Int/Soundness/Int/plus.lean
+  out/Ex/Int/Statements/Comm.lean
+  out/Ex/Int/Statements/Int/neg.lean
+  out/Ex/Int/Statements/Int/plus.lean
   out/Ex/Lang.lean
+  out/Ex/Lift.lean
   out/Ex/Model.lean
   out/Ex/Node.lean
   out/Ex/Rules.lean
   out/Ex/Semantics.lean
   out/Ex/Soundness.lean
-  out/Ex/Statements.lean
   out/Ex/Syntax.lean
 
 Each generated proof of an arm has its own bound on heartbeats: that of its
 rule function ([@lean_heartbeats 800000] on neg), else that of the language
 ([@@@lean_heartbeats "300000"]).
 
-  $ grep 'maxHeartbeats [0-9]* in' out/Ex/Int/Soundness.lean | sort | uniq -c
-        5 set_option maxHeartbeats 300000 in
+  $ cat out/Ex/Int/Soundness/*/*.lean | grep 'maxHeartbeats [0-9]* in' | sort | uniq -c
+        4 set_option maxHeartbeats 300000 in
         3 set_option maxHeartbeats 800000 in
 
 Lang.lean states the typing of each node, at the sorts of a language.
@@ -43,16 +50,19 @@ With --check, kanon lean-all only checks that the files are up to date.
   $ kanon lean-all --check out lang.knl
 
 The hand-written proofs of a module, Proofs.lean, are imported by its generated
-proofs, Soundness.lean, when they exist.
+proofs, under Soundness/, when they exist.
 
-  $ echo 'import Ex.Int.Statements' > out/Ex/Int/Proofs.lean
+  $ echo 'import Ex.Int.Statements.Int.neg' > out/Ex/Int/Proofs.lean
   $ kanon lean-all --check out lang.knl
-  kanon: out/Ex/Int/Soundness.lean is not up to date (run kanon lean-all)
+  kanon: out/Ex/Int/Soundness/Comm.lean is not up to date (run kanon lean-all)
+  kanon: out/Ex/Int/Soundness/Int/plus.lean is not up to date (run kanon lean-all)
+  kanon: out/Ex/Int/Soundness/Int/neg.lean is not up to date (run kanon lean-all)
   [1]
   $ kanon lean-all out lang.knl
-  $ grep '^import' out/Ex/Int/Soundness.lean
-  import Ex.Int.Statements
+  $ grep '^import' out/Ex/Int/Soundness/Int/neg.lean
+  import Ex.Int.Statements.Int.neg
   import Ex.Int.Proofs
+  import Ex.Int.Soundness.Comm
 
 The files that kanon generated and no longer does are removed; the others are
 kept.
@@ -65,12 +75,14 @@ kept.
   $ kanon lean-all out lang.knl
   $ ls out/Ex/Int
   Lang.lean
+  Lift.lean
   Mine.lean
   Model.lean
   Node.lean
   Proofs.lean
+  Soundness
   Soundness.lean
-  Statements.lean
+  Statements
 
 The bound on heartbeats is a positive number.
 

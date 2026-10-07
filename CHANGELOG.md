@@ -57,6 +57,7 @@
 - The bool module's Lean proofs move to library `KanonBool`.
 - `kanon_tactic` on `Ops` proves a module's extension arms.
 - `[@lean "N"]` names generated records and variants.
+- [Lean statements and proofs](https://n1ark.github.io/kanon/proving.html#files): a file per function.
 
 ### Fixed
 

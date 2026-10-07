@@ -15,6 +15,6 @@ equal. Otherwise it is proved on its own.
   >   | r: Plus (x, 0) -> (Int 1 : type_of v)
   > KN
   $ kanon lean-all . lang.knl > /dev/null
-  $ grep -A1 "swap.ok :" Kanon/Rules/Soundness.lean
+  $ grep -A1 "swap.ok :" Kanon/Rules/Soundness/Rules/neg.lean
   theorem Rules.neg.r_r.swap.ok : Rules.neg.r_r.swap.Stmt :=
     no_implicit_lambda% (kanon_proof% Rules.neg.r_r.swap)

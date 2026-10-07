@@ -17,9 +17,12 @@
       extensible helpers satisfy;
     - [R/Model.lean]: its rule functions, oracles and extensible helpers as the
       record [R.Ops S], its specs, helpers and rules;
-    - [R/Statements.lean]: the statements of its arms, and the lifting lemmas;
+    - [R/Lift.lean]: the lifting lemmas;
+    - [R/Statements/Comm.lean]: the commutativity of its operators, and
+      [R/Statements/M/f.lean]: the statements of the arms of the function [M.f];
     - [R/Proofs.lean], by hand: the proofs that the tactics do not find;
-    - [R/Soundness.lean]: the proofs of its arms and of its rules.
+    - [R/Soundness/Comm.lean] and [R/Soundness/M/f.lean]: their proofs, and
+      those of the rules of [M.f], and [R/Soundness.lean], which imports them.
 
     A language of root [L] ties the knot: [L/Syntax.lean] (its sorts [Ty] and
     terms [Term], a case per module), [L/Val.lean] (by hand: its values and the
@@ -3076,18 +3079,32 @@ let visible_rules ctx m =
     (fun (f : fn) -> List.mem (Option.get (module_of_name f.name)) (closure m))
     (rule_fns ctx)
 
-(** [Statements.lean]: the lifting lemmas of the rule functions that [m] sees,
-    and the statements of the commutativity of its operators, of its arms, of
-    the postconditions and of the cases of extensible helpers. *)
-let statements_file ctx m =
+(** The functions whose arms, postconditions or cases the module [m] proves: the
+    rule functions with arms in [m] or a postcondition, if of [m], and the
+    extensible helpers with cases in [m], or of [m]. *)
+let module_proved_fns ctx m =
+  List.filter
+    (fun (f : fn) ->
+      match fn_kind ctx f.name with
+      | Rule ->
+          module_arms m f <> []
+          || (module_of_name f.name = Some m && postcondition f <> None)
+      | Ext -> module_ext_cases m f <> [] || module_of_name f.name = Some m
+      | OHelper | Pure -> false)
+    ctx.fns
+
+(** The path of the file of the function [f] under [dir]: [dir/M/f], for the
+    canonical name [M.f] of [f]. *)
+let fn_path dir (f : fn) = dir :: String.split_on_char '.' f.name
+
+(** [Lift.lean]: the lifting lemmas of the rule functions that [m] sees. *)
+let lift_file ctx m =
   let r = module_root m in
-  let parents = ops_parents m in
-  lean_file ~sources:(module_sources m) r [ "Statements" ]
+  lean_file ~sources:(module_sources m) r [ "Lift" ]
     ([ r ^ ".Model"; "KanonCore.Proof" ]
-    @ List.map (fun d -> module_root d ^ ".Statements") parents)
+    @ List.map (fun d -> module_root d ^ ".Lift") (ops_parents m))
   @@ fun ft ->
   with_self m @@ fun () ->
-  (* the lifting lemmas *)
   let lifted = visible_rules ctx m in
   if lifted <> [] then
     pf ft "namespace Lib@ @ variable %s {O : Ops S}@ @ " (lang_binders m);
@@ -3148,8 +3165,16 @@ let statements_file ctx m =
           (String.concat " " (List.map prime f.params))
           pre_names f)
     lifted;
-  if lifted <> [] then pf ft "end Lib@ @ ";
-  (* commutativity *)
+  if lifted <> [] then pf ft "end Lib@ @ "
+
+(** [Statements/Comm.lean]: the statements of the commutativity of the operators
+    of [m]. *)
+let comm_statements_file m =
+  let r = module_root m in
+  lean_file ~sources:(module_sources m) r [ "Statements"; "Comm" ]
+    [ r ^ ".Lift" ]
+  @@ fun ft ->
+  with_self m @@ fun () ->
   List.iter
     (fun n ->
       let xs = List.mapi (fun i _ -> Printf.sprintf "x%d" (i + 1)) n.gpayload in
@@ -3163,24 +3188,29 @@ let statements_file ctx m =
               xs n.gpayload))
         (node_term n.gc (xs @ [ "a"; "b" ]) "t")
         (node_term n.gc (xs @ [ "b"; "a" ]) "t"))
-    (module_comm m);
-  (* the arms *)
-  List.iter
-    (fun f ->
-      List.iter
-        (fun (r, arms) ->
-          List.iteri
-            (fun i a ->
-              if case_module f a.a_case = m then (
-                arm_stmt ctx m ft f r arms i a;
-                if postcondition f <> None then
-                  arm_stmt ~post:true ctx m ft f r arms i a))
-            arms)
-        (module_arms m f))
-    (rule_fns ctx);
-  (* the postconditions of the specs *)
-  List.iter
-    (fun f ->
+    (module_comm m)
+
+(** [Statements/M/f.lean]: the statements of the arms of the function [f] that
+    [m] proves, and of its postcondition, or of the cases of the extensible
+    helper [f] that [m] gives. *)
+let fn_statements_file ctx m (f : fn) =
+  let r = module_root m in
+  lean_file ~sources:(module_sources m) r (fn_path "Statements" f)
+    [ r ^ ".Lift" ]
+  @@ fun ft ->
+  with_self m @@ fun () ->
+  if fn_kind ctx f.name = Rule then (
+    List.iter
+      (fun (r, arms) ->
+        List.iteri
+          (fun i a ->
+            if case_module f a.a_case = m then (
+              arm_stmt ctx m ft f r arms i a;
+              if postcondition f <> None then
+                arm_stmt ~post:true ctx m ft f r arms i a))
+          arms)
+      (module_arms m f);
+    if module_of_name f.name = Some m then
       Option.iter
         (fun post ->
           pf ft
@@ -3189,30 +3219,25 @@ let statements_file ctx m =
             f.name post (qn f.name) (lang_binders m) params f pre_arrows f
             (pred_ref post) (qn f.name) args f)
         (postcondition f))
-    (module_fns ctx m [ Rule ]);
-  (* the cases of the extensible helpers *)
-  List.iter
-    (fun (f : fn) ->
-      if fn_kind ctx f.name = Ext then (
-        List.iter
-          (fun (name, c) ->
-            let o = case_calls_o ctx c in
-            pf ft
-              "@[<v 2>def %s.%s.Stmt : Prop :=@ ∀ %s,%s ∀ %a (r : %a), %s.%s%s \
-               %a = some r →@ %s.post %a r@]@ @ "
-              (qn f.name) name (lang_binders m)
-              (if o then " ∀ (O : Ops S), O.Sound →" else "")
-              params f lean_ty f.ret (qn f.name) name
-              (if o then " O" else "")
-              args f (fn_ref f.name) args f)
-          (module_ext_cases m f);
-        if module_of_name f.name = Some m then
-          pf ft
-            "@[<v 2>def %s.default.Stmt : Prop :=@ ∀ %s, ∀ %a, %s.post %a \
-             (%s.default %a)@]@ @ "
-            (qn f.name) (lang_binders m) params f (qn f.name) args f (qn f.name)
-            args f))
-    ctx.fns
+  else (
+    List.iter
+      (fun (name, c) ->
+        let o = case_calls_o ctx c in
+        pf ft
+          "@[<v 2>def %s.%s.Stmt : Prop :=@ ∀ %s,%s ∀ %a (r : %a), %s.%s%s %a \
+           = some r →@ %s.post %a r@]@ @ "
+          (qn f.name) name (lang_binders m)
+          (if o then " ∀ (O : Ops S), O.Sound →" else "")
+          params f lean_ty f.ret (qn f.name) name
+          (if o then " O" else "")
+          args f (fn_ref f.name) args f)
+      (module_ext_cases m f);
+    if module_of_name f.name = Some m then
+      pf ft
+        "@[<v 2>def %s.default.Stmt : Prop :=@ ∀ %s, ∀ %a, %s.post %a \
+         (%s.default %a)@]@ @ "
+        (qn f.name) (lang_binders m) params f (qn f.name) args f (qn f.name)
+        args f)
 
 (** The proof of the arm [a] of the rule [r] of [f], of the module [m]: by
     [kanon_proof%], or from the arm it is derived from by commutativity. *)
@@ -3285,18 +3310,24 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
         top;
       pf ft "kanon_congr@]@ @ "
 
-(** [Soundness.lean]: the proofs of the statements of [m], and of its rules. *)
-let soundness_file ctx m =
+(** What the proofs of [m] import: its hand-written proofs, and the
+    commutativity of the operators of [m] and of the modules it uses. *)
+let proof_imports ctx m =
   let r = module_root m in
-  let comm_deps =
-    List.filter
-      (fun d -> d <> m && module_comm d <> [] && has_model ctx d)
-      (closure m)
-  in
-  lean_file ~sources:(module_sources m) r [ "Soundness" ]
-    (((r ^ ".Statements")
-     :: (if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else []))
-    @ List.map (fun d -> module_root d ^ ".Soundness") comm_deps)
+  (if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
+  @ List.map
+      (fun d -> lean_module (module_root d) [ "Soundness"; "Comm" ])
+      (List.filter
+         (fun d -> module_comm d <> [] && has_model ctx d)
+         (closure m))
+
+(** [Soundness/Comm.lean]: the proofs of the commutativity of the operators of
+    [m]. *)
+let comm_soundness_file ctx m =
+  let r = module_root m in
+  lean_file ~sources:(module_sources m) r [ "Soundness"; "Comm" ]
+    ((r ^ ".Statements.Comm")
+    :: List.filter (( <> ) (r ^ ".Soundness.Comm")) (proof_imports ctx m))
   @@ fun ft ->
   with_self m @@ fun () ->
   List.iter
@@ -3305,77 +3336,90 @@ let soundness_file ctx m =
         "%t@@[kanon_comm_lemma] theorem %s.comm.ok : %s.comm.Stmt :=@   \
          no_implicit_lambda%% (kanon_proof%% %s.comm)@ @ "
         (heartbeats None) n.gc.c_name n.gc.c_name n.gc.c_name)
-    (module_comm m);
-  List.iter
-    (fun (f : fn) ->
-      let post = postcondition f in
-      List.iter
-        (fun (r, arms) ->
-          List.iteri
-            (fun i a ->
-              if case_module f a.a_case = m then (
-                arm_proof m ft f r arms i a;
-                if post <> None then
-                  pf ft
-                    "%ttheorem %s.post.ok : %s.post.Stmt :=@   \
-                     no_implicit_lambda%% (kanon_proof%% %s.post)@ @ "
-                    (heartbeats (Some f)) (arm_name f r arms i)
-                    (arm_name f r arms i) (arm_name f r arms i)))
-            arms)
-        (module_arms m f);
-      List.iter
-        (fun (_, _, grp) ->
-          let rule = rule_name f grp in
-          let arms = List.assoc rule (arms f) in
-          let n = Printf.sprintf "%s.r_%s" (qn f.name) (id rule) in
-          let thm name concl suffix =
-            pf ft
-              "@[<v 2>theorem %s.%s %s (O : Ops S) (hO : O.Sound) %a%a (res : \
-               S.Term)@   (h : %s O %a = some res) : %s := by@ unfold %s at h@ \
-               repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)"
-              n name (lang_binders m) params f (pre_binders ?rename:None) f n
-              args f concl n;
-            List.iteri
-              (fun i _ ->
-                pf ft "@ · kanon_arm h (%s%s.ok O hO)" (arm_name f rule arms i)
-                  suffix)
-              arms;
-            pf ft "@]@ @ "
-          in
-          thm "sound"
-            (Fmt.str "S.Refines (%s.spec %a) res" (fn_ref f.name) args f)
-            "";
-          Option.iter
-            (fun p -> thm "post_sound" (pred_ref p ^ " res") ".post")
-            post)
-        (module_rules m f))
-    (rule_fns ctx);
-  List.iter
-    (fun f ->
-      if postcondition f <> None then
-        pf ft
-          "%ttheorem %s.spec_post.ok : %s.spec_post.Stmt :=@   \
-           no_implicit_lambda%% (kanon_proof%% %s.spec_post)@ @ "
-          (heartbeats (Some f)) (qn f.name) (qn f.name) (qn f.name))
-    (module_fns ctx m [ Rule ]);
-  List.iter
-    (fun (f : fn) ->
-      if fn_kind ctx f.name = Ext then (
-        List.iter
-          (fun (name, _) ->
-            let x = Printf.sprintf "%s.%s" (qn f.name) name in
-            pf ft
-              "%ttheorem %s.ok : %s.Stmt :=@   no_implicit_lambda%% \
-               (kanon_proof%% %s)@ @ "
-              (heartbeats None) x x x)
-          (module_ext_cases m f);
-        if module_of_name f.name = Some m then
-          let x = qn f.name ^ ".default" in
+    (module_comm m)
+
+(** [Soundness/M/f.lean]: the proofs of the statements of [f] in [m], and of its
+    rules that [m] gives. *)
+let fn_soundness_file ctx m (f : fn) =
+  let r = module_root m in
+  lean_file ~sources:(module_sources m) r (fn_path "Soundness" f)
+    (lean_module r (fn_path "Statements" f) :: proof_imports ctx m)
+  @@ fun ft ->
+  with_self m @@ fun () ->
+  if fn_kind ctx f.name = Rule then (
+    let post = postcondition f in
+    List.iter
+      (fun (r, arms) ->
+        List.iteri
+          (fun i a ->
+            if case_module f a.a_case = m then (
+              arm_proof m ft f r arms i a;
+              if post <> None then
+                pf ft
+                  "%ttheorem %s.post.ok : %s.post.Stmt :=@   \
+                   no_implicit_lambda%% (kanon_proof%% %s.post)@ @ "
+                  (heartbeats (Some f)) (arm_name f r arms i)
+                  (arm_name f r arms i) (arm_name f r arms i)))
+          arms)
+      (module_arms m f);
+    List.iter
+      (fun (_, _, grp) ->
+        let rule = rule_name f grp in
+        let arms = List.assoc rule (arms f) in
+        let n = Printf.sprintf "%s.r_%s" (qn f.name) (id rule) in
+        let thm name concl suffix =
           pf ft
-            "%ttheorem %s.ok : %s.Stmt :=@   no_implicit_lambda%% \
-             (kanon_proof%% %s)@ @ "
-            (heartbeats None) x x x))
-    ctx.fns
+            "@[<v 2>theorem %s.%s %s (O : Ops S) (hO : O.Sound) %a%a (res : \
+             S.Term)@   (h : %s O %a = some res) : %s := by@ unfold %s at h@ \
+             repeat' (replace h := Kanon.orElse_some h; rcases h with h | h)"
+            n name (lang_binders m) params f (pre_binders ?rename:None) f n args
+            f concl n;
+          List.iteri
+            (fun i _ ->
+              pf ft "@ · kanon_arm h (%s%s.ok O hO)" (arm_name f rule arms i)
+                suffix)
+            arms;
+          pf ft "@]@ @ "
+        in
+        thm "sound"
+          (Fmt.str "S.Refines (%s.spec %a) res" (fn_ref f.name) args f)
+          "";
+        Option.iter
+          (fun p -> thm "post_sound" (pred_ref p ^ " res") ".post")
+          post)
+      (module_rules m f);
+    if module_of_name f.name = Some m && post <> None then
+      pf ft
+        "%ttheorem %s.spec_post.ok : %s.spec_post.Stmt :=@   \
+         no_implicit_lambda%% (kanon_proof%% %s.spec_post)@ @ "
+        (heartbeats (Some f)) (qn f.name) (qn f.name) (qn f.name))
+  else (
+    List.iter
+      (fun (name, _) ->
+        let x = Printf.sprintf "%s.%s" (qn f.name) name in
+        pf ft
+          "%ttheorem %s.ok : %s.Stmt :=@   no_implicit_lambda%% (kanon_proof%% \
+           %s)@ @ "
+          (heartbeats None) x x x)
+      (module_ext_cases m f);
+    if module_of_name f.name = Some m then
+      let x = qn f.name ^ ".default" in
+      pf ft
+        "%ttheorem %s.ok : %s.Stmt :=@   no_implicit_lambda%% (kanon_proof%% \
+         %s)@ @ "
+        (heartbeats None) x x x)
+
+(** [Soundness.lean]: the lifting lemmas and the proofs of [m], which it
+    imports. *)
+let soundness_file ctx m =
+  let r = module_root m in
+  lean_file ~sources:(module_sources m) r [ "Soundness" ]
+    (((r ^ ".Lift")
+     :: (if module_comm m <> [] then [ r ^ ".Soundness.Comm" ] else []))
+    @ List.map
+        (fun f -> lean_module r (fn_path "Soundness" f))
+        (module_proved_fns ctx m))
+  @@ fun _ -> ()
 
 (* ---------------------------------------------------------------- *)
 (* The files of a language *)
@@ -4049,12 +4093,24 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
             else []) );
       ( "statements",
         each (fun m ->
-            if has_model (ctx ()) m then [ statements_file (ctx ()) m ] else [])
-      );
+            if has_model (ctx ()) m then
+              (lift_file (ctx ()) m
+              ::
+              (if module_comm m <> [] then [ comm_statements_file m ] else []))
+              @ List.map
+                  (fn_statements_file (ctx ()) m)
+                  (module_proved_fns (ctx ()) m)
+            else []) );
       ( "soundness",
         each (fun m ->
-            if has_model (ctx ()) m then [ soundness_file (ctx ()) m ] else [])
-      );
+            if has_model (ctx ()) m then
+              (if module_comm m <> [] then [ comm_soundness_file (ctx ()) m ]
+               else [])
+              @ List.map
+                  (fn_soundness_file (ctx ()) m)
+                  (module_proved_fns (ctx ()) m)
+              @ [ soundness_file (ctx ()) m ]
+            else []) );
     ]
   in
   let sources = lang_sources in
