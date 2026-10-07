@@ -128,11 +128,11 @@ Without one, they are before `default`.
   >   kanon ocaml lang.knl base.kn ext.kn | grep -c 'Z.one'
   > done
   === | fin: _ -> v1
-    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_«fin» (S := sem) O.toBaseOps v1 v2]).getD
+    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_fin (S := sem) O.toBaseOps v1 v2]).getD
       (Kanon.Base.Base.add.spec (S := sem) v1 v2)
   1
   === | fin: _, _ -> v1
-    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_«fin» (S := sem) O.toBaseOps v1 v2]).getD
+    (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_fin (S := sem) O.toBaseOps v1 v2]).getD
       (Kanon.Base.Base.add.spec (S := sem) v1 v2)
   1
   === 

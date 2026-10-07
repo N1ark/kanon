@@ -1519,7 +1519,7 @@ let rule_def ctx ft (f : fn) (pre, scruts, grp) =
           (case_alt ctx scruts) ft grp
   in
   pf ft "@[<v 2>def %s.r_%s (O : Ops S) %a : Option S.Term :=@ %a@]@ @ "
-    (qn f.name) (id name) params f lets
+    (qn f.name) name params f lets
     (pre { (List.hd grp).body with e = EUnit })
 
 (** The names of the arms of a rule: the names of the choices that produced each
@@ -1564,8 +1564,7 @@ let arm_names (arms : arm list) =
     arms
 
 let arm_name f r arms i =
-  Printf.sprintf "%s.r_%s.%s" (qn f.name) (id r)
-    (id (List.nth (arm_names arms) i))
+  Printf.sprintf "%s.r_%s.%s" (qn f.name) r (id (List.nth (arm_names arms) i))
 
 (* ---------------------------------------------------------------- *)
 (* Files *)
@@ -3384,7 +3383,7 @@ let fn_soundness_file ctx m (f : fn) =
       (fun (_, _, grp) ->
         let rule = rule_name f grp in
         let arms = List.assoc rule (arms f) in
-        let n = Printf.sprintf "%s.r_%s" (qn f.name) (id rule) in
+        let n = Printf.sprintf "%s.r_%s" (qn f.name) rule in
         let thm name concl suffix =
           pf ft
             "@[<v 2>theorem %s.%s %s (O : Ops S) (hO : O.Sound) %a%a (res : \
@@ -3940,7 +3939,7 @@ let rules_file ~sources ctx ms =
            (List.map
               (fun (m, rule, _) ->
                 Fmt.str "%s.%s.r_%s (S := sem) %s %a" (module_root m)
-                  (qn f.name) (id rule) (o_to m) args f)
+                  (qn f.name) rule (o_to m) args f)
               rs))
         (fn_ref f.name) args f;
       pf ft
@@ -3953,8 +3952,8 @@ let rules_file ~sources ctx ms =
           pf ft
             "@ refine Kanon.Refinement.firstSome_cons (fun res h => \
              %s.%s.r_%s.sound (S := sem) %s %s %a%a res h) ?_"
-            (module_root m) (qn f.name) (id rule) (o_to m) (h_to m) args f
-            pre_names f)
+            (module_root m) (qn f.name) rule (o_to m) (h_to m) args f pre_names
+            f)
         rs;
       pf ft "@ exact Kanon.Refinement.firstSome_nil@]@ @ ";
       Option.iter
@@ -3970,7 +3969,7 @@ let rules_file ~sources ctx ms =
               pf ft
                 "@ refine Kanon.getD_firstSome_cons (fun res h => \
                  %s.%s.r_%s.post_sound (S := sem) %s %s %a%a res h) ?_"
-                (module_root m) (qn f.name) (id rule) (o_to m) (h_to m) args f
+                (module_root m) (qn f.name) rule (o_to m) (h_to m) args f
                 pre_names f)
             rs;
           pf ft
