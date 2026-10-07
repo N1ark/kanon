@@ -237,3 +237,20 @@ So is the name of an `as` variable:
   $ kanon lean-statements lang13.knl > /dev/null
   ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
   [1]
+
+The functions of `Semantics.lean` on the nodes of a module are named after it
+(`allList`, `evList` for a module named `List`), and so are those on the lists
+of children, so a module `List` with such nodes is not supported:
+
+  $ cat > lang14.knl <<'KN'
+  > use "list"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ cat > list.knl <<'KN'
+  > sort TL
+  > node Cons : t list -> TL
+  > KN
+  $ kanon lean-semantics lang14.knl > /dev/null
+  kanon: the module List: its functions allList and evList are those of the lists of children: not supported in Lean
+  [1]
