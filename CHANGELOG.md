@@ -107,6 +107,7 @@
 - Typings are valid Lean with a node named `Int`.
 - `Node.All`, `Rel` and `children` are valid with nodes named `True`.
 - Lean rejects a pattern variable named as another parameter.
+- Lean rejects an `as` variable named as another parameter.
 
 ## 0.3.0 (2026-10-04)
 

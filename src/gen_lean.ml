@@ -1351,6 +1351,11 @@ let arm_of (f : fn) scruts (c : case) : arm =
           subst := (y, (id x, p.pid)) :: !subst
       | _ ->
           let t, bs, sb = pat_term p in
+          List.iter
+            (fun (y, _) ->
+              if y <> x && List.mem_assoc y f.params then
+                cases_error f c.cloc "pattern variable %s shadows a parameter" y)
+            sb;
           substituted := x :: !substituted;
           binders := !binders @ bs;
           subst := ((x, (t, p.pid)) :: sb) @ !subst)
