@@ -80,6 +80,7 @@
 - Types named like OCaml's (`string`) are an error.
 - Variables named like a function's OCaml name are an error.
 - Variables and local functions shadow each other, as in OCaml.
+- Literals and repeated variables work in `let` patterns.
 
 ## 0.3.0 (2026-10-04)
 

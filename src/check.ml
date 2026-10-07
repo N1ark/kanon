@@ -666,6 +666,21 @@ and binders (p : Syntax.pat) : (string * (Syntax.ty * bool)) list =
              | _ -> binders p)
            c.c_args args)
 
+(** Whether the pattern has an integer literal or binds a variable twice, which
+    OCaml patterns on integers of [Z.t] cannot express (see [linearize]). *)
+let needs_linearize (p : Syntax.pat) =
+  let rec has_int (p : Syntax.pat) =
+    match p.p with
+    | PInt _ -> true
+    | PAny | PVar _ | PBool _ | PUnit | PNone | PNil -> false
+    | PAs (q, _) | PSome q -> has_int q
+    | POr (a, b) | PComm (a, b) | PCons (a, b) -> has_int a || has_int b
+    | PTuple l | PConstr (_, l) -> List.exists has_int l
+    | PRecord l -> List.exists (fun (_, q) -> has_int q) l
+  in
+  let xs = List.map fst (binders p) in
+  has_int p || List.length (List.sort_uniq compare xs) <> List.length xs
+
 (** The variables bound by the sorts of the operands of the spec of the rule
     being checked (see [sort_binds]), and the values they stand for. *)
 let sort_vars : (string * Syntax.expr) list ref = ref []
@@ -1577,11 +1592,19 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             | _ -> error vb.pvb_loc "unsupported binding constraint"
           in
           let rhs = expr env ?expected:annot vb.pvb_expr in
-          let p, benv =
-            bind_pat env ~sort:(sort_of env vb.pvb_expr) rhs.ety vb.pvb_pat
-          in
-          let body = expr benv ?expected body in
-          mk body.ety (ELet (p, rhs, body)))
+          let sort = sort_of env vb.pvb_expr in
+          let p, benv = bind_pat env ~sort rhs.ety vb.pvb_pat in
+          if needs_linearize p then
+            (* a case of a match: literals and repeated variables are
+               constraints on its guard *)
+            let cases =
+              case env ?expected ~sort [ rhs ]
+                { pc_lhs = vb.pvb_pat; pc_guard = None; pc_rhs = body }
+            in
+            mk (List.hd cases).body.ety (EMatch ([ rhs ], cases))
+          else
+            let body = expr benv ?expected body in
+            mk body.ety (ELet (p, rhs, body)))
   | Pexp_match (scrut, cases) ->
       let scruts =
         match scrut.pexp_desc with
