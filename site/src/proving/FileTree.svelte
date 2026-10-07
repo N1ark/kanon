@@ -1,6 +1,6 @@
 <script lang="ts">
   // The Lean files of an example as a tree, each linked to the section of the guide that explains
-  // it: the hand-written ones in bold, those the example does not have dashed, and the entries of
+  // it: the hand-written ones marked (✎, tinted), those the example does not have dashed, and the entries of
   // the section in view marked.
   import type { Entry } from "./files";
 
@@ -106,11 +106,19 @@
   .hand {
     font-weight: 600;
     color: var(--color);
+    background: var(--bg3);
+    box-shadow: inset 2px 0 0 var(--theme);
+  }
+  .hand::before {
+    content: "✎ ";
+    font-weight: 400;
   }
   .absent {
     font-weight: 400;
     font-style: italic;
     color: var(--faint);
+    background: none;
+    box-shadow: none;
     text-decoration: underline dashed;
     text-underline-offset: 0.2em;
   }
@@ -127,5 +135,7 @@
   }
   .legend span {
     white-space: nowrap;
+    padding: 0 var(--sp-1);
+    border-radius: var(--radius-sm);
   }
 </style>
