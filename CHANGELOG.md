@@ -89,6 +89,7 @@
 - A case of variables like `x, y` hides later cases.
 - `ocaml-typed` keeps the order of a rule's parameters.
 - `ocaml-tests` builds with unused-case warnings as errors.
+- Languages with one sort build with warnings as errors.
 
 ## 0.3.0 (2026-10-04)
 

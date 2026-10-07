@@ -1064,6 +1064,23 @@ let rec is_atom (e : Syntax.expr) =
 let type_of (e : Syntax.expr) =
   { e = ECall ("type_of", [ e ]); ety = TSty; eloc = e.eloc }
 
+(** Whether the pattern matches every sort: its sort constructor is the only one
+    of the language, and its arguments are variables or wildcards. A match on it
+    needs no other case. *)
+let rec total_sort_pat (p : Syntax.pat) =
+  match p.p with
+  | PAny | PVar _ -> true
+  | PTuple l -> List.for_all total_sort_pat l
+  | PConstr (_, args) ->
+      List.length
+        (List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs)
+      = 1
+      && List.for_all
+           (fun (a : Syntax.pat) ->
+             match a.p with PAny | PVar _ -> true | _ -> false)
+           args
+  | _ -> false
+
 (** The term of the node [name] over [params] and [operands], which [build]
     makes a kind of, at the sort that its typing gives it: the sort of its
     result when it only depends on the parameters, else the sort of an operand
@@ -1220,7 +1237,8 @@ let node_term loc ~name ~build (params : Syntax.expr list)
               e =
                 EMatch
                   ( scrut_exprs,
-                    [ case pat body; case any (List.hd scrut_exprs) ] );
+                    if total_sort_pat pat then [ case pat body ]
+                    else [ case pat body; case any (List.hd scrut_exprs) ] );
               ety = TSty;
               eloc = loc;
             }
@@ -4331,11 +4349,14 @@ let sort_binds env (r : raw_fn) =
                   e =
                     EMatch
                       ( [ scrut ],
-                        [
-                          case (only x p) { e = EVar x; ety = t; eloc = loc };
-                          case { p with p = PAny }
-                            { e = EUnreachable; ety = t; eloc = loc };
-                        ] );
+                        case (only x p) { e = EVar x; ety = t; eloc = loc }
+                        ::
+                        (if total_sort_pat (only x p) then []
+                         else
+                           [
+                             case { p with p = PAny }
+                               { e = EUnreachable; ety = t; eloc = loc };
+                           ]) );
                   ety = t;
                   eloc = loc;
                 } ))
