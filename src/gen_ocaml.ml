@@ -742,10 +742,11 @@ let sort_ctor ft (c : constr) =
 
 (** The module of the generated OCaml where the declaration at [loc] is: the
     Kanon module of its file (see {!Check.module_of_loc}), which may not be the
-    name of a module that the output defines, [reserved] or [Kanon_flat]. *)
+    name of a module that the output defines, [reserved], [Kanon_flat] or
+    Zarith's [Z], which it calls. *)
 let module_of ?(reserved = []) (loc : Location.t) =
   let m = Option.value (Check.module_of_loc loc) ~default:"Kanon" in
-  if List.mem m ("Kanon_flat" :: reserved) then
+  if List.mem m ("Kanon_flat" :: "Z" :: reserved) then
     raise
       (Check.Error
          (loc, Fmt.str "the module %s has the name of a generated module" m));

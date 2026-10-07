@@ -90,6 +90,7 @@
 - `ocaml-typed` keeps the order of a rule's parameters.
 - `ocaml-tests` builds with unused-case warnings as errors.
 - Languages with one sort build with warnings as errors.
+- A file named `z` is an error: `Z` is Zarith's.
 
 ## 0.3.0 (2026-10-04)
 

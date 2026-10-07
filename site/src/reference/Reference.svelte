@@ -925,7 +925,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     A module of <code>Lang_rules</code> is then an alias of the functions of the group: a call of
     <code>Bitvec.add</code> is a direct call of the function, which OCaml inlines when it is small,
     as with flat names. <code>Kanon_flat</code> is not for use, and a module cannot be named
-    <code>Kanon_flat</code>.
+    <code>Kanon_flat</code>, nor <code>Z</code>, which is Zarith's.
   </p>
   <p id="destructors">
     <strong>Destructors.</strong> The <code>ocaml</code> backend generates a destructor
