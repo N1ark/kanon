@@ -105,16 +105,6 @@ not rebuild them.
   out/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Proofs
   out/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Soundness.Comm
 
-[@@@lean_proofs "F"] in the declarations of a module does so for its other
-proofs, the commutativity included.
-
-  $ echo '[@@@lean_proofs "Base"]' >> int.knl
-  $ kanon lean-all out lang.knl
-  $ grep -h '^import Ex.Int.Proofs' out/Ex/Int/Soundness/Comm.lean out/Ex/Int/Soundness/Int/*.lean
-  import Ex.Int.Proofs.Base
-  import Ex.Int.Proofs.Neg
-  import Ex.Int.Proofs.Base
-
 It is only for a rule or an extensible helper.
 
   $ sed 's/^fn negate (x : int) : int/fn negate (x : int) : int [@lean_proofs "Neg"]/' int.kn > bad/int.kn

@@ -3311,22 +3311,16 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
       pf ft "kanon_congr@]@ @ "
 
 (** What the proofs of [m] import: its hand-written proofs, and the
-    commutativity of the operators of [m] and of the modules it uses. The
-    hand-written proofs are [R/Proofs/F.lean] instead of [R/Proofs.lean] by
-    [[@lean_proofs "F"]] on a function [f] of [m], or else by
-    [[@@@lean_proofs "F"]] in the declarations of [m]. *)
+    commutativity of the operators of [m] and of the modules it uses. The proofs
+    of a function [f] of [m] import [R/Proofs/F.lean] instead of
+    [R/Proofs.lean], by [[@lean_proofs "F"]]. *)
 let proof_imports ?(f : fn option) ctx m =
   let r = module_root m in
-  let file =
-    match f with
+  (match f with
     | Some { lean_proofs = Some p; name; _ } when module_of_name name = Some m
       ->
-        Some p
-    | _ -> List.assoc_opt m !lang.lean_proofs
-  in
-  (match file with
-    | Some p -> [ lean_module r ("Proofs" :: String.split_on_char '/' p) ]
-    | None -> if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
+        [ lean_module r ("Proofs" :: String.split_on_char '/' p) ]
+    | _ -> if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
   @ List.map
       (fun d -> lean_module (module_root d) [ "Soundness"; "Comm" ])
       (List.filter

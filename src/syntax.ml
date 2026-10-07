@@ -187,9 +187,6 @@ type lang = {
   lean_laws : string list;
       (** [[@@@lean_laws]], in the declarations of a module: its proofs assume
           the class [Laws] of its [Prims.lean], which each language gives *)
-  lean_proofs : (string * string) list;
-      (** [[@@@lean_proofs "F"]], in the declarations of a module: its proofs
-          import [R/Proofs/F.lean] instead of [R/Proofs.lean], by module *)
   lean_heartbeats : int;
       (** [[@@@lean_heartbeats n]]: the bound on the heartbeats of each
           generated proof of an arm, unless its function has one *)
@@ -228,7 +225,6 @@ let lang =
       lean_roots = [];
       lean_invs = [];
       lean_laws = [];
-      lean_proofs = [];
       lean_heartbeats = 400000;
       ocaml_types = None;
       ocaml_prims = None;
