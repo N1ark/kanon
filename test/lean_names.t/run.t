@@ -227,3 +227,13 @@ parameters and the pattern variables alike.
   $ kanon lean-statements lang13.knl > /dev/null
   ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
   [1]
+
+So is the name of an `as` variable:
+
+  $ cat > rules13.kn <<'KN'
+  > rule sub : Sub (v1, v2) =
+  >   | crossed: (Int a as v2), x -> v2
+  > KN
+  $ kanon lean-statements lang13.knl > /dev/null
+  ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
+  [1]
