@@ -99,3 +99,18 @@ about its nodes:
   $ kanon lean-semantics lang5.knl | grep -o "\(WT\|ev\)_[^ ]*open[^ ]*" | sort -u
   WT_open
   ev_open
+
+The arguments of the second node of `Rel` are those of the first, with primes,
+and are new variables even if the first has an argument named so:
+
+  $ cat > lang6.knl <<'KN'
+  > sort TInt
+  > node Int of int : TInt
+  > node Mk of int * int (x, x') : TInt
+  > node Pair of t * t (a, a') : TInt
+  > KN
+  $ kanon lean-node lang6.knl | grep -A3 "^def Rel"
+  def Rel (R : T → U → Prop) : Node T → Node U → Prop
+    | (.Int x1), (.Int x1') => x1 = x1'
+    | (.Mk x x'), (.Mk x'' x''') => x = x'' ∧ x' = x'''
+    | (.Pair a a'), (.Pair a'' a''') => R a a'' ∧ R a' a'''
