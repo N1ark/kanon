@@ -930,9 +930,9 @@ let rec expr ctx ft (e : expr) =
   | ERecord fs ->
       let d = decl_of_ty e.ety in
       pf ft "({ %a } : %a)"
-        (list (fun ft (f, _) -> pf ft "%s := %a" f expr (List.assoc f fs)))
+        (list (fun ft (f, _) -> pf ft "%s := %a" (id f) expr (List.assoc f fs)))
         d.d_fields lean_ty e.ety
-  | EField (e, f) -> pf ft "%a.%s" expr e f
+  | EField (e, f) -> pf ft "%a.%s" expr e (id f)
   | EAssert (_, body) -> expr ft body
 
 (** The record of the model, for [tag_le]. *)
@@ -2303,7 +2303,7 @@ let lean_decl ft (d : decl) =
             (constrs_of d)
       | fields ->
           pf ft "@[<v 2>structure %s%s where" name binders;
-          List.iter (fun (f, t) -> pf ft "@ %s : %a" f lean_ty t) fields);
+          List.iter (fun (f, t) -> pf ft "@ %s : %a" (id f) lean_ty t) fields);
   pf ft "@]@   deriving DecidableEq, Repr, Inhabited@ @ ";
   if has_term (TData d.d_name) then
     let reg = decl_registry d in
