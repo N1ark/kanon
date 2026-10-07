@@ -34,3 +34,23 @@ its Lean files import the types of that module, whether it `use`s it or not.
   out/AMod/Node.lean:import BMod.Types
   out/CMod/Model.lean:import BMod.Types
   out/DMod/Types.lean:import BMod.Types
+
+The types that Lean already has (`[@lean "String"]`) are not defined by their
+module: a module that mentions one does not depend on it.
+
+  $ cat > lang2.knl <<'KN'
+  > use "e"
+  > type var [@lean "String"]
+  > node Var of var
+  > KN
+  $ cat > e.knl <<'KN'
+  > [@@@lean_root "EMod"]
+  > sort TE
+  > node E of var : TE
+  > KN
+  $ kanon lean-all out2 lang2.knl
+  $ grep '^import' out2/EMod/Model.lean
+  import EMod.Lang
+  import KanonCore.Model
+  import KanonCore.Attr
+  import KanonCore.Embed

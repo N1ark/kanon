@@ -380,12 +380,42 @@ let compute_refs (p : program) =
           cases
     | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> ()
   in
+  let rec ty m (t : Syntax.ty) =
+    match t with
+    | TData n -> (
+        match find_decl n with
+        | Some d
+          when d.d_fields <> []
+               || d.d_lean = None
+               || List.exists (fun c -> c.c_res = t) !lang.constrs ->
+            add m (module_of_loc d.d_loc)
+        | _ -> ())
+    | TTuple l -> List.iter (ty m) l
+    | TOption t | TList t | TArray t -> ty m t
+    | _ -> ()
+  in
   List.iter
     (fun (f : fn) ->
       let m = module_of_name f.name in
+      List.iter (fun (_, t) -> ty m t) f.params;
+      ty m f.ret;
       Option.iter (expr m) f.spec;
       expr m f.body)
     p.fns;
+  List.iter
+    (fun (q : prim) ->
+      let m = module_of_name q.pname in
+      List.iter (ty m) q.pargs;
+      ty m q.pret)
+    p.prims;
+  List.iter
+    (fun (c : constr) ->
+      List.iter (fun a -> ty (module_of_loc c.c_loc) (arg_ty a)) c.c_args)
+    !lang.constrs;
+  List.iter
+    (fun (d : decl) ->
+      List.iter (fun (_, t) -> ty (module_of_loc d.d_loc) t) d.d_fields)
+    !lang.decls;
   List.iter
     (fun (t : typing) ->
       let m = module_of_loc t.t_constr.c_loc in

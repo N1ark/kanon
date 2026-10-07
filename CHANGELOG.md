@@ -99,6 +99,7 @@
 - Modules named like Lean keywords generate valid Lean.
 - `Node.Rel` is valid for node arguments `x` and `x'`.
 - `lean-node` rejects node arguments named `f`, `y` or `ev`.
+- Lean files import the modules whose types a module mentions.
 
 ## 0.3.0 (2026-10-04)
 
