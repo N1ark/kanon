@@ -296,6 +296,10 @@ let rec is_blank (p : pattern) =
     which must not be left out as unreachable. *)
 let extension_cases : (Location.t * string) list ref = ref []
 
+(** The [[@lean_proofs "F"]] of each [extend], if it has one, with the function
+    that it extends and its module. *)
+let extension_proofs : (string * string * string option) list ref = ref []
+
 let has_attr name (attrs : attributes) =
   List.exists (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
@@ -2123,6 +2127,13 @@ let check_attrs allowed (attrs : attributes) =
 let find_attr name (attrs : attributes) =
   List.find_opt (fun (a : attribute) -> a.attr_name.txt = name) attrs
 
+(** The argument of [[@lean_heartbeats n]] or [[@@@lean_heartbeats n]]: a
+    positive number of heartbeats (thousands, as Lean's [maxHeartbeats]). *)
+let heartbeats_arg loc n =
+  match int_of_string_opt n with
+  | Some n when n > 0 -> n
+  | _ -> error loc "[@lean_heartbeats n]: n must be a positive integer"
+
 (** [[@no_lean]] is for [fn] and [prim] items only: [what] says what the item
     is, and why it is modelled. *)
 let reject_no_lean what (attrs : attributes) =
@@ -2450,7 +2461,10 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | Some `Sort -> "a sort is part of the Lean model"
     | _ -> "a node is part of the Lean model")
     attrs;
-  check_attrs ([ "comm"; "params"; "sorts"; "when"; "get" ] @ law_attrs) attrs;
+  check_attrs
+    ([ "comm"; "params"; "sorts"; "when"; "get"; "lean_inv"; "lean_proofs" ]
+    @ law_attrs)
+    attrs;
   let payload n =
     Option.map
       (fun (a : attribute) ->
@@ -2519,6 +2533,18 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | None -> l
   in
   let l =
+    match find_attr "lean_proofs" attrs with
+    | Some a when Option.is_none (find_attr "comm" attrs) ->
+        error a.attr_name.loc
+          "[@lean_proofs] on a node is only for a [@comm] one"
+    | Some a ->
+        {
+          l with
+          lean_comm_proofs = l.lean_comm_proofs @ [ (name, string_attr a) ];
+        }
+    | None -> l
+  in
+  let l =
     {
       l with
       laws =
@@ -2534,6 +2560,14 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
                 (law_of_attr a))
             attrs;
     }
+  in
+  let l =
+    match find_attr "lean_inv" attrs with
+    | Some a ->
+        if not (List.mem kind [ Some `Sort; Some `Node ]) then
+          error a.attr_loc "[@lean_inv \"P\"] applies to sorts and nodes";
+        { l with lean_invs = l.lean_invs @ [ (name, string_attr a) ] }
+    | None -> l
   in
   let l =
     match find_attr "get" attrs with
@@ -2682,14 +2716,29 @@ let language (str : structure) =
                | Pstr_attribute a -> (
                    match (a.attr_name.txt, strings_attr a) with
                    | "lean_root", [ r ] ->
-                       lang := { !lang with lean_root = r };
-                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
-                   | "lean_param", [ x; t ] ->
+                       let m =
+                         match module_of_loc a.attr_loc with
+                         | Some m -> m
+                         | None ->
+                             error a.attr_loc
+                               "[@@@@@@lean_root] is only for a module"
+                       in
                        lang :=
                          {
                            !lang with
-                           lean_params = !lang.lean_params @ [ (x, t) ];
+                           lean_roots = !lang.lean_roots @ [ (m, r) ];
                          };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "lean_laws", [] ->
+                       let m =
+                         match module_of_loc a.attr_loc with
+                         | Some m -> m
+                         | None ->
+                             error a.attr_loc
+                               "[@@@@@@lean_laws] is only for a module"
+                       in
+                       lang :=
+                         { !lang with lean_laws = !lang.lean_laws @ [ m ] };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_types", [ m ] ->
                        lang := { !lang with ocaml_types = Some m };
@@ -2702,6 +2751,13 @@ let language (str : structure) =
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "traversals", [] ->
                        lang := { !lang with traversals = true };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "lean_heartbeats", [ n ] ->
+                       lang :=
+                         {
+                           !lang with
+                           lean_heartbeats = heartbeats_arg a.attr_loc n;
+                         };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | _ ->
                        error a.attr_name.loc "unknown attribute [@@@@@@%s]"
@@ -3227,8 +3283,18 @@ let raw_fn (vb : value_binding) =
   let rdoc, rattrs = take_doc vb.pvb_attributes in
   if Option.is_some (spec_of_attrs vb.pvb_attributes) then (
     reject_no_lean "a rule is proved in Lean" rattrs;
-    check_attrs [ "spec"; "cases"; "untyped" ] rattrs)
-  else check_attrs [ "ty_only"; "no_lean"; "total" ] rattrs;
+    check_attrs
+      [ "spec"; "cases"; "untyped"; "lean_heartbeats"; "lean_proofs" ]
+      rattrs)
+  else (
+    check_attrs
+      [ "ty_only"; "no_lean"; "total"; "extensible"; "lean_proofs" ]
+      rattrs;
+    match find_attr "lean_proofs" rattrs with
+    | Some a when not (has_attr "extensible" rattrs) ->
+        error a.attr_name.loc
+          "[@lean_proofs] is only for a rule or an extensible helper"
+    | _ -> ());
   let rspec, rsorts =
     match spec_of_attrs vb.pvb_attributes with
     | Some spec ->
@@ -3857,6 +3923,7 @@ let operator_typing (t : typing) =
     [||] and [&&]. *)
 let extend_rules (str : structure) =
   extension_cases := [];
+  extension_proofs := [];
   let splice loc f before (ext : Ppxlib.case list) (cs : Ppxlib.case list) =
     extension_cases :=
       List.map (fun (c : Ppxlib.case) -> (c.pc_lhs.ppat_loc, f)) ext
@@ -3918,6 +3985,13 @@ let extend_rules (str : structure) =
         (* at the name of the extended function *)
         let f, loc = string_attr_loc (Option.get (find_attr "extend" attrs)) in
         let f = resolve loc f in
+        check_attrs [ "extend"; "before"; "fn"; "lean_proofs" ] attrs;
+        Option.iter
+          (fun m ->
+            extension_proofs :=
+              (f, m, Option.map string_attr (find_attr "lean_proofs" attrs))
+              :: !extension_proofs)
+          (module_of_loc si.pstr_loc);
         let before = Option.map string_attr_loc (find_attr "before" attrs) in
         let fn = has_attr "fn" attrs in
         let rec go = function
@@ -4590,6 +4664,20 @@ let check_fn env0 globals r =
     floc = r.rloc;
     fdoc = r.rdoc;
     no_lean = has_attr "no_lean" r.rattrs;
+    heartbeats =
+      Option.map
+        (fun (a : attribute) ->
+          match strings_attr a with
+          | [ n ] -> heartbeats_arg a.attr_loc n
+          | _ -> error a.attr_loc "expected [@lean_heartbeats n]")
+        (find_attr "lean_heartbeats" r.rattrs);
+    lean_proofs = Option.map string_attr (find_attr "lean_proofs" r.rattrs);
+    ext_lean_proofs =
+      List.rev
+        (List.filter_map
+           (fun (f, m, p) -> if f = r.rname then Some (m, p) else None)
+           !extension_proofs);
+    extensible = has_attr "extensible" r.rattrs;
     param_sorts =
       List.filter_map
         (fun (x, (s : expression)) ->
@@ -4987,7 +5075,13 @@ let program (str : structure) : program =
       List.iter (check_calls what) t.t_sorts;
       Option.iter (check_calls what) t.t_when)
     typings;
-  { prims; fns; typing = List.filter operator_typing (List.map snd typings) }
+  let typings = List.map snd typings in
+  {
+    prims;
+    fns;
+    typing = List.filter operator_typing typings;
+    leaf_typing = List.filter (fun t -> not (operator_typing t)) typings;
+  }
 
 (** The language before any declaration. *)
 let initial_lang = !lang

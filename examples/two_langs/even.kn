@@ -1,0 +1,8 @@
+(* whether [v] is an even literal *)
+fn is_ev (v : t) : bool =
+  match v with
+  | Ev _ -> true
+  | _ -> false
+
+rule rem2 : Rem2 v =
+  | lit: Ev z -> Num 0

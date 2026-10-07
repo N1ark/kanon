@@ -81,9 +81,18 @@ jobs:
             exit 1
           fi
 
-      - name: Build the Lean model of the arrays example
+      - name: Build the proofs of the arrays example
         working-directory: examples/arrays/lean
         run: lake build
+
+      - name: Check that no proof of the arrays example is missing
+        working-directory: examples/arrays/lean
+        run: |
+          lake env lean check_axioms.lean | tee axioms.txt
+          if grep -q sorryAx axioms.txt; then
+            echo "::error::Some rules of examples/arrays are not proved"
+            exit 1
+          fi
 
       - name: Build the proofs of the division example
         working-directory: examples/division/lean
@@ -95,6 +104,19 @@ jobs:
           lake env lean check_axioms.lean | tee axioms.txt
           if grep -q sorryAx axioms.txt; then
             echo "::error::Some rules of examples/division are not proved"
+            exit 1
+          fi
+
+      - name: Build the proofs of the two_langs example
+        working-directory: examples/two_langs/lean
+        run: lake build
+
+      - name: Check that no proof of the two_langs example is missing
+        working-directory: examples/two_langs/lean
+        run: |
+          lake env lean check_axioms.lean | tee axioms.txt
+          if grep -q sorryAx axioms.txt; then
+            echo "::error::Some rules of examples/two_langs are not proved"
             exit 1
           fi
 

@@ -31,6 +31,13 @@ theorem firstSome_cons {spec : T} {o : Option T} {l : List (Option T)}
   | none => simpa [firstSome] using t
   | some r => simpa [firstSome] using h r rfl
 
+/-- Refining the branches of a conditional refines it. -/
+theorem ite_congr {c : Prop} [inst : Decidable c] {a a' b b' : T} (ha : R a a') (hb : R b b') :
+    R (if c then a else b) (if c then a' else b') := by
+  cases inst with
+  | isTrue _ => exact ha
+  | isFalse _ => exact hb
+
 end Refinement
 
 end Kanon

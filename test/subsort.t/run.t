@@ -92,13 +92,13 @@ result only.
   bad.knl:4:23: A is a subsort: it is the sort of an operand or of a result, not an argument of a sort
   [1]
 
-Lean: a subsort is erased in the typing (`lean-typing`, `lean-syntax`, ...), and
+Lean: a subsort is erased in the typing (`lean-lang`, `lean-syntax`, ...), and
 has a meaning only if it names a Lean predicate on terms, `[@lean "P"]`, which
-the model's `Semantics.lean` defines. Then the statements of a rule function
-assume `P` of the operand at a position of the subsort (of each element of a
-list of operands), as an hypothesis before its guard; and a rule function whose
-result has the subsort must prove that what it returns, a rule or its spec,
-satisfies it (`f.post.main.Stmt`, to prove by hand with `[@kanon_arm]`). A
+the hand-written `Prims.lean` of its module defines. Then the statements of a
+rule function assume `P` of the operand at a position of the subsort (of each
+element of a list of operands), as an hypothesis before its guard; and a rule
+function whose result has the subsort must prove that what it returns, a rule
+or its spec, satisfies it (`f.r.main.post.Stmt` and `f.spec_post.Stmt`). A
 subsort without a predicate assumes and proves nothing.
 
   $ cat > nonzero.knl <<'KN'
@@ -120,46 +120,36 @@ subsort without a predicate assumes and proves nothing.
   > rule all : All vs
   > rule bv_mod : Mod (v1, v2)
   > KN
-  $ kanon lean-statements nonzero.knl | sed -n '/^structure/,/^$/p;/r_self.main.Stmt/,/^$/p;/^def Nonzero_rules.all.r_default.main/,$p'
-  structure Ops.Sound (O : Ops) : Prop where
-    orc : O.orc.Compat
-    nonzero_rules_bv_div : ∀ (s : Bool) (v1 : Term) (v2 : Term), Nonzero v2 → Refines (Nonzero_rules.bv_div.spec s v1 v2) (O.nonzero_rules_bv_div s v1 v2)
-    nonzero_rules_pos : ∀ (v : Term), Refines (Nonzero_rules.pos.spec v) (O.nonzero_rules_pos v)
-    nonzero_rules_all : ∀ (vs : (List Term)), (∀ y ∈ vs, Nonzero y) → Refines (Nonzero_rules.all.spec vs) (O.nonzero_rules_all vs)
-    nonzero_rules_bv_mod : ∀ (v1 : Term) (v2 : Term), Refines (Nonzero_rules.bv_mod.spec v1 v2) (O.nonzero_rules_bv_mod v1 v2)
+  $ kanon lean-model nonzero.knl | sed -n '/^structure Ops.Sound.*where/,/^$/p'
+  structure Ops.Sound (O : Ops S) : Prop extends toNonzeroSound : Kanon.Ops.Sound O.toNonzeroOps where
+    nonzero_rules_bv_div : ∀ (s : Bool) (v1 : S.Term) (v2 : S.Term), Kanon.Nonzero v2 → S.Refines (Nonzero_rules.bv_div.spec s v1 v2) (O.nonzero_rules_bv_div s v1 v2)
+    nonzero_rules_pos : ∀ (v : S.Term), S.Refines (Nonzero_rules.pos.spec v) (O.nonzero_rules_pos v)
+    nonzero_rules_pos_post : ∀ (v : S.Term), Kanon.Nonzero (O.nonzero_rules_pos v)
+    nonzero_rules_all : ∀ (vs : (List S.Term)), (∀ y ∈ vs, Kanon.Nonzero y) → S.Refines (Nonzero_rules.all.spec vs) (O.nonzero_rules_all vs)
+    nonzero_rules_bv_mod : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (Nonzero_rules.bv_mod.spec v1 v2) (O.nonzero_rules_bv_mod v1 v2)
   
+  $ kanon lean-statements nonzero.knl | sed -n '/r_self.main.Stmt/,/^$/p;/^def Nonzero_rules.all.r_default.main/,/^$/p;/^def Nonzero_rules.bv_mod.r_default.main/,/^$/p'
   def Nonzero_rules.bv_div.r_self.main.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (s : Bool) (v1 : Term) (v2 : Term),
-    Nonzero v2 →
+    ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S), O.Sound →
+    ∀ (s : Bool) (v1 : S.Term) (v2 : S.Term),
+    Kanon.Nonzero v2 →
     (decide (v1 = v2)) = true →
-    Refines (Nonzero_rules.bv_div.spec s v1 v2)
+    S.Refines (Kanon.Nonzero_rules.Nonzero_rules.bv_div.spec s v1 v2)
     (v1)
   
   def Nonzero_rules.all.r_default.main.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (vs : (List Term)),
-    (∀ y ∈ vs, Nonzero y) →
-    Refines (Nonzero_rules.all.spec vs)
-    ((Term.mk (Kind.OpN OpN.All vs) (Ty.TBitVector (8 : Int))))
-  
-  def Nonzero_rules.bv_mod.r_default.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term) (res : Term), Nonzero_rules.bv_mod.r_default O v1 v2 = some res →
-    Refines (Nonzero_rules.bv_mod.spec v1 v2) res
+    ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S), O.Sound →
+    ∀ (vs : (List S.Term)),
+    (∀ y ∈ vs, Kanon.Nonzero y) →
+    S.Refines (Kanon.Nonzero_rules.Nonzero_rules.all.spec vs)
+    ((Kanon.mk (.All vs) (Kanon.sort (.TBitVector (8 : Int)))))
   
   def Nonzero_rules.bv_mod.r_default.main.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (v1 : Term) (v2 : Term),
-    Refines (Nonzero_rules.bv_mod.spec v1 v2)
-    ((Term.mk (Kind.Op2 Op2.Mod v1 v2) (ty v1)))
+    ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S), O.Sound →
+    ∀ (v1 : S.Term) (v2 : S.Term),
+    S.Refines (Kanon.Nonzero_rules.Nonzero_rules.bv_mod.spec v1 v2)
+    ((Kanon.mk (.Mod v1 v2) (S.ty v1)))
   
-  /-- What `Nonzero_rules.pos` returns, a rule or its spec, satisfies `Nonzero`: to prove by hand, with `@[kanon_arm]`. -/
-  def Nonzero_rules.pos.post.main.Stmt : Prop :=
-    ∀ (O : Ops), O.Sound →
-    ∀ (v : Term), Nonzero (Nonzero_rules.pos.step O v)
-  
-  end Kanon
 
 The proofs thread the hypotheses: the proofs of the rules and of the functions
 take them, the lifting lemma needs them on the arguments of the call, and the
@@ -167,29 +157,35 @@ proof of the arms that are derived by commutativity is not derived when there
 are some. The post-condition has a proof that the language gives:
 
   $ kanon lean-soundness nonzero.knl | grep "hs_\|post"
-    intro O hO s v1 v2 res hs_v2 h
-    intro O hO s v1 v2 res hs_v2 h
-    intro O hO vs res hs_vs h
-  theorem Nonzero_rules.pos.post.main.ok : Nonzero_rules.pos.post.main.Stmt := kanon_proof% Nonzero_rules.pos.post.main
-  theorem Nonzero_rules.bv_div.step_sound (O : Ops) (hO : O.Sound) (s : Bool) (v1 : Term) (v2 : Term) (hs_v2 : Nonzero v2) :
-    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.bv_div.r_self.proof O hO s v1 v2 res hs_v2 h) ?_
-    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.bv_div.r_default.proof O hO s v1 v2 res hs_v2 h) ?_
-  theorem Nonzero_rules.all.step_sound (O : Ops) (hO : O.Sound) (vs : (List Term)) (hs_vs : (∀ y ∈ vs, Nonzero y)) :
-    refine Refinement.firstSome_cons (fun res h => Nonzero_rules.all.r_default.proof O hO vs res hs_vs h) ?_
-        nonzero_rules_bv_div := fun s v1 v2 hs_v2 => Refinement.refl,
-        nonzero_rules_all := fun vs hs_vs => Refinement.refl,
-  $ kanon lean-lifts nonzero.knl | grep "hs_"
-    (h_v2 : Refines v2 v2') (hs_v2 : Nonzero v2') :
-    Refinement.trans (by simp only [kanon_spec]; kanon_congr) (hO.nonzero_rules_bv_div s v1' v2' hs_v2)
-  theorem lift_nonzero_rules_all (hO : O.Sound) {vs : (List Term)} (hs_vs : (∀ y ∈ vs, Nonzero y)) :
+  theorem Nonzero_rules.bv_div.r_self.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (s : Bool) (v1 : S.Term) (v2 : S.Term) (hs_v2 : Kanon.Nonzero v2) (res : S.Term)
+  theorem Nonzero_rules.bv_div.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (s : Bool) (v1 : S.Term) (v2 : S.Term) (hs_v2 : Kanon.Nonzero v2) (res : S.Term)
+  theorem Nonzero_rules.pos.r_default.main.post.ok : Nonzero_rules.pos.r_default.main.post.Stmt :=
+    no_implicit_lambda% (kanon_proof% Nonzero_rules.pos.r_default.main.post)
+  theorem Nonzero_rules.pos.r_default.post_sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (v : S.Term) (res : S.Term)
+    · kanon_arm h (Nonzero_rules.pos.r_default.main.post.ok O hO)
+  theorem Nonzero_rules.pos.spec_post.ok : Nonzero_rules.pos.spec_post.Stmt :=
+    no_implicit_lambda% (kanon_proof% Nonzero_rules.pos.spec_post)
+  theorem Nonzero_rules.all.r_default.sound {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S) (hO : O.Sound) (vs : (List S.Term)) (hs_vs : (∀ y ∈ vs, Kanon.Nonzero y)) (res : S.Term)
+  $ kanon lean-rules nonzero.knl | grep "hs_"
+  theorem Nonzero_rules.bv_div.step_sound (O : Kanon.Nonzero_rules.Ops sem) (hO : O.Sound) (s : Bool) (v1 : Term) (v2 : Term) (hs_v2 : Kanon.Nonzero (S := sem) v2) :
+    refine Kanon.Refinement.firstSome_cons (fun res h => Kanon.Nonzero_rules.Nonzero_rules.bv_div.r_self.sound (S := sem) O hO s v1 v2 hs_v2 res h) ?_
+    refine Kanon.Refinement.firstSome_cons (fun res h => Kanon.Nonzero_rules.Nonzero_rules.bv_div.r_default.sound (S := sem) O hO s v1 v2 hs_v2 res h) ?_
+  theorem Nonzero_rules.all.step_sound (O : Kanon.Nonzero_rules.Ops sem) (hO : O.Sound) (vs : (List Term)) (hs_vs : (∀ y ∈ vs, Kanon.Nonzero (S := sem) y)) :
+    refine Kanon.Refinement.firstSome_cons (fun res h => Kanon.Nonzero_rules.Nonzero_rules.all.r_default.sound (S := sem) O hO vs hs_vs res h) ?_
+      { nonzero_rules_bv_div := fun s v1 v2 hs_v2 => Kanon.Sem.Refines.refl,
+        nonzero_rules_all := fun vs hs_vs => Kanon.Sem.Refines.refl,
+  $ kanon lean-statements nonzero.knl | grep "hs_"
+    (h_v2 : S.Refines v2 v2') (hs_v2 : Kanon.Nonzero v2') :
+      (hO.nonzero_rules_bv_div s v1' v2' hs_v2)
+  theorem lift_nonzero_rules_all (hO : O.Sound) {vs : (List S.Term)} (hs_vs : (∀ y ∈ vs, Kanon.Nonzero y)) :
     hO.nonzero_rules_all vs hs_vs
 
 The Lean files of the other backends do not see subsorts:
 
-  $ kanon lean-typing nonzero.knl | grep -c "Nonzero\|TZero"
+  $ kanon lean-node nonzero.knl | grep -c "Nonzero\|TZero"
   0
   [1]
-  $ kanon lean-types nonzero.knl | grep -c "Nonzero\|TZero"
+  $ kanon lean-syntax nonzero.knl | grep -c "Nonzero\|TZero"
   0
   [1]
 

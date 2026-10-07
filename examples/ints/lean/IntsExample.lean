@@ -1,1 +1,1 @@
-import IntsExample.Soundness
+import IntsExample.Rules

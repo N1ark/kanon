@@ -59,13 +59,13 @@ module (its structures have flat fields):
   $ kanon ocaml-typed lang.knl | grep "val plus\|val badd\|^    module"
       val plus : [< Tag.tint ] t -> [< Tag.tint ] t -> [> Tag.tint ] t
       val badd : [< Tag.tbv ] t -> [< Tag.tbv ] t -> [> Tag.tbv ] t
-  $ kanon lean-model lang.knl | grep "def Int.add\|def Bitvec.add\|^    int_plus :\|^    bitvec_badd :"
+  $ kanon lean-model lang.knl | grep "def Int.add\|def Bitvec.add\|^  int_plus :\|^  bitvec_badd :"
+    int_plus : S.Term → S.Term → S.Term
   def Int.add (x : Int) (y : Int) : Int :=
+    int_plus : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (Int.plus.spec v1 v2) (O.int_plus v1 v2)
+    bitvec_badd : S.Term → S.Term → S.Term
   def Bitvec.add (n : Int) (x : Int) (y : Int) : Int :=
-      int_plus := fun v1 v2 => Int.plus.spec v1 v2,
-      bitvec_badd := fun v1 v2 => Bitvec.badd.spec v1 v2 }
-      int_plus := Int.plus.step O,
-      bitvec_badd := Bitvec.badd.step O }
+    bitvec_badd : ∀ (v1 : S.Term) (v2 : S.Term), S.Refines (Bitvec.badd.spec v1 v2) (O.bitvec_badd v1 v2)
 
 A plain name is the one of the module of the file where it is written, never
 that of a module that it uses: the hint names the other module.

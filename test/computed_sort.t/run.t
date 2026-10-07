@@ -51,14 +51,14 @@ OCaml: the sort is the expression.
 
 Lean: the sort is the translated expression.
 
-  $ kanon lean-model lang.knl | grep -n 'Term.mk'
-  50:  (Term.mk (Kind.Tuple vs) (Ty.TTuple (Rules.types_of vs)))
-  53:  (Term.mk (Kind.Var x) s)
-  56:  (Term.mk (Kind.Var x) (var_ty x))
-  59:  (Term.mk (Kind.Field i v) (Rules.field_ty v i))
-  62:  (Term.mk (Kind.Field i v) (Rules.nth_ty (Rules.types_of (v :: [])) i))
-  70:  (Term.mk (Kind.Op1 (Op1.Proj i) v) Ty.TInt)
-  76:    ((Term.mk (Kind.Op1 (Op1.Proj i) v) (Rules.field_ty v i)))))
+  $ kanon lean-model lang.knl | grep -n 'mk (\.'
+  96:  (Kanon.mk (.Tuple vs) (Kanon.sort (.TTuple (Kanon.Rules.Rules.types_of vs))))
+  99:  (Kanon.mk (.Var x) s)
+  102:  (Kanon.mk (.Var x) (Kanon.Rules.var_ty x))
+  105:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.field_ty v i))
+  108:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.nth_ty (Kanon.Rules.Rules.types_of (v :: [])) i))
+  119:  (Kanon.mk (.Proj i v) (Kanon.sort .TInt))
+  127:    (whenSome true ((Kanon.mk (.Proj i v) (Kanon.Rules.Rules.field_ty v i)))))
 
 The ocaml-typed backend types a rule by the typing of its node, not by the sort
 that its body builds: `proj` returns a `tint`.

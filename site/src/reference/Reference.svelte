@@ -103,8 +103,9 @@
       (<code>{`node Field of nat (i) : TTuple tys -> Rules.nth_ty tys i{:kanon}`}</code>); and a leaf
       can declare the computed sort of its result as well,
       <code>{`node Tuple of t list (vs) : TTuple (Rules.types_of vs){:kanon}`}</code>, so that Kanon can
-      build it (<code>Tuple vs</code>) and rebuild it. Lean's <code>Typing.lean</code> comes before
-      the model, so a function that a typing calls must be a primitive, as for a condition.
+      build it (<code>Tuple vs</code>) and rebuild it. Lean's typing of the nodes
+      (<code>Lang.lean</code>) comes before the model, so a function that a typing calls must be a
+      primitive, as for a condition.
     </dd>
 
     <dt id="notation"><code>{`notation C{:kanon}`}</code></dt>
@@ -148,7 +149,9 @@
       A primitive, implemented by hand in OCaml (in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
       define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
-      not rely on its behaviour (e.g. a hash-consing order). <code>{`[@no_lean]{:kanon}`}</code>
+      not rely on its behaviour (e.g. a hash-consing order), beyond what the
+      <code>{`Oracle.Compat {S} f …{:lean}`}</code> of its module assumes, which may relate it to
+      the semantics <code>S</code> (see <a href="proving.html#modules">Modules</a>). <code>{`[@no_lean]{:kanon}`}</code>
       after the type leaves a primitive out of Lean (see <a href="#on-functions">below</a>).
     </dd>
 
@@ -165,7 +168,10 @@
       <code>ocaml-typed</code> types the function with the tags of its sorts (see
       <a href="#typed">Typed OCaml</a>); Lean does not model the annotation (the model of the
       function is the same, and the proofs assume and prove nothing about its sort). A function whose
-      result is not annotated is untyped.
+      result is not annotated is untyped. A helper may recurse on the first parameter that its
+      body matches: Lean proves that it decreases, by its size, and for a term by
+      <code>Sem.size</code>, of which the children of a node are smaller
+      (<code>kanon_decreasing</code>).
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>
@@ -188,7 +194,8 @@
       catch-all case (<code>_</code>, or a tuple of blanks such as <code>_, _</code>, which is the same:
       <code>{`x, _{:kanon}`}</code> and <code>{`_ as x{:kanon}`}</code> are not), or before its
       rule <code>r</code>; or cases to its helper <code>f</code>. A case that cannot be added is an
-      error.
+      error. Its only attribute, before <code>=</code>, is
+      <a href="#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a>.
     </dd>
   </dl>
   <p>
@@ -331,8 +338,11 @@
         <td><code>{`[@lean "A"]{:kanon}`}</code></td>
         <td>
           The Lean type, if it is not the Kanon name, CamelCased (<code>ext_ty</code> is
-          <code>ExtTy</code>). An abstract type is defined by hand in Lean, unless
-          <code>{`[@lean]{:kanon}`}</code> names an existing type.
+          <code>ExtTy</code>): the name of the generated record or variant, or of an existing type.
+          An abstract type is defined by hand in Lean (<code>Abstract.lean</code>), unless
+          <code>{`[@lean]{:kanon}`}</code> names an existing type. The types of a module are defined
+          once, under its root <code>R</code>, and named <code>R.Name</code> (see
+          <a href="proving.html#data">Data types</a>).
         </td>
       </tr>
       <tr>
@@ -362,7 +372,7 @@
     </tbody>
   </table>
 
-  <Heading level={3} id="on-sorts">On sorts and subsorts</Heading>
+  <Heading level={3} id="on-sorts">On sorts, subsorts and nodes</Heading>
   <table>
     <thead><tr><th>Attribute</th><th>On</th><th>Meaning</th></tr></thead>
     <tbody>
@@ -379,12 +389,27 @@
         <td><code>{`[@lean "P"]{:kanon}`}</code></td>
         <td>a subsort</td>
         <td>
-          The Lean predicate <code>{`P : Term → Prop{:lean}`}</code> that its terms satisfy, written
-          by hand in the semantics. The Lean statements of a rule function assume it of an operand
-          at a position of the subsort (<code>{`Nonzero v →{:lean}`}</code>), and the function must
-          prove that what it returns, when its node has the subsort for its result, satisfies it
-          (<code>f.post.main.Stmt</code>, proved by hand with <code>{`@[kanon_arm]{:lean}`}</code>).
-          Without it, Lean ignores the subsort.
+          The Lean predicate <code>{`P : S.Term → Prop{:lean}`}</code> that its terms satisfy,
+          written by hand in the <code>Prims.lean</code> of its module. The Lean statements of a
+          rule function assume it of an operand at a position of the subsort
+          (<code>{`Nonzero v →{:lean}`}</code>), and the function must prove that what it returns,
+          when its node has the subsort for its result, satisfies it
+          (<code>f.r.main.post.Stmt</code> and <code>f.spec_post.Stmt</code>). Without it, Lean
+          ignores the subsort.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@lean_inv "P"]{:kanon}`}</code></td>
+        <td>a sort or a node</td>
+        <td>
+          The invariant of its terms: the Lean predicate <code>P</code> on the nodes of its module
+          and their sort, over the arguments of their typing (the embeddings of the sorts and the
+          types of the children), written by hand in its <code>Sem.lean</code>, that is part of
+          the well-typedness of the nodes whose typing gives that sort, or of that node
+          (<code>{`sort TEven [@lean_inv "even_inv"]{:kanon}`}</code>): their typing
+          (<code>Node.wt</code>) ends with <code>{`P sBool sEven ty (node …) t{:lean}`}</code> (see
+          <a href="proving.html#invariants">Invariants</a>). The sorts and nodes that name the same
+          <code>P</code> share it.
         </td>
       </tr>
     </tbody>
@@ -537,6 +562,45 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
+        <td><code>{`[@lean_heartbeats n]{:kanon}`}</code></td>
+        <td>a rule function, after its spec</td>
+        <td>
+          The bound on the heartbeats (Lean's <code>maxHeartbeats</code>, in thousands) of each
+          generated proof of its arms, instead of that of the language
+          (<code>{`[@@@lean_heartbeats "n"]{:kanon}`}</code>).
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@lean_proofs "F"]{:kanon}`}</code></td>
+        <td>
+          a rule function, after its spec, an extensible <code>fn</code>, an <code>extend</code>,
+          before <code>=</code>, or a <code>{`[@comm]{:kanon}`}</code> node
+        </td>
+        <td>
+          Its generated proofs import the hand-written <code>R/Proofs/F.lean</code> of its module
+          (of root <code>R</code>) instead of <code>R/Proofs.lean</code>, so that editing the
+          proofs of another function does not rebuild them (see
+          <a href="proving.html#file-proofs">Proofs.lean</a>): those of a function or of an
+          <code>extend</code> are in <code>Soundness/M/f.lean</code>, and those of a
+          commutativity in <code>Soundness/Comm.lean</code>. A generated file imports the file of
+          each of the items that it proves, or <code>R/Proofs.lean</code> for one without it.
+          <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
+          <code>R/Proofs/Bv/Arith.lean</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@extensible]{:kanon}`}</code></td>
+        <td>a <code>fn</code>, after its result type</td>
+        <td>
+          Other modules may add cases to it with <code>extend fn</code>, which Lean requires: its
+          body is a <code>match</code> that ends with a case that always applies, and each language
+          puts its cases together. Its module proves its rules without its body, from what its
+          <code>Prims.lean</code> says of it, <code>f.post</code>, which every case proves (as the
+          bool module's <code>sure_neq</code>; see <a href="proving.html#modules">Modules</a>). A
+          case may call rule functions, oracles and extensible helpers, itself included.
+        </td>
+      </tr>
+      <tr>
         <td><code>{`[@comm]{:kanon}`}</code></td>
         <td>a pattern of a pair</td>
         <td>
@@ -550,7 +614,10 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   <p>
     <code>{`[@ty_only]{:kanon}`}</code> on a rule is an error, and so are the other attributes on
     <code>fn</code>, <code>prim</code> and <code>rule</code> (a rule has
-    <code>{`[@untyped]{:kanon}`}</code>).
+    <code>{`[@untyped]{:kanon}`}</code>, <code>{`[@lean_heartbeats n]{:kanon}`}</code> and
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>, an extensible <code>fn</code>
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>; a <code>{`[@comm]{:kanon}`}</code> node also has
+    <code>{`[@lean_proofs "F"]{:kanon}`}</code>).
   </p>
 
   <Heading level={3} id="floating">Floating attributes</Heading>
@@ -589,14 +656,30 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         </td>
       </tr>
       <tr>
-        <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
-        <td>The namespace of the Lean model, and the root of its modules (<code>Kanon</code> by default).</td>
+        <td><code>{`[@@@lean_laws]{:kanon}`}</code></td>
+        <td>
+          The proofs of the module assume the class <code>Laws</code> of its
+          <code>Prims.lean</code>, which each language gives in its <code>Typing.lean</code> (see
+          <a href="proving.html#laws">What a module needs a language to prove</a>).
+        </td>
       </tr>
       <tr>
-        <td><code>{`[@@@lean_param "x" "T"]{:kanon}`}</code></td>
+        <td><code>{`[@@@lean_root "R"]{:kanon}`}</code></td>
         <td>
-          A parameter <code>{`x : T{:lean}`}</code> of the semantics, which the Lean statements
-          quantify over (e.g. a semantics of floats).
+          The namespace and directory of the Lean files of the module of the <code>.knl</code>
+          (see <a href="proving.html#files">The files</a>). Without it, those of the language's own
+          module, the first file, are under <code>Kanon</code>, and those of another module under
+          the root of the language and its name (<code>Kanon.Int</code>). The root of the language's
+          own module is that of the language.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@@@lean_heartbeats "n"]{:kanon}`}</code></td>
+        <td>
+          The bound on the heartbeats (Lean's <code>maxHeartbeats</code>, in thousands) of each
+          generated proof of an arm or of a law, unless its rule function has
+          <code>{`[@lean_heartbeats n]{:kanon}`}</code>: <code>400000</code> by default (twice Lean's
+          default). Each proof has its own, so that one that blows up fails fast, naming its arm.
         </td>
       </tr>
     </tbody>
@@ -725,8 +808,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   <p>
     <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
     <code>.knl</code> file, with the modules it uses (see <a href="#use"><code>use</code></a>), and
-    writes the generated code on standard output. <code>kanon --version</code> prints the version of
-    Kanon, and <code>kanon lsp</code> runs the <a href="#lsp">language server</a>.
+    writes the generated code on standard output. <code>kanon lean-all DIR FILE...</code> writes the
+    Lean files instead (see <a href="#lean">Lean</a>). <code>kanon --version</code> prints the version
+    of Kanon, and <code>kanon lsp</code> runs the <a href="#lsp">language server</a>.
   </p>
   <table>
     <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
@@ -758,16 +842,16 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       </tr>
       <tr>
         <td>
-          <code>lean-types</code>, <code>lean-syntax</code>, <code>lean-signatures</code>,
-          <code>lean-typing</code>, <code>lean-model</code>, <code>lean-statements</code>,
-          <code>lean-lifts</code>, <code>lean-soundness</code>
+          <code>lean-types</code>, <code>lean-node</code>, <code>lean-lang</code>,
+          <code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code>,
+          <code>lean-syntax</code>, <code>lean-semantics</code>, <code>lean-rules</code>
         </td>
         <td>
           The Lean files of the model and its proofs (see <a href="#lean">Lean</a> and the
-          <a href="proving.html">guide</a>).
+          <a href="proving.html">guide</a>): those of one part, one after the other, each after a
+          line <code>-- R/Model.lean</code> with its path when the part has several.
         </td>
       </tr>
-      <tr><td><code>lean-all</code></td><td>Each Lean file, as <code>F.lean.gen</code>, in the current directory.</td></tr>
     </tbody>
   </table>
   <p>
@@ -924,7 +1008,8 @@ let rec subst x e t =
       They are OCaml only: nothing is generated for Lean, and <code>ocaml-typed</code> does not type
       them.
       <a href="https://github.com/N1ark/kanon/tree/main/examples/traversals"><code>examples/traversals</code></a>
-      has nodes with children of every shape; its OCaml is compiled and run by the tests.
+      has nodes with children of every shape; its OCaml is compiled and run by the tests. It has
+      no Lean files (a typing that calls a function is not in Lean).
     </li>
   </ul>
   <p>
@@ -1168,22 +1253,76 @@ end`}
   <Heading level={3} id="lean">Lean</Heading>
   <p>
     The Lean files (see <a href="proving.html#files">the files</a> of the guide for what each one
-    holds) are generated in the namespace <code>R</code> of
-    <code>{`[@@@lean_root "R"]{:kanon}`}</code>. Their conventions:
+    holds) of each module are generated in the namespace <code>R</code> of its root (see
+    <a href="#floating"><code>{`[@@@lean_root "R"]{:kanon}`}</code></a>), as the modules
+    <code>R.…</code> of a Lake library whose sources are in a directory <code>DIR</code>, and so are
+    those of the language, under its root. <code>kanon lean-all DIR lang.knl</code> writes them,
+    as <code>DIR/R/….lean</code>, and removes the files under these roots that it wrote before
+    (whose first line is <code>-- Generated by kanon</code>) and no longer generates;
+    <code>kanon lean-all --check DIR lang.knl</code> writes nothing, and fails if a file is missing,
+    differs or is stale. It does not write those of the bool module, which are in Kanon's library
+    (<code>KanonBool</code>). A module uses the modules whose declarations it mentions and those it
+    <code>use</code>s, which must not use it. The files are, by part:
+  </p>
+  <table>
+    <thead><tr><th>Part (backend)</th><th>Files</th></tr></thead>
+    <tbody>
+      <tr><td><code>lean-types</code></td><td><code>Types.lean</code> of each module with data types</td></tr>
+      <tr>
+        <td><code>lean-node</code>, <code>lean-lang</code></td>
+        <td>
+          <code>Node.lean</code> (its sorts <code>Srt</code> and nodes <code>Node T</code>) and
+          <code>Lang.lean</code> (their typing, the classes <code>Lang</code> and
+          <code>Typed</code>) of each module with nodes or sorts
+        </td>
+      </tr>
+      <tr>
+        <td><code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code></td>
+        <td>
+          <code>Model.lean</code> (<code>Ops</code>, the helpers, the specs, the rules,
+          <code>Ops.Sound</code>), <code>Lift.lean</code> (the lifting lemmas),
+          <code>Statements/Comm.lean</code> and <code>Soundness/Comm.lean</code> (the
+          commutativity of its nodes, and its proof), <code>Statements/M/f.lean</code> and
+          <code>Soundness/M/f.lean</code> for each function <code>M.f</code> whose arms or cases
+          it proves (their statements; their proofs, and the rules from their arms) and
+          <code>Soundness.lean</code> (which imports them) of each module with rules or helpers
+        </td>
+      </tr>
+      <tr>
+        <td><code>lean-syntax</code>, <code>lean-semantics</code>, <code>lean-rules</code></td>
+        <td>
+          <code>Syntax.lean</code> (<code>Ty</code> and <code>Term</code>),
+          <code>Semantics.lean</code> (<code>WT</code>, <code>ev</code>, <code>sem</code> and the
+          <code>Lang</code> instances) and <code>Rules.lean</code> (the rule functions,
+          <code>opsN</code> and <code>opsN_sound</code>) of the language
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    A module's <code>Lang.lean</code> imports its hand-written <code>Sem.lean</code>, its
+    <code>Model.lean</code> its <code>Prims.lean</code>, and the files under its
+    <code>Soundness/</code> its <code>Proofs.lean</code> (which imports the statements it proves,
+    <code>Statements/M/f.lean</code>, and where an <code>{`@[kanon_arm]{:lean}`}</code> theorem replaces the
+    default proof of its statement), when they exist; the language's <code>Semantics.lean</code>
+    imports its <code>Val.lean</code>, and its <code>Rules.lean</code> its <code>Typing.lean</code>.
+    The backends, which do not see the files, print the files as if there were none. Their
+    conventions:
   </p>
   <ul>
     <li>
-      Terms are <code>Term.mk kind ty</code>, with <code>Kind.Var x</code>,
-      <code>Kind.Op2 Op2.And a b</code>, <code>Kind.OpN OpN.Distinct l</code>, …; the operators that
-      commute are <code>Op2.Comm</code>, from <code>{`[@comm]{:kanon}`}</code>. The typing of the
-      operators is <code>Op2.WT op a b t</code>, over the sorts of the operands and of the result,
-      and <code>OpN.WT op e t</code>, over the sort <code>e</code> of all the operands.
+      The nodes of a module are <code>Node T</code>, over the terms <code>T</code> of a language,
+      and its sorts <code>Srt</code>; those that take sorts are <code>Node Ty T</code> and
+      <code>Srt Ty</code>, over the sorts <code>Ty</code> of a language; in its files, <code>{`mk (.Plus a b) t{:lean}`}</code> is the
+      term of a node, <code>proj e</code> the node of a term (if it is one of the module's),
+      <code>sort s</code> a sort, and <code>Node.wt</code> the typing of the nodes. The terms of the
+      language are a node of a module at a sort (<code>{`.int (.Plus a b) t{:lean}`}</code>).
     </li>
     <li>
       Functions are in the namespace of their module (see <a href="#names">Names and modules</a>): the
       function <code>add</code> of <code>Bitvec</code> is <code>R.Bitvec.add</code>, its rules
-      <code>Bitvec.add.r_zero</code>, its spec <code>Bitvec.add.spec</code> and its step
-      <code>Bitvec.add.step</code>. The fields of the structures (<code>Ops</code>,
+      <code>Bitvec.add.r_zero</code>, its spec <code>Bitvec.add.spec</code> and, in the language, its
+      step <code>Bitvec.add.step</code>. The fields of the structures (<code>Ops</code>,
       <code>Ops.Sound</code>), which cannot have a dot, have the flat name,
       <code>bitvec_add</code> (<code>O.bitvec_add</code>), and the primitives and oracles their plain
       name.
@@ -1207,27 +1346,39 @@ end`}
     <li>
       An arm that only swaps commutative operands is proved from the unswapped one, if its guard and
       body do not depend on the swaps: by the commutativity of the operators swapped
-      (<code>Op2.Plus.comm.ok</code>), with <code>kanon_congr</code> for the operands swapped below
+      (<code>Plus.comm.ok</code>), with <code>kanon_congr</code> for the operands swapped below
       the spec (and for the sort of a spec that is that of an operand, <code>type_of v1</code>, which
-      its typing makes equal to that of the other one, by <code>kanon_congr_side</code>).
+      its typing makes equal to that of the other one, by <code>kanon_congr_side</code>). Its body
+      may use the swapped terms through their sorts (<code>{`[@ty_only]{:kanon}`}</code> helpers),
+      and as operands of the raw nodes that it returns, under its conditionals and
+      <code>let</code>s: its body is then refined by that of the unswapped arm by
+      <code>Refinement.ite_congr</code> and <code>kanon_comm</code>.
+    </li>
+    <li>
+      Each generated proof of an arm (or of a law, or of a postcondition) is preceded by
+      <code>set_option maxHeartbeats n in</code>, from
+      <code>{`[@lean_heartbeats n]{:kanon}`}</code> and
+      <code>{`[@@@lean_heartbeats "n"]{:kanon}`}</code>.
     </li>
     <li>
       Subsorts are erased in the types and typings, and have a meaning in the statements only through
-      <a href="#on-sorts"><code>{`[@lean "P"]{:kanon}`}</code></a>: <code>R.P : Term → Prop</code> is
-      written by hand, in a module that <code>R.Statements</code> imports, <code>R.Semantics</code>
-      (<code>{`def Nonzero (t : Term) : Prop := ∀ ρ z, eval ρ t = some (.int z) → z ≠ 0{:lean}`}</code>).
+      <a href="#on-sorts"><code>{`[@lean "P"]{:kanon}`}</code></a>: <code>{`R.P : S.Term → Prop{:lean}`}</code>
+      is written by hand, in the <code>Prims.lean</code> of the module
+      (<code>{`def Nonzero (e : S.Term) : Prop := ∀ ρ z, S.eval ρ e = some (Values.vint.inj z) → z ≠ 0{:lean}`}</code>).
       A subsort without it assumes and proves nothing. Kanon trusts the subsorts everywhere else, so
       what <code>P</code> says is only checked by what proves the results of the rule functions. A
       rule function whose spec is a node with an operand <code>v</code> at a subsort position is
       stated for the terms that satisfy <code>P</code>: <code>Nonzero v →</code> before the guard of
-      its rules and arms, in <code>Ops.Sound</code>, in its step lemma and in its lifting lemma, where
-      it is on the arguments of the call. The elements of a list of operands each satisfy it
+      its rules and arms, in <code>Ops.Sound</code>, and in its lifting lemma, where it is on the
+      arguments of the call. The elements of a list of operands each satisfy it
       (<code>∀ y ∈ vs, P y</code>). One whose node has a subsort for its result must prove that what
       it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
-      <code>Statements.lean</code> states <code>f.post.main.Stmt</code>
-      (<code>∀ O, O.Sound → ∀ args, hyps → P (f.step O args)</code>), which
-      <code>kanon_proof%</code> proves only from a hand-written proof
-      (<code>{`@[kanon_arm] theorem … : f.post.main.Stmt{:lean}`}</code>).
+      <code>Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
+      <code>f.spec_post.Stmt</code>, which <code>kanon_proof%</code> proves from a hand-written
+      proof (<code>{`@[kanon_arm] theorem … : f.spec_post.Stmt{:lean}`}</code>) or the
+      <code>kanon_tactic</code> of <code>f</code>, else <code>kanon_auto</code>; they are fields
+      of <code>Ops.Sound</code> (<code>f_post</code>), which the rules that call <code>f</code>
+      may use.
     </li>
   </ul>
 
@@ -1372,8 +1523,9 @@ prefix "not" = Not, Bool.not_`}
     built into <code>kanon</code>, as the module that <code>{`use builtin "bool"{:kanon}`}</code>
     uses. The modules above it can add rules to its rule functions with <code>extend rule</code>, and
     literals to its helper <code>sure_neq</code> with <code>extend fn</code>. It is the bool module
-    of Soteria's <code>Bv_values</code> and <code>Tiny_values</code>. Its Lean rules are proved once,
-    by the library (see <a href="proving.html#boolmod">KanonCore.BoolMod</a>).
+    of Soteria's <code>Bv_values</code> and <code>Tiny_values</code>. It has
+    <code>{`[@@@lean_root "KanonBool"]{:kanon}`}</code>: its Lean rules are proved once, by the
+    library (see <a href="proving.html#kanonbool">KanonBool</a>).
   </p>
 
   <Heading level={2} id="lsp">Language server</Heading>

@@ -18,3 +18,8 @@
 
 - `README.md` is high level only: overview, install, usage and links. All documentation lives in the reference and the guide (`site/src`).
 - A new feature is documented in the reference (`site/src/reference`), and in the guide (`site/src/proving`, `site/src/tutorial`) if it needs a how-to, never in the README.
+
+## Git
+
+- Always rebase, never merge: keep a linear history (rebase branches onto their base, integrate other branches by rebasing; force-push with `--force-with-lease` after a rebase).
+- Keep each commit subject under 32 characters, all lowercase (unless it references an uppercase keyword, module name, etc.), and keep descriptions minimal and short.

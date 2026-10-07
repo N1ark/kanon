@@ -1,0 +1,15 @@
+; The generated Lean files of the example, under ArraysExample/, from
+; ../lang.knl and its vec module (under ArraysExample/Vec/): `dune test` checks
+; that they are up to date (run `dune exec -- kanon lean-all . ../lang.knl` here
+; after changing the language or the modules), and CI checks their proofs with
+; `lake build`.
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree ArraysExample)
+  ../lang.knl
+  ../vec.knl
+  ../vec.kn)
+ (action
+  (run %{bin:kanon} lean-all --check . ../lang.knl)))

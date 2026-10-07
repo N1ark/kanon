@@ -1,0 +1,10 @@
+(* The first language: the bool module, the num module, and variables. *)
+
+[@@@lean_root "L1"]
+
+use builtin "bool"
+use "num"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var
