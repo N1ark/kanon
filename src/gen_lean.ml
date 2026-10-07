@@ -3264,7 +3264,20 @@ let lift_file ctx m =
   List.iter
     (fun (f : fn) ->
       let term (_, t) = t = TTerm in
-      let primed x = id (x ^ "'") in
+      let primes =
+        List.fold_left
+          (fun acc (x, t) ->
+            let rec fresh y =
+              if
+                List.mem_assoc y f.params
+                || List.exists (fun (_, y') -> y' = y) acc
+              then fresh (y ^ "'")
+              else y
+            in
+            if term (x, t) then acc @ [ (x, fresh (x ^ "'")) ] else acc)
+          [] f.params
+      in
+      let primed x = id (List.assoc x primes) in
       let prime (x, t) = if term (x, t) then primed x else id x in
       let helpers =
         List.filter
@@ -3289,7 +3302,7 @@ let lift_file ctx m =
         f.params;
       pre_binders
         ~rename:(fun x ->
-          if term (x, List.assoc x f.params) then x ^ "'" else x)
+          if term (x, List.assoc x f.params) then List.assoc x primes else x)
         ft f;
       pf ft " :@ S.Refines (%s.spec %s) (O.%s %s) :=@ " (fn_ref f.name)
         (String.concat " " (List.map (fun (x, _) -> id x) f.params))

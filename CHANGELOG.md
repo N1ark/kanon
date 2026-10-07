@@ -111,6 +111,7 @@
 - Lean rejects a module `List` with list-of-terms nodes.
 - Rule functions without parameters are valid Lean.
 - Helpers without parameters that need the model are valid Lean.
+- Lifting lemmas prime the parameters `x` and `x'` apart.
 
 ## 0.3.0 (2026-10-04)
 
