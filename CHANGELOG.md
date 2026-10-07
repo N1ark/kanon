@@ -73,6 +73,7 @@
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
 - Record literals in Lean use the Lean name of their type.
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
+- `-(-5)` is `5`, not a crash.
 
 ## 0.3.0 (2026-10-04)
 

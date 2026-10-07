@@ -179,9 +179,13 @@ let strings loc = function
   | [ (s, l) ] -> [ eval_item loc (string (mkloc l) s) ]
   | l -> [ eval_item loc (exp loc (Pexp_tuple (List.map (fun (s, l) -> string (mkloc l) s) l))) ]
 
+(* negates a literal: [-(-5)] is [5] *)
+let neg_literal s =
+  if s <> "" && s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
+
 let neg loc oploc (e : expression) =
   match e.pexp_desc with
-  | Pexp_constant (Pconst_integer (s, None)) -> exp loc (Pexp_constant (Pconst_integer ("-" ^ s, None)))
+  | Pexp_constant (Pconst_integer (s, None)) -> exp loc (Pexp_constant (Pconst_integer (neg_literal s, None)))
   | _ -> apply loc (ident oploc "~-") [ e ]
 %}
 
@@ -684,7 +688,7 @@ unary_pat:
   | p = app_pat { p }
   | op = UMINUS p = unary_pat
     { match p.ppat_desc with
-      | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer ("-" ^ i, None)))
+      | Ppat_constant (Pconst_integer (i, None)) -> pat (mkloc $loc) (Ppat_constant (Pconst_integer (neg_literal i, None)))
       | _ -> pnode (mkloc $loc) (mkloc $loc(op)) "~-" [ p ] }
   | op = NOT p = unary_pat { pnode (mkloc $loc) (mkloc $loc(op)) "not" [ p ] }
 
