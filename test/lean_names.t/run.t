@@ -59,3 +59,27 @@ All the words that Lean reserves are quoted, not only the common ones:
   def Kw.f («exists» : Int) («forall» : Int) («include» : Int) («repeat» : Int) («sorry» : Int) («try» : Int) : Int :=
     (let «while» := («exists» + «forall»);
     ((((«while» + «include») + «repeat») + «sorry») + «try»))
+
+The fields of a record are quoted in its declaration, in its literals and in
+the access to a field:
+
+  $ cat > lang4.knl <<'KN'
+  > use "rec"
+  > sort TInt
+  > node Int of int : TInt
+  > type span = { from : int; to_ : int }
+  > KN
+  $ cat > rec.kn <<'KN'
+  > fn mk (a b : int) : span = { from = a; to_ = b }
+  > fn start (s : span) : int = s.from
+  > KN
+  $ kanon lean-types lang4.knl | grep -A2 "^structure"
+  structure Span where
+    «from» : Int
+    to_ : Int
+  $ kanon lean-model lang4.knl | grep -A1 "^def Rec\.\(mk\|start\)"
+  def Rec.mk (a : Int) (b : Int) : Kanon.Span :=
+    ({ «from» := a, to_ := b } : Kanon.Span)
+  --
+  def Rec.start (s : Kanon.Span) : Int :=
+    s.«from»
