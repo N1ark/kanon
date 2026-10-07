@@ -78,6 +78,7 @@
 - Generated term equality works beside a module named `Int`.
 - Record fields may be named `kind`, `ty` or `tag`.
 - Types named like OCaml's (`string`) are an error.
+- Variables named like a function's OCaml name are an error.
 
 ## 0.3.0 (2026-10-04)
 

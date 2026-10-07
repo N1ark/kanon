@@ -244,7 +244,8 @@
       and <code>Bool.of_bool</code> for the bool module's. The error of an unknown name that another
       module declares says so (<code>unknown function add: Int.add is declared in another module,
       write it qualified</code>). A variable may not have the name of a function of its module, but
-      may have that of another module's.
+      may have that of another module's; nor the flat name of a function
+      (<code>int_add</code> for <code>Int.add</code>), which the generated OCaml calls.
     </li>
     <li>
       The names that Kanon provides, <code>type_of</code>, the functions on arrays,
