@@ -925,7 +925,8 @@ let rec expr ctx ft (e : expr) =
           | OHelper -> fn_ref f ^ " " ^ o_of (Option.get (module_of_name f))
           | Pure -> fn_ref f
       in
-      if args = [] then pf ft "%s" f
+      if args = [] then
+        pf ft "%s" (if String.contains f ' ' then "(" ^ f ^ ")" else f)
       else pf ft "(%s %a)" f (list ~sep:" " expr) args
   | ELocalCall (f, args) -> pf ft "(%s %a)" (id f) (list ~sep:" " expr) args
   | EUnop (Neg, a) -> pf ft "(- %a)" expr a
