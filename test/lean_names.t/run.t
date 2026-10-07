@@ -275,3 +275,25 @@ no `∀` and no `fun` in the statements and the model of the language:
       rules15_zero := Rules15.zero.step O }
       { rules15_zero := Kanon.Sem.Refines.refl }
       { rules15_zero := Rules15.zero.step_sound _ hO }
+
+A helper without parameters that needs the record `O` of the model is applied
+to it in parentheses, as an argument:
+
+  $ cat > lang16.knl <<'KN'
+  > use "rules16"
+  > KN
+  $ cat > rules16.knl <<'KN'
+  > sort TInt
+  > node Int of int : TInt
+  > notation Int
+  > node Plus : TInt -> TInt -> TInt
+  > infix "+" = Plus, plus
+  > KN
+  $ cat > rules16.kn <<'KN'
+  > rule plus : Plus (v1, v2)
+  > fn two : t = Int 1 + Int 1
+  > fn use_two (x : t) : t = x + two
+  > KN
+  $ kanon lean-model lang16.knl | grep -A1 "def Rules16.use_two"
+  def Rules16.use_two (O : Ops S) (x : S.Term) : S.Term :=
+    (O.rules16_plus x (Kanon.Rules16.Rules16.two O))
