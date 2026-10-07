@@ -103,6 +103,7 @@
 - Lean rejects rule parameters named `h`, `hO`, `res` or `sem`.
 - `kanon lean-all` rejects two modules with the same Lean root.
 - `kanon_arm` proves rules of functions with annotated operands.
+- Lean typings of nodes whose sorts take sorts are valid.
 
 ## 0.3.0 (2026-10-04)
 

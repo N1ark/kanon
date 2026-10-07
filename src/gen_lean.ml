@@ -1818,9 +1818,15 @@ let typing_rhs ?names ctx (ty : typing) =
       (uniq (List.concat_map widths ty.t_sorts))
   in
   let reps = ref [] and bound = ref [] and conjs = ref [] and seen = ref [] in
+  (* the sort of an operand, [ty a1], is an argument of what it is in *)
+  let args () =
+    List.map
+      (fun (x, n) -> (x, if String.contains n ' ' then "(" ^ n ^ ")" else n))
+      !reps
+  in
   let str e =
     let saved = !subst in
-    subst := !reps;
+    subst := args ();
     Fun.protect
       ~finally:(fun () -> subst := saved)
       (fun () -> Fmt.str "%a" (expr ctx) e)
@@ -1833,7 +1839,7 @@ let typing_rhs ?names ctx (ty : typing) =
   let add text vars = conjs := !conjs @ [ (text, vars) ] in
   let prop e =
     let saved = !subst in
-    subst := !reps;
+    subst := args ();
     Fun.protect ~finally:(fun () -> subst := saved) (fun () -> prop ctx e)
   in
   let cond () =
@@ -2642,6 +2648,7 @@ let lang_file ctx (p : program) m =
     in_typing := true;
     Fun.protect ~finally:(fun () -> in_typing := false) @@ fun () ->
     with_self m @@ fun () ->
+    with_tys ~ty:"Ty" "T" @@ fun () ->
     List.iter
       (fun n ->
         let xs = node_names p n in
