@@ -2723,6 +2723,20 @@ let language (str : structure) =
                        lang :=
                          { !lang with lean_laws = !lang.lean_laws @ [ m ] };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
+                   | "lean_proofs", [ f ] ->
+                       let m =
+                         match module_of_loc a.attr_loc with
+                         | Some m -> m
+                         | None ->
+                             error a.attr_loc
+                               "[@@@@@@lean_proofs] is only for a module"
+                       in
+                       lang :=
+                         {
+                           !lang with
+                           lean_proofs = !lang.lean_proofs @ [ (m, f) ];
+                         };
+                       Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)
                    | "ocaml_types", [ m ] ->
                        lang := { !lang with ocaml_types = Some m };
                        Right (Ast_builder.Default.eunit ~loc:a.attr_loc, a, None)

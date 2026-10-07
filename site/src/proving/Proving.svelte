@@ -248,7 +248,9 @@
           A module with many hand proofs may split them: a function with
           <a href="reference.html#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a> has its
           proofs import <code>Proofs/F.lean</code> instead, which imports what it needs, so that
-          editing one file of proofs only rebuilds the functions that it proves.
+          editing one file of proofs only rebuilds the functions that it proves. The other proofs
+          of the module, its commutativities among them, which every function imports, import that
+          of <a href="reference.html#floating"><code>{`[@@@lean_proofs "F"]{:kanon}`}</code></a>.
         </p>
 
         <Heading level={4} id="file-soundness-comm">Soundness/Comm.lean</Heading>

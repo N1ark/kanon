@@ -576,7 +576,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           Its generated proofs in its module (<code>Soundness/M/f.lean</code>, under the root
           <code>R</code>) import the hand-written <code>R/Proofs/F.lean</code> instead of
           <code>R/Proofs.lean</code>, so that editing the proofs of another function does not
-          rebuild them (see <a href="proving.html#file-proofs">Proofs.lean</a>).
+          rebuild them (see <a href="proving.html#file-proofs">Proofs.lean</a>), and instead of
+          that of <a href="#floating"><code>{`[@@@lean_proofs "F"]{:kanon}`}</code></a>.
           <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
           <code>R/Proofs/Bv/Arith.lean</code>.
         </td>
@@ -663,6 +664,15 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           module, the first file, are under <code>Kanon</code>, and those of another module under
           the root of the language and its name (<code>Kanon.Int</code>). The root of the language's
           own module is that of the language.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@@@lean_proofs "F"]{:kanon}`}</code></td>
+        <td>
+          The generated proofs of the module import the hand-written <code>R/Proofs/F.lean</code>
+          instead of <code>R/Proofs.lean</code>: those of its commutativities, of the cases it adds
+          to the functions of other modules, and of its functions without
+          <a href="#on-functions"><code>{`[@lean_proofs "F"]{:kanon}`}</code></a>.
         </td>
       </tr>
       <tr>
