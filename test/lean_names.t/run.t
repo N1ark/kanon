@@ -164,3 +164,17 @@ variables over `Ty`, the sorts of the language:
     | (.Fst a1), t => (∃ a : Ty, (∃ b : Ty, ty a1 = (sLang10 (.TPair a b))) ∧ t = a)
     | (.Swap a1), t => (∃ a b : Ty, ty a1 = (sLang10 (.TPair a b)) ∧ t = (sLang10 (.TPair b a)))
   
+
+In the typing of the nodes, `Node.wt`, a node named after a Lean type (`Int`)
+is in scope: the types of the variables and numbers are then `_root_.Int`:
+
+  $ cat > lang11.knl <<'KN'
+  > sort TW of nat
+  > node Int of int : TW n
+  > node WExt of nat (k) : TW n -> TW (n + k) when 0 <= k
+  > KN
+  $ kanon lean-lang lang11.knl | sed -n '/^def Node.wt/,/^$/p'
+  def Node.wt {T Ty : Type} (sLang11 : Kanon.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
+    | (.Int x1), t => ((∃ n : _root_.Int, 0 < n ∧ t = (sLang11 (.TW n))))
+    | (.WExt k a2), t => (∃ n : _root_.Int, 0 < n ∧ ty a2 = (sLang11 (.TW n)) ∧ (0 : _root_.Int) ≤ k ∧ t = (sLang11 (.TW (n + k))))
+  
