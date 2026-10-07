@@ -1422,7 +1422,7 @@ let eq_hash_def ft (d : decl) =
         Printf.sprintf "%s (%s)" c.c_name (String.concat ", " (List.map snd l))
   in
   let equal ft = function
-    | Small, a, b -> pf ft "Int.equal %s %s" a b
+    | Small, a, b -> pf ft "Stdlib.Int.equal %s %s" a b
     | Arg t, a, b -> pf ft "%a %s %s" equal_fn t a b
   in
   let hash ft = function
@@ -1445,7 +1445,7 @@ let eq_hash_def ft (d : decl) =
         n ty ty
         (Option.value d.d_equal ~default:"Stdlib.( = )")
         n ty
-        (Option.value d.d_hash ~default:"Hashtbl.hash")
+        (Option.value d.d_hash ~default:"Stdlib.Hashtbl.hash")
   | [], fields ->
       let fs x = List.map (fun (f, t) -> (Arg t, x ^ "." ^ id f)) fields in
       pf ft "@[<hv 2>and equal_%s (a : %s) (b : %s) =@ %a@]@ @ " n ty ty conj
@@ -1495,12 +1495,14 @@ let types ~sources ft =
     !lang.decls;
   pf ft "@[<v 2>and t = {@ kind : kind;@ ty : ty;@ tag : int;@;<1 -2>}@]@ @ ";
   pf ft "let hash_combine x y = (x * 65599) + y@ @ ";
-  pf ft "let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag@ @ ";
+  pf ft "let rec equal_t (a : t) (b : t) = Stdlib.Int.equal a.tag b.tag@ @ ";
   pf ft "and hash_t (a : t) = a.tag@ @ ";
   List.iter (fun d -> pf ft "%a@ @ " eq_hash_def d) !lang.decls;
   pf ft "(* Not safe across domains (TODO). *)@ ";
   pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
-  pf ft "@[<v 2>let module H = Ephemeron.K1.Make (struct@ type nonrec t = t@ ";
+  pf ft
+    "@[<v 2>let module H = Stdlib.Ephemeron.K1.Make (struct@ type nonrec t = \
+     t@ ";
   pf ft
     "let equal (a : t) (b : t) = equal_kind a.kind b.kind && equal_ty a.ty \
      b.ty@ ";

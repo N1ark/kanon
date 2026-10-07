@@ -48,7 +48,7 @@ and primitives).
   
   let hash_combine x y = (x * 65599) + y
   
-  let rec equal_t (a : t) (b : t) = Int.equal a.tag b.tag
+  let rec equal_t (a : t) (b : t) = Stdlib.Int.equal a.tag b.tag
   
   and hash_t (a : t) = a.tag
   
@@ -133,7 +133,7 @@ and primitives).
   
   (* Not safe across domains (TODO). *)
   let node : kind -> ty -> t =
-    let module H = Ephemeron.K1.Make (struct
+    let module H = Stdlib.Ephemeron.K1.Make (struct
       type nonrec t = t
       let equal (a : t) (b : t) = equal_kind a.kind b.kind && equal_ty a.ty b.ty
       let hash (a : t) = hash_combine (hash_kind a.kind) (hash_ty a.ty)
