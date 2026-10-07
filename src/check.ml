@@ -703,6 +703,7 @@ let add_binders ?(sorts = []) env p =
     bs;
   {
     env with
+    locals = List.filter (fun (f, _) -> not (List.mem_assoc f bs)) env.locals;
     vars = List.map (fun (x, (t, _)) -> (x, t)) bs @ env.vars;
     sorts =
       List.map
@@ -1545,11 +1546,26 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             params;
           let params = List.map param_of params in
           let ret = Option.map ret_of ret in
-          let fenv = { env with vars = params @ env.vars } in
+          let fenv =
+            {
+              env with
+              locals =
+                List.filter
+                  (fun (f, _) -> not (List.mem_assoc f params))
+                  env.locals;
+              vars = params @ env.vars;
+            }
+          in
           let fbody = expr fenv ?expected:ret fbody in
           let s = { args = List.map snd params; ret = fbody.ety } in
           let body =
-            expr { env with locals = (name, s) :: env.locals } ?expected body
+            expr
+              {
+                env with
+                locals = (name, s) :: env.locals;
+                vars = List.remove_assoc name env.vars;
+              }
+              ?expected body
           in
           mk body.ety (ELetFun (name, params, fbody, body))
       | _ ->
