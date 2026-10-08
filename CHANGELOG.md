@@ -117,6 +117,7 @@
 - Lean models of modules with only helpers build.
 - Pattern variables `hO` and `hg` work in derived arms.
 - Lean rejects variables named `decide`, `some` or `none`.
+- `[@@@lean_root]` rejects invalid names and Lean's libraries.
 
 ## 0.3.0 (2026-10-04)
 

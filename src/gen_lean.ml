@@ -2187,6 +2187,43 @@ let check_vars ctx =
         (List.map fst f.params @ bound_vars f.body))
     ctx.fns
 
+(** The libraries whose names a root may not have: Lean's, and those that the
+    generated files import. *)
+let reserved_roots = [ "Lean"; "Init"; "Std"; "Lake"; "KanonCore"; "KanonBool" ]
+
+(** Whether [s] is an identifier of Lean that is not a keyword. *)
+let is_ident s =
+  s <> ""
+  && (not (List.mem s keywords))
+  && (match s.[0] with 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false)
+  && String.for_all
+       (function
+         | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false)
+       s
+
+(** The roots of the modules that are generated are Lean names, and none is that
+    of a library. The library of the bool module is [KanonBool], when it is
+    generated ([module_only]). *)
+let check_roots ~module_only =
+  List.iter
+    (fun m ->
+      let r = module_root m in
+      let parts = String.split_on_char '.' r in
+      let fail fmt =
+        Fmt.kstr
+          (fun s -> raise (Check.Error (Location.none, s)))
+          ("the root %S of the module %s " ^^ fmt)
+          r m
+      in
+      if not (List.for_all is_ident parts) then fail "is not a Lean name"
+      else if
+        List.mem (List.hd parts) reserved_roots
+        && not (module_only && List.mem m !builtin_modules)
+      then fail "is that of a library")
+    (List.filter
+       (fun m -> (not (List.mem m !builtin_modules)) || module_only)
+       (all_modules ()))
+
 (** The cases of [f] that the module [m] adds, with their names. *)
 let module_ext_cases m (f : fn) =
   let _, cases, _ = ext_cases f in
@@ -4371,6 +4408,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
   let init =
     lazy
       (compute_refs (Lazy.force prog');
+       check_roots ~module_only;
        check_extends (Lazy.force ctx);
        check_params (Lazy.force ctx);
        check_nodes ();
