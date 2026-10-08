@@ -109,7 +109,7 @@ subsort without a predicate assumes and proves nothing.
   > subsort TZero of nat : TBitVector n
   > node Div of bool : TBitVector n -> TNonzero n -> TBitVector n
   > node Pos : TBitVector n -> TNonzero n
-  > node All : (TNonzero 8) list -> TBitVector 8
+  > node Every : (TNonzero 8) list -> TBitVector 8
   > node Mod : TBitVector n -> TZero n -> TBitVector n
   > KN
   $ cat > nonzero_rules.kn <<'KN'
@@ -117,7 +117,7 @@ subsort without a predicate assumes and proves nothing.
   > rule bv_div : Div (s, v1, v2) =
   >   | self: x, y when x = y -> v1
   > rule pos : Pos v
-  > rule all : All vs
+  > rule all : Every vs
   > rule bv_mod : Mod (v1, v2)
   > KN
   $ kanon lean-model nonzero.knl | sed -n '/^structure Ops.Sound.*where/,/^$/p'
@@ -142,7 +142,7 @@ subsort without a predicate assumes and proves nothing.
     ∀ (vs : (List S.Term)),
     (∀ y ∈ vs, Kanon.Nonzero y) →
     S.Refines (Kanon.Nonzero_rules.Nonzero_rules.all.spec vs)
-    ((Kanon.mk (.All vs) (Kanon.sort (.TBitVector (8 : Int)))))
+    ((Kanon.mk (.Every vs) (Kanon.sort (.TBitVector (8 : Int)))))
   
   def Nonzero_rules.bv_mod.r_default.main.Stmt : Prop :=
     ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Typed S] (O : Ops S), O.Sound →

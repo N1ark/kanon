@@ -1342,8 +1342,9 @@ end`}
       The generated files use some names themselves, which are not supported in Lean as other
       names: the parameters of a rule function may not be <code>h</code>, <code>hO</code>,
       <code>res</code> or <code>sem</code>, nor the arguments of a node <code>f</code>, <code>y</code>,
-      <code>ev</code>, <code>evList</code> or <code>allList</code>, and a module <code>List</code> may
-      not have nodes with lists of terms. The names that Lean reserves
+      <code>ev</code>, <code>evList</code> or <code>allList</code>, no node may be named
+      <code>All</code>, <code>Rel</code>, <code>Node</code> or <code>Lang</code>, and a module
+      <code>List</code> may not have nodes with lists of terms. The names that Lean reserves
       (<code>exists</code>, <code>at</code>, <code>from</code>, …) are quoted.
     </li>
     <li>

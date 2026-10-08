@@ -112,6 +112,7 @@
 - Rule functions without parameters are valid Lean.
 - Helpers without parameters that need the model are valid Lean.
 - Lifting lemmas prime the parameters `x` and `x'` apart.
+- Lean rejects nodes named `All`, `Rel`, `Node` or `Lang`.
 
 ## 0.3.0 (2026-10-04)
 

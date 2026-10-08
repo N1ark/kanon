@@ -2074,6 +2074,20 @@ let check_params ctx =
         f.params)
     (rule_fns ctx)
 
+(** The names of the nodes that the Lean files of a module declare themselves:
+    the functions [All] and [Rel] of [Node], and the type [Node] and the class
+    [Lang], which the nodes would hide in the declarations about them. *)
+let reserved_nodes = [ "All"; "Rel"; "Node"; "Lang" ]
+
+(** The nodes may not have the names of [reserved_nodes]. *)
+let check_nodes () =
+  List.iter
+    (fun n ->
+      if List.mem n.gc.c_name reserved_nodes then
+        unsupported n.gc.c_loc
+          "the node %s, a name of the Lean files of its module" n.gc.c_name)
+    (gnodes ())
+
 (** The cases of [f] that the module [m] adds, with their names. *)
 let module_ext_cases m (f : fn) =
   let _, cases, _ = ext_cases f in
@@ -4256,6 +4270,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
       (compute_refs (Lazy.force prog');
        check_extends (Lazy.force ctx);
        check_params (Lazy.force ctx);
+       check_nodes ();
        has_model_ref := has_model (Lazy.force ctx))
   in
   let modules () =
