@@ -409,3 +409,31 @@ that pattern variables may be named `hO` and `hg`:
   $ kanon lean-soundness lang25.knl | grep "intro S\|ok O kanon"
     intro S _ _ O kanon__hO hg t__5 hO t__3 kanon__hg
       (Rules25.plus.r_unit.main.ok O kanon__hO hO t__3 hg t__5 kanon__hg)
+
+The expressions of the generated files apply Lean functions by their names
+(`decide`, `some`, `none`, `whenSome`, `firstSome`, `arrayLength`, `arrayGet`
+and `arraySet`), which a variable of the same name would hide, as a parameter,
+a `let` variable, a pattern variable or a local function:
+
+  $ printf 'use "rules26"\nsort TInt\nnode Int of int : TInt\n' > lang26.knl
+  $ for n in decide some none whenSome firstSome arrayLength arrayGet arraySet; do
+  >   printf 'fn f (%s : int) : int = %s\n' $n $n > rules26.kn
+  >   kanon lean-model lang26.knl 2>&1 | head -1
+  > done
+  ./rules26.kn:1:0: the variable decide of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable some of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable none of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable whenSome of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable firstSome of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable arrayLength of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable arrayGet of the function Rules26.f: not supported in Lean
+  ./rules26.kn:1:0: the variable arraySet of the function Rules26.f: not supported in Lean
+  $ printf 'fn f (x : int) : int = let none = x in none\n' > rules26.kn
+  $ kanon lean-model lang26.knl 2>&1 | head -1
+  ./rules26.kn:1:0: the variable none of the function Rules26.f: not supported in Lean
+  $ printf 'fn f (o : int option) : int = match o with | Some none -> none | None -> 0\n' > rules26.kn
+  $ kanon lean-model lang26.knl 2>&1 | head -1
+  ./rules26.kn:1:0: the variable none of the function Rules26.f: not supported in Lean
+  $ printf 'fn f (x : int) : int = let decide (y : int) : int = y in if x < 3 then decide 1 else 2\n' > rules26.kn
+  $ kanon lean-model lang26.knl 2>&1 | head -1
+  ./rules26.kn:1:0: the variable decide of the function Rules26.f: not supported in Lean
