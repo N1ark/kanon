@@ -54,6 +54,13 @@ let normalize p =
     in
     "/" ^ String.concat "/" (List.rev parts)
 
+(** The name of the file [f] that is the same for every path to it. *)
+let canonical f =
+  if Option.is_some (builtin f) then f
+  else if Filename.is_relative f then
+    normalize (Filename.concat (Sys.getcwd ()) f)
+  else normalize f
+
 (** The file names of the module [m] used from the directory [dir], existing or
     not: its declarations, then its rules. *)
 let module_files dir m =
@@ -98,8 +105,8 @@ let load ?(read = fun _ -> None) ?(resolve = Fun.id) ?(on_parse = fun _ _ -> ())
   let loaded = Hashtbl.create 8 in
   let decls = ref [] and rules = ref [] in
   let rec file f =
-    if not (Hashtbl.mem loaded f) then (
-      Hashtbl.add loaded f ();
+    if not (Hashtbl.mem loaded (canonical f)) then (
+      Hashtbl.add loaded (canonical f) ();
       let str = parse_file ~read f in
       on_parse f str;
       let ms, items = uses str in
