@@ -38,7 +38,10 @@ let run args out err =
           | "ocaml" -> ocaml (fun p -> Gen_ocaml.program ~sources out p)
           | "ocaml-typed" ->
               ocaml (fun p -> Gen_typed.program ~sources:(lang @ sources) out p)
-          | "ocaml-tests" -> ocaml (fun p -> Gen_tests.program ~sources out p)
+          | "ocaml-tests" ->
+              ocaml (fun p ->
+                  Gen_tests.program ~open_module:(Cli.rules_module ()) ~sources
+                    out p)
           | _ -> (
               let parts =
                 Gen_lean.parts ~module_only ~lang

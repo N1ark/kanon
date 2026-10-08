@@ -37,14 +37,6 @@ let () =
       Check.reset ();
       let code, out = parts [ backend; lang ] in
       let expected = read (Filename.concat dir ("Generated/" ^ file)) in
-      (* the tests of kanon ocaml open the module of the rules *)
-      let expected =
-        if backend <> "ocaml-tests" then expected
-        else
-          Str.global_replace
-            (Str.regexp_string "open Tiny_rules\n\n")
-            "" expected
-      in
       if code <> 0 || out <> expected then fail "%s is not %s" backend file)
     [
       ("ocaml-types", "tiny_types.ml");

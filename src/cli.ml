@@ -193,6 +193,9 @@ let ocaml_file ~default = function
       then fail "the OCaml module %S has no file: it is not a module name" m
       else String.uncapitalize_ascii m ^ ".ml"
 
+(** The OCaml module of the rules, which the differential tests open. *)
+let rules_module () = Option.value ~default:"Rules" !Syntax.lang.ocaml_rules
+
 (** [kanon ocaml [--check] DIR]: writes in [dir/Generated] the OCaml types of
     the language ([types.ml], or the file of the module of [[@@@ocaml_types]]),
     the implementation of its rules ([rules.ml], or the file of
@@ -217,9 +220,7 @@ let ocaml ~check ~err dir ~lang ~sources prog =
   in
   let tests_text =
     to_string (fun ft ->
-        Gen_tests.program
-          ~open_module:(Option.value ~default:"Rules" l.ocaml_rules)
-          ~sources ft p)
+        Gen_tests.program ~open_module:(rules_module ()) ~sources ft p)
   in
   let files =
     [ (types, types_text); (rules, rules_text) ]

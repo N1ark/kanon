@@ -3,7 +3,7 @@
 
 (test
  (name main)
- (libraries kanon_lib str)
+ (libraries kanon_lib)
  (deps
   (glob_files ../tiny.t/*.kn*))
  (action
