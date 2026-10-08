@@ -2138,6 +2138,55 @@ let check_types ctx =
       | None -> ())
     ctx.fns
 
+(** The Lean functions that the generated expressions apply by their names,
+    which a variable of the same name would hide. *)
+let reserved_vars =
+  [
+    "decide";
+    "some";
+    "none";
+    "whenSome";
+    "firstSome";
+    "arrayLength";
+    "arrayGet";
+    "arraySet";
+  ]
+
+(** The names that [e] binds: variables of [let]s and patterns, and local
+    functions with their parameters. *)
+let rec bound_vars (e : expr) =
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
+      List.concat_map bound_vars l
+  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
+      bound_vars a @ bound_vars b
+  | EUnop (_, a) | ESome a | EField (a, _) -> bound_vars a
+  | EIf (a, b, c) -> bound_vars a @ bound_vars b @ bound_vars c
+  | ERecord l -> List.concat_map (fun (_, e) -> bound_vars e) l
+  | ELet (p, a, b) -> pat_names p @ bound_vars a @ bound_vars b
+  | ELetFun (g, ps, a, b) ->
+      (g :: List.map fst ps) @ bound_vars a @ bound_vars b
+  | EMatch (scruts, cases) ->
+      List.concat_map bound_vars scruts
+      @ List.concat_map
+          (fun (c : case) ->
+            pat_names c.pat
+            @ Option.fold ~none:[] ~some:bound_vars c.guard
+            @ bound_vars c.body)
+          cases
+
+(** The variables of the functions may not have the names of [reserved_vars]. *)
+let check_vars ctx =
+  List.iter
+    (fun (f : fn) ->
+      List.iter
+        (fun x ->
+          if List.mem x reserved_vars then
+            unsupported f.floc "the variable %s of the function %s" x f.name)
+        (List.map fst f.params @ bound_vars f.body))
+    ctx.fns
+
 (** The cases of [f] that the module [m] adds, with their names. *)
 let module_ext_cases m (f : fn) =
   let _, cases, _ = ext_cases f in
@@ -3491,9 +3540,7 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
         in
         find 0 arms
       in
-      let fresh h =
-        if List.mem_assoc h a.a_binders then "kanon__" ^ h else h
-      in
+      let fresh h = if List.mem_assoc h a.a_binders then "kanon__" ^ h else h in
       let hO = fresh "hO" in
       let hg = if a.a_case.guard = None then "" else " " ^ fresh "hg" in
       let term q =
@@ -4328,6 +4375,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
        check_params (Lazy.force ctx);
        check_nodes ();
        check_types (Lazy.force ctx);
+       check_vars (Lazy.force ctx);
        has_model_ref := has_model (Lazy.force ctx))
   in
   let modules () =

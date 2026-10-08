@@ -116,6 +116,7 @@
 - Lean rejects data types named like generated declarations.
 - Lean models of modules with only helpers build.
 - Pattern variables `hO` and `hg` work in derived arms.
+- Lean rejects variables named `decide`, `some` or `none`.
 
 ## 0.3.0 (2026-10-04)
 

@@ -1354,7 +1354,9 @@ end`}
       <code>DecidableEq</code>, <code>Repr</code>, <code>Inhabited</code>, <code>Prop</code>,
       <code>Type</code> or <code>Sort</code> (<code>{`[@lean "N"]{:kanon}`}</code> gives it another
       name); the functions of a module of the same name as a record type may not have the names
-      of its fields. The names that Lean reserves
+      of its fields. A variable may not be named <code>decide</code>, <code>some</code>,
+      <code>none</code>, <code>whenSome</code>, <code>firstSome</code>, <code>arrayLength</code>,
+      <code>arrayGet</code> or <code>arraySet</code>, which the generated expressions apply. The names that Lean reserves
       (<code>exists</code>, <code>at</code>, <code>from</code>, …) are quoted.
     </li>
     <li>
