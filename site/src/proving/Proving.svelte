@@ -216,7 +216,10 @@
         <p>
           The lifting lemmas of the rule functions of the module and of the modules it uses
           (<code>Lib.lift_f</code>: a spec is refined by the rule function on refined arguments),
-          with which the tactics lift the calls of rule functions to their specs.
+          with which the tactics lift the calls of rule functions to their specs. A parameter that
+          is a list of terms is not refined: the lemma is for the same list, as in
+          <code>Ops.Sound</code> (<code>lift_bool_distinct</code>). It is sound, being the field of
+          <code>Ops.Sound</code>, but it does not lift a call whose list is a refinement of another.
         </p>
         <Code lang="lean" code={block("examples/ints/lean/IntMod/Lift.lean", "theorem lift_int_plus")} />
 
