@@ -24,9 +24,9 @@ other: kanon lean-all reports it, and writes nothing.
 The root is the namespace and the directory of the Lean files, so it is a Lean
 name (identifiers separated by dots, that Lean does not reserve), and not that
 of the libraries that Lean provides (`Lean`, `Init`, `Std`, `Lake`) or that the
-files import (`KanonCore`, `KanonBool`):
+files import (`KanonCore`):
 
-  $ for r in "my root" 1st A..B "" fun A/B ../x Lean Init Std Lake KanonCore KanonBool Lean.Foo Foo.end; do
+  $ for r in "my root" 1st A..B "" fun A/B ../x Lean Init Std Lake KanonCore Lean.Foo Foo.end; do
   >   printf '[@@@lean_root "%s"]\nsort TA\nnode A of int : TA\n' "$r" > lang2.knl
   >   kanon lean-all out2 lang2.knl 2>&1
   > done
@@ -42,7 +42,6 @@ files import (`KanonCore`, `KanonBool`):
   kanon: the root "Std" of the module Lang2 is that of a library
   kanon: the root "Lake" of the module Lang2 is that of a library
   kanon: the root "KanonCore" of the module Lang2 is that of a library
-  kanon: the root "KanonBool" of the module Lang2 is that of a library
   kanon: the root "Lean.Foo" of the module Lang2 is that of a library
   kanon: the root "Foo.end" of the module Lang2 is not a Lean name
   [1]
@@ -68,3 +67,27 @@ may have several parts:
   $ ls out3/My/Lang/Generated | head -2
   Lang.lean
   Lift.lean
+
+`KanonBool` is the library of the built-in bool module, so it is a root only
+for a module that is not used with it: a copy of bool.knl, which declares that
+root, is generated into it, but a module that has it next to the built-in
+module is not.
+
+  $ cat > lang4.knl <<'KN'
+  > use "b4"
+  > KN
+  $ cat > b4.knl <<'KN'
+  > [@@@lean_root "KanonBool"]
+  > sort TB
+  > node B of int : TB
+  > KN
+  $ kanon lean-all out4 lang4.knl
+  $ ls out4/KanonBool/Generated | head -1
+  Lang.lean
+  $ cat > lang5.knl <<'KN'
+  > use builtin "bool"
+  > use "b4"
+  > KN
+  $ kanon lean-all out5 lang5.knl
+  kanon: the root "KanonBool" of the module B4 is that of a library
+  [1]
