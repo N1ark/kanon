@@ -287,7 +287,7 @@
   // ---------------------------------------------------------- kanon run
 
   const backends = data.fixtures.backends;
-  const USAGE = `usage: kanon (${backends.join(" | ")}) FILE...\n       kanon lean-all [--check] DIR FILE...\n       kanon lsp\n`;
+  const USAGE = `usage: kanon (${backends.join(" | ")}) FILE...\n       kanon lean-all [--check] DIR FILE...\n       kanon ocaml-all [--check] DIR FILE...\n       kanon lsp\n`;
 
   function run(args) {
     const [backend, file] = args;

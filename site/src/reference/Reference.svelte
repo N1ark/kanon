@@ -592,8 +592,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           (of root <code>R</code>) instead of <code>R/Proofs.lean</code>, so that editing the
           proofs of another function does not rebuild them (see
           <a href="proving.html#file-proofs">Proofs.lean</a>): those of a function or of an
-          <code>extend</code> are in <code>Soundness/M/f.lean</code>, and those of a
-          commutativity in <code>Soundness/Comm.lean</code>. A generated file imports the file of
+          <code>extend</code> are in <code>Generated/Soundness/M/f.lean</code>, and those of a
+          commutativity in <code>Generated/Soundness/Comm.lean</code>. A generated file imports the file of
           each of the items that it proves, or <code>R/Proofs.lean</code> for one without it.
           <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
           <code>R/Proofs/Bv/Arith.lean</code>.
@@ -827,8 +827,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   <p>
     <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
     <code>.knl</code> file, with the modules it uses (see <a href="#use"><code>use</code></a>), and
-    writes the generated code on standard output. <code>kanon lean-all DIR FILE...</code> writes the
-    Lean files instead (see <a href="#lean">Lean</a>). <code>kanon --version</code> prints the version
+    writes the generated code on standard output. <code>kanon lean-all DIR FILE...</code> and
+    <code>kanon ocaml-all DIR FILE...</code> write the Lean and the OCaml files instead (see
+    <a href="#write-all">Writing the files</a>). <code>kanon --version</code> prints the version
     of Kanon, and <code>kanon lsp</code> runs the <a href="#lsp">language server</a>.
   </p>
   <table>
@@ -868,7 +869,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>
           The Lean files of the model and its proofs (see <a href="#lean">Lean</a> and the
           <a href="proving.html">guide</a>): those of one part, one after the other, each after a
-          line <code>-- R/Model.lean</code> with its path when the part has several.
+          line <code>-- R/Generated/Model.lean</code> with its path when the part has several.
         </td>
       </tr>
     </tbody>
@@ -879,6 +880,63 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <code>rules.gen.ml</code>, a file next to the current one, as
     <code>{`include struct … end{:ocaml}`}</code>, so that it is compiled along with the types it
     needs.
+  </p>
+
+  <Heading level={3} id="write-all">Writing the files</Heading>
+  <p>
+    <code>kanon lean-all DIR FILE...</code> and <code>kanon ocaml-all DIR FILE...</code> write the
+    files of the backends into <code>Generated</code> directories, which hold nothing else:
+    everything in a <code>Generated</code> directory is generated and belongs to Kanon, and the
+    files that are not generated (the hand-written Lean files, your OCaml) are never in one.
+    Kanon <em>deletes</em> each <code>Generated</code> directory that it is about to write, with
+    all it holds, then writes its files, so that a file of a function, a rule, a module or a root
+    that no longer exists does not stay behind. It deletes nothing else.
+  </p>
+  <ul>
+    <li>
+      <code>lean-all</code> writes the Lean files of each root <code>R</code> in
+      <code>DIR/R/Generated/</code> (see <a href="#lean">Lean</a>), and the hand-written files of
+      the root are beside the directory, in <code>DIR/R/</code>. The directories are those of the
+      roots that the language generates, so a root of another language, in the same
+      <code>DIR</code>, is not touched.
+    </li>
+    <li>
+      <code>ocaml-all</code> writes the output of <code>ocaml-types</code>, <code>ocaml</code>,
+      <code>ocaml-typed</code> and <code>ocaml-tests</code>, as the files of
+      <code>DIR/Generated/</code>: <code>types.ml</code>, <code>rules.ml</code>,
+      <code>typed.ml</code> and <code>tests.ml</code>. The file of the types, and that of the rules,
+      are named after the OCaml modules of <code>{`[@@@ocaml_types "M"]{:kanon}`}</code> and
+      <code>{`[@@@ocaml_rules "M"]{:kanon}`}</code> when the language declares them (<code>M</code>
+      in lowercase), as the generated code refers to them; <code>typed.ml</code> is only written
+      for a language with <code>{`[@@@ocaml_rules]{:kanon}`}</code>, which the typed interface
+      includes; and <code>tests.ml</code> opens the module of the rules (<code>Rules</code> if
+      the language names none). Use different <code>DIR</code>s for the OCaml and the Lean files.
+    </li>
+    <li>
+      With <code>--check</code>, nothing is written or deleted: the command fails, on standard
+      error, for every file that is missing or differs from what it would write, and for every
+      other file under <code>Generated</code>, whatever its name or first line. It passes if and
+      only if <code>Generated</code> is exactly what the command would write. Kanon's own
+      <code>dune</code> rules use it to check the Lean files of the examples.
+    </li>
+    <li>
+      It refuses to write, and deletes nothing, if <code>DIR</code> is not a directory, or if a
+      part of the path of a <code>Generated</code> directory (<code>DIR/R</code>,
+      <code>DIR/R/Generated</code>) exists and is a symbolic link or not a directory: it follows no
+      link, so it only deletes under <code>DIR</code>. A link inside <code>Generated</code> is
+      removed, not followed. If <code>DIR</code> does not exist, it is created. The files are all
+      generated before anything is deleted, so an error in the language leaves the directory as it
+      was.
+    </li>
+    <li>
+      A root has no part called <code>Generated</code> (<code>[@@@lean_root "A.Generated"]</code> is
+      an error), which would put hand-written files in a <code>Generated</code> directory.
+    </li>
+  </ul>
+  <p>
+    The backends that print on standard output do not write files, and stay as they are: a
+    <code>dune</code> rule may redirect each to a file (<code>with-stdout-to</code>), which dune
+    tracks exactly.
   </p>
 
   <Heading level={3} id="ocaml">OCaml</Heading>
@@ -1279,12 +1337,14 @@ end`}
     The Lean files (see <a href="proving.html#files">the files</a> of the guide for what each one
     holds) of each module are generated in the namespace <code>R</code> of its root (see
     <a href="#floating"><code>{`[@@@lean_root "R"]{:kanon}`}</code></a>), as the modules
-    <code>R.…</code> of a Lake library whose sources are in a directory <code>DIR</code>, and so are
-    those of the language, under its root. <code>kanon lean-all DIR lang.knl</code> writes them,
-    as <code>DIR/R/….lean</code>, and removes the files under these roots that it wrote before
-    (whose first line is <code>-- Generated by kanon</code>) and no longer generates;
-    <code>kanon lean-all --check DIR lang.knl</code> writes nothing, and fails if a file is missing,
-    differs or is stale. It does not write those of the bool module, which are in Kanon's library
+    <code>R.Generated.…</code> of a Lake library whose sources are in a directory <code>DIR</code>,
+    and so are those of the language, under its root. <code>kanon lean-all DIR lang.knl</code>
+    clears <code>DIR/R/Generated</code> and writes them there, as
+    <code>DIR/R/Generated/….lean</code> (see <a href="#write-all">Writing the files</a>);
+    <code>kanon lean-all --check DIR lang.knl</code> writes nothing, and fails if a file of
+    <code>Generated</code> is missing, differs or is stale. The hand-written files are beside
+    <code>Generated</code>, in <code>DIR/R</code> (<code>R.Sem</code>, <code>R.Proofs</code>…).
+    It does not write those of the bool module, which are in Kanon's library
     (<code>KanonBool</code>). A module uses the modules whose declarations it mentions and those it
     <code>use</code>s, which must not use it. The files are, by part:
   </p>
@@ -1428,7 +1488,7 @@ end`}
       arguments of the call. The elements of a list of operands each satisfy it
       (<code>∀ y ∈ vs, P y</code>). One whose node has a subsort for its result must prove that what
       it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
-      <code>Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
+      <code>Generated/Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
       <code>f.spec_post.Stmt</code>, which <code>kanon_proof%</code> proves from a hand-written
       proof (<code>{`@[kanon_arm] theorem … : f.spec_post.Stmt{:lean}`}</code>) or the
       <code>kanon_tactic</code> of <code>f</code>, else <code>kanon_auto</code>; they are fields

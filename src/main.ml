@@ -19,10 +19,14 @@
       backend prints its files one after the other, each after its name.
 
     The output is written on standard output. [kanon lean-all DIR FILE...]
-    writes every Lean file of the above under [DIR] (as [DIR/R/Model.lean], for
-    the root [R] of a module), and removes those it wrote before and no longer
-    generates; [kanon lean-all --check DIR FILE...] only checks that they are up
-    to date.
+    writes every Lean file of the above in the directory [Generated] of the
+    directory of its root (as [DIR/R/Generated/Model.lean], for the root [R] of
+    a module), after deleting those directories, which hold only generated
+    files: the hand-written files are beside them, in [DIR/R].
+    [kanon ocaml-all DIR FILE...] writes the four OCaml backends in
+    [DIR/Generated], the same way. [kanon lean-all --check DIR FILE...] and
+    [kanon ocaml-all --check DIR FILE...] only check that those directories are
+    exactly as they would be written.
 
     [use "path"], in a file, uses the module whose declarations are [path.knl]
     and whose rules are [path.kn] (either may be missing), relative to the

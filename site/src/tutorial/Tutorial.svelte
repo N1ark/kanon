@@ -606,7 +606,10 @@ node Fill of int : TArray n`}
     </dt>
     <dd>
       the generated Lean files (below), one after the other when a part has several (one per
-      module); <code>kanon lean-all DIR</code> writes all of them under <code>DIR</code>.
+      module); <code>kanon lean-all DIR</code> writes all of them under <code>DIR</code>, and
+      <code>kanon ocaml-all DIR</code> the four OCaml outputs above in <code>DIR/Generated</code>
+      (each clears its <code>Generated</code> directory first, and <code>--check</code> only checks
+      it).
     </dd>
   </dl>
   <p>
@@ -620,8 +623,9 @@ node Fill of int : TArray n`}
   <p>
     Each module is proved once, for every language that has it: its Lean files are generated in
     the namespace of its root, <code>{`[@@@lean_root "R"]{:kanon}`}</code> (under the root of the
-    language by default), and <code>kanon lean-all DIR lang.knl</code> writes them under
-    <code>DIR/R</code>:
+    language by default), and <code>kanon lean-all DIR lang.knl</code> writes them in
+    <code>DIR/R/Generated</code>, which it clears first (everything in a <code>Generated</code>
+    directory is generated, and the files written by hand are beside it, in <code>DIR/R</code>):
   </p>
   <ul>
     <li>

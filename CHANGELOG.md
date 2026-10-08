@@ -21,7 +21,7 @@
 - [`[@lean_inv "P"]`](https://n1ark.github.io/kanon/reference.html#on-sorts): invariants of sorts and nodes, in their typing.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
 - `kanon_refl` unfolds helpers, so a helper spec is refined.
-- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules, in `R/Types.lean`.
+- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules, in `R/Generated/Types.lean`.
 - [Every module](https://n1ark.github.io/kanon/proving.html#modules) is proved once in Lean, for every language.
 - `[@@@lean_root "R"]` in a module sets its Lean root.
 - Hand-written `Sem`, `Prims` and `Proofs` files per module.
@@ -36,6 +36,7 @@
 - `[@@@lean_laws]`: a module's proofs assume facts each language proves.
 - Lean `Node.children` lists the children of a node.
 - Lifting lemmas hold of specs that read their arguments' sorts.
+- `kanon ocaml-all DIR` writes the OCaml backends in `DIR/Generated`.
 
 ### Changed
 
@@ -62,6 +63,9 @@
 - [Lean statements and proofs](https://n1ark.github.io/kanon/proving.html#files): a file per function.
 - Generated OCaml raises `Invalid_argument` on a non-positive sort `nat`.
 - Lean's typing always requires positive widths, ignoring `when`.
+- `lean-all` writes `R/Generated/`, and clears it first.
+- Generated Lean modules are named `R.Generated.X`; hand-written files stay beside.
+- `lean-all --check` reports any stale file under `Generated`.
 
 ### Fixed
 
