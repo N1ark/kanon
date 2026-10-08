@@ -5,7 +5,7 @@ of the modules in a language, the types of the children, the node and its sort.
 The typing of the terms among its arguments is that of its children
 (`Node.All`).
 
-  $ kanon lean-all out lang.knl
+  $ kanon lean out lang.knl
   $ sed -n '/^def Node.wt/,/^$/p' out/Generated/CoreMod/Lang.lean
   def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sCore : (CoreMod.Srt Ty) → Ty) (ty : T → Ty) : (Node Ty) T → Ty → Prop
     | (.Ev x1), t => (t = (sCore .TEven)) ∧ even_inv sBool sCore ty (.Ev x1) t

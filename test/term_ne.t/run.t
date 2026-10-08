@@ -12,6 +12,5 @@ their tags.
   > rule add : Add (v1, v2) =
   >   | diff: x, y when x <> y -> x
   > KN
-  $ kanon ocaml-types lang.knl > ne_types.ml
-  $ kanon ocaml lang.knl > ne_rules.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/ne_types.ml ne_types.ml && cp out/Generated/rules.ml ne_rules.ml
   $ ocamlfind ocamlc -package zarith -c ne_types.ml ne_rules.ml

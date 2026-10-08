@@ -15,6 +15,5 @@ on unused cases (an error in the dune dev profile) would reject.
   > fn mk (a b : t) : t = Concat (a, b)
   > fn size (v : TBv n) : int = n
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ ocamlfind ocamlc -package zarith -warn-error +11 -c t.ml r.ml 2>&1 | grep -B3 Error || true

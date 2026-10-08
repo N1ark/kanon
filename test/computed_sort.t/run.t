@@ -41,7 +41,7 @@ to arguments, `(Tuple vs : TTuple (types_of vs))`, or any expression of type
 
 OCaml: the sort is the expression.
 
-  $ kanon ocaml lang.knl | grep -n 'node'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | grep -n 'node'
   33:      (node (Tuple (vs)) (TTuple ((rules_types_of vs))))
   35:  let[@inline] rules_mk_var (x : var) (s : ty) : t = (node (Var (x)) s)
   38:      (node (Var (x)) (Prims.var_ty x))
@@ -51,19 +51,20 @@ OCaml: the sort is the expression.
 
 Lean: the sort is the translated expression.
 
-  $ kanon lean-model lang.knl | grep -n 'mk (\.'
-  96:  (Kanon.mk (.Tuple vs) (Kanon.sort (.TTuple (Kanon.Rules.Rules.types_of vs))))
-  99:  (Kanon.mk (.Var x) s)
-  102:  (Kanon.mk (.Var x) (Kanon.Rules.var_ty x))
-  105:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.field_ty v i))
-  108:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.nth_ty (Kanon.Rules.Rules.types_of (v :: ([] : (List S.Term)))) i))
-  119:  (Kanon.mk (.Proj i v) (Kanon.sort .TInt))
-  127:    (whenSome true ((Kanon.mk (.Proj i v) (Kanon.Rules.Rules.field_ty v i)))))
+  $ kanon lean out lang.knl
+  $ grep -n 'mk (\.' out/Generated/Kanon/Rules/Model.lean
+  63:  (Kanon.mk (.Tuple vs) (Kanon.sort (.TTuple (Kanon.Rules.Rules.types_of vs))))
+  66:  (Kanon.mk (.Var x) s)
+  69:  (Kanon.mk (.Var x) (Kanon.Rules.var_ty x))
+  72:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.field_ty v i))
+  75:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.nth_ty (Kanon.Rules.Rules.types_of (v :: ([] : (List S.Term)))) i))
+  86:  (Kanon.mk (.Proj i v) (Kanon.sort .TInt))
+  94:    (whenSome true ((Kanon.mk (.Proj i v) (Kanon.Rules.Rules.field_ty v i)))))
 
-The ocaml-typed backend types a rule by the typing of its node, not by the sort
+The typed interface (`typed.ml`) types a rule by the typing of its node, not by the sort
 that its body builds: `proj` returns a `tint`.
 
-  $ kanon ocaml-typed lang.knl | grep -n 'val proj'
+  $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep -n 'val proj'
   58:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
 
 The sort of a node is a `ty`: anything else is an error at the sort.
@@ -73,7 +74,7 @@ The sort of a node is a `ty`: anything else is an error at the sort.
   > fn bad (x : var) : t = (Var x : $sort)
   > EOF
   >   echo "=== $sort"
-  >   kanon ocaml lang.knl bad.kn
+  >   kanon ocaml out lang.knl bad.kn
   > done
   === x
   bad.kn:1:32: type mismatch: expected ty, got var
@@ -92,7 +93,7 @@ The arguments of a sort constructor are checked as before.
   $ cat > bad.kn <<'EOF'
   > fn bad (x : var) (s : ty) : t = (Var x : TTuple s)
   > EOF
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:48: type mismatch: expected ty list, got ty
   [1]
 
@@ -102,7 +103,7 @@ constructor, and the check is skipped for a computed sort.
   $ cat > bad.kn <<'EOF'
   > fn bad (v : t) : t = (Proj (0, v) : TTuple [])
   > EOF
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:36: Proj is a term of sort TInt, by its typing, not TTuple
   [1]
 
@@ -114,12 +115,12 @@ type there is a syntax error (put it on a `let`).
   > fn ann (x : var) : t = (Var x : t)
   > fn ints (l : int list) : int list = (l : int list)
   > EOF
-  $ kanon ocaml lang.knl ann.kn
+  $ kanon ocaml out lang.knl ann.kn
   ann.kn:1:24: Var has no typing, which would give the sort of its term
   [1]
   $ cat > bad.kn <<'EOF'
   > fn bad (l : int list) : int = let x = (l : (int * bool) list) in 0
   > EOF
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:56: syntax error
   [1]

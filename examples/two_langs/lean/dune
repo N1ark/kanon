@@ -2,7 +2,7 @@
 ; and of their modules proved once (under Generated/NumMod/, Generated/NegMod/,
 ; Generated/EvenMod/, Generated/MixMod/, Generated/CfgMod/, Generated/WordMod/
 ; and Generated/PackMod/), from ../l1.knl to ../l5.knl: `dune test` checks that
-; they are up to date (run `dune exec -- kanon lean-all . ../lN.knl` here after
+; they are up to date (run `dune exec -- kanon lean . ../lN.knl` here after
 ; changing a language or a module, for each N), and CI checks their proofs with
 ; `lake build`. The languages generate the same files of the modules they
 ; share.
@@ -18,7 +18,7 @@
   ../num.knl
   ../num.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../l1.knl)))
+  (run %{bin:kanon} lean --check . ../l1.knl)))
 
 (rule
  (alias runtest)
@@ -35,7 +35,7 @@
   ../neg.knl
   ../neg.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../l2.knl)))
+  (run %{bin:kanon} lean --check . ../l2.knl)))
 
 (rule
  (alias runtest)
@@ -60,7 +60,7 @@
   ../mix.knl
   ../mix.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../l3.knl)))
+  (run %{bin:kanon} lean --check . ../l3.knl)))
 
 (rule
  (alias runtest)
@@ -76,7 +76,7 @@
   ../word.knl
   ../word.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../l4.knl)))
+  (run %{bin:kanon} lean --check . ../l4.knl)))
 
 (rule
  (alias runtest)
@@ -89,4 +89,4 @@
   ../pack.knl
   ../pack.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../l5.knl)))
+  (run %{bin:kanon} lean --check . ../l5.knl)))

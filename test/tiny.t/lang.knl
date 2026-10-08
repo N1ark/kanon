@@ -1,6 +1,6 @@
 (* A small value language: booleans and mathematical integers, in one module.
    Kanon generates the types of its terms from its nodes: its OCaml types are
-   those of [kanon ocaml-types], in the module [Tiny_types], and its
+   those of [types.ml] from [kanon ocaml], in the module [Tiny_types], and its
    primitives are in the module [Tiny_prims]. Its rules are in rules.kn. *)
 
 [@@@ocaml_types "Tiny_types"]
@@ -12,7 +12,7 @@ use "rules"
 type var [@ocaml "string"] [@lean "String"] [@noeq] [@equal "String.equal"]
   [@hash "Hashtbl.hash"]
 
-(* types of the module Tiny_base, which ocaml-types re-exports *)
+(* types of the module Tiny_base, which the types re-export *)
 type checked [@ocaml "Tiny_base.checked"] = { signed : bool; unsigned : bool }
 type rounding [@ocaml "Tiny_base.rounding"] = Nearest | Zero
 

@@ -12,6 +12,12 @@ and `extend rule` go before it, and a rule function that ends with one has no
   > infix "+" = Add, Base.add
   > KN
 
+The Lean files of a language need a module that uses the modules with rules:
+`all.knl` uses all of them, and `noext.knl` not the extension.
+
+  $ printf 'use "lang"\nuse "base"\nuse "ext"\n' > all.knl
+  $ printf 'use "lang"\nuse "base"\n' > noext.knl
+
 A helper over three scrutinees ends with `_`, `_, _, _` or `(_, _), _`, and over
 a pair of pairs. The added case is in the OCaml and in the Lean model, before
 the last case; Lean needs the helper to be `[@extensible]`, as each language
@@ -30,21 +36,21 @@ puts its cases together.
   >   | $last
   > KN
   >   echo "=== $last"
-  >   kanon ocaml lang.knl base.kn ext.kn | grep -n 'Z.of_int (\(5\|7\))\|Z.zero'
-  >   kanon lean-model lang.knl base.kn ext.kn | grep -n 'some ((\(5\|7\) : Int))'
+  >   kanon ocaml out lang.knl base.kn ext.kn && cat out/Generated/rules.ml | grep -n 'Z.of_int (\(5\|7\))\|Z.zero'
+  >   kanon lean out all.knl && cat out/Generated/Kanon/*/Model.lean | grep -n 'some ((\(5\|7\) : Int))'
   > done
   === _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  62:    then some ((5 : Int))
-  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  29:    then some ((5 : Int))
+  72:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _, _) -> Z.zero
-  62:    then some ((5 : Int))
-  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  29:    then some ((5 : Int))
+  72:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
   $ cat > ext.kn <<'KN'
   > extend fn Base.g =
@@ -59,27 +65,27 @@ puts its cases together.
   >   | $last
   > KN
   >   echo "=== $last"
-  >   kanon ocaml lang.knl base.kn ext.kn | grep -n 'Z.of_int (\(5\|7\))\|Z.zero'
-  >   kanon lean-model lang.knl base.kn ext.kn | grep -n 'some ((\(5\|7\) : Int))'
+  >   kanon ocaml out lang.knl base.kn ext.kn && cat out/Generated/rules.ml | grep -n 'Z.of_int (\(5\|7\))\|Z.zero'
+  >   kanon lean out all.knl && cat out/Generated/Kanon/*/Model.lean | grep -n 'some ((\(5\|7\) : Int))'
   > done
   === _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  62:    then some ((5 : Int))
-  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  29:    then some ((5 : Int))
+  72:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === (_, _), _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | ((_, _), _) -> Z.zero
-  62:    then some ((5 : Int))
-  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  29:    then some ((5 : Int))
+  72:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _) -> Z.zero
-  62:    then some ((5 : Int))
-  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  29:    then some ((5 : Int))
+  72:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
 `x, _` and `_ as x` are not blanks: the added case is last, so it cannot be
 reached, which is an error, not a silent omission.
@@ -97,8 +103,8 @@ reached, which is an error, not a silent omission.
   >   | $last
   > KN
   >   echo "=== $last"
-  >   kanon ocaml lang.knl base.kn ext.kn
-  >   kanon lean-model lang.knl base.kn ext.kn
+  >   kanon ocaml out lang.knl base.kn ext.kn
+  >   kanon lean out lang.knl base.kn ext.kn
   > done
   === x, _, _ -> 0
   ext.kn:2:4: extend Base.f: this case is unreachable (an earlier case of Base.f matches everything it does), so it was not added
@@ -124,8 +130,8 @@ Without one, they are before `default`.
   >   $last
   > KN
   >   echo "=== $last"
-  >   kanon lean-rules lang.knl base.kn ext.kn | grep -A1 'firstSome \['
-  >   kanon ocaml lang.knl base.kn ext.kn | grep -c 'Z.one'
+  >   kanon lean out lang.knl base.kn ext.kn && grep -A1 'firstSome \[' out/Generated/Kanon/Rules.lean
+  >   kanon ocaml out lang.knl base.kn ext.kn && cat out/Generated/rules.ml | grep -c 'Z.one'
   > done
   === | fin: _ -> v1
     (firstSome [Kanon.Base.Base.add.r_zero (S := sem) O.toBaseOps v1 v2, Kanon.Ext.Base.add.r_one (S := sem) O v1 v2, Kanon.Base.Base.add.r_fin (S := sem) O.toBaseOps v1 v2]).getD
@@ -148,7 +154,7 @@ added rule cannot be reached, which is an error.
   >   | zero: 0, x -> x
   >   | fin: x, _ -> v1
   > KN
-  $ kanon ocaml lang.knl base.kn ext.kn
+  $ kanon ocaml out lang.knl base.kn ext.kn
   ext.kn:2:9: extend Base.add: this case is unreachable (an earlier case of Base.add matches everything it does), so it was not added
   [1]
 
@@ -166,10 +172,10 @@ A case written after `_, _` is unreachable exactly as after `_`: it is left out.
   >   | _ -> 0
   >   | 2, _ -> 6
   > KN
-  $ kanon ocaml lang.knl base.kn | grep -c "Z.of_int (6)"
+  $ kanon ocaml out lang.knl base.kn && cat out/Generated/rules.ml | grep -c "Z.of_int (6)"
   0
   [1]
-  $ kanon lean-model lang.knl base.kn | grep -c "(6 : Int)"
+  $ kanon lean out noext.knl && cat out/Generated/Kanon/*/Model.lean | grep -c "(6 : Int)"
   0
   [1]
 
@@ -186,7 +192,7 @@ without a guard matches all that it matches) is an error, also for a rule.
   > extend fn Base.g =
   >   | 3, _ -> 7
   > KN
-  $ kanon ocaml lang.knl base.kn ext.kn
+  $ kanon ocaml out lang.knl base.kn ext.kn
   ext.kn:2:4: extend Base.g: this case is unreachable (an earlier case of Base.g matches everything it does), so it was not added
   [1]
 
@@ -205,10 +211,10 @@ step before, and its default case at the first.
   > extend fn Base.h =
   >   | x + _ -> Base.h x
   > KN
-  $ kanon lean-model lang.knl base.kn ext.kn | grep '^def Base.h.c1'
+  $ kanon lean out lang.knl base.kn ext.kn && cat out/Generated/Kanon/*/Model.lean | grep '^def Base.h.c1'
   def Base.h.c1 (a : S.Term) : Option Int :=
   def Base.h.c1 (O : Ops S) (a : S.Term) : Option Int :=
-  $ kanon lean-rules lang.knl base.kn ext.kn | grep -A1 '^def Base.h\|base_h :='
+  $ grep -A1 '^def Base.h\|base_h :=' out/Generated/Kanon/Rules.lean
   def Base.h (O : Kanon.Ext.Ops sem) (a : Term) : Int :=
     (firstSome [Kanon.Base.Base.h.c1 (S := sem) a, Kanon.Ext.Base.h.c1 (S := sem) O a]).getD (Kanon.Base.Base.h.default (S := sem) a)
   --

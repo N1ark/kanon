@@ -16,7 +16,7 @@ the soundness theorems of its name:
   > rule neg : Neg v =
   >   | at: Neg x -> x
   > KN
-  $ kanon lean-all out lang.knl
+  $ kanon lean out lang.knl
   $ grep -rhoE 'Rules\.neg\.r_[^ .]*' out | sort -u
   Rules.neg.r_at
   Rules.neg.r_default
@@ -35,7 +35,7 @@ not as a prefix of it (`«from»'` is a quoted name and a quote):
   > rule add : Add (from, at) =
   >   | zero: x, 0 -> x
   > KN
-  $ kanon lean-all out2 lang2.knl
+  $ kanon lean out2 lang2.knl
   $ grep -h -A4 'theorem lift_' out2/Generated/Kanon/Rules2/Lift.lean
   theorem lift_rules2_add (hO : O.Sound) {«from» from' : S.Term} {«at» at' : S.Term}
     (h_from : S.Refines «from» from')
@@ -55,7 +55,8 @@ All the words that Lean reserves are quoted, not only the common ones:
   >   let while = exists + forall in
   >   while + include + repeat + sorry + try
   > KN
-  $ kanon lean-model lang3.knl | grep -A2 "def Kw.f"
+  $ kanon lean out lang3.knl
+  $ grep -A2 "def Kw.f" out/Generated/Kanon/Kw/Model.lean
   def Kw.f («exists» : Int) («forall» : Int) («include» : Int) («repeat» : Int) («sorry» : Int) («try» : Int) : Int :=
     (let «while» := («exists» + «forall»);
     ((((«while» + «include») + «repeat») + «sorry») + «try»))
@@ -73,11 +74,12 @@ the access to a field:
   > fn mk (a b : int) : span = { from = a; to_ = b }
   > fn start (s : span) : int = s.from
   > KN
-  $ kanon lean-types lang4.knl | grep -A2 "^structure"
+  $ kanon lean out lang4.knl
+  $ grep -A2 "^structure" out/Generated/Kanon/Types.lean
   structure Span where
     «from» : Int
     to_ : Int
-  $ kanon lean-model lang4.knl | grep -A1 "^def Rec\.\(mk\|start\)"
+  $ grep -A1 "^def Rec\.\(mk\|start\)" out/Generated/Kanon/Rec/Model.lean
   def Rec.mk (a : Int) (b : Int) : Kanon.Span :=
     ({ «from» := a, to_ := b } : Kanon.Span)
   --
@@ -96,7 +98,8 @@ about its nodes:
   > sort TOpen
   > node Op : TOpen -> TOpen
   > KN
-  $ kanon lean-semantics lang5.knl | grep -o "\(WT\|ev\)_[^ ]*open[^ ]*" | sort -u
+  $ kanon lean out lang5.knl
+  $ grep -o "\(WT\|ev\)_[^ ]*open[^ ]*" out/Generated/Kanon/Semantics.lean | sort -u
   WT_open
   ev_open
 
@@ -109,7 +112,8 @@ and are new variables even if the first has an argument named so:
   > node Mk of int * int (x, x') : TInt
   > node Pair of t * t (a, a') : TInt
   > KN
-  $ kanon lean-node lang6.knl | grep -A3 "^def Rel"
+  $ kanon lean out lang6.knl
+  $ grep -A3 "^def Rel" out/Generated/Kanon/Node.lean
   def Rel (R : T → U → Prop) : Node T → Node U → Prop
     | (.Int x1), (.Int x1') => x1 = x1'
     | (.Mk x x'), (.Mk x'' x''') => x = x'' ∧ x' = x'''
@@ -122,7 +126,7 @@ supported:
 
   $ for n in f y ev evList allList; do
   >   printf 'sort TInt\nnode Int of int : TInt\nnode Seq of t list (%s) : TInt\n' $n > lang7.knl
-  >   kanon lean-node lang7.knl 2>&1
+  >   kanon lean out lang7.knl 2>&1
   > done
   lang7.knl:3:5: the name f of an argument of Seq: not supported in Lean
   lang7.knl:3:5: the name y of an argument of Seq: not supported in Lean
@@ -138,7 +142,7 @@ they may not have:
   $ for n in h hO res sem; do
   >   printf 'use "rules9"\nsort TInt\nnode Int of int : TInt\nnode Add : TInt -> TInt -> TInt\n' > lang9.knl
   >   printf 'rule add : Add (%s, v)\n' $n > rules9.kn
-  >   kanon lean-model lang9.knl 2>&1 | head -1
+  >   kanon lean out lang9.knl 2>&1 | head -1
   > done
   ./rules9.kn:1:0: the parameter h of the rule function Rules9.add: not supported in Lean
   ./rules9.kn:1:0: the parameter hO of the rule function Rules9.add: not supported in Lean
@@ -157,7 +161,8 @@ variables over `Ty`, the sorts of the language:
   > node Fst : TPair (a, b) -> a
   > node Swap : TPair (a, b) -> TPair (b, a)
   > KN
-  $ kanon lean-lang lang10.knl | sed -n '/^def Node.wt/,/^$/p'
+  $ kanon lean out lang10.knl
+  $ sed -n '/^def Node.wt/,/^$/p' out/Generated/Kanon/Lang.lean
   def Node.wt {T Ty : Type} (sLang10 : (Kanon.Srt Ty) → Ty) (ty : T → Ty) : Node T → Ty → Prop
     | (.Int x1), t => (t = (sLang10 .TInt))
     | (.MkPair a1 a2), t => (t = (sLang10 (.TPair (ty a1) (ty a2))))
@@ -173,7 +178,8 @@ is in scope: the types of the variables and numbers are then `_root_.Int`:
   > node Int of int : TW n
   > node WExt of nat (k) : TW n -> TW (n + k) when 0 <= k
   > KN
-  $ kanon lean-lang lang11.knl | sed -n '/^def Node.wt/,/^$/p'
+  $ kanon lean out lang11.knl
+  $ sed -n '/^def Node.wt/,/^$/p' out/Generated/Kanon/Lang.lean
   def Node.wt {T Ty : Type} (sLang11 : Kanon.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
     | (.Int x1), t => ((∃ n : _root_.Int, 0 < n ∧ t = (sLang11 (.TW n))))
     | (.WExt k a2), t => (∃ n : _root_.Int, 0 < n ∧ ty a2 = (sLang11 (.TW n)) ∧ (0 : _root_.Int) ≤ k ∧ t = (sLang11 (.TW (n + k))))
@@ -188,7 +194,8 @@ nodes named `True`, `False` and `List`:
   > node False : TB
   > node List of t list : TB
   > KN
-  $ kanon lean-node lang12.knl | sed -n '/^def All/,/^theorem all_iff/p'
+  $ kanon lean out lang12.knl
+  $ sed -n '/^def All/,/^theorem all_iff/p' out/Generated/Kanon/Node.lean
   def All (P : T → Prop) : Node T → Prop
     | .True => _root_.True
     | .False => _root_.True
@@ -224,7 +231,7 @@ parameters and the pattern variables alike.
   > rule sub : Sub (v1, v2) =
   >   | crossed: v2, v1 -> v1
   > KN
-  $ kanon lean-statements lang13.knl > /dev/null
+  $ kanon lean out lang13.knl
   ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
   [1]
 
@@ -234,7 +241,7 @@ So is the name of an `as` variable:
   > rule sub : Sub (v1, v2) =
   >   | crossed: (Int a as v2), x -> v2
   > KN
-  $ kanon lean-statements lang13.knl > /dev/null
+  $ kanon lean out lang13.knl
   ./rules13.kn:2:13: Rules13.sub: pattern variable v2 shadows a parameter
   [1]
 
@@ -251,7 +258,7 @@ of children, so a module `List` with such nodes is not supported:
   > sort TL
   > node Cons : t list -> TL
   > KN
-  $ kanon lean-semantics lang14.knl > /dev/null
+  $ kanon lean out lang14.knl
   kanon: the module List: its functions allList and evList are those of the lists of children: not supported in Lean
   [1]
 
@@ -267,10 +274,11 @@ no `∀` and no `fun` in the statements and the model of the language:
   $ cat > rules15.kn <<'KN'
   > rule zero : Zero
   > KN
-  $ kanon lean-model lang15.knl | grep "rules15_zero :"
+  $ kanon lean out lang15.knl
+  $ grep "rules15_zero :" out/Generated/Kanon/Rules15/Model.lean
     rules15_zero : S.Term
     rules15_zero : S.Refines (Rules15.zero.spec ) (O.rules15_zero )
-  $ kanon lean-rules lang15.knl | grep "rules15_zero :="
+  $ grep "rules15_zero :=" out/Generated/Kanon/Rules.lean
       rules15_zero := Kanon.Rules15.Rules15.zero.spec (S := sem)  }
       rules15_zero := Rules15.zero.step O }
       { rules15_zero := Kanon.Sem.Refines.refl }
@@ -294,7 +302,8 @@ to it in parentheses, as an argument:
   > fn two : t = Int 1 + Int 1
   > fn use_two (x : t) : t = x + two
   > KN
-  $ kanon lean-model lang16.knl | grep -A1 "def Rules16.use_two"
+  $ kanon lean out lang16.knl
+  $ grep -A1 "def Rules16.use_two" out/Generated/Kanon/Rules16/Model.lean
   def Rules16.use_two (O : Ops S) (x : S.Term) : S.Term :=
     (O.rules16_plus x (Kanon.Rules16.Rules16.two O))
 
@@ -312,7 +321,8 @@ function, even if it has parameters `x` and `x'`:
   $ cat > rules17.kn <<'KN'
   > rule plus : Plus (x, x')
   > KN
-  $ kanon lean-statements lang17.knl | grep -A3 "theorem lift_" | head -4
+  $ kanon lean out lang17.knl
+  $ grep -A3 "theorem lift_" out/Generated/Kanon/Rules17/Lift.lean | head -4
   theorem lift_rules17_plus (hO : O.Sound) {x x'' : S.Term} {x' x''' : S.Term}
     (h_x : S.Refines x x'')
     (h_x' : S.Refines x' x''') :
@@ -324,7 +334,7 @@ class `Lang` in the declarations about the nodes:
 
   $ for n in All Rel Node Lang; do
   >   printf 'sort TInt\nnode Int of int : TInt\nnode %s : TInt -> TInt\n' $n > lang18.knl
-  >   kanon lean-node lang18.knl 2>&1 | head -1
+  >   kanon lean out lang18.knl 2>&1 | head -1
   > done
   lang18.knl:3:5: the node All, a name of the Lean files of its module: not supported in Lean
   lang18.knl:3:5: the node Rel, a name of the Lean files of its module: not supported in Lean
@@ -340,7 +350,7 @@ it otherwise:
 
   $ for n in srt ops lang typed values term refines val env sem dom embed repr inhabited decidable_eq prop; do
   >   printf 'type %s = A | B\nsort TInt\nnode Int of int : TInt\nnode Col of %s : TInt\n' $n $n > lang19.knl
-  >   kanon lean-types lang19.knl 2>&1 | head -1
+  >   kanon lean out lang19.knl 2>&1 | head -1
   > done
   lang19.knl:1:5: the type srt, whose Lean name Srt is declared elsewhere (name it with [@lean "N"]): not supported in Lean
   lang19.knl:1:5: the type ops, whose Lean name Ops is declared elsewhere (name it with [@lean "N"]): not supported in Lean
@@ -359,7 +369,8 @@ it otherwise:
   lang19.knl:1:5: the type decidable_eq, whose Lean name DecidableEq is declared elsewhere (name it with [@lean "N"]): not supported in Lean
   lang19.knl:1:5: the type prop, whose Lean name Prop is declared elsewhere (name it with [@lean "N"]): not supported in Lean
   $ printf 'type srt [@lean "Shape"] = A | B\nsort TInt\nnode Int of int : TInt\nnode Col of srt : TInt\n' > lang20.knl
-  $ kanon lean-types lang20.knl | grep inductive
+  $ kanon lean out lang20.knl
+  $ grep inductive out/Generated/Kanon/Types.lean
   inductive Shape where
 
 A module that declares a type of its own name has the functions of the module
@@ -372,7 +383,7 @@ in the namespace of the type, where the fields of a record are declared:
   > KN
   $ echo 'type span = { lo : int; hi : int }' > span.knl
   $ echo 'fn lo (x : int) : int = x' > span.kn
-  $ kanon lean-model lang21.knl 2>&1 | head -1
+  $ kanon lean out lang21.knl 2>&1 | head -1
   ./span.kn:1:0: the function lo, a field of the record type span of its module: not supported in Lean
 
 The names of the language are also those of a module that has rule functions
@@ -386,7 +397,7 @@ The names of the language are also those of a module that has rule functions
   > KN
   $ echo 'type term = A | B' > m.knl
   $ echo 'fn f (x : int) : int = x' > m.kn
-  $ kanon lean-types lang22.knl 2>&1 | head -1
+  $ kanon lean out lang22.knl 2>&1 | head -1
   ./m.knl:1:5: the type term, whose Lean name Term is declared elsewhere (name it with [@lean "N"]): not supported in Lean
 
 The proof of an arm that commutativity derives from another one introduces the
@@ -406,7 +417,8 @@ that pattern variables may be named `hO` and `hg`:
   > rule plus : Plus (v1, v2) =
   >   | unit: Neg hO + Int hg when hg = 0 -> Neg hO
   > KN
-  $ kanon lean-soundness lang25.knl | grep "intro S\|ok O kanon"
+  $ kanon lean out lang25.knl
+  $ grep -h "intro S\|ok O kanon" out/Generated/Kanon/Rules25/Soundness/Rules25/plus.lean
     intro S _ _ O kanon__hO hg t__5 hO t__3 kanon__hg
       (Rules25.plus.r_unit.main.ok O kanon__hO hO t__3 hg t__5 kanon__hg)
 
@@ -418,7 +430,7 @@ a `let` variable, a pattern variable or a local function:
   $ printf 'use "rules26"\nsort TInt\nnode Int of int : TInt\n' > lang26.knl
   $ for n in decide some none whenSome firstSome arrayLength arrayGet arraySet; do
   >   printf 'fn f (%s : int) : int = %s\n' $n $n > rules26.kn
-  >   kanon lean-model lang26.knl 2>&1 | head -1
+  >   kanon lean out lang26.knl 2>&1 | head -1
   > done
   ./rules26.kn:1:0: the variable decide of the function Rules26.f: not supported in Lean
   ./rules26.kn:1:0: the variable some of the function Rules26.f: not supported in Lean
@@ -429,13 +441,13 @@ a `let` variable, a pattern variable or a local function:
   ./rules26.kn:1:0: the variable arrayGet of the function Rules26.f: not supported in Lean
   ./rules26.kn:1:0: the variable arraySet of the function Rules26.f: not supported in Lean
   $ printf 'fn f (x : int) : int = let none = x in none\n' > rules26.kn
-  $ kanon lean-model lang26.knl 2>&1 | head -1
+  $ kanon lean out lang26.knl 2>&1 | head -1
   ./rules26.kn:1:0: the variable none of the function Rules26.f: not supported in Lean
   $ printf 'fn f (o : int option) : int = match o with | Some none -> none | None -> 0\n' > rules26.kn
-  $ kanon lean-model lang26.knl 2>&1 | head -1
+  $ kanon lean out lang26.knl 2>&1 | head -1
   ./rules26.kn:1:0: the variable none of the function Rules26.f: not supported in Lean
   $ printf 'fn f (x : int) : int = let decide (y : int) : int = y in if x < 3 then decide 1 else 2\n' > rules26.kn
-  $ kanon lean-model lang26.knl 2>&1 | head -1
+  $ kanon lean out lang26.knl 2>&1 | head -1
   ./rules26.kn:1:0: the variable decide of the function Rules26.f: not supported in Lean
 
 A recursive function decreases on the first parameter that it matches, which
@@ -452,7 +464,7 @@ they are rejected:
   > KN
   $ while read -r line; do
   >   echo "$line" > rules27.kn
-  >   kanon lean-model lang27.knl 2>&1 | head -1
+  >   kanon lean out lang27.knl 2>&1 | head -1
   > done < shapes.txt
   ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean
   ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean

@@ -9,5 +9,6 @@ extension too, and openers of comments must not change where the comment ends.
   > (** An identifier x' with a prime, next to a quote x'" and a number 5". *)
   > node Int of int : TInt
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
+  $ touch lang.kn
+  $ kanon ocaml out lang.knl lang.kn && cp out/Generated/types.ml t.ml
   $ ocamlfind ocamlc -package zarith -c t.ml

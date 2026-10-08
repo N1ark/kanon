@@ -28,7 +28,7 @@ and bind the operands in any way.
   >   | a + b -> [a; b]
   >   | Sub (a, b) -> [a; b]
   > KN
-  $ kanon ocaml lang.knl ok.kn | grep -A8 "^  let ok_operands"
+  $ kanon ocaml out lang.knl ok.kn && cat out/Generated/rules.ml | grep -A8 "^  let ok_operands"
     let ok_operands (v : t) : (t list) =
         (match v with
         | { kind = Int (_); _ } -> []
@@ -38,8 +38,8 @@ and bind the operands in any way.
         | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
         )
   end
-  $ for b in ocaml-types ocaml-typed ocaml-tests lean-node lean-lang lean-model lean-statements lean-soundness lean-syntax lean-semantics lean-rules; do
-  >   kanon $b lang.knl ok.kn > /dev/null || echo "$b failed"
+  $ for b in ocaml lean; do
+  >   kanon $b out lang.knl ok.kn || echo "$b failed"
   > done
 
 The error lists all the missing nodes, leaves first and then operators, in the
@@ -51,7 +51,7 @@ order of their declaration, at the function.
   >   | Int _ -> []
   >   | Neg a -> [a]
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total] but has no case for Var, Add, Sub
   [1]
 
@@ -65,7 +65,7 @@ other patterns that are not blanks, is an error.
   >   | Int _ | Var _ -> []
   >   | $last
   > KN
-  >   kanon ocaml lang.knl bad.kn
+  >   kanon ocaml out lang.knl bad.kn
   > done
   bad.kn:4:4: fn Bad.operands is [@total]: it cannot have a catch-all case, which would hide missing nodes: list the nodes
   bad.kn:4:4: fn Bad.operands is [@total]: it cannot have a catch-all case, which would hide missing nodes: list the nodes
@@ -78,7 +78,7 @@ other patterns that are not blanks, is an error.
   >   | Int _, _ | Var _, _ | Neg _, _ | Add _, _ | Sub _, _ -> []
   >   | _, 0 -> []
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:4:4: fn Bad.operands is [@total]: it cannot have a catch-all case, which would hide missing nodes: list the nodes
   [1]
 
@@ -93,7 +93,7 @@ arguments or whose other patterns are not blanks: it may not match.
   >   | Add (a, b), 0 -> [a; b]
   >   | Sub (a, 0), _ -> [a]
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total] but has no case for Neg, Add, Sub
   [1]
 
@@ -108,12 +108,12 @@ The scrutinee is the first term parameter, in a match behind `let`s.
   >   | _, _, Add (a, b) -> [a; b]
   >   | _, _, Sub (a, b) -> cs
   > KN
-  $ kanon ocaml lang.knl ok.kn | grep -c "Op2 ((Sub)"
+  $ kanon ocaml out lang.knl ok.kn && cat out/Generated/rules.ml | grep -c "Op2 ((Sub)"
   1
   $ cat > bad.kn <<'KN'
   > fn operands (v : t) : t list [@total] = []
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total]: it must end with a match on v
   [1]
   $ cat > bad.kn <<'KN'
@@ -121,7 +121,7 @@ The scrutinee is the first term parameter, in a match behind `let`s.
   >   match n with
   >   | _ -> []
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total]: it has no term parameter
   [1]
 
@@ -136,7 +136,7 @@ catch-all case to go before, and the check sees them.
   > extend fn operands =
   >   | a + b -> [a; b]
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total] but has no case for Sub
   [1]
   $ cat > good.kn <<'KN'
@@ -147,7 +147,7 @@ catch-all case to go before, and the check sees them.
   > extend fn operands =
   >   | a + b | Sub (a, b) -> [a; b]
   > KN
-  $ kanon ocaml lang.knl good.kn | grep -A8 "^  let good_operands"
+  $ kanon ocaml out lang.knl good.kn && cat out/Generated/rules.ml | grep -A8 "^  let good_operands"
     let good_operands (v : t) : (t list) =
         (match v with
         | { kind = Int (_); _ } -> []
@@ -174,11 +174,11 @@ runs once, on the final language, whatever the order of the modules.
   >   | Mul (a, b) -> [b; a]
   > KN
   $ (echo 'use "base"'; cat lang.knl; echo 'node Mul : TInt -> TInt -> TInt') > full.knl
-  $ kanon ocaml full.knl
+  $ kanon ocaml out full.knl
   ./base.kn:1:0: fn Base.operands is [@total] but has no case for Mul
   [1]
   $ (cat full.knl; echo 'use "ext"') > fixed.knl
-  $ kanon ocaml fixed.knl | grep -A9 "^  let base_operands"
+  $ kanon ocaml out fixed.knl && cat out/Generated/rules.ml | grep -A9 "^  let base_operands"
     let base_operands (v : t) : (t list) =
         (match v with
         | { kind = Int (_); _ } -> []
@@ -205,7 +205,7 @@ The nodes of an interleaved declaration are listed in the order of the file, and
   >   match v with
   >   | Neg a -> [a]
   > KN
-  $ kanon ocaml inter.knl bad.kn
+  $ kanon ocaml out inter.knl bad.kn
   bad.kn:1:0: fn Bad.operands is [@total] but has no case for Int, Zero, Add
   [1]
 
@@ -214,12 +214,12 @@ Only a `fn` can be `[@total]`.
   $ cat > bad.kn <<'KN'
   > rule add : Add (v1, v2) [@total]
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:26: unknown attribute [@total]
   [1]
   $ cat > bad.kn <<'KN'
   > prim p : int -> int [@total]
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:22: unknown attribute [@total]
   [1]

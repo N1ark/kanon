@@ -1,8 +1,9 @@
 The parameters of a rule may have any name, even that of the source of random
-values in the output of `ocaml-tests`: it compiles.
+values in the output of `tests.ml`: it compiles.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_types "T"]
+  > [@@@ocaml_rules "R"]
   > use "m"
   > KN
   $ cat > m.knl <<'KN'
@@ -16,7 +17,5 @@ values in the output of `ocaml-tests`: it compiles.
   > rule plus : Plus (src, dst) =
   >   | same: src + src -> dst
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
-  $ (echo "open R"; kanon ocaml-tests lang.knl) > tests.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/*.ml .
   $ ocamlfind ocamlc -package zarith -c t.ml r.ml tests.ml 2>&1 | grep -A3 Error || true

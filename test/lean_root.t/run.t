@@ -1,5 +1,5 @@
 Two modules with the same Lean root would write the same files, one over the
-other: kanon lean-all reports it, and writes nothing.
+other: kanon lean reports it, and writes nothing.
 
   $ cat > lang.knl <<'KN'
   > use "a"
@@ -15,7 +15,7 @@ other: kanon lean-all reports it, and writes nothing.
   > sort TB
   > node B of int : TB
   > KN
-  $ kanon lean-all out lang.knl
+  $ kanon lean out lang.knl
   kanon: two modules write the Lean file Generated/Same/Node.lean: give them different roots with [@@lean_root]
   [1]
   $ test -e out || echo nothing written
@@ -28,7 +28,7 @@ files import (`KanonCore`):
 
   $ for r in "my root" 1st A..B "" fun A/B ../x Lean Init Std Lake KanonCore Lean.Foo Foo.end; do
   >   printf '[@@@lean_root "%s"]\nsort TA\nnode A of int : TA\n' "$r" > lang2.knl
-  >   kanon lean-all out2 lang2.knl 2>&1
+  >   kanon lean out2 lang2.knl 2>&1
   > done
   kanon: the root "my root" of the module Lang2 is not a Lean name
   kanon: the root "1st" of the module Lang2 is not a Lean name
@@ -59,11 +59,11 @@ may have several parts:
   > sort TB
   > node B of int : TB
   > KN
-  $ kanon lean-all out3 lang3.knl
+  $ kanon lean out3 lang3.knl
   kanon: the root "Lean" of the module B3 is that of a library
   [1]
   $ sed -i 's/"Lean"/"My.Lang"/' b3.knl
-  $ kanon lean-all out3 lang3.knl
+  $ kanon lean out3 lang3.knl
   $ ls out3/Generated/My/Lang | head -2
   Lang.lean
   Lift.lean
@@ -81,13 +81,13 @@ module is not.
   > sort TB
   > node B of int : TB
   > KN
-  $ kanon lean-all out4 lang4.knl
+  $ kanon lean out4 lang4.knl
   $ ls out4/Generated/KanonBool | head -1
   Lang.lean
   $ cat > lang5.knl <<'KN'
   > use builtin "bool"
   > use "b4"
   > KN
-  $ kanon lean-all out5 lang5.knl
+  $ kanon lean out5 lang5.knl
   kanon: the root "KanonBool" of the module B4 is that of a library
   [1]

@@ -19,6 +19,5 @@ even if it is not written `_`, such as a pair of variables.
   >   | zero: x, 0 -> x
   >   | other: x, y -> y
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ ocamlfind ocamlc -package zarith -warn-error +11 -c t.ml r.ml 2>&1 | grep -B3 Error || true

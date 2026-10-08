@@ -1,9 +1,10 @@
-The output of `ocaml-tests` is included where the modules of the rules are
+The output of `tests.ml` is included where the modules of the rules are
 open. A module named like an OCaml one (`Int`) does not hide what the tests use
 of it: a repeated variable compares the tags of terms.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_types "T"]
+  > [@@@ocaml_rules "R"]
   > use "int"
   > KN
   $ cat > int.knl <<'KN'
@@ -17,7 +18,5 @@ of it: a repeated variable compares the tags of terms.
   > rule plus : Plus (v1, v2) =
   >   | same: x + x -> x
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
-  $ (echo "open R"; kanon ocaml-tests lang.knl) > tests.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/*.ml .
   $ ocamlfind ocamlc -package zarith -c t.ml r.ml tests.ml 2>&1 | grep -A1 Error || true

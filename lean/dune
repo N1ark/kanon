@@ -1,6 +1,6 @@
 ; The generated Lean files of the bool module, under Generated/KanonBool/, from the bool
 ; module built into kanon: `dune test` checks that they are up to date (run
-; `dune exec -- kanon lean-all . +bool.knl +bool.kn` here after changing the
+; `dune exec -- kanon lean . +bool.knl +bool.kn` here after changing the
 ; module), and CI checks their proofs with `lake build`.
 
 (rule
@@ -9,4 +9,4 @@
   (source_tree Generated)
   (source_tree KanonBool))
  (action
-  (run %{bin:kanon} lean-all --check . +bool.knl +bool.kn)))
+  (run %{bin:kanon} lean --check . +bool.knl +bool.kn)))

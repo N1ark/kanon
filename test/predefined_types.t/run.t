@@ -7,7 +7,7 @@ hide the type that they use (`t list`).
   > node Int of int : TInt
   > type string [@ocaml "string"] [@lean "String"]
   > KN
-  $ kanon ocaml-types lang.knl
+  $ kanon ocaml out lang.knl && cat out/Generated/types.ml
   lang.knl:3:5: string is a predefined OCaml type
   [1]
   $ cat > lang.knl <<'KN'
@@ -15,6 +15,6 @@ hide the type that they use (`t list`).
   > node Int of int : TInt
   > type list = Nil | Cons
   > KN
-  $ kanon ocaml-types lang.knl
+  $ kanon ocaml out lang.knl && cat out/Generated/types.ml
   lang.knl:3:5: list is a predefined OCaml type
   [1]

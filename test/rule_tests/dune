@@ -1,32 +1,23 @@
-; The differential tests of the rules (kanon ocaml-tests) compile and run, for a
+; The generated differential tests of the rules (tests.ml) compile and run, for a
 ; rule whose spec annotates the sort of an operand, with names that have primes,
 ; and for nat in signatures.
 
 (rule
  (deps
   (glob_files *.kn*))
+ (targets
+  (dir gen))
  (action
-  (with-stdout-to
-   rt_types.ml
-   (run %{bin:kanon} ocaml-types lang.knl))))
+  (run %{bin:kanon} ocaml gen lang.knl)))
 
 (rule
- (deps
-  (glob_files *.kn*))
- (action
-  (with-stdout-to
-   rt_rules.ml
-   (run %{bin:kanon} ocaml lang.knl))))
+ (copy gen/Generated/rt_types.ml rt_types.ml))
 
 (rule
- (deps
-  (glob_files *.kn*))
- (action
-  (with-stdout-to
-   rt_tests.ml
-   (progn
-    (echo "open Rt_rules\n")
-    (run %{bin:kanon} ocaml-tests lang.knl)))))
+ (copy gen/Generated/rt_rules.ml rt_rules.ml))
+
+(rule
+ (copy gen/Generated/tests.ml rt_tests.ml))
 
 (test
  (name main)

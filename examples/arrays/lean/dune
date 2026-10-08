@@ -1,6 +1,6 @@
 ; The generated Lean files of the example, under Generated/ArraysExample/, from
 ; ../lang.knl and its vec module (under Generated/ArraysExample/Vec/): `dune test` checks
-; that they are up to date (run `dune exec -- kanon lean-all . ../lang.knl` here
+; that they are up to date (run `dune exec -- kanon lean . ../lang.knl` here
 ; after changing the language or the modules), and CI checks their proofs with
 ; `lake build`.
 
@@ -13,4 +13,4 @@
   ../vec.knl
   ../vec.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../lang.knl)))
+  (run %{bin:kanon} lean --check . ../lang.knl)))

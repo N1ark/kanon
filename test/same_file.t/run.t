@@ -15,8 +15,8 @@ whichever way its path is written.
   > rule plus : Plus (v1, v2) =
   >   | zero: 0, x -> x
   > KN
-  $ kanon ocaml lang.knl m.kn > /dev/null
-  $ kanon ocaml lang.knl ./m.kn > /dev/null
-  $ kanon ocaml lang.knl "$PWD/m.kn" > /dev/null
+  $ kanon ocaml out lang.knl m.kn
+  $ kanon ocaml out lang.knl ./m.kn
+  $ kanon ocaml out lang.knl "$PWD/m.kn"
   $ mkdir dir
-  $ kanon ocaml lang.knl dir/../m.kn > /dev/null
+  $ kanon ocaml out lang.knl dir/../m.kn

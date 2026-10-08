@@ -6,9 +6,10 @@
     A [.kn] file is only meaningful in its language, so the server finds the
     {e roots} of the workspace, the [.knl] files that no other file uses (e.g.
     [lang.knl]), and checks a file as part of each root whose modules contain
-    it, as [kanon ocaml root.knl] would. The files of the workspace are found
-    once, when its folders are added, and then from the changes that the editor
-    reports. The names of a file, local or global, are those of {!Lsp_scope}. *)
+    it, as [kanon ocaml DIR root.knl] would. The files of the workspace are
+    found once, when its folders are added, and then from the changes that the
+    editor reports. The names of a file, local or global, are those of
+    {!Lsp_scope}. *)
 
 module R = Lsp_rpc
 

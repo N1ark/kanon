@@ -12,8 +12,7 @@ variables, which a failed match refuses, and the generated OCaml compiles.
   > fn lit (a b : int) : int = let (x, 0) = (a, b) in x
   > fn same (a b : int) : int = let (x, x) = (a, b) in x
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ cat > main.ml <<'ML'
   > let show f a b =
   >   match f (Z.of_int a) (Z.of_int b) with

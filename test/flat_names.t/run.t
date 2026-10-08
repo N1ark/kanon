@@ -20,6 +20,6 @@ like one that shadows a global function.
   $ cat > user.kn <<'KN'
   > fn double (int_add : int) : int = Int.add int_add int_add
   > KN
-  $ kanon ocaml lang.knl
+  $ kanon ocaml out lang.knl
   ./user.kn:1:11: int_add is the OCaml name of Int.add
   [1]

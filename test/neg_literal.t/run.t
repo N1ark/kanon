@@ -12,8 +12,7 @@ patterns, and the generated OCaml computes it.
   > fn add (x : int) : int = x + -(-5)
   > fn is_five (x : int) : int = match x with | -(-5) -> 1 | _ -> 0
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ cat > main.ml <<'ML'
   > let () =
   >   Printf.printf "%s %d %d\n"

@@ -20,8 +20,7 @@ and `tag`): the generated OCaml compiles, and its fields are the record's.
   > rule neg : Neg v =
   >   | neg: Neg x -> x
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ cat > main.ml <<'ML'
   > let () =
   >   let open T in

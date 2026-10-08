@@ -1,6 +1,6 @@
 ; The generated Lean files of the example, under Generated/IntsExample/, from ../lang.knl
 ; and its int module and the bool module built into kanon: `dune test` checks
-; that they are up to date (run `dune exec -- kanon lean-all . ../lang.knl`
+; that they are up to date (run `dune exec -- kanon lean . ../lang.knl`
 ; here after changing the language or the modules), and CI checks their proofs
 ; with `lake build`.
 
@@ -14,4 +14,4 @@
   ../int.knl
   ../int.kn)
  (action
-  (run %{bin:kanon} lean-all --check . ../lang.knl)))
+  (run %{bin:kanon} lean --check . ../lang.knl)))

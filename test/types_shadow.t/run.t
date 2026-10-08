@@ -9,7 +9,8 @@ of the program that has the name of one of its modules (here `Int` and
   > node Var of var
   > node Neg : TInt -> TInt
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
+  $ touch lang.kn
+  $ kanon ocaml out lang.knl lang.kn && cp out/Generated/types.ml t.ml
   $ cat > shadow.ml <<'ML'
   > module Int = struct let equal _ _ = 0 end
   > module Hashtbl = struct let hash _ = true end

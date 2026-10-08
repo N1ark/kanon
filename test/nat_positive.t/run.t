@@ -23,8 +23,7 @@ builds nothing, does not check.
   > rule ext : Ext (hi, lo, x) = | any : _ -> Ext (hi, lo, x)
   > rule field : Field (i, x) = | any : _ -> Field (i, x)
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ cat > main.ml <<'ML'
   > let attempt name f =
   >   match f () with
@@ -73,7 +72,7 @@ builds nothing, does not check.
 Lean requires the widths of the typing of a node to be positive, whatever its
 condition says: the proofs are about the widths that OCaml builds.
 
-  $ kanon lean-all lean lang.knl
+  $ kanon lean lean lang.knl
   $ grep -n 'Take\|Ext' lean/Generated/Kanon/Lang.lean
   21:  | (.Ext hi lo a3), t => ((∃ n : Int, 0 < n ∧ ty a3 = (sLang (.TBv n))) ∧ t = (sLang (.TBv ((hi - lo) + (1 : Int)))))
   23:  | (.Take k a2), t => (∃ n : Int, 0 < k ∧ 0 < n ∧ ty a2 = (sLang (.TBv n)) ∧ k ≤ n ∧ t = (sLang (.TBv k)))

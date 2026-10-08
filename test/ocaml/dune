@@ -8,77 +8,85 @@
 (rule
  (deps
   (glob_files ../tiny.t/*.kn*))
+ (targets
+  (dir gen_tiny))
  (action
-  (with-stdout-to
-   tiny_types.ml
-   (run %{bin:kanon} ocaml-types ../tiny.t/lang.knl))))
+  (run %{bin:kanon} ocaml gen_tiny ../tiny.t/lang.knl)))
 
 (rule
- (deps
-  (glob_files ../tiny.t/*.kn*))
- (action
-  (with-stdout-to
-   tiny_rules.ml
-   (run %{bin:kanon} ocaml ../tiny.t/lang.knl))))
+ (copy gen_tiny/Generated/tiny_types.ml tiny_types.ml))
 
 (rule
- (deps
-  (glob_files ../tiny.t/*.kn*))
- (action
-  (with-stdout-to
-   tiny_tests.ml
-   (progn
-    (echo "open Tiny_rules\n")
-    (run %{bin:kanon} ocaml-tests ../tiny.t/lang.knl)))))
+ (copy gen_tiny/Generated/tiny_rules.ml tiny_rules.ml))
+
+(rule
+ (copy gen_tiny/Generated/tests.ml tiny_tests.ml))
 
 (rule
  (deps %{project_root}/examples/bool/lang.knl)
+ (targets
+  (dir gen_bool))
  (action
-  (with-stdout-to
-   bool_types.gen.ml
-   (run %{bin:kanon} ocaml-types %{project_root}/examples/bool/lang.knl))))
+  (run %{bin:kanon} ocaml gen_bool %{project_root}/examples/bool/lang.knl)))
 
 (rule
- (deps %{project_root}/examples/bool/lang.knl)
- (action
-  (with-stdout-to
-   bool_rules.gen.ml
-   (run %{bin:kanon} ocaml %{project_root}/examples/bool/lang.knl))))
+ (copy gen_bool/Generated/types.ml bool_types.gen.ml))
+
+(rule
+ (copy gen_bool/Generated/rules.ml bool_rules.gen.ml))
 
 (rule
  (deps
   (glob_files %{project_root}/examples/arrays/*.kn*))
+ (targets
+  (dir gen_arrays))
  (action
-  (with-stdout-to
-   arrays_types.gen.ml
-   (run %{bin:kanon} ocaml-types %{project_root}/examples/arrays/lang.knl))))
+  (run
+   %{bin:kanon}
+   ocaml
+   gen_arrays
+   %{project_root}/examples/arrays/lang.knl)))
 
 (rule
- (deps
-  (glob_files %{project_root}/examples/arrays/*.kn*))
- (action
-  (with-stdout-to
-   arrays_rules.gen.ml
-   (run %{bin:kanon} ocaml %{project_root}/examples/arrays/lang.knl))))
+ (copy gen_arrays/Generated/types.ml arrays_types.gen.ml))
 
 (rule
- (deps
-  (glob_files %{project_root}/examples/traversals/*.kn*))
- (action
-  (with-stdout-to
-   trav_types.gen.ml
-   (run
-    %{bin:kanon}
-    ocaml-types
-    %{project_root}/examples/traversals/lang.knl))))
+ (copy gen_arrays/Generated/rules.ml arrays_rules.gen.ml))
 
 (rule
  (deps
   (glob_files %{project_root}/examples/traversals/*.kn*))
+ (targets
+  (dir gen_trav))
  (action
-  (with-stdout-to
-   trav_rules.gen.ml
-   (run %{bin:kanon} ocaml %{project_root}/examples/traversals/lang.knl))))
+  (run
+   %{bin:kanon}
+   ocaml
+   gen_trav
+   %{project_root}/examples/traversals/lang.knl)))
+
+(rule
+ (copy gen_trav/Generated/types.ml trav_types.gen.ml))
+
+(rule
+ (copy gen_trav/Generated/rules.ml trav_rules.gen.ml))
+
+; The literals of a [@fold] law do not capture the parameters of the node,
+; named like them (hygiene/lang.knl).
+
+(rule
+ (deps
+  (glob_files hygiene/*.kn*))
+ (targets
+  (dir gen_hyg))
+ (action
+  (run %{bin:kanon} ocaml gen_hyg hygiene/lang.knl)))
+
+(rule
+ (copy gen_hyg/Generated/hyg_types.ml hyg_types.ml))
+
+(rule
+ (copy gen_hyg/Generated/rules.ml hyg_rules.ml))
 
 (test
  (name main)
@@ -92,22 +100,3 @@
   arrays_rules.gen.ml
   trav_types.gen.ml
   trav_rules.gen.ml))
-
-; The literals of a [@fold] law do not capture the parameters of the node,
-; named like them (hygiene/lang.knl).
-
-(rule
- (deps
-  (glob_files hygiene/*.kn*))
- (action
-  (with-stdout-to
-   hyg_types.ml
-   (run %{bin:kanon} ocaml-types hygiene/lang.knl))))
-
-(rule
- (deps
-  (glob_files hygiene/*.kn*))
- (action
-  (with-stdout-to
-   hyg_rules.ml
-   (run %{bin:kanon} ocaml hygiene/lang.knl))))

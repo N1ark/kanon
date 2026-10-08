@@ -29,7 +29,7 @@ its Lean files import the types of that module, whether it `use`s it or not.
   > [@@@lean_root "DMod"]
   > type palette = { main : color; others : color list }
   > KN
-  $ kanon lean-all out lang.knl
+  $ kanon lean out lang.knl
   $ grep -H '^import Generated.BMod.Types' out/Generated/AMod/Node.lean out/Generated/CMod/Model.lean out/Generated/DMod/Types.lean
   out/Generated/AMod/Node.lean:import Generated.BMod.Types
   out/Generated/CMod/Model.lean:import Generated.BMod.Types
@@ -48,7 +48,7 @@ module: a module that mentions one does not depend on it.
   > sort TE
   > node E of var : TE
   > KN
-  $ kanon lean-all out2 lang2.knl
+  $ kanon lean out2 lang2.knl
   $ grep '^import' out2/Generated/EMod/Model.lean
   import Generated.EMod.Lang
   import KanonCore.Model
@@ -67,7 +67,7 @@ attributes of its proofs from (`kanon_body`, on its helpers), so it imports them
   $ cat > util.kn <<'KN'
   > fn double (x : int) : int = x + x
   > KN
-  $ kanon lean-all out3 lang3.knl
+  $ kanon lean out3 lang3.knl
   $ grep '^import' out3/Generated/UMod/Model.lean
   import KanonCore.Model
   import KanonCore.Attr

@@ -17,7 +17,8 @@ Lean, which cannot infer it from a match on them, nor from `arrayLength`:
   >   | Some z -> z
   > fn k (x : int) : int = array_length ([||] : int array) + x
   > KN
-  $ kanon lean-model lang.knl | sed -n "/def Rules.f /,/^attribute/p"
+  $ kanon lean out lang.knl
+  $ sed -n "/def Rules.f /,/^attribute/p" out/Generated/Kanon/Rules/Model.lean
   def Rules.f (x : Int) : Int :=
     ((firstSome [(match ([] : (List Int)) with | [] => some (x) | _ => none),
       (match ([] : (List Int)) with | (y :: _) => some (y) | _ => none)]).getD

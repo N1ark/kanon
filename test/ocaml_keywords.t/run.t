@@ -32,10 +32,7 @@ local functions, fields, types, functions and primitives.
   > rule virtual : Neg open =
   >   | neg: Neg object -> object
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
-  $ kanon ocaml-typed lang.knl > typed.ml
-  $ (echo 'open R'; kanon ocaml-tests lang.knl) > tests.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/*.ml .
   $ cat > p.ml <<'ML'
   > let \#private (x : Z.t) = x
   > ML

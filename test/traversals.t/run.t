@@ -30,7 +30,7 @@ The traversals come after the destructors. A node with a smart constructor
 raw, at the sort that their typing gives from the new children (`Seq`), or, if
 they have no typing, at the sort of the term that they replace (`Lam`):
 
-  $ kanon ocaml lang.knl | sed -n '/^  let\[@inline\] kanon__rebuild/,/^end/p'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/^  let\[@inline\] kanon__rebuild/,/^end/p'
     let[@inline] kanon__rebuild_Seq (p1 : (t list)) : t =
         (node (Seq (p1)) (TSeq ((rules_first_ty p1))))
     
@@ -46,7 +46,7 @@ they have no typing, at the sort of the term that they replace (`Lam`):
 The traversals are language-wide: top-level functions of the rules module, in no
 Kanon module, after the functions that they call (in `Kanon_flat`).
 
-  $ kanon ocaml lang.knl | grep "^open\|^let map_children\|^module"
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | grep "^open\|^let map_children\|^module"
   module Kanon_flat = struct
   open Kanon_flat
   let map_children (f : t -> t) (v : t) : t =
@@ -56,7 +56,7 @@ Kanon module, after the functions that they call (in `Kanon_flat`).
 The generated functions, over the language: each child is mapped in order, and
 the types of the language get a function of their own.
 
-  $ kanon ocaml lang.knl | sed -n '/^let rec kanon__map_item/,/^let as_/p'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/^let rec kanon__map_item/,/^let as_/p'
   let rec kanon__map_item f (x : item) : item =
     match x with
     | Raw (a1) ->
@@ -235,7 +235,7 @@ the types of the language get a function of their own.
 
 The sorts have children too:
 
-  $ kanon ocaml lang.knl | sed -n '/^let map_ty_children/,/^let iter_ty/p'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/^let map_ty_children/,/^let iter_ty/p'
   let map_ty_children (f : ty -> ty) (v : ty) : ty =
     match v with
     | TSeq (p1) ->
@@ -249,7 +249,7 @@ The sorts have children too:
 A language without the attribute has none of this:
 
   $ grep -v traversals lang.knl > plain.knl
-  $ kanon ocaml plain.knl | grep -c "children"
+  $ kanon ocaml out plain.knl && cat out/Generated/rules.ml | grep -c "children"
   0
   [1]
 
@@ -262,6 +262,6 @@ arguments, is an error at the node:
   > node Tuple of t list : TTuple tys
   > KN
   $ echo > none.kn
-  $ kanon ocaml bad.knl none.kn
+  $ kanon ocaml out bad.knl none.kn
   bad.knl:3:5: traversals: the node Tuple cannot be rebuilt: Tuple: the sort of its result is not determined; build it at a sort, (Tuple ... : S args)
   [1]

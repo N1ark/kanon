@@ -1,4 +1,4 @@
-(* A language of integers, whose Lean files are written by lean-all. *)
+(* A language of integers, whose Lean files are written by lean. *)
 
 [@@@lean_root "Ex"]
 [@@@lean_heartbeats "300000"]

@@ -4498,8 +4498,8 @@ let rules_file ~sources ctx ms =
 (* ---------------------------------------------------------------- *)
 (* The tree of the Lean files *)
 
-(** The generated Lean files, by part, in order: each part, [model] say, is
-    printed by the backend [lean-model]. [has_proof r path] says whether the
+(** The generated Lean files, by part, in order: each part is a name ([model],
+    say) and the files it makes. [has_proof r path] says whether the
     hand-written file at [path] under the root [r] exists. A language whose
     first file is built into kanon ([+bool.knl]) is a module alone: only its
     files are generated. *)

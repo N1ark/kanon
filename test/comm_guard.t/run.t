@@ -21,8 +21,7 @@ guard reads.
   > fn first_big (t : t) : int =
   >   match t with | Plus (x, y) when is_big x -> 1 | _ -> 0
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ cat > main.ml <<'ML'
   > open T
   > let int n = node (Int (Z.of_int n)) TInt

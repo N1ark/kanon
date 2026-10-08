@@ -1,15 +1,15 @@
-(** The [ocaml-typed] backend: the typed interface of the smart constructors of
-    a language. A term [ 'a t ] has a phantom parameter, a polymorphic variant
-    (a tag) that says what is known of the term: [module type S] has
-    [[< tag ] t] operands and [[> tag ] t] results. The tag of a term is that of
-    its sort, which Kanon generates (see {!tag_types}): the tag of a subsort is
-    a refinement of the tag of its parent. [S] is organised like the language,
-    one module per Kanon module (per file). [Derived] is the implementation of
-    [S]: the rules, whose types are those of [S] but for the phantom parameter,
-    which [S] hides. The leaf nodes, which no rule builds, have no constructor
-    in [S] nor in [Derived]: a program builds them from the types,
-    [node (Foo ...) sort], and gives them their tag by [type_]. The refinements
-    are trusted: nothing proves them. *)
+(** The typed interface of the smart constructors of a language (the file
+    [typed.ml] of [kanon ocaml]). A term [ 'a t ] has a phantom parameter, a
+    polymorphic variant (a tag) that says what is known of the term:
+    [module type S] has [[< tag ] t] operands and [[> tag ] t] results. The tag
+    of a term is that of its sort, which Kanon generates (see {!tag_types}): the
+    tag of a subsort is a refinement of the tag of its parent. [S] is organised
+    like the language, one module per Kanon module (per file). [Derived] is the
+    implementation of [S]: the rules, whose types are those of [S] but for the
+    phantom parameter, which [S] hides. The leaf nodes, which no rule builds,
+    have no constructor in [S] nor in [Derived]: a program builds them from the
+    types, [node (Foo ...) sort], and gives them their tag by [type_]. The
+    refinements are trusted: nothing proves them. *)
 
 open Syntax
 

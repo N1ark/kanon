@@ -14,7 +14,5 @@ one: the typed interface compiles.
   > rule eq2 : Eq2 (x, y) =
   >   | same: x, x -> Eq2 (x, x)
   > KN
-  $ kanon ocaml-types lang.knl > p_types.ml
-  $ kanon ocaml lang.knl > p_rules.ml
-  $ kanon ocaml-typed lang.knl > p_typed.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/p_types.ml p_types.ml && cp out/Generated/p_rules.ml p_rules.ml && cp out/Generated/typed.ml p_typed.ml
   $ ocamlfind ocamlc -package zarith -c p_types.ml p_rules.ml p_typed.ml

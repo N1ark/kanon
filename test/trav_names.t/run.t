@@ -18,6 +18,5 @@ have different names, and the generated OCaml compiles.
   $ cat > m.kn <<'KN'
   > fn f (x : int) : int = x
   > KN
-  $ kanon ocaml-types lang.knl > t.ml
-  $ kanon ocaml lang.knl > r.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/t.ml t.ml && cp out/Generated/rules.ml r.ml
   $ ocamlfind ocamlc -package zarith -w -a -c t.ml r.ml 2>&1 | head -5

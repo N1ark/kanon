@@ -1,5 +1,5 @@
 A function whose result is annotated with a sort, like its parameters can be
-(`fn f (a b : TBv n) : TBv n`), is typed by `ocaml-typed`: its parameters have
+(`fn f (a b : TBv n) : TBv n`), is typed in `typed.ml`: its parameters have
 the tags of their sorts, and its result the tag of its own. The generated OCaml
 asserts the sort of the result on exit, as it does for the parameters on entry.
 
@@ -24,7 +24,7 @@ asserts the sort of the result on exit, as it does for the parameters on entry.
   > 
   > fn plain (a : t) : t = a
   > KN
-  $ kanon ocaml lang.knl | sed -n '/^  let bv_wrapping_add/,/^$/p'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/^  let bv_wrapping_add/,/^$/p'
     let bv_wrapping_add (a : t) (b : t) : t =
         (let n = (match a.ty with
                  | (TBv (n)) -> let n = Z.of_int n in n
@@ -69,18 +69,19 @@ The typed interface has it, in the module of its file, with the tags of the
 sorts of its parameters, and its other parameters by their types; a function
 whose result is not annotated is not in it:
 
-  $ kanon ocaml-typed lang.knl | grep "val \(add\|wrapping_add\|less\|plain\)\|Kanon_rules.bv_\(wrapping\|less\)"
+  $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep "val \(add\|wrapping_add\|less\|plain\)\|Kanon_rules.bv_\(wrapping\|less\)"
       val add : bool -> [< Tag.tbv ] t -> [< Tag.tbv ] t -> [> Tag.tbv ] t
       val wrapping_add : [< Tag.tbv ] t -> [< Tag.tbv ] t -> [> Tag.tbv ] t
       val less : [< Tag.tbv ] t -> [< Tag.tbv ] t -> bool -> [> Tag.tbool ] t
 
 Lean does not model the annotation: the function is the same as without it.
 
-  $ kanon lean-model lang.knl | grep -A2 "def Bv.wrapping_add"
+  $ kanon lean out lang.knl
+  $ grep -A2 "def Bv.wrapping_add" out/Generated/Kanon/Bv/Model.lean
   def Bv.wrapping_add (O : Ops S) (a : S.Term) (b : S.Term) : S.Term :=
     (let n := ((firstSome [(match (Kanon.Bv.sortProj (S.ty a)) with
                              | some (.TBv n) =>
-  $ kanon lean-statements lang.knl | grep -c "wrapping"
+  $ find out/Generated -type f \( -name Lift.lean -o -path '*/Statements/*' \) | xargs cat | grep -c "wrapping"
   0
   [1]
 
@@ -90,12 +91,12 @@ its parameters bind:
   $ cat > bad.kn <<'KN'
   > fn f (a b : TBv n) : TBv m = a
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:25: unbound variable m
   [1]
   $ cat > bad.kn <<'KN'
   > fn f (a : TBv n) : Nope = a
   > KN
-  $ kanon ocaml lang.knl bad.kn
+  $ kanon ocaml out lang.knl bad.kn
   bad.kn:1:19: unknown constructor Nope
   [1]

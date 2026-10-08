@@ -1,5 +1,6 @@
 [@@@ocaml_types "Rt_types"]
 [@@@ocaml_prims "Rt_prims"]
+[@@@ocaml_rules "Rt_rules"]
 
 use "rules"
 

@@ -1,0 +1,10 @@
+; The parts of the generated code that the web runtime shows (Parts): those of
+; OCaml are the files of kanon ocaml, and every part of Lean prints its files.
+
+(test
+ (name main)
+ (libraries kanon_lib str)
+ (deps
+  (glob_files ../tiny.t/*.kn*))
+ (action
+  (run %{test} ../tiny.t/lang.knl)))
