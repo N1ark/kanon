@@ -1,1 +1,1 @@
-import L2.Generated.Rules
+import Generated.L2.Rules

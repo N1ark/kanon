@@ -1,4 +1,4 @@
-import L4.Generated.Syntax
+import Generated.L4.Syntax
 import L4.Sem
 import WordMod.Sem
 

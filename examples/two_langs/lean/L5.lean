@@ -1,1 +1,1 @@
-import L5.Generated.Rules
+import Generated.L5.Rules

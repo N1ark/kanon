@@ -1,46 +1,45 @@
 kanon lean-all DIR writes the Lean files of a language under DIR. Each module
-has its own, in the Generated directory of its root: those of its nodes
-(Node.lean, Lang.lean) and of its rules (Model.lean, Lift.lean, Soundness.lean,
-and a file per function, under Statements/ and Soundness/, and for the
-commutativity). The language has its terms, their semantics and its rule
-functions (Syntax.lean, Semantics.lean, Rules.lean) in the Generated directory
-of its root (Ex, by [@@@lean_root "Ex"]), which is also that of its own module;
-the int module is under Ex/Int. See lean_generated.t for the Generated
-directory.
+has its own, in Generated/R for its root R: those of its nodes (Node.lean,
+Lang.lean) and of its rules (Model.lean, Lift.lean, Soundness.lean, and a file
+per function, under Statements/ and Soundness/, and for the commutativity). The
+language has its terms, their semantics and its rule functions (Syntax.lean,
+Semantics.lean, Rules.lean) in Generated/Ex (its root is Ex, by
+[@@@lean_root "Ex"]), which is also that of its own module; the int module is
+under Generated/Ex/Int. See lean_generated.t for the Generated directory.
 
   $ kanon lean-all out lang.knl
   $ find out -name '*.lean' | sort
-  out/Ex/Generated/Lang.lean
-  out/Ex/Generated/Lift.lean
-  out/Ex/Generated/Model.lean
-  out/Ex/Generated/Node.lean
-  out/Ex/Generated/Rules.lean
-  out/Ex/Generated/Semantics.lean
-  out/Ex/Generated/Soundness.lean
-  out/Ex/Generated/Syntax.lean
-  out/Ex/Int/Generated/Lang.lean
-  out/Ex/Int/Generated/Lift.lean
-  out/Ex/Int/Generated/Model.lean
-  out/Ex/Int/Generated/Node.lean
-  out/Ex/Int/Generated/Soundness.lean
-  out/Ex/Int/Generated/Soundness/Comm.lean
-  out/Ex/Int/Generated/Soundness/Int/neg.lean
-  out/Ex/Int/Generated/Soundness/Int/plus.lean
-  out/Ex/Int/Generated/Statements/Comm.lean
-  out/Ex/Int/Generated/Statements/Int/neg.lean
-  out/Ex/Int/Generated/Statements/Int/plus.lean
+  out/Generated/Ex/Int/Lang.lean
+  out/Generated/Ex/Int/Lift.lean
+  out/Generated/Ex/Int/Model.lean
+  out/Generated/Ex/Int/Node.lean
+  out/Generated/Ex/Int/Soundness.lean
+  out/Generated/Ex/Int/Soundness/Comm.lean
+  out/Generated/Ex/Int/Soundness/Int/neg.lean
+  out/Generated/Ex/Int/Soundness/Int/plus.lean
+  out/Generated/Ex/Int/Statements/Comm.lean
+  out/Generated/Ex/Int/Statements/Int/neg.lean
+  out/Generated/Ex/Int/Statements/Int/plus.lean
+  out/Generated/Ex/Lang.lean
+  out/Generated/Ex/Lift.lean
+  out/Generated/Ex/Model.lean
+  out/Generated/Ex/Node.lean
+  out/Generated/Ex/Rules.lean
+  out/Generated/Ex/Semantics.lean
+  out/Generated/Ex/Soundness.lean
+  out/Generated/Ex/Syntax.lean
 
 Each generated proof of an arm has its own bound on heartbeats: that of its
 rule function ([@lean_heartbeats 800000] on neg), else that of the language
 ([@@@lean_heartbeats "300000"]).
 
-  $ cat out/Ex/Int/Generated/Soundness/*/*.lean | grep 'maxHeartbeats [0-9]* in' | sort | uniq -c
+  $ cat out/Generated/Ex/Int/Soundness/*/*.lean | grep 'maxHeartbeats [0-9]* in' | sort | uniq -c
         4 set_option maxHeartbeats 300000 in
         3 set_option maxHeartbeats 800000 in
 
 Lang.lean states the typing of each node, at the sorts of a language.
 
-  $ sed -n '/^def Node.wt/,/^$/p' out/Ex/Int/Generated/Lang.lean
+  $ sed -n '/^def Node.wt/,/^$/p' out/Generated/Ex/Int/Lang.lean
   def Node.wt {T Ty : Type} (sInt : Ex.Int.Srt → Ty) (ty : T → Ty) : Node T → Ty → Prop
     | (.Int x1), t => (t = (sInt .TInt))
     | (.Plus a1 a2), t => (ty a1 = (sInt .TInt) ∧ ty a2 = (sInt .TInt) ∧ t = (sInt .TInt))
@@ -54,34 +53,34 @@ With --check, kanon lean-all only checks that the files are up to date.
 The hand-written proofs of a module, Proofs.lean, are imported by its generated
 proofs, under Soundness/, when they exist.
 
-  $ echo 'import Ex.Int.Generated.Statements.Int.neg' > out/Ex/Int/Proofs.lean
+  $ mkdir -p out/Ex/Int
+  $ echo 'import Generated.Ex.Int.Statements.Int.neg' > out/Ex/Int/Proofs.lean
   $ kanon lean-all --check out lang.knl
-  kanon: out/Ex/Int/Generated/Soundness/Comm.lean is not up to date (run kanon lean-all)
-  kanon: out/Ex/Int/Generated/Soundness/Int/plus.lean is not up to date (run kanon lean-all)
-  kanon: out/Ex/Int/Generated/Soundness/Int/neg.lean is not up to date (run kanon lean-all)
+  kanon: out/Generated/Ex/Int/Soundness/Comm.lean is not up to date (run kanon lean-all)
+  kanon: out/Generated/Ex/Int/Soundness/Int/plus.lean is not up to date (run kanon lean-all)
+  kanon: out/Generated/Ex/Int/Soundness/Int/neg.lean is not up to date (run kanon lean-all)
   [1]
   $ kanon lean-all out lang.knl
-  $ grep '^import' out/Ex/Int/Generated/Soundness/Int/neg.lean
-  import Ex.Int.Generated.Statements.Int.neg
+  $ grep '^import' out/Generated/Ex/Int/Soundness/Int/neg.lean
+  import Generated.Ex.Int.Statements.Int.neg
   import Ex.Int.Proofs
-  import Ex.Int.Generated.Soundness.Comm
+  import Generated.Ex.Int.Soundness.Comm
 
-The files of Generated that kanon no longer generates are removed, and the
-files beside it are kept.
+The files of Generated/Ex that kanon no longer generates are removed, and the
+files of Ex are kept.
 
-  $ echo '-- Generated by kanon from int.kn. Do not edit.' > out/Ex/Int/Generated/Old.lean
+  $ echo '-- Generated by kanon from int.kn. Do not edit.' > out/Generated/Ex/Int/Old.lean
   $ echo '-- A file of mine.' > out/Ex/Int/Mine.lean
   $ kanon lean-all --check out lang.knl
-  kanon: out/Ex/Int/Generated/Old.lean is no longer generated (run kanon lean-all)
+  kanon: out/Generated/Ex/Int/Old.lean is no longer generated (run kanon lean-all)
   [1]
   $ kanon lean-all out lang.knl
-  $ ls out/Ex/Int out/Ex/Int/Generated
+  $ ls out/Ex/Int out/Generated/Ex/Int
   out/Ex/Int:
-  Generated
   Mine.lean
   Proofs.lean
   
-  out/Ex/Int/Generated:
+  out/Generated/Ex/Int:
   Lang.lean
   Lift.lean
   Model.lean
@@ -104,13 +103,13 @@ not rebuild them.
   $ mkdir split && cp lang.knl int.knl split
   $ sed 's/\[@lean_heartbeats 800000\]/[@lean_heartbeats 800000] [@lean_proofs "Neg"]/' int.kn > split/int.kn
   $ kanon lean-all out split/lang.knl
-  $ grep '^import' out/Ex/Int/Generated/Soundness/Int/neg.lean out/Ex/Int/Generated/Soundness/Int/plus.lean
-  out/Ex/Int/Generated/Soundness/Int/neg.lean:import Ex.Int.Generated.Statements.Int.neg
-  out/Ex/Int/Generated/Soundness/Int/neg.lean:import Ex.Int.Proofs.Neg
-  out/Ex/Int/Generated/Soundness/Int/neg.lean:import Ex.Int.Generated.Soundness.Comm
-  out/Ex/Int/Generated/Soundness/Int/plus.lean:import Ex.Int.Generated.Statements.Int.plus
-  out/Ex/Int/Generated/Soundness/Int/plus.lean:import Ex.Int.Proofs
-  out/Ex/Int/Generated/Soundness/Int/plus.lean:import Ex.Int.Generated.Soundness.Comm
+  $ grep '^import' out/Generated/Ex/Int/Soundness/Int/neg.lean out/Generated/Ex/Int/Soundness/Int/plus.lean
+  out/Generated/Ex/Int/Soundness/Int/neg.lean:import Generated.Ex.Int.Statements.Int.neg
+  out/Generated/Ex/Int/Soundness/Int/neg.lean:import Ex.Int.Proofs.Neg
+  out/Generated/Ex/Int/Soundness/Int/neg.lean:import Generated.Ex.Int.Soundness.Comm
+  out/Generated/Ex/Int/Soundness/Int/plus.lean:import Generated.Ex.Int.Statements.Int.plus
+  out/Generated/Ex/Int/Soundness/Int/plus.lean:import Ex.Int.Proofs
+  out/Generated/Ex/Int/Soundness/Int/plus.lean:import Generated.Ex.Int.Soundness.Comm
 
 The proofs of the cases that an extend adds to the function of another module
 import its file, and the commutativity proofs those of the [@comm] nodes. A
@@ -120,12 +119,12 @@ generated file imports the file of each item that it proves, or Proofs.lean.
   $ printf 'use "int"\n\nextend rule Int.neg before lit [@lean_proofs "Zero"] =\n  | zero: Neg (Int 0) -> Int 0\n' > ext/zero.kn
   $ sed 's/\[@comm\]/[@comm] [@lean_proofs "Comm"]/' int.knl > ext/int.knl
   $ kanon lean-all out ext/lang.knl
-  $ grep '^import' out/Ex/Zero/Generated/Soundness/Int/neg.lean out/Ex/Int/Generated/Soundness/Comm.lean
-  out/Ex/Zero/Generated/Soundness/Int/neg.lean:import Ex.Zero.Generated.Statements.Int.neg
-  out/Ex/Zero/Generated/Soundness/Int/neg.lean:import Ex.Zero.Proofs.Zero
-  out/Ex/Zero/Generated/Soundness/Int/neg.lean:import Ex.Int.Generated.Soundness.Comm
-  out/Ex/Int/Generated/Soundness/Comm.lean:import Ex.Int.Generated.Statements.Comm
-  out/Ex/Int/Generated/Soundness/Comm.lean:import Ex.Int.Proofs.Comm
+  $ grep '^import' out/Generated/Ex/Zero/Soundness/Int/neg.lean out/Generated/Ex/Int/Soundness/Comm.lean
+  out/Generated/Ex/Zero/Soundness/Int/neg.lean:import Generated.Ex.Zero.Statements.Int.neg
+  out/Generated/Ex/Zero/Soundness/Int/neg.lean:import Ex.Zero.Proofs.Zero
+  out/Generated/Ex/Zero/Soundness/Int/neg.lean:import Generated.Ex.Int.Soundness.Comm
+  out/Generated/Ex/Int/Soundness/Comm.lean:import Generated.Ex.Int.Statements.Comm
+  out/Generated/Ex/Int/Soundness/Comm.lean:import Ex.Int.Proofs.Comm
 
 It is only for a rule, an extensible helper, an extend or a [@comm] node.
 

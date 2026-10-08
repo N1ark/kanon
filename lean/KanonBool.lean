@@ -1,4 +1,4 @@
-import KanonBool.Generated.Soundness
+import Generated.KanonBool.Soundness
 
 /-!
 # The bool module

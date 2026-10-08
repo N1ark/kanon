@@ -3,36 +3,37 @@
     Every module (a [.knl] file and its [.kn] file) is modelled and proved once,
     for every language that uses it, under its root [R] ([[@@@lean_root "R"]],
     or else [L.M] for the module [M] of a language of root [L]). Kanon writes
-    the files that it generates in the directory [R/Generated], which it clears,
-    and nothing else; the hand-written files are beside it, in [R]:
+    the files that it generates in the directory [Generated] of the output
+    directory, under the directory of the root, and nothing else; the
+    hand-written files are beside [Generated], in the directory [R]:
 
-    - [R/Generated/Types.lean]: its data types;
-    - [R/Generated/Node.lean]: its sorts [R.Srt] and its nodes [R.Node T], over
+    - [Generated/R/Types.lean]: its data types;
+    - [Generated/R/Node.lean]: its sorts [R.Srt] and its nodes [R.Node T], over
       the terms [T] of a language, with [Node.map], [Node.All] and [Node.Rel];
     - [R/Sem.lean], by hand: the values it needs of a language ([R.Values]), the
       meaning of its nodes ([R.Node.eval]) and its primitives;
-    - [R/Generated/Lang.lean]: the typing of its nodes ([Node.wt]), and what the
+    - [Generated/R/Lang.lean]: the typing of its nodes ([Node.wt]), and what the
       module needs of a language [S] ([R.Lang S]: its nodes and sorts embedded
       in the terms and types of [S], typed and evaluated as the module says);
     - [R/Prims.lean], by hand: the primitives over terms and sorts, the
       predicates of its subsorts, what its oracles satisfy and what its
       extensible helpers satisfy;
-    - [R/Generated/Model.lean]: its rule functions, oracles and extensible
+    - [Generated/R/Model.lean]: its rule functions, oracles and extensible
       helpers as the record [R.Ops S], its specs, helpers and rules;
-    - [R/Generated/Lift.lean]: the lifting lemmas;
-    - [R/Generated/Statements/Comm.lean]: the commutativity of its operators,
-      and [R/Generated/Statements/M/f.lean]: the statements of the arms of the
+    - [Generated/R/Lift.lean]: the lifting lemmas;
+    - [Generated/R/Statements/Comm.lean]: the commutativity of its operators,
+      and [Generated/R/Statements/M/f.lean]: the statements of the arms of the
       function [M.f];
     - [R/Proofs.lean], by hand: the proofs that the tactics do not find;
-    - [R/Generated/Soundness/Comm.lean] and [R/Generated/Soundness/M/f.lean]:
+    - [Generated/R/Soundness/Comm.lean] and [Generated/R/Soundness/M/f.lean]:
       their proofs, and those of the rules of [M.f], and
-      [R/Generated/Soundness.lean], which imports them.
+      [Generated/R/Soundness.lean], which imports them.
 
-    A language of root [L] ties the knot: [L/Generated/Syntax.lean] (its sorts
+    A language of root [L] ties the knot: [Generated/L/Syntax.lean] (its sorts
     [Ty] and terms [Term], a case per module), [L/Val.lean] (by hand: its values
     and the instances of the [Values] of its modules),
-    [L/Generated/Semantics.lean] (typing, evaluation, and the instances of the
-    [Lang] of its modules, by [rfl]) and [L/Generated/Rules.lean] (its rule
+    [Generated/L/Semantics.lean] (typing, evaluation, and the instances of the
+    [Lang] of its modules, by [rfl]) and [Generated/L/Rules.lean] (its rule
     functions, from the rules of every module, and the proof that they are
     sound). *)
 
@@ -1694,7 +1695,7 @@ let arm_name f r arms i =
 (* Files *)
 
 (** A generated Lean file: the root of its module and its path under the
-    generated directory of the root ([["Model"]] for [R.Generated.Model]), and
+    generated directory of the root ([["Model"]] for [Generated.R.Model]), and
     its contents. *)
 type file = {
   froot : string;
@@ -1702,14 +1703,14 @@ type file = {
   contents : Format.formatter -> unit;
 }
 
-(** The directory of the root [r] that holds every file that kanon generates for
-    it, and only those: the hand-written files of [r] are beside it. *)
+(** The directory of the generated files, relative to the output directory: it
+    holds every file that kanon generates, and only those; the hand-written
+    files are beside it, in the directory of their root. *)
 let generated = "Generated"
 
 (** The directory of the generated files of the root [r], relative to the output
     directory. *)
-let generated_dir r =
-  String.concat "/" (String.split_on_char '.' r @ [ generated ])
+let generated_dir r = String.concat "/" (generated :: String.split_on_char '.' r)
 
 (** The path of a generated file, relative to the output directory. *)
 let file_name (f : file) =
@@ -1722,7 +1723,8 @@ let hand_file_name r path =
 
 (** The Lean module of the generated file at [path] under the root [r]. *)
 let generated_module r path =
-  String.concat "." (r :: generated :: List.map id path)
+  String.concat "."
+    ((generated :: String.split_on_char '.' r) @ List.map id path)
 
 (** The Lean module of the hand-written file at [path] under the root [r]. *)
 let hand_module r path = String.concat "." (r :: List.map id path)
@@ -2225,10 +2227,10 @@ let is_ident s =
        s
 
 (** The roots of the modules that are generated are Lean names, none is that of
-    a library, and none has a part called [Generated], the directory of the
-    generated files of its prefix. The library of the built-in bool module,
-    [KanonBool], is a root only if the language does not use that module, or if
-    it is generated ([module_only]). *)
+    a library, and none starts with [Generated], the directory of the generated
+    files. The library of the built-in bool module, [KanonBool], is a root only
+    if the language does not use that module, or if it is generated
+    ([module_only]). *)
 let check_roots ~module_only =
   List.iter
     (fun m ->
@@ -2241,7 +2243,8 @@ let check_roots ~module_only =
           r m
       in
       if not (List.for_all is_ident parts) then fail "is not a Lean name"
-      else if List.mem "Generated" parts then fail "has a part called Generated"
+      else if List.hd parts = generated then
+        fail "starts with %s, the directory of the generated files" generated
       else if
         (List.mem (List.hd parts) reserved_roots
         || (List.hd parts = "KanonBool" && !builtin_modules <> []))

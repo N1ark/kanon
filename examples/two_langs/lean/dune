@@ -1,15 +1,18 @@
-; The generated Lean files of the five languages (under L1/Generated/ to L5/Generated/)
-; and of their modules proved once (under NumMod/Generated/, NegMod/Generated/,
-; EvenMod/Generated/, MixMod/Generated/, CfgMod/Generated/, WordMod/Generated/
-; and PackMod/Generated/), from ../l1.knl to ../l5.knl: `dune test` checks that
+; The generated Lean files of the five languages (under Generated/L1/ to Generated/L5/)
+; and of their modules proved once (under Generated/NumMod/, Generated/NegMod/,
+; Generated/EvenMod/, Generated/MixMod/, Generated/CfgMod/, Generated/WordMod/
+; and Generated/PackMod/), from ../l1.knl to ../l5.knl: `dune test` checks that
 ; they are up to date (run `dune exec -- kanon lean-all . ../lN.knl` here after
-; changing a language or a module), and CI checks their proofs with `lake
-; build`. The languages generate the same files of the modules they share.
+; changing a language or a module, for each N), and CI checks their proofs with
+; `lake build`. The languages generate the same files of the modules they
+; share.
 
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated/L1)
   (source_tree L1)
+  (source_tree Generated/NumMod)
   (source_tree NumMod)
   ../l1.knl
   ../num.knl
@@ -20,8 +23,11 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated/L2)
   (source_tree L2)
+  (source_tree Generated/NumMod)
   (source_tree NumMod)
+  (source_tree Generated/NegMod)
   (source_tree NegMod)
   ../l2.knl
   ../num.knl
@@ -34,10 +40,15 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated/L3)
   (source_tree L3)
+  (source_tree Generated/NumMod)
   (source_tree NumMod)
+  (source_tree Generated/NegMod)
   (source_tree NegMod)
+  (source_tree Generated/EvenMod)
   (source_tree EvenMod)
+  (source_tree Generated/MixMod)
   (source_tree MixMod)
   ../l3.knl
   ../num.knl
@@ -54,8 +65,11 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated/L4)
   (source_tree L4)
+  (source_tree Generated/CfgMod)
   (source_tree CfgMod)
+  (source_tree Generated/WordMod)
   (source_tree WordMod)
   ../l4.knl
   ../cfg.knl
@@ -67,7 +81,9 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated/L5)
   (source_tree L5)
+  (source_tree Generated/PackMod)
   (source_tree PackMod)
   ../l5.knl
   ../pack.knl

@@ -6,9 +6,14 @@ defaultTargets = ["IntsExample"]
 name = "kanon"
 path = "../../../lean"
 
+# A library has the hand-written files of a root, and the files that kanon
+# generates for it, in Generated/ (Kanon's library has its own Generated/).
+
 [[lean_lib]]
 name = "IntsExample"
+globs = ["IntsExample.+", "Generated.IntsExample.+"]
 
 # The int module (../int.kn), proved once for any language that uses it.
 [[lean_lib]]
 name = "IntMod"
+globs = ["IntMod.+", "Generated.IntMod.+"]

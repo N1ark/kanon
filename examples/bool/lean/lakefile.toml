@@ -6,5 +6,9 @@ defaultTargets = ["BoolExample"]
 name = "kanon"
 path = "../../../lean"
 
+# A library has the hand-written files of a root, and the files that kanon
+# generates for it, in Generated/ (Kanon's library has its own Generated/).
+
 [[lean_lib]]
 name = "BoolExample"
+globs = ["BoolExample.+", "Generated.BoolExample.+"]

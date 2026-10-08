@@ -6,50 +6,65 @@ defaultTargets = ["L1", "L2", "L3", "L4", "L5"]
 name = "kanon"
 path = "../../../lean"
 
+# A library has the hand-written files of a root, and the files that kanon
+# generates for it, in Generated/ (Kanon's library has its own Generated/).
+
 # The num module (../num.kn), proved once for both languages.
 [[lean_lib]]
 name = "NumMod"
+globs = ["NumMod.+", "Generated.NumMod.+"]
 
 # The neg module (../neg.kn), which the second language uses.
 [[lean_lib]]
 name = "NegMod"
+globs = ["NegMod.+", "Generated.NegMod.+"]
 
 # The even module (../even.kn), whose sort has an invariant.
 [[lean_lib]]
 name = "EvenMod"
+globs = ["EvenMod.+", "Generated.EvenMod.+"]
 
 # The mix module (../mix.kn), which uses the neg and even modules (a diamond).
 [[lean_lib]]
 name = "MixMod"
+globs = ["MixMod.+", "Generated.MixMod.+"]
 
 # The cfg module (../cfg.knl): data types only.
 [[lean_lib]]
 name = "CfgMod"
+globs = ["CfgMod.+", "Generated.CfgMod.+"]
 
 # The word module (../word.kn), whose nodes take the data of the cfg module.
 [[lean_lib]]
 name = "WordMod"
+globs = ["WordMod.+", "Generated.WordMod.+"]
 
 # The pack module (../pack.kn), whose sort takes a sort, with a quantifier.
 [[lean_lib]]
 name = "PackMod"
+globs = ["PackMod.+", "Generated.PackMod.+"]
 
 # The first language (../l1.knl).
 [[lean_lib]]
 name = "L1"
+globs = ["L1.+", "Generated.L1.+"]
 
 # The second language (../l2.knl).
 [[lean_lib]]
 name = "L2"
+globs = ["L2.+", "Generated.L2.+"]
 
 # The third language (../l3.knl).
 [[lean_lib]]
 name = "L3"
+globs = ["L3.+", "Generated.L3.+"]
 
 # The fourth language (../l4.knl).
 [[lean_lib]]
 name = "L4"
+globs = ["L4.+", "Generated.L4.+"]
 
 # The fifth language (../l5.knl).
 [[lean_lib]]
 name = "L5"
+globs = ["L5.+", "Generated.L5.+"]

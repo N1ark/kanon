@@ -1,4 +1,4 @@
-import L1.Generated.Semantics
+import Generated.L1.Semantics
 
 /-!
 # The values of the sorts

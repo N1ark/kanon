@@ -1,4 +1,4 @@
-import BoolExample.Generated.Syntax
+import Generated.BoolExample.Syntax
 import BoolExample.Sem
 import KanonBool.Sem
 

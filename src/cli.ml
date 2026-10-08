@@ -122,11 +122,10 @@ let generated_all ~cmd ~check ~err dir
     ok := false;
     Format.fprintf err ("kanon: " ^^ fmt ^^ "@.")
   in
-  List.iter
-    (fun (rel, files) ->
-      let root = Filename.concat dir rel in
-      if check then (
-        let names = Hashtbl.create 64 in
+  if check then (
+    let names = Hashtbl.create 64 in
+    List.iter
+      (fun (_, files) ->
         List.iter
           (fun (name, text) ->
             let name = Filename.concat dir name in
@@ -136,23 +135,30 @@ let generated_all ~cmd ~check ~err dir
               report "%s is missing (run kanon %s)" name cmd
             else if try read_file name <> text with Sys_error _ -> true then
               report "%s is not up to date (run kanon %s)" name cmd)
-          files;
-        if Sys.file_exists root then
-          List.iter
-            (fun name ->
-              if not (Hashtbl.mem names name) then
-                report "%s is no longer generated (run kanon %s)" name cmd)
-            (tree_files root))
-      else (
-        remove_tree root;
+          files)
+      trees;
+    List.iter
+      (fun name ->
+        if not (Hashtbl.mem names name) then
+          report "%s is no longer generated (run kanon %s)" name cmd)
+      (List.sort_uniq compare
+         (List.concat_map
+            (fun (rel, _) ->
+              let root = Filename.concat dir rel in
+              if Sys.file_exists root then tree_files root else [])
+            trees)))
+  else (
+    List.iter (fun (rel, _) -> remove_tree (Filename.concat dir rel)) trees;
+    List.iter
+      (fun (_, files) ->
         List.iter
           (fun (name, text) ->
             let name = Filename.concat dir name in
             mkdir_p (Filename.dirname name);
             Out_channel.with_open_bin name (fun oc ->
                 Out_channel.output_string oc text))
-          files))
-    trees;
+          files)
+      trees);
   !ok
 
 (** [kanon lean-all [--check] DIR]: writes the generated Lean files [files]

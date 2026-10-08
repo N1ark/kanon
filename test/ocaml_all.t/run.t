@@ -50,11 +50,9 @@ is beside Generated, or in the Generated directory of the Lean files of another
 directory, is kept.
 
   $ echo '-- mine' > out/mine.ml
-  $ mkdir -p out/Ex/Generated && echo '-- lean' > out/Ex/Generated/Node.lean
   $ kanon ocaml-all out lang.knl
-  $ cat out/mine.ml out/Ex/Generated/Node.lean
+  $ cat out/mine.ml
   -- mine
-  -- lean
 
 With --check, kanon ocaml-all checks that Generated has exactly the files that it
 would write.
@@ -80,7 +78,6 @@ kanon ocaml-all clears Generated, and writes it again.
   $ kanon ocaml-all --check out lang.knl
   $ ls out out/Generated
   out:
-  Ex
   Generated
   mine.ml
   

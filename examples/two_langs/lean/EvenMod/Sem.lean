@@ -1,4 +1,4 @@
-import EvenMod.Generated.Node
+import Generated.EvenMod.Node
 import NumMod.Sem
 
 /-!

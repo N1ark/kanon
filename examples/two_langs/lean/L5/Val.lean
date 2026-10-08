@@ -1,4 +1,4 @@
-import L5.Generated.Syntax
+import Generated.L5.Syntax
 import L5.Sem
 import PackMod.Sem
 

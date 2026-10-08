@@ -1,4 +1,4 @@
-; The generated Lean files of the example, under DivisionExample/Generated/, from
+; The generated Lean files of the example, under Generated/DivisionExample/, from
 ; ../lang.knl and its int module (with a subsort): `dune test` checks that they
 ; are up to date (run `dune exec -- kanon lean-all . ../lang.knl` here after
 ; changing the language or the modules), and CI checks their proofs with `lake
@@ -7,6 +7,7 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated)
   (source_tree DivisionExample)
   (source_tree DivMod)
   ../lang.knl

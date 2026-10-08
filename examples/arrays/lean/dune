@@ -1,5 +1,5 @@
-; The generated Lean files of the example, under ArraysExample/Generated/, from
-; ../lang.knl and its vec module (under ArraysExample/Vec/Generated/): `dune test` checks
+; The generated Lean files of the example, under Generated/ArraysExample/, from
+; ../lang.knl and its vec module (under Generated/ArraysExample/Vec/): `dune test` checks
 ; that they are up to date (run `dune exec -- kanon lean-all . ../lang.knl` here
 ; after changing the language or the modules), and CI checks their proofs with
 ; `lake build`.
@@ -7,6 +7,7 @@
 (rule
  (alias runtest)
  (deps
+  (source_tree Generated)
   (source_tree ArraysExample)
   ../lang.knl
   ../vec.knl

@@ -1,4 +1,4 @@
-import NegMod.Generated.Node
+import Generated.NegMod.Node
 import NumMod.Sem
 
 /-!

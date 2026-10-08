@@ -1,1 +1,1 @@
-import DivisionExample.Generated.Rules
+import Generated.DivisionExample.Rules

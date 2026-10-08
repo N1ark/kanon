@@ -30,10 +30,10 @@ its Lean files import the types of that module, whether it `use`s it or not.
   > type palette = { main : color; others : color list }
   > KN
   $ kanon lean-all out lang.knl
-  $ grep -H '^import BMod.Generated.Types' out/AMod/Generated/Node.lean out/CMod/Generated/Model.lean out/DMod/Generated/Types.lean
-  out/AMod/Generated/Node.lean:import BMod.Generated.Types
-  out/CMod/Generated/Model.lean:import BMod.Generated.Types
-  out/DMod/Generated/Types.lean:import BMod.Generated.Types
+  $ grep -H '^import Generated.BMod.Types' out/Generated/AMod/Node.lean out/Generated/CMod/Model.lean out/Generated/DMod/Types.lean
+  out/Generated/AMod/Node.lean:import Generated.BMod.Types
+  out/Generated/CMod/Model.lean:import Generated.BMod.Types
+  out/Generated/DMod/Types.lean:import Generated.BMod.Types
 
 The types that Lean already has (`[@lean "String"]`) are not defined by their
 module: a module that mentions one does not depend on it.
@@ -49,8 +49,8 @@ module: a module that mentions one does not depend on it.
   > node E of var : TE
   > KN
   $ kanon lean-all out2 lang2.knl
-  $ grep '^import' out2/EMod/Generated/Model.lean
-  import EMod.Generated.Lang
+  $ grep '^import' out2/Generated/EMod/Model.lean
+  import Generated.EMod.Lang
   import KanonCore.Model
   import KanonCore.Attr
   import KanonCore.Embed
@@ -68,7 +68,7 @@ attributes of its proofs from (`kanon_body`, on its helpers), so it imports them
   > fn double (x : int) : int = x + x
   > KN
   $ kanon lean-all out3 lang3.knl
-  $ grep '^import' out3/UMod/Generated/Model.lean
+  $ grep '^import' out3/Generated/UMod/Model.lean
   import KanonCore.Model
   import KanonCore.Attr
   import KanonCore.Embed

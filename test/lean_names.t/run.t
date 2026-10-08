@@ -36,7 +36,7 @@ not as a prefix of it (`«from»'` is a quoted name and a quote):
   >   | zero: x, 0 -> x
   > KN
   $ kanon lean-all out2 lang2.knl
-  $ grep -h -A4 'theorem lift_' out2/Kanon/Rules2/Generated/Lift.lean
+  $ grep -h -A4 'theorem lift_' out2/Generated/Kanon/Rules2/Lift.lean
   theorem lift_rules2_add (hO : O.Sound) {«from» from' : S.Term} {«at» at' : S.Term}
     (h_from : S.Refines «from» from')
     (h_at : S.Refines «at» at') :

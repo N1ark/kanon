@@ -16,7 +16,7 @@ other: kanon lean-all reports it, and writes nothing.
   > node B of int : TB
   > KN
   $ kanon lean-all out lang.knl
-  kanon: two modules write the Lean file Same/Generated/Node.lean: give them different roots with [@@lean_root]
+  kanon: two modules write the Lean file Generated/Same/Node.lean: give them different roots with [@@lean_root]
   [1]
   $ test -e out || echo nothing written
   nothing written
@@ -64,7 +64,7 @@ may have several parts:
   [1]
   $ sed -i 's/"Lean"/"My.Lang"/' b3.knl
   $ kanon lean-all out3 lang3.knl
-  $ ls out3/My/Lang/Generated | head -2
+  $ ls out3/Generated/My/Lang | head -2
   Lang.lean
   Lift.lean
 
@@ -82,7 +82,7 @@ module is not.
   > node B of int : TB
   > KN
   $ kanon lean-all out4 lang4.knl
-  $ ls out4/KanonBool/Generated | head -1
+  $ ls out4/Generated/KanonBool | head -1
   Lang.lean
   $ cat > lang5.knl <<'KN'
   > use builtin "bool"
