@@ -9,8 +9,8 @@
 <DocPage page="reference" headings="h2, h3">
   <h1>Reference</h1>
   <p class="lede">
-    The declarations, attributes, operators and rules of Kanon, the code that its backends
-    generate, and its language server. The <a href="./">tutorial</a> introduces them on an example,
+    The declarations, attributes, operators and rules of Kanon, the code that it
+    generates, and its language server. The <a href="./">tutorial</a> introduces them on an example,
     and the <a href="proving.html">guide to proofs</a> shows how to prove the generated Lean.
   </p>
 
@@ -45,7 +45,7 @@
       the generated files); see <a href="#bool-module">The bool module</a>. A language
       <code>lang.knl</code> that starts with <code>{`use builtin "bool"{:kanon}`}</code> and
       <code>{`use "int"{:kanon}`}</code> is made of the bool module and of the module <code>int</code>
-      (<code>int.knl</code> and <code>int.kn</code>), and <code>kanon ocaml lang.knl</code>
+      (<code>int.knl</code> and <code>int.kn</code>), and <code>kanon ocaml DIR lang.knl</code>
       generates its rules.
     </dd>
 
@@ -85,7 +85,7 @@
       (<code>{`node Div of bool : TBitVector n -> TNonzero n -> TBitVector n{:kanon}`}</code>): a term
       of a subsort is accepted wherever its parent is expected, and not the reverse. It has no
       constructor of its own and no meaning in OCaml, where the types and rules erase it to its
-      parent; it is only trusted, but in <code>ocaml-typed</code>, where the tags of its terms refine
+      parent; it is only trusted, but in the typed interface, where the tags of its terms refine
       those of its parent, and in Lean, where <code>{`[@lean "P"]{:kanon}`}</code> gives it a
       predicate. It is not an argument of a sort, nor an annotation <code>(v : S n)</code>, and its
       parent is a sort, not a subsort. Only rules have the assumptions and obligations of their
@@ -171,7 +171,7 @@
       its sort is a sort constructor applied to expressions over the variables that the parameters
       bind (not a subsort), and the function must return a term of that sort. The generated OCaml
       asserts it on exit, as it asserts the sorts of the parameters on entry, and
-      <code>ocaml-typed</code> types the function with the tags of its sorts (see
+      the typed interface types the function with the tags of its sorts (see
       <a href="#typed">Typed OCaml</a>); Lean does not model the annotation (the model of the
       function is the same, and the proofs assume and prove nothing about its sort). A function whose
       result is not annotated is untyped. A helper may recurse on the first parameter that its
@@ -267,7 +267,7 @@
       to its module (<code>Bitvec.0</code>).
     </li>
     <li>
-      The backends nest the names the same way: Lean defines <code>Bitvec.add</code> in the
+      The generated files nest the names the same way: Lean defines <code>Bitvec.add</code> in the
       namespace <code>Bitvec</code>, the typed interface has a module <code>Bitvec</code>, and the
       OCaml rules module has the same modules, <code>Rules.Bitvec.add</code>. Primitives keep their plain
       name in the module of the primitives.
@@ -316,7 +316,7 @@
     (<code>{`Vec a, #k when 0 <= k && k < array_length a -> …{:kanon}`}</code>); an index is an
     <code>int</code> (<code>Z.t</code> in OCaml: one that does not fit an OCaml <code>int</code>
     raises). The generated OCaml uses the standard <code>Iarray</code> (OCaml 5.4) and needs nothing
-    else: <code>ocaml-types</code> generates the equality and the hash of the types that hold an
+    else: <code>types.ml</code> has the equality and the hash of the types that hold an
     array, with <code>Iarray.equal</code> and <code>Iarray.fold_left</code>.
     <a href="https://github.com/N1ark/kanon/tree/main/examples/arrays"><code>examples/arrays</code></a>
     is a small language of integers and arrays of integers (<code>Vec of int array</code>,
@@ -339,8 +339,8 @@
       <tr>
         <td><code>{`[@ocaml "M.a"]{:kanon}`}</code></td>
         <td>
-          The OCaml type of an abstract type, which <code>ocaml-types</code> needs. Optional on a
-          record or a variant: <code>ocaml-types</code> then re-exports that type
+          The OCaml type of an abstract type, which <code>types.ml</code> needs. Optional on a
+          record or a variant: <code>types.ml</code> then re-exports that type
           (<code>{`type checked = M.checked = { … }{:ocaml}`}</code>), which OCaml checks against
           the declaration, rather than generating it.
         </td>
@@ -540,7 +540,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td><code>{`[@no_lean]{:kanon}`}</code></td>
         <td>a <code>fn</code>, after its result type; a <code>prim</code>, after its type</td>
         <td>
-          Generated in OCaml (by every OCaml backend), and left out of every Lean file. A function
+          Generated in OCaml (in every OCaml file), and left out of every Lean file. A function
           that is modelled in Lean (any other helper or rule function, or the typing of a node) may
           not call it; a <code>{`[@no_lean]{:kanon}`}</code> helper may call anything, and the cases
           that <code>extend fn</code> adds to it are not modelled either. It cannot mark a rule
@@ -592,8 +592,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           (of root <code>R</code>) instead of <code>R/Proofs.lean</code>, so that editing the
           proofs of another function does not rebuild them (see
           <a href="proving.html#file-proofs">Proofs.lean</a>): those of a function or of an
-          <code>extend</code> are in <code>Generated/Soundness/M/f.lean</code>, and those of a
-          commutativity in <code>Generated/Soundness/Comm.lean</code>. A generated file imports the file of
+          <code>extend</code> are in <code>Generated/R/Soundness/M/f.lean</code>, and those of a
+          commutativity in <code>Generated/R/Soundness/Comm.lean</code>. A generated file imports the file of
           each of the items that it proves, or <code>R/Proofs.lean</code> for one without it.
           <code>F</code> may contain <code>/</code>: <code>"Bv/Arith"</code> is
           <code>R/Proofs/Bv/Arith.lean</code>.
@@ -647,16 +647,15 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       <tr>
         <td><code>{`[@@@ocaml_types "M"]{:kanon}`}</code></td>
         <td>
-          The OCaml module of the types (the output of <code>ocaml-types</code>), which the
+          The OCaml module of the types (<code>types.ml</code> is named after it), which the
           generated rules open. Without it, they must be included where the types are in scope.
         </td>
       </tr>
       <tr>
         <td><code>{`[@@@ocaml_rules "M"]{:kanon}`}</code></td>
         <td>
-          The OCaml module of the rules (the output of <code>ocaml</code>), which the
-          implementation of <code>ocaml-typed</code> includes. Required by
-          <code>ocaml-typed</code>.
+          The OCaml module of the rules (<code>rules.ml</code> is named after it), which
+          <code>typed.ml</code> includes. <code>typed.ml</code> is only written with it.
         </td>
       </tr>
       <tr>
@@ -709,7 +708,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   <ul>
     <li>
       A pattern variable may have the name of a parameter of the function and shadow it in its case.
-      The Lean backends reject one that has the name of another parameter than the one it matches
+      <code>kanon lean</code> rejects one that has the name of another parameter than the one it matches
       (<code>{`| crossed: v2, v1 -> v1{:kanon}`}</code> in a rule over <code>v1, v2</code>), as the
       statements of the case name the parameters and the pattern variables alike.
     </li>
@@ -785,7 +784,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       form checks for an operator (a leaf has no operands to check), so it is up to the function to
       build <code>C</code> at a sort that its typing allows. In a rule, the Lean spec of the rule is
       built at the sort of the typing of its node, not at the computed sort, and the
-      <code>ocaml-typed</code> backend does not constrain the tag of the result. A constructor-led
+      typed interface does not constrain the tag of the result. A constructor-led
       sort is a sort constructor (<code>{`S args{:kanon}`}</code>); <code>{`(C x : t){:kanon}`}</code>
       with the name of a type <code>t</code> is a type annotation. A type annotation
       <code>{`(e : t){:kanon}`}</code> with a parenthesised type or an arrow
@@ -823,53 +822,48 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     </li>
   </ul>
 
-  <Heading level={2} id="backends">Backends</Heading>
+  <Heading level={2} id="commands">Commands</Heading>
   <p>
-    <code>kanon BACKEND FILE...</code> reads the language that the files declare, usually its one
-    <code>.knl</code> file, with the modules it uses (see <a href="#use"><code>use</code></a>), and
-    writes the generated code on standard output. <code>kanon lean-all DIR FILE...</code> and
-    <code>kanon ocaml-all DIR FILE...</code> write the Lean and the OCaml files instead (see
-    <a href="#write-all">Writing the files</a>). <code>kanon --version</code> prints the version
-    of Kanon, and <code>kanon lsp</code> runs the <a href="#lsp">language server</a>.
+    <code>kanon ocaml DIR FILE...</code> and <code>kanon lean DIR FILE...</code> read the language
+    that the files declare, usually its one <code>.knl</code> file, with the modules it uses (see
+    <a href="#use"><code>use</code></a>), and write the generated OCaml and Lean files in
+    <code>DIR</code> (see <a href="#write-all">Writing the files</a>). <code>kanon --version</code>
+    prints the version of Kanon, and <code>kanon lsp</code> runs the
+    <a href="#lsp">language server</a>.
   </p>
   <table>
-    <thead><tr><th>Backend</th><th>Writes</th></tr></thead>
+    <thead><tr><th>File</th><th>Holds</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>ocaml-types</code></td>
+        <td><code>DIR/Generated/types.ml</code></td>
         <td>
           The OCaml types of the language and its hash-consed terms: a standalone OCaml file that
           only needs Zarith (see <a href="#ocaml">OCaml</a>).
         </td>
       </tr>
       <tr>
-        <td><code>ocaml</code></td>
+        <td><code>DIR/Generated/rules.ml</code></td>
         <td>
           The OCaml rule functions and helpers, which need the types in scope, then the destructors
           and tests of the nodes and the sorts (see <a href="#ocaml">OCaml</a>).
         </td>
       </tr>
       <tr>
-        <td><code>ocaml-typed</code></td>
+        <td><code>DIR/Generated/typed.ml</code></td>
         <td>
           The typed interface of the smart constructors, and its implementation from the rules (see
           <a href="#typed">Typed OCaml</a>).
         </td>
       </tr>
       <tr>
-        <td><code>ocaml-tests</code></td>
+        <td><code>DIR/Generated/tests.ml</code></td>
         <td>OCaml differential tests of the rule functions (see <a href="#tests">Tests</a>).</td>
       </tr>
       <tr>
+        <td><code>DIR/Generated/R/…</code></td>
         <td>
-          <code>lean-types</code>, <code>lean-node</code>, <code>lean-lang</code>,
-          <code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code>,
-          <code>lean-syntax</code>, <code>lean-semantics</code>, <code>lean-rules</code>
-        </td>
-        <td>
-          The Lean files of the model and its proofs (see <a href="#lean">Lean</a> and the
-          <a href="proving.html">guide</a>): those of one part, one after the other, each after a
-          line <code>-- R/Generated/Model.lean</code> with its path when the part has several.
+          The Lean files of the model and its proofs, of each root <code>R</code> (see
+          <a href="#lean">Lean</a> and the <a href="proving.html">guide</a>).
         </td>
       </tr>
     </tbody>
@@ -879,69 +873,76 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <code>{`[%%include_file "rules.gen.ml"]{:ocaml}`}</code> is the structure of
     <code>rules.gen.ml</code>, a file next to the current one, as
     <code>{`include struct … end{:ocaml}`}</code>, so that it is compiled along with the types it
-    needs.
+    needs. A <code>dune</code> rule that runs <code>kanon ocaml</code> into a directory target
+    (<code>{`(using directory-targets 0.1)`}</code> in <code>dune-project</code>), and a rule that
+    copies each file it needs from <code>gen/Generated/</code> next to the code that uses it,
+    give dune the exact files:
   </p>
+  <Code
+    lang="text"
+    code={`(rule
+ (deps (glob_files lang/*.kn*))
+ (targets (dir gen))
+ (action (run kanon ocaml gen lang/lang.knl)))
+
+(rule (copy gen/Generated/rules.ml rules.gen.ml))`}
+  />
 
   <Heading level={3} id="write-all">Writing the files</Heading>
   <p>
-    <code>kanon lean-all DIR FILE...</code> and <code>kanon ocaml-all DIR FILE...</code> write the
-    files of the backends into <code>Generated</code> directories, which hold nothing else:
-    everything in a <code>Generated</code> directory is generated and belongs to Kanon, and the
-    files that are not generated (the hand-written Lean files, your OCaml) are never in one.
-    Kanon <em>deletes</em> each <code>Generated</code> directory that it is about to write, with
-    all it holds, then writes its files, so that a file of a function, a rule, a module or a root
-    that no longer exists does not stay behind. It deletes nothing else.
+    Both commands write the files into <code>Generated</code> directories, which hold nothing
+    else: everything in them is generated and belongs to Kanon, and the files that are not
+    generated (the hand-written Lean files, your OCaml) are never in one. Kanon <em>deletes</em>
+    each directory that it is about to write, with all it holds, then writes its files, so that a
+    file of a function, a rule, a module or a root that no longer exists does not stay behind. It
+    deletes nothing else.
   </p>
   <ul>
     <li>
-      <code>lean-all</code> writes the Lean files of each root <code>R</code> in
-      <code>DIR/R/Generated/</code> (see <a href="#lean">Lean</a>), and the hand-written files of
-      the root are beside the directory, in <code>DIR/R/</code>. The directories are those of the
-      roots that the language generates, so a root of another language, in the same
-      <code>DIR</code>, is not touched.
+      <code>kanon lean</code> writes the Lean files of each root <code>R</code> in
+      <code>DIR/Generated/R/</code> (see <a href="#lean">Lean</a>), and the hand-written files of
+      the root are in <code>DIR/R/</code>. The directories are those of the roots that the
+      language generates, so a root of another language, in the same <code>DIR</code>, is not
+      touched: its files are in its own <code>DIR/Generated/R</code>.
     </li>
     <li>
-      <code>ocaml-all</code> writes the output of <code>ocaml-types</code>, <code>ocaml</code>,
-      <code>ocaml-typed</code> and <code>ocaml-tests</code>, as the files of
-      <code>DIR/Generated/</code>: <code>types.ml</code>, <code>rules.ml</code>,
-      <code>typed.ml</code> and <code>tests.ml</code>. The file of the types, and that of the rules,
-      are named after the OCaml modules of <code>{`[@@@ocaml_types "M"]{:kanon}`}</code> and
-      <code>{`[@@@ocaml_rules "M"]{:kanon}`}</code> when the language declares them (<code>M</code>
-      in lowercase), as the generated code refers to them; <code>typed.ml</code> is only written
-      for a language with <code>{`[@@@ocaml_rules]{:kanon}`}</code>, which the typed interface
-      includes; and <code>tests.ml</code> opens the module of the rules (<code>Rules</code> if
-      the language names none). Use different <code>DIR</code>s for the OCaml and the Lean files.
+      <code>kanon ocaml</code> writes <code>DIR/Generated/</code> alone: <code>types.ml</code>,
+      <code>rules.ml</code>, <code>typed.ml</code> and <code>tests.ml</code>. The file of the
+      types, and that of the rules, are named after the OCaml modules of
+      <code>{`[@@@ocaml_types "M"]{:kanon}`}</code> and <code>{`[@@@ocaml_rules "M"]{:kanon}`}</code>
+      when the language declares them (<code>M</code> in lowercase), as the generated code refers
+      to them; <code>typed.ml</code> is only written for a language with
+      <code>{`[@@@ocaml_rules]{:kanon}`}</code>, which the typed interface includes; and
+      <code>tests.ml</code> opens the module of the rules (<code>Rules</code> if the language
+      names none). It needs the rules of the language, in <code>.kn</code> files. It deletes all of
+      <code>DIR/Generated</code>, so use different <code>DIR</code>s for the OCaml and the Lean
+      files.
     </li>
     <li>
       With <code>--check</code>, nothing is written or deleted: the command fails, on standard
       error, for every file that is missing or differs from what it would write, and for every
-      other file under <code>Generated</code>, whatever its name or first line. It passes if and
-      only if <code>Generated</code> is exactly what the command would write. Kanon's own
+      other file under the directories that it would write, whatever its name or first line. It
+      passes if and only if they are exactly what the command would write. Kanon's own
       <code>dune</code> rules use it to check the Lean files of the examples.
     </li>
     <li>
       It refuses to write, and deletes nothing, if <code>DIR</code> is not a directory, or if a
-      part of the path of a <code>Generated</code> directory (<code>DIR/R</code>,
-      <code>DIR/R/Generated</code>) exists and is a symbolic link or not a directory: it follows no
-      link, so it only deletes under <code>DIR</code>. A link inside <code>Generated</code> is
+      part of the path of a directory that it writes (<code>DIR/Generated</code>,
+      <code>DIR/Generated/R</code>) exists and is a symbolic link or not a directory: it follows no
+      link, so it only deletes under <code>DIR</code>. A link inside the directories is
       removed, not followed. If <code>DIR</code> does not exist, it is created. The files are all
       generated before anything is deleted, so an error in the language leaves the directory as it
       was.
     </li>
     <li>
-      A root has no part called <code>Generated</code> (<code>[@@@lean_root "A.Generated"]</code> is
-      an error), which would put hand-written files in a <code>Generated</code> directory.
+      A root does not start with <code>Generated</code> (<code>[@@@lean_root "Generated.A"]</code>
+      is an error), the name of the directory of the generated files.
     </li>
   </ul>
-  <p>
-    The backends that print on standard output do not write files, and stay as they are: a
-    <code>dune</code> rule may redirect each to a file (<code>with-stdout-to</code>), which dune
-    tracks exactly.
-  </p>
 
   <Heading level={3} id="ocaml">OCaml</Heading>
   <p>
-    <code>kanon ocaml-types lang.knl</code> generates the types of the language, in one recursive
+    <code>types.ml</code> has the types of the language, in one recursive
     group, with their Kanon names, and its terms:
   </p>
   <Code lang="ocaml" code={`type t = { kind : kind; ty : ty; tag : int }`} />
@@ -957,7 +958,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     known limitation.
   </p>
   <p>
-    <code>kanon ocaml lang.knl</code> generates the rule functions and helpers, which need those
+    <code>rules.ml</code> has the rule functions and helpers, which need those
     types in scope: included next to them (<code>{`[%%include_file]{:ocaml}`}</code>), or in the
     module of <code>{`[@@@ocaml_types "Lang_types"]{:kanon}`}</code>, which they open. They call the
     primitives in the module of <code>{`[@@@ocaml_prims "Lang_prims"]{:kanon}`}</code>, which they
@@ -1005,7 +1006,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <code>{`[@@@ocaml_prims]{:kanon}`}</code>, which the tests call once they open the rules.
   </p>
   <p id="destructors">
-    <strong>Destructors.</strong> The <code>ocaml</code> backend generates a destructor
+    <strong>Destructors.</strong> <code>rules.ml</code> has a destructor
     <code>as_foo</code> and a test <code>is_foo</code> for every node and every sort (not the kinds
     that Kanon builds). For the node <code>Foo</code>, <code>as_foo : t -> (args) option</code> gives
     its arguments, as a pattern would bind them: its parameters, then its operands (the list of an
@@ -1087,7 +1088,7 @@ let rec subst x e t =
       To leave a traversal early, the host raises its own exception.
     </li>
     <li>
-      They are OCaml only: nothing is generated for Lean, and <code>ocaml-typed</code> does not type
+      They are OCaml only: nothing is generated for Lean, and the typed interface does not type
       them.
       <a href="https://github.com/N1ark/kanon/tree/main/examples/traversals"><code>examples/traversals</code></a>
       has nodes with children of every shape; its OCaml is compiled and run by the tests. It has
@@ -1155,7 +1156,8 @@ let exists_child (f : t -> bool) (v : t) : bool =
 
   <Heading level={3} id="typed">Typed OCaml</Heading>
   <p>
-    <code>kanon ocaml-typed lang.knl rules.kn</code> generates the typed interface of the language.
+    <code>kanon ocaml</code> generates the typed interface of the language, in
+    <code>typed.ml</code>, for a language that names the module of its rules.
     The terms of the generated OCaml are all of one type, <code>t</code>: nothing stops
     <code>Bitvec.add</code> from being applied to a boolean, but for the assertions on its entry. In
     the typed interface a term is a <code>'a t</code>, where <code>'a</code> is a <em>tag</em>, a
@@ -1232,12 +1234,12 @@ end`}
           build from), has none. The parameters of a rule function have the types that it declares,
           which are those of the generated rules (a <code>nat</code> or an <code>int</code> is a
           <code>Z.t</code>), then come the operands, and the result. Types of the language are those
-          of <code>ocaml-types</code>, opened from <code>{`[@@@ocaml_types]{:kanon}`}</code>, or else
+          of <code>types.ml</code>, opened from <code>{`[@@@ocaml_types]{:kanon}`}</code>, or else
           in scope. The docs of the rule function or the node are carried onto the
           <code>val</code>;
         </li>
         <li>
-          the destructors of the <code>ocaml</code> backend (see <a href="#destructors">above</a>):
+          the destructors of <code>rules.ml</code> (see <a href="#destructors">above</a>):
           <code>as_foo : _ t -> (args) option</code>, whose operands are <code>[&gt; tag ] t</code>
           (the tags of the typing of <code>Foo</code>), and <code>is_foo : _ t -> bool</code>, for
           every node, and <code>as_tfoo</code>, <code>is_tfoo</code> for every sort (not subsort), on
@@ -1274,7 +1276,7 @@ end`}
     <li>
       <code>module Derived</code>, the implementation of <code>S</code>: <code>include Lang_rules</code>,
       the module that names <code>{`[@@@ocaml_rules "Lang_rules"]{:kanon}`}</code> (required: the
-      output of <code>kanon ocaml</code>), which already has the modules of <code>S</code> with
+      file <code>rules.ml</code> of <code>kanon ocaml</code>), which already has the modules of <code>S</code> with
       their functions, the functions of the sorts and the destructors under the same names, and the
       phantom types and the escape hatches, which are all that <code>Derived</code> adds. In
       <code>Derived</code>, <code>{`type 'a t = raw{:ocaml}`}</code> is visible, so that the rules
@@ -1323,7 +1325,7 @@ end`}
 
   <Heading level={3} id="tests">Tests</Heading>
   <p>
-    <code>kanon ocaml-tests</code> generates, for every rule function, its spec, a call to it and the
+    <code>tests.ml</code>, written by <code>kanon ocaml</code>, has, for every rule function, its spec, a call to it and the
     name of the rule that fires, from random arguments, to be compared by evaluation (Soteria's
     <code>soteria/tests/bv_rules/</code> does so for <code>Bv_values</code>). Every rule function is
     listed with its rules, qualified by its module, including one whose spec annotates the sort of an
@@ -1337,31 +1339,34 @@ end`}
     The Lean files (see <a href="proving.html#files">the files</a> of the guide for what each one
     holds) of each module are generated in the namespace <code>R</code> of its root (see
     <a href="#floating"><code>{`[@@@lean_root "R"]{:kanon}`}</code></a>), as the modules
-    <code>R.Generated.…</code> of a Lake library whose sources are in a directory <code>DIR</code>,
-    and so are those of the language, under its root. <code>kanon lean-all DIR lang.knl</code>
-    clears <code>DIR/R/Generated</code> and writes them there, as
-    <code>DIR/R/Generated/….lean</code> (see <a href="#write-all">Writing the files</a>);
-    <code>kanon lean-all --check DIR lang.knl</code> writes nothing, and fails if a file of
-    <code>Generated</code> is missing, differs or is stale. The hand-written files are beside
-    <code>Generated</code>, in <code>DIR/R</code> (<code>R.Sem</code>, <code>R.Proofs</code>…).
+    <code>Generated.R.…</code> of a Lake library whose sources are in a directory <code>DIR</code>,
+    and so are those of the language, under its root. <code>kanon lean DIR lang.knl</code>
+    clears <code>DIR/Generated/R</code> and writes them there, as
+    <code>DIR/Generated/R/….lean</code> (see <a href="#write-all">Writing the files</a>);
+    <code>kanon lean --check DIR lang.knl</code> writes nothing, and fails if a file of
+    <code>Generated/R</code> is missing, differs or is stale. The hand-written files are in
+    <code>DIR/R</code> (<code>R.Sem</code>, <code>R.Proofs</code>…), beside <code>DIR/Generated</code>.
+    A Lake library lists the globs of both: <code>{`globs = ["R.+", "Generated.R.+"]`}</code>.
     It does not write those of the bool module, which are in Kanon's library
     (<code>KanonBool</code>). A module uses the modules whose declarations it mentions and those it
-    <code>use</code>s, which must not use it. The files are, by part:
+    <code>use</code>s, which must not use it. The files are:
   </p>
   <table>
-    <thead><tr><th>Part (backend)</th><th>Files</th></tr></thead>
+    <thead><tr><th>Files</th><th>Hold</th></tr></thead>
     <tbody>
-      <tr><td><code>lean-types</code></td><td><code>Types.lean</code> of each module with data types</td></tr>
+      <tr><td><code>Types.lean</code></td><td>the data types of each module that has some</td></tr>
       <tr>
-        <td><code>lean-node</code>, <code>lean-lang</code></td>
+        <td><code>Node.lean</code>, <code>Lang.lean</code></td>
         <td>
-          <code>Node.lean</code> (its sorts <code>Srt</code> and nodes <code>Node T</code>) and
-          <code>Lang.lean</code> (their typing, the classes <code>Lang</code> and
-          <code>Typed</code>) of each module with nodes or sorts
+          its sorts <code>Srt</code> and nodes <code>Node T</code>, and their typing, the classes
+          <code>Lang</code> and <code>Typed</code>, of each module with nodes or sorts
         </td>
       </tr>
       <tr>
-        <td><code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code></td>
+        <td>
+          <code>Model.lean</code>, <code>Lift.lean</code>, <code>Statements/</code>,
+          <code>Soundness/</code>, <code>Soundness.lean</code>
+        </td>
         <td>
           <code>Model.lean</code> (<code>Ops</code>, the helpers, the specs, the rules,
           <code>Ops.Sound</code>), <code>Lift.lean</code> (the lifting lemmas),
@@ -1373,7 +1378,7 @@ end`}
         </td>
       </tr>
       <tr>
-        <td><code>lean-syntax</code>, <code>lean-semantics</code>, <code>lean-rules</code></td>
+        <td><code>Syntax.lean</code>, <code>Semantics.lean</code>, <code>Rules.lean</code></td>
         <td>
           <code>Syntax.lean</code> (<code>Ty</code> and <code>Term</code>),
           <code>Semantics.lean</code> (<code>WT</code>, <code>ev</code>, <code>sem</code> and the
@@ -1390,8 +1395,7 @@ end`}
     <code>Statements/M/f.lean</code>, and where an <code>{`@[kanon_arm]{:lean}`}</code> theorem replaces the
     default proof of its statement), when they exist; the language's <code>Semantics.lean</code>
     imports its <code>Val.lean</code>, and its <code>Rules.lean</code> its <code>Typing.lean</code>.
-    The backends, which do not see the files, print the files as if there were none. Their
-    conventions:
+    Their conventions:
   </p>
   <ul>
     <li>
@@ -1488,7 +1492,7 @@ end`}
       arguments of the call. The elements of a list of operands each satisfy it
       (<code>∀ y ∈ vs, P y</code>). One whose node has a subsort for its result must prove that what
       it returns, a rule or, when none fires, its spec, satisfies <code>P</code>:
-      <code>Generated/Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
+      <code>Generated/R/Statements/M/f.lean</code> states <code>f.r.arm.post.Stmt</code> for each arm and
       <code>f.spec_post.Stmt</code>, which <code>kanon_proof%</code> proves from a hand-written
       proof (<code>{`@[kanon_arm] theorem … : f.spec_post.Stmt{:lean}`}</code>) or the
       <code>kanon_tactic</code> of <code>f</code>, else <code>kanon_auto</code>; they are fields
@@ -1687,7 +1691,7 @@ prefix "not" = Not, Bool.not_`}
   <p>
     A <code>.kn</code> file is only meaningful in its language: the server checks a file with each
     <em>root</em> of the workspace that uses it, the <code>.knl</code> files that no other file uses
-    (e.g. <code>lang.knl</code>), as <code>kanon ocaml lang.knl</code>; a file that no root uses is
+    (e.g. <code>lang.knl</code>), as <code>kanon ocaml DIR lang.knl</code>; a file that no root uses is
     checked with the only root of its directory, or else alone. In Kanon's own repository,
     <code>modules/</code> stands for the built-in modules, so that they are checked with the
     languages that use them. The files of the workspace are found when it is opened (or a folder

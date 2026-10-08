@@ -78,16 +78,19 @@ global `tasks.json`, from `zed: open tasks`):
 [
   {
     "label": "kanon: generate the OCaml of $ZED_FILENAME",
-    "command": "kanon ocaml \"$ZED_FILE\" > \"$ZED_DIRNAME/rules.gen.ml\"",
+    "command": "kanon ocaml \"$ZED_DIRNAME/gen\" \"$ZED_FILE\"",
     "tags": ["kanon"]
   },
   {
-    "label": "kanon: generate the OCaml types of $ZED_FILENAME",
-    "command": "kanon ocaml-types \"$ZED_FILE\" > \"$ZED_DIRNAME/types.gen.ml\"",
+    "label": "kanon: generate the Lean of $ZED_FILENAME",
+    "command": "kanon lean \"$ZED_DIRNAME/lean\" \"$ZED_FILE\"",
     "tags": ["kanon"]
   }
 ]
 ```
+
+They write `gen/Generated` and `lean/Generated` next to the file, and delete
+them first.
 
 ## Layout
 

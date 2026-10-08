@@ -34,8 +34,9 @@ rule plus : Plus (v1, v2) =
 
 `[@fold]` and `[@unit]` give `plus` the rules that add two literals and drop a
 zero, and `assoc` is written by hand. With `lang.knl` containing `use "tiny"`,
-`kanon ocaml lang.knl` writes the OCaml of `plus` and `kanon lean-all DIR lang.knl`
-the Lean model with its statements, under `DIR`.
+`kanon ocaml DIR lang.knl` writes the OCaml of `plus` in `DIR/Generated`, and
+`kanon lean DIR lang.knl` the Lean model with its statements, in
+`DIR/Generated/R` (with another `DIR`: `kanon ocaml` deletes `DIR/Generated`).
 
 ## Build and use
 
@@ -45,20 +46,19 @@ Kanon needs OCaml >= 5.5 and dune (the dependencies are in `kanon.opam`):
 opam install . --deps-only --with-test
 dune build
 dune test
-dune exec -- kanon BACKEND FILE...
+dune exec -- kanon ocaml DIR FILE...
+dune exec -- kanon lean DIR FILE...
 ```
 
-`kanon BACKEND FILE...` reads the language that the files declare and writes
-the generated code on standard output. The backends are `ocaml-types`, `ocaml`,
-`ocaml-typed`, `ocaml-tests`, the Lean files of the modules (`lean-types`,
-`lean-node`, `lean-lang`, `lean-model`, `lean-statements`, `lean-soundness`) and
-of the language (`lean-syntax`, `lean-semantics`, `lean-rules`);
-`kanon lean-all DIR FILE...` writes the Lean files under `DIR`, in a `Generated`
-directory per Lean root, and `kanon ocaml-all DIR FILE...` the OCaml files in
-`DIR/Generated`; both clear their `Generated` directories first, and `--check`
-only checks them. `kanon lsp` runs the language server and
-`kanon --version` prints the version. The Lean proofs build with `lake`, from
-`lean/` (Kanon's Lean library) and from the `lean/` directory of an example.
+`kanon ocaml DIR FILE...` reads the language that the files declare, and writes
+its OCaml in `DIR/Generated`: the types, the rules, the typed interface and the
+tests. `kanon lean DIR FILE...` writes its Lean files in `DIR/Generated/R`, for
+each Lean root `R`, and the hand-written files of the proofs are in `DIR/R`.
+Both delete the directories that they write first, and nothing else. With
+`--check`, they only check that those directories are up to date. `kanon lsp`
+runs the language server and `kanon --version` prints the version. The Lean
+proofs build with `lake`, from `lean/` (Kanon's Lean library) and from the
+`lean/` directory of an example.
 
 ## Documentation
 
@@ -72,7 +72,7 @@ The manual is the [site](https://n1ark.github.io/kanon/):
 - the [Guide to proofs](https://n1ark.github.io/kanon/proving.html): how to
   prove the Lean statements of a language, on `examples/ints/`;
 - the [Sandbox](https://n1ark.github.io/kanon/sandbox.html): Kanon in the
-  browser, with its language server and the output of every backend.
+  browser, with its language server and every part of the generated code.
 
 The sources of the site are in `site/src` (`reference/`, `proving/`,
 `tutorial/`): that is where the documentation is written.

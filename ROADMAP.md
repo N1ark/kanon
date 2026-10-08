@@ -10,7 +10,7 @@ types, `Types.lean` and `Syntax.lean`, with the Kanon names, and the typing of
 the operators, `Typing.lean`, from sort annotations on their constructors;
 `Term.WT` remains hand-written), B3 (`Binop.Comm` is generated from `[@comm]`;
 `evBinop_comm` remains the hand-written obligation), A1 for the Lean files
-(`kanon lean-all` generates them in one run), and A2–A4 (`kanon_tactic` and
+(`kanon lean` generates them in one run), and A2–A4 (`kanon_tactic` and
 `kanon_arm` attributes, and arms named after their choices, with `main` for an
 arm without any), and A6 without `Oracle.Compat` (the generated code checks the
 types of the primitives, in OCaml with a signature constraint that leaves

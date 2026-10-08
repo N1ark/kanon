@@ -120,7 +120,7 @@ notation Int`}
     <code>op1</code> and <code>op2</code>, under the constructors
     <code>{`Op1 of op1 * t{:ocaml}`}</code> and <code>{`Op2 of op2 * t * t{:ocaml}`}</code>. Rules
     never name these: they write <code>{`And (a, b){:kanon}`}</code>. This is enough for the
-    backends that only need the declarations: the OCaml types (<code>ocaml-types</code>), and the
+    files that only need the declarations: the OCaml types (<code>types.ml</code>), and the
     Lean types and syntax.
   </p>
   <Example id="declare" ocaml="ocaml-types" lean="lean-node" />
@@ -434,7 +434,7 @@ node Sq1 : TInt -> TNonzero`}
   <p>
     The generated OCaml functions take and return terms of one type, <code>t</code>: nothing stops
     <code>plus</code> from being applied to a boolean (the assertions on entry catch it at run
-    time). <code>ocaml-typed</code> generates a <em>typed interface</em> of the smart constructors
+    time). <code>typed.ml</code> is a <em>typed interface</em> of the smart constructors
     instead, where a term is a <code>'a t</code>: its parameter is a <em>tag</em>, a polymorphic
     variant that says what Kanon knows of the term, and the OCaml compiler rejects the ill-kinded
     calls. The tag of a term is that of its sort, which Kanon generates, and a
@@ -567,11 +567,11 @@ node Fill of int : TArray n`}
 
   <Heading level={2} id="generated">What Kanon generates</Heading>
   <p>
-    <code>kanon BACKEND FILE...</code> reads the language declared by the files, usually its one
-    <code>.knl</code> file, and writes on standard output:
+    <code>kanon ocaml DIR FILE...</code> reads the language declared by the files, usually its one
+    <code>.knl</code> file, and writes in <code>DIR/Generated</code>:
   </p>
   <dl>
-    <dt><code>ocaml-types</code></dt>
+    <dt><code>types.ml</code></dt>
     <dd>
       the types of the language and its terms, hash-consed records
       <code>{`{ kind; ty; tag }{:ocaml}`}</code> (<code>kind</code> has the leaves and the
@@ -579,7 +579,7 @@ node Fill of int : TArray n`}
       standalone OCaml file that only needs Zarith. Its table of hash-consing is not safe to use
       from several OCaml 5 domains at once (a known limitation);
     </dd>
-    <dt><code>ocaml</code></dt>
+    <dt><code>rules.ml</code></dt>
     <dd>
       the rule functions and helpers, which call the primitives in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>. They need the types in scope: included next to them
@@ -587,35 +587,28 @@ node Fill of int : TArray n`}
       <code>{`[%%include_file "rules.gen.ml"]{:ocaml}`}</code>), or in the module of
       <code>{`[@@@ocaml_types "M"]{:kanon}`}</code>, which they open;
     </dd>
-    <dt><code>ocaml-typed</code></dt>
+    <dt><code>typed.ml</code></dt>
     <dd>
       the typed interface of the smart constructors, typed by the tags of the sorts and subsorts
       (see <a href="#typed">The typed interface</a>): the tags in <code>Tag</code>, the signature
       <code>S</code> with a module per file, and <code>Derived</code>, which implements it with
-      the rules (the module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>);
+      the rules (the module of <code>{`[@@@ocaml_rules]{:kanon}`}</code>, which the file needs);
     </dd>
-    <dt><code>ocaml-tests</code></dt>
+    <dt><code>tests.ml</code></dt>
     <dd>
       for every rule function, its spec, a call to it and the name of the rule that fires, from
-      random arguments, to be compared by evaluation;
-    </dd>
-    <dt>
-      <code>lean-types</code>, <code>lean-node</code>, <code>lean-lang</code>,
-      <code>lean-model</code>, <code>lean-statements</code>, <code>lean-soundness</code>,
-      <code>lean-syntax</code>, <code>lean-semantics</code>, <code>lean-rules</code>
-    </dt>
-    <dd>
-      the generated Lean files (below), one after the other when a part has several (one per
-      module); <code>kanon lean-all DIR</code> writes all of them under <code>DIR</code>, and
-      <code>kanon ocaml-all DIR</code> the four OCaml outputs above in <code>DIR/Generated</code>
-      (each clears its <code>Generated</code> directory first, and <code>--check</code> only checks
-      it).
+      random arguments, to be compared by evaluation.
     </dd>
   </dl>
   <p>
+    <code>kanon lean DIR FILE...</code> writes the Lean files (below) of each module and of the
+    language under <code>DIR/Generated/R</code>. Both commands clear what they write first, and
+    <code>--check</code> only checks it.
+  </p>
+  <p>
     The generated OCaml asserts the sorts of the operands on entry to each rule function (compiled
     out with <code>-noassert</code>), and puts the operands of commutative operators in the
-    hash-consing order. The <a href="sandbox.html">sandbox</a> shows every backend on your own
+    hash-consing order. The <a href="sandbox.html">sandbox</a> shows every part of the generated code on your own
     files.
   </p>
 
@@ -623,9 +616,9 @@ node Fill of int : TArray n`}
   <p>
     Each module is proved once, for every language that has it: its Lean files are generated in
     the namespace of its root, <code>{`[@@@lean_root "R"]{:kanon}`}</code> (under the root of the
-    language by default), and <code>kanon lean-all DIR lang.knl</code> writes them in
-    <code>DIR/R/Generated</code>, which it clears first (everything in a <code>Generated</code>
-    directory is generated, and the files written by hand are beside it, in <code>DIR/R</code>):
+    language by default), and <code>kanon lean DIR lang.knl</code> writes them in
+    <code>DIR/Generated/R</code>, which it clears first (everything in <code>Generated</code>
+    is generated, and the files written by hand are in <code>DIR/R</code>):
   </p>
   <ul>
     <li>
