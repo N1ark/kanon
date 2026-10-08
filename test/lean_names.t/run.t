@@ -437,3 +437,24 @@ a `let` variable, a pattern variable or a local function:
   $ printf 'fn f (x : int) : int = let decide (y : int) : int = y in if x < 3 then decide 1 else 2\n' > rules26.kn
   $ kanon lean-model lang26.knl 2>&1 | head -1
   ./rules26.kn:1:0: the variable decide of the function Rules26.f: not supported in Lean
+
+A recursive function decreases on the first parameter that it matches, which
+its recursive calls must replace by a smaller one that the match binds. Lean
+fails on the other shapes of recursion, with a message about termination, so
+they are rejected:
+
+  $ printf 'use "rules27"\nsort TInt\nnode Int of int : TInt\n' > lang27.knl
+  $ cat > shapes.txt <<'KN'
+  > fn f (n : int) : int = if n = 0 then 0 else f (n - 1)
+  > fn f (n : int) : int = match n with | 0 -> 0 | _ -> f (n - 1)
+  > fn f (b : bool) (l : int list) : int = match b, l with | true, [] -> 0 | _, _ :: t -> f false t | false, [] -> 1
+  > fn f (l : int list) (m : int list) : int = match l, m with | [], _ -> 0 | _ :: t, _ -> f l t
+  > KN
+  $ while read -r line; do
+  >   echo "$line" > rules27.kn
+  >   kanon lean-model lang27.knl 2>&1 | head -1
+  > done < shapes.txt
+  ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean
+  ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean
+  ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean
+  ./rules27.kn:1:0: the recursive function Rules27.f, which must match first on a term, list, option or data value that its calls shrink: not supported in Lean
