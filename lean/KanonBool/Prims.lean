@@ -1,4 +1,4 @@
-import KanonBool.Lang
+import KanonBool.Generated.Lang
 
 /-!
 # The primitives of the bool module, and what its rules assume

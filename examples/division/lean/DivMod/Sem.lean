@@ -1,4 +1,4 @@
-import DivMod.Node
+import DivMod.Generated.Node
 import KanonCore.Embed
 import KanonCore.ProofAttr
 

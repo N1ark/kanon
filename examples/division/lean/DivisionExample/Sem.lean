@@ -1,4 +1,4 @@
-import DivisionExample.Node
+import DivisionExample.Generated.Node
 import KanonCore.Embed
 
 /-!

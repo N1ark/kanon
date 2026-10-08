@@ -1,4 +1,4 @@
-import WordMod.Lang
+import WordMod.Generated.Lang
 
 /-!
 # What the rules of the word module assume of its oracles

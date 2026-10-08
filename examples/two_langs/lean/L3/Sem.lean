@@ -1,4 +1,4 @@
-import L3.Node
+import L3.Generated.Node
 import KanonCore.Embed
 
 /-!

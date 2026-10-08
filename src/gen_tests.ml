@@ -107,7 +107,7 @@ let rule_fn ctx ft (f : fn) (spec : expr) draws =
     f.params;
   pf ft "fired = (fun () -> %a);@]@ })@]" (fired ctx) f.body
 
-let program ~sources ft (p : program) =
+let program ?open_module ~sources ft (p : program) =
   Gen_ocaml.check_prims p;
   let consts =
     List.concat_map
@@ -130,6 +130,7 @@ let program ~sources ft (p : program) =
     List.partition (fun f -> List.for_all Option.is_some (drawable f)) rules
   in
   Gen_ocaml.header ~sources ft;
+  Option.iter (pf ft "open %s@ @ ") open_module;
   pf ft
     "@[<v 2>type source = {@ int : unit -> Z.t;@ bool : unit -> bool;@ term : \
      unit -> t;@ terms : unit -> t list;@ choose : int -> int;@]@ }@ @ ";

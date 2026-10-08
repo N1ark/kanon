@@ -1,4 +1,4 @@
-import ArraysExample.Syntax
+import ArraysExample.Generated.Syntax
 import ArraysExample.Vec.Sem
 
 /-!

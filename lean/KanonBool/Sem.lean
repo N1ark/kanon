@@ -1,4 +1,4 @@
-import KanonBool.Node
+import KanonBool.Generated.Node
 import KanonCore.Embed
 import KanonCore.ProofAttr
 

@@ -1,1 +1,1 @@
-import ArraysExample.Rules
+import ArraysExample.Generated.Rules

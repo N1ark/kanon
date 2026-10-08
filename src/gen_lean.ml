@@ -2,34 +2,39 @@
 
     Every module (a [.knl] file and its [.kn] file) is modelled and proved once,
     for every language that uses it, under its root [R] ([[@@@lean_root "R"]],
-    or else [L.M] for the module [M] of a language of root [L]):
+    or else [L.M] for the module [M] of a language of root [L]). Kanon writes
+    the files that it generates in the directory [R/Generated], which it clears,
+    and nothing else; the hand-written files are beside it, in [R]:
 
-    - [R/Types.lean]: its data types;
-    - [R/Node.lean]: its sorts [R.Srt] and its nodes [R.Node T], over the terms
-      [T] of a language, with [Node.map], [Node.All] and [Node.Rel];
+    - [R/Generated/Types.lean]: its data types;
+    - [R/Generated/Node.lean]: its sorts [R.Srt] and its nodes [R.Node T], over
+      the terms [T] of a language, with [Node.map], [Node.All] and [Node.Rel];
     - [R/Sem.lean], by hand: the values it needs of a language ([R.Values]), the
       meaning of its nodes ([R.Node.eval]) and its primitives;
-    - [R/Lang.lean]: the typing of its nodes ([Node.wt]), and what the module
-      needs of a language [S] ([R.Lang S]: its nodes and sorts embedded in the
-      terms and types of [S], typed and evaluated as the module says);
+    - [R/Generated/Lang.lean]: the typing of its nodes ([Node.wt]), and what the
+      module needs of a language [S] ([R.Lang S]: its nodes and sorts embedded
+      in the terms and types of [S], typed and evaluated as the module says);
     - [R/Prims.lean], by hand: the primitives over terms and sorts, the
       predicates of its subsorts, what its oracles satisfy and what its
       extensible helpers satisfy;
-    - [R/Model.lean]: its rule functions, oracles and extensible helpers as the
-      record [R.Ops S], its specs, helpers and rules;
-    - [R/Lift.lean]: the lifting lemmas;
-    - [R/Statements/Comm.lean]: the commutativity of its operators, and
-      [R/Statements/M/f.lean]: the statements of the arms of the function [M.f];
+    - [R/Generated/Model.lean]: its rule functions, oracles and extensible
+      helpers as the record [R.Ops S], its specs, helpers and rules;
+    - [R/Generated/Lift.lean]: the lifting lemmas;
+    - [R/Generated/Statements/Comm.lean]: the commutativity of its operators,
+      and [R/Generated/Statements/M/f.lean]: the statements of the arms of the
+      function [M.f];
     - [R/Proofs.lean], by hand: the proofs that the tactics do not find;
-    - [R/Soundness/Comm.lean] and [R/Soundness/M/f.lean]: their proofs, and
-      those of the rules of [M.f], and [R/Soundness.lean], which imports them.
+    - [R/Generated/Soundness/Comm.lean] and [R/Generated/Soundness/M/f.lean]:
+      their proofs, and those of the rules of [M.f], and
+      [R/Generated/Soundness.lean], which imports them.
 
-    A language of root [L] ties the knot: [L/Syntax.lean] (its sorts [Ty] and
-    terms [Term], a case per module), [L/Val.lean] (by hand: its values and the
-    instances of the [Values] of its modules), [L/Semantics.lean] (typing,
-    evaluation, and the instances of the [Lang] of its modules, by [rfl]) and
-    [L/Rules.lean] (its rule functions, from the rules of every module, and the
-    proof that they are sound). *)
+    A language of root [L] ties the knot: [L/Generated/Syntax.lean] (its sorts
+    [Ty] and terms [Term], a case per module), [L/Val.lean] (by hand: its values
+    and the instances of the [Values] of its modules),
+    [L/Generated/Semantics.lean] (typing, evaluation, and the instances of the
+    [Lang] of its modules, by [rfl]) and [L/Generated/Rules.lean] (its rule
+    functions, from the rules of every module, and the proof that they are
+    sound). *)
 
 open Syntax
 
@@ -1687,31 +1692,46 @@ let arm_name f r arms i =
 (* ---------------------------------------------------------------- *)
 (* Files *)
 
-(** A generated Lean file: the root of its module and its path under it
-    ([["Model"]] for [R.Model]), and its contents. *)
+(** A generated Lean file: the root of its module and its path under the
+    generated directory of the root ([["Model"]] for [R.Generated.Model]), and
+    its contents. *)
 type file = {
   froot : string;
   path : string list;
   contents : Format.formatter -> unit;
 }
 
-(** The path of the file of the module at [path] under the root [r], relative to
-    the directory of the root. *)
-let file_name_at r path =
+(** The directory of the root [r] that holds every file that kanon generates for
+    it, and only those: the hand-written files of [r] are beside it. *)
+let generated = "Generated"
+
+(** The directory of the generated files of the root [r], relative to the output
+    directory. *)
+let generated_dir r =
+  String.concat "/" (String.split_on_char '.' r @ [ generated ])
+
+(** The path of a generated file, relative to the output directory. *)
+let file_name (f : file) =
+  generated_dir f.froot ^ "/" ^ String.concat "/" f.path ^ ".lean"
+
+(** The path of the hand-written file at [path] under the root [r], relative to
+    the output directory. *)
+let hand_file_name r path =
   String.concat "/" (String.split_on_char '.' r @ path) ^ ".lean"
 
-(** The path of a generated file, relative to the directory of its root. *)
-let file_name (f : file) = file_name_at f.froot f.path
+(** The Lean module of the generated file at [path] under the root [r]. *)
+let generated_module r path =
+  String.concat "." (r :: generated :: List.map id path)
 
-(** The Lean module of the file at [path] under the root [r]. *)
-let lean_module r path = String.concat "." (r :: List.map id path)
+(** The Lean module of the hand-written file at [path] under the root [r]. *)
+let hand_module r path = String.concat "." (r :: List.map id path)
 
-(** Whether the hand-written file at [path] under the root [r] exists (given by
-    the command line). *)
+(** Whether the hand-written file at [path] under the root [r] exists, beside
+    the generated directory (given by the command line). *)
 let has_file : (string -> string list -> bool) ref = ref (fun _ _ -> false)
 
-(** The file at [path] under the root [r], from [sources], that imports
-    [imports] and has [body] in the namespace [r]. *)
+(** The file at [path] under the generated directory of the root [r], from
+    [sources], that imports [imports] and has [body] in the namespace [r]. *)
 let lean_file ~sources r path imports body =
   {
     froot = r;
@@ -2203,9 +2223,10 @@ let is_ident s =
          | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false)
        s
 
-(** The roots of the modules that are generated are Lean names, and none is that
-    of a library. The library of the bool module is [KanonBool], when it is
-    generated ([module_only]). *)
+(** The roots of the modules that are generated are Lean names, none is that of
+    a library, and none has a part called [Generated], the directory of the
+    generated files of its prefix. The library of the bool module is
+    [KanonBool], when it is generated ([module_only]). *)
 let check_roots ~module_only =
   List.iter
     (fun m ->
@@ -2218,6 +2239,7 @@ let check_roots ~module_only =
           r m
       in
       if not (List.for_all is_ident parts) then fail "is not a Lean name"
+      else if List.mem "Generated" parts then fail "has a part called Generated"
       else if
         List.mem (List.hd parts) reserved_roots
         && not (module_only && List.mem m !builtin_modules)
@@ -2310,7 +2332,7 @@ let types_imports ms =
   List.concat_map
     (fun m ->
       let r = module_root m in
-      (if has_types m then [ r ^ ".Types" ] else [])
+      (if has_types m then [ generated_module r [ "Types" ] ] else [])
       @ if has_hand_types m then [ r ^ ".Abstract" ] else [])
     ms
 
@@ -2817,8 +2839,8 @@ let lang_file ctx (p : program) m =
   let nodes = module_nodes m and sorts = module_sorts m in
   let deps = List.filter (( <> ) m) (lang_mods m) in
   lean_file ~sources:(module_sources m) r [ "Lang" ]
-    ([ r ^ ".Node"; r ^ ".Sem"; "KanonCore.Proof" ]
-    @ List.map (fun d -> module_root d ^ ".Lang") deps)
+    ([ generated_module r [ "Node" ]; r ^ ".Sem"; "KanonCore.Proof" ]
+    @ List.map (fun d -> generated_module (module_root d) [ "Lang" ]) deps)
   @@ fun ft ->
   let sparams = List.map sort_param (sort_mods m) in
   (* the typing *)
@@ -3217,10 +3239,10 @@ let model_file ctx (p : program) m =
   let oracles = module_oracles ctx m in
   let exts = module_fns ctx m [ Ext ] in
   let imports =
-    (if has_lang m then [ r ^ ".Lang" ] else [])
+    (if has_lang m then [ generated_module r [ "Lang" ] ] else [])
     @ (if !has_file r [ "Sem" ] then [ r ^ ".Sem" ] else [])
     @ (if !has_file r [ "Prims" ] then [ r ^ ".Prims" ] else [])
-    @ List.map (fun d -> module_root d ^ ".Model") parents
+    @ List.map (fun d -> generated_module (module_root d) [ "Model" ]) parents
     @ types_imports (closure m)
     @ [ "KanonCore.Model"; "KanonCore.Attr"; "KanonCore.Embed" ]
     @ if has_lang m || parents <> [] then [] else [ "KanonCore.ProofAttr" ]
@@ -3470,8 +3492,10 @@ let fn_path dir (f : fn) = dir :: String.split_on_char '.' f.name
 let lift_file ctx m =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r [ "Lift" ]
-    ([ r ^ ".Model"; "KanonCore.Proof" ]
-    @ List.map (fun d -> module_root d ^ ".Lift") (ops_parents m))
+    ([ generated_module r [ "Model" ]; "KanonCore.Proof" ]
+    @ List.map
+        (fun d -> generated_module (module_root d) [ "Lift" ])
+        (ops_parents m))
   @@ fun ft ->
   with_self m @@ fun () ->
   let lifted = visible_rules ctx m in
@@ -3555,7 +3579,7 @@ let lift_file ctx m =
 let comm_statements_file m =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r [ "Statements"; "Comm" ]
-    [ r ^ ".Lift" ]
+    [ generated_module r [ "Lift" ] ]
   @@ fun ft ->
   with_self m @@ fun () ->
   List.iter
@@ -3579,7 +3603,7 @@ let comm_statements_file m =
 let fn_statements_file ctx m (f : fn) =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r (fn_path "Statements" f)
-    [ r ^ ".Lift" ]
+    [ generated_module r [ "Lift" ] ]
   @@ fun ft ->
   with_self m @@ fun () ->
   if fn_kind ctx f.name = Rule then (
@@ -3704,11 +3728,11 @@ let proof_imports files ctx m =
   let r = module_root m in
   List.concat_map
     (function
-      | Some p -> [ lean_module r ("Proofs" :: String.split_on_char '/' p) ]
+      | Some p -> [ hand_module r ("Proofs" :: String.split_on_char '/' p) ]
       | None -> if !has_file r [ "Proofs" ] then [ r ^ ".Proofs" ] else [])
     (List.sort_uniq compare files)
   @ List.map
-      (fun d -> lean_module (module_root d) [ "Soundness"; "Comm" ])
+      (fun d -> generated_module (module_root d) [ "Soundness"; "Comm" ])
       (List.filter
          (fun d -> module_comm d <> [] && has_model ctx d)
          (closure m))
@@ -3718,9 +3742,9 @@ let proof_imports files ctx m =
 let comm_soundness_file ctx m =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r [ "Soundness"; "Comm" ]
-    ((r ^ ".Statements.Comm")
+    (generated_module r [ "Statements"; "Comm" ]
     :: List.filter
-         (( <> ) (r ^ ".Soundness.Comm"))
+         (( <> ) (generated_module r [ "Soundness"; "Comm" ]))
          (proof_imports
             (List.map
                (fun n -> List.assoc_opt n.gc.c_name !lang.lean_comm_proofs)
@@ -3741,7 +3765,7 @@ let comm_soundness_file ctx m =
 let fn_soundness_file ctx m (f : fn) =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r (fn_path "Soundness" f)
-    (lean_module r (fn_path "Statements" f)
+    (generated_module r (fn_path "Statements" f)
     :: proof_imports
          ((if module_of_name f.name = Some m then [ f.lean_proofs ] else [])
          @ List.filter_map
@@ -3818,10 +3842,12 @@ let fn_soundness_file ctx m (f : fn) =
 let soundness_file ctx m =
   let r = module_root m in
   lean_file ~sources:(module_sources m) r [ "Soundness" ]
-    (((r ^ ".Lift")
-     :: (if module_comm m <> [] then [ r ^ ".Soundness.Comm" ] else []))
+    ((generated_module r [ "Lift" ]
+     ::
+     (if module_comm m <> [] then [ generated_module r [ "Soundness"; "Comm" ] ]
+      else []))
     @ List.map
-        (fun f -> lean_module r (fn_path "Soundness" f))
+        (fun f -> generated_module r (fn_path "Soundness" f))
         (module_proved_fns ctx m))
   @@ fun _ -> ()
 
@@ -3841,7 +3867,9 @@ let syntax_file ~sources ms =
   let r = lang_root () in
   let sorted = List.filter has_sorts ms and noded = List.filter has_nodes ms in
   lean_file ~sources r [ "Syntax" ]
-    (List.map (fun m -> module_root m ^ ".Node") (List.filter has_lang ms))
+    (List.map
+       (fun m -> generated_module (module_root m) [ "Node" ])
+       (List.filter has_lang ms))
   @@ fun ft ->
   pf ft "/-- The sorts of the language: those of its modules. -/@ ";
   pf ft "@[<v 2>inductive Ty where";
@@ -3904,7 +3932,8 @@ let semantics_file ~sources (p : program) ms =
       "the module List: its functions allList and evList are those of the \
        lists of children";
   lean_file ~sources r [ "Semantics" ]
-    ((r ^ ".Val") :: List.map (fun m -> module_root m ^ ".Lang") langs)
+    ((r ^ ".Val")
+    :: List.map (fun m -> generated_module (module_root m) [ "Lang" ]) langs)
   @@ fun ft ->
   with_tys ~ty:"Ty" "Term" @@ fun () ->
   let all m = "all" ^ m and evm m = "ev" ^ m in
@@ -4220,9 +4249,11 @@ let rules_file ~sources ctx ms =
   let root = lang_top models in
   let ops = module_root root ^ ".Ops" in
   lean_file ~sources r [ "Rules" ]
-    (((r ^ ".Semantics")
+    ((generated_module r [ "Semantics" ]
      :: (if !has_file r [ "Typing" ] then [ r ^ ".Typing" ] else []))
-    @ List.map (fun m -> module_root m ^ ".Soundness") models)
+    @ List.map
+        (fun m -> generated_module (module_root m) [ "Soundness" ])
+        models)
   @@ fun ft ->
   term_ty := "Term";
   sort_ty := "Ty";

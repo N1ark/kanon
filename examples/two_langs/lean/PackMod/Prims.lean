@@ -1,4 +1,4 @@
-import PackMod.Lang
+import PackMod.Generated.Lang
 
 /-!
 # What the rules of the pack module need of a language

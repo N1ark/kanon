@@ -1,4 +1,4 @@
-import IntMod.Node
+import IntMod.Generated.Node
 import KanonBool.Sem
 
 /-!

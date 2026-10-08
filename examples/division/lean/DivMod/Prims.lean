@@ -1,4 +1,4 @@
-import DivMod.Lang
+import DivMod.Generated.Lang
 
 /-!
 # The meaning of the subsort `TNonzero`

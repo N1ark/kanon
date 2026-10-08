@@ -1,1 +1,1 @@
-import IntsExample.Rules
+import IntsExample.Generated.Rules

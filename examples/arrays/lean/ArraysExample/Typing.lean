@@ -1,4 +1,4 @@
-import ArraysExample.Semantics
+import ArraysExample.Generated.Semantics
 
 /-!
 # The values of the sorts

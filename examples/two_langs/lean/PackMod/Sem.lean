@@ -1,4 +1,4 @@
-import PackMod.Node
+import PackMod.Generated.Node
 import KanonBool.Sem
 
 /-!

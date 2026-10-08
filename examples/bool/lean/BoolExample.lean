@@ -1,1 +1,1 @@
-import BoolExample.Rules
+import BoolExample.Generated.Rules

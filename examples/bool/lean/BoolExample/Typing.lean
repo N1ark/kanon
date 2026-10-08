@@ -1,4 +1,4 @@
-import BoolExample.Semantics
+import BoolExample.Generated.Semantics
 
 /-!
 # The values of the sorts

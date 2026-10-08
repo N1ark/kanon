@@ -1,4 +1,4 @@
-import IntsExample.Node
+import IntsExample.Generated.Node
 import KanonCore.Embed
 
 /-!

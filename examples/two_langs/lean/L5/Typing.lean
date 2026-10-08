@@ -1,4 +1,4 @@
-import L5.Semantics
+import L5.Generated.Semantics
 import PackMod.Prims
 
 /-!

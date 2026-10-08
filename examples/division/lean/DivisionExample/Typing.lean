@@ -1,4 +1,4 @@
-import DivisionExample.Semantics
+import DivisionExample.Generated.Semantics
 
 /-!
 # The values of the sorts
