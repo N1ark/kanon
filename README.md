@@ -1,3 +1,5 @@
+<img src="site/public/favicon.svg" alt="" width="96" height="96" align="right" />
+
 # Kanon
 
 Kanon is a rule language for the simplifying smart constructors of a *value

@@ -25,7 +25,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.8",
     "@lezer/highlight": "^1.2.1",
-    "purr": "github:N1ark/purr#v0.4.0",
+    "purr": "github:N1ark/purr#v0.6.0",
     "svelte": "^5.57.1",
     "web-tree-sitter": "0.25.10"
   },

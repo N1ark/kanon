@@ -31,7 +31,7 @@
 </script>
 
 <header class="bar">
-  <a class="brand" href="./">Kanon</a>
+  <a class="brand" href="./"><span class="mark" aria-hidden="true" style:--mark="url(favicon.svg)"></span>Kanon</a>
   <nav aria-label="Site">
     <Segmented
       label="Page"
@@ -70,12 +70,22 @@
     background: var(--bg2);
   }
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-2);
     padding: 0 var(--sp-2);
     font-size: var(--fs-xl);
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--theme2);
     text-decoration: none;
+  }
+  /* The mark as a mask, so it takes the theme's colour rather than the system's. */
+  .mark {
+    width: 1.2em;
+    height: 1.2em;
+    background: currentColor;
+    mask: var(--mark) center / contain no-repeat;
   }
   .status {
     display: flex;
