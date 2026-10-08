@@ -56,7 +56,7 @@ Lean: the sort is the translated expression.
   99:  (Kanon.mk (.Var x) s)
   102:  (Kanon.mk (.Var x) (Kanon.Rules.var_ty x))
   105:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.field_ty v i))
-  108:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.nth_ty (Kanon.Rules.Rules.types_of (v :: [])) i))
+  108:  (Kanon.mk (.Field i v) (Kanon.Rules.Rules.nth_ty (Kanon.Rules.Rules.types_of (v :: ([] : (List S.Term)))) i))
   119:  (Kanon.mk (.Proj i v) (Kanon.sort .TInt))
   127:    (whenSome true ((Kanon.mk (.Proj i v) (Kanon.Rules.Rules.field_ty v i)))))
 

@@ -39,7 +39,7 @@ def Vec.elements (v : S.Term) : (List Int) :=
                  | some (.Vec a) =>
                  some ((Array.toList a))
                  | _ => none)]).getD
-    (match v with | _ => []))
+    (match v with | _ => ([] : (List Int))))
 
 attribute [kanon_body] Vec.in_bounds Vec.same Vec.of_list Vec.elements
 

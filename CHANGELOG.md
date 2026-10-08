@@ -127,6 +127,7 @@
 - Lean rejects recursions that do not shrink a matched parameter.
 - A copy of the bool module may have the root `KanonBool`.
 - `<>` on terms generates valid OCaml.
+- Lean writes `None`, `[]` and `[||]` with their type.
 
 ## 0.3.0 (2026-10-04)
 

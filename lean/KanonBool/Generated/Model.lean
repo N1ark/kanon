@@ -50,7 +50,7 @@ def Bool.distinct_check_one (O : Ops S) (a : S.Term) (rest : (List S.Term)) : (O
             then (some false)
             else (if (O.bool_sure_neq a b)
                  then (KanonBool.Bool.distinct_check_one O a rest)
-                 else none)))
+                 else (none : (Option Bool)))))
       | _ => none)]).getD
     Inhabited.default)
 termination_by sizeOf rest

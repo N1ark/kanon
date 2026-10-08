@@ -975,9 +975,10 @@ let rec expr ctx ft (e : expr) =
   | EMatch (scruts, cases) -> match_ ctx ft (scruts, cases)
   | ETuple l -> pf ft "(%a)" (list expr) l
   | ESome e -> pf ft "(some %a)" expr e
-  | ENone -> pf ft "none"
-  | ENil -> pf ft "[]"
+  | ENone -> pf ft "(none : %a)" lean_ty e.ety
+  | ENil -> pf ft "([] : %a)" lean_ty e.ety
   | ECons (h, t) -> pf ft "(%a :: %a)" expr h expr t
+  | EArray [] -> pf ft "(#[] : %a)" lean_ty e.ety
   | EArray l -> pf ft "#[%a]" (list expr) l
   | ERecord fs ->
       let d = decl_of_ty e.ety in
