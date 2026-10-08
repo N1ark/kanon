@@ -1335,6 +1335,14 @@ end`}
       language are a node of a module at a sort (<code>{`.int (.Plus a b) t{:lean}`}</code>).
     </li>
     <li>
+      In the typing of a node (<code>Node.wt</code>), a variable that is the <code>nat</code>
+      argument of a sort (<code>n</code> in <code>{`TBitVector n{:kanon}`}</code>) is a width, which Lean
+      requires to be positive: <code>{`∃ n : Int, 0 < n ∧ …{:lean}`}</code>, or <code>0 &lt; n</code>
+      for an argument of the node, unless the <code>when</code> condition of the typing mentions
+      it. The proofs are then about terms of positive widths only, and say nothing of a width of
+      zero, which nothing in the OCaml rules out.
+    </li>
+    <li>
       Functions are in the namespace of their module (see <a href="#names">Names and modules</a>): the
       function <code>add</code> of <code>Bitvec</code> is <code>R.Bitvec.add</code>, its rules
       <code>Bitvec.add.r_zero</code>, its spec <code>Bitvec.add.spec</code> and, in the language, its
