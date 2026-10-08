@@ -388,3 +388,24 @@ The names of the language are also those of a module that has rule functions
   $ echo 'fn f (x : int) : int = x' > m.kn
   $ kanon lean-types lang22.knl 2>&1 | head -1
   ./m.knl:1:5: the type term, whose Lean name Term is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+
+The proof of an arm that commutativity derives from another one introduces the
+hypothesis on the model and the one on the guard under names of its own, so
+that pattern variables may be named `hO` and `hg`:
+
+  $ cat > lang25.knl <<'KN'
+  > use "rules25"
+  > sort TInt
+  > node Int of int : TInt
+  > node Neg : TInt -> TInt
+  > node Plus : TInt -> TInt -> TInt [@comm]
+  > notation Int
+  > infix "+" = Plus, plus
+  > KN
+  $ cat > rules25.kn <<'KN'
+  > rule plus : Plus (v1, v2) =
+  >   | unit: Neg hO + Int hg when hg = 0 -> Neg hO
+  > KN
+  $ kanon lean-soundness lang25.knl | grep "intro S\|ok O kanon"
+    intro S _ _ O kanon__hO hg t__5 hO t__3 kanon__hg
+      (Rules25.plus.r_unit.main.ok O kanon__hO hO t__3 hg t__5 kanon__hg)
