@@ -704,9 +704,14 @@ let no_shadow env loc x =
     error loc "%s shadows a global function" x;
   if List.mem_assoc x !sort_vars then
     error loc "%s shadows a variable of the sort of an operand" x;
-  match List.find_opt (fun (g, _) -> flat_name g = x) env.globals with
+  (match List.find_opt (fun (g, _) -> flat_name g = x) env.globals with
   | Some (g, _) -> error loc "%s is the OCaml name of %s" x g
-  | _ -> ()
+  | _ -> ());
+  List.iter
+    (fun n ->
+      if x = "equal_" ^ n then
+        error loc "%s is the OCaml name of the equality of %s" x n)
+    ("t" :: List.map (fun d -> d.d_name) !lang.decls)
 
 (** The location of the first binding of [x] in [p], if any. *)
 let rec binder_loc x (p : Syntax.pat) =

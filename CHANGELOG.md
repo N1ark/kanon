@@ -202,6 +202,7 @@ The first versioned release.
 - A file given twice, as `m.kn` and `./m.kn`, loads once.
 - A missing or unreadable input file is an error, not an exception.
 - Traversals of types named `x` and `ty_x` no longer clash.
+- Variables named `equal_item` for a type `item` are an error.
 
 ### Removed
 
