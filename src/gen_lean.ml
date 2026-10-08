@@ -3072,6 +3072,7 @@ let model_file ctx (p : program) m =
     @ List.map (fun d -> module_root d ^ ".Model") parents
     @ types_imports (closure m)
     @ [ "KanonCore.Model"; "KanonCore.Attr"; "KanonCore.Embed" ]
+    @ if has_lang m || parents <> [] then [] else [ "KanonCore.ProofAttr" ]
   in
   lean_file ~sources:(module_sources m) r [ "Model" ] imports @@ fun ft ->
   with_self m @@ fun () ->

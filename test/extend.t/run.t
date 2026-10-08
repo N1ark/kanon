@@ -37,14 +37,14 @@ puts its cases together.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  61:    then some ((5 : Int))
-  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  62:    then some ((5 : Int))
+  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _, _) -> Z.zero
-  61:    then some ((5 : Int))
-  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  62:    then some ((5 : Int))
+  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
   $ cat > ext.kn <<'KN'
   > extend fn Base.g =
@@ -66,20 +66,20 @@ puts its cases together.
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | _ -> Z.zero
-  61:    then some ((5 : Int))
-  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  62:    then some ((5 : Int))
+  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === (_, _), _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | ((_, _), _) -> Z.zero
-  61:    then some ((5 : Int))
-  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  62:    then some ((5 : Int))
+  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
   === _, _ -> 0
   11:        (Z.of_int (5))
   14:        (Z.of_int (7))
   15:      | (_, _) -> Z.zero
-  61:    then some ((5 : Int))
-  107:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
+  62:    then some ((5 : Int))
+  108:    (if (decide (kanon__1 = (3 : Int))) then some ((7 : Int)) else none))
 
 `x, _` and `_ as x` are not blanks: the added case is last, so it cannot be
 reached, which is an error, not a silent omission.
