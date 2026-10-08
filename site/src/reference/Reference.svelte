@@ -708,7 +708,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <li>
       When the spec of a rule is a commutative node over <code>v1, v2</code> (e.g.
       <code>{`And (v1, v2){:kanon}`}</code>), the cases match them in either order, unless the
-      pattern is symmetric (the same once swapped, up to renaming), so
+      pattern is symmetric (the same once swapped, up to renaming) and has no guard, so
       <code>{`| true_: true, x -> x{:kanon}`}</code> covers both <code>{`true && x{:kanon}`}</code>
       and <code>{`x && true{:kanon}`}</code>. The cases must then name the operands rather than use
       <code>v1</code> and <code>v2</code> (other than as the argument of <code>type_of</code> and
@@ -795,7 +795,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <li>
       The operands of commutative operators match in either order: <code>{`x + #k{:kanon}`}</code>
       also matches <code>{`#k + x{:kanon}`}</code>. The swap is left out when both operands are
-      wildcards or variables bound nowhere else, as it matches the same terms.
+      wildcards or variables bound nowhere else and read by no guard, as it matches the same terms.
     </li>
     <li>
       <code>{`p [@comm]{:kanon}`}</code> also matches the components of the pair <code>p</code>

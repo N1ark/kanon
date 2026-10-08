@@ -313,10 +313,10 @@ let strip_attr name (p : pattern) =
   }
 
 (** How many times each variable is bound in the pattern of the case being
-    checked. *)
+    checked, plus the times its guard reads it. *)
 let case_vars : (string, int) Hashtbl.t = Hashtbl.create 8
 
-let count_vars (p : pattern) =
+let count_vars ?guard (p : pattern) =
   Hashtbl.reset case_vars;
   let add x =
     Hashtbl.replace case_vars x
@@ -332,7 +332,21 @@ let count_vars (p : pattern) =
       super#pattern p
   end
     #pattern
-    p
+    p;
+  Option.iter
+    (fun g ->
+      object
+        inherit Ast_traverse.iter as super
+
+        method! expression e =
+          (match e.pexp_desc with
+          | Pexp_ident { txt = Lident x; _ } -> add x
+          | _ -> ());
+          super#expression e
+      end
+        #expression
+        g)
+    guard
 
 (** The typings of the nodes, from which the sorts of the terms that rules build
     are inferred, and the literals of patterns resolved. *)
@@ -1809,7 +1823,7 @@ and case env ?expected ~sort scruts (c : Ppxlib.case) : Syntax.case list =
   in
   (* numbered per case, so that the generated names are stable *)
   pid_counter := 0;
-  count_vars lhs;
+  count_vars ?guard:c.pc_guard lhs;
   let sty =
     match scruts with
     | [ s ] -> s.ety
@@ -2005,7 +2019,7 @@ let rec spec_match (spec : expression) (e : expression) =
   (* the case [p, q], swapped if [op] is commutative *)
   let pair (c : Ppxlib.case) (p : pattern) (q : pattern) =
     let lhs = c.pc_lhs in
-    count_vars lhs;
+    count_vars ?guard:c.pc_guard lhs;
     let once (p : pattern) =
       match p.ppat_desc with
       | Ppat_any -> true
@@ -2013,9 +2027,10 @@ let rec spec_match (spec : expression) (e : expression) =
       | _ -> false
     in
     let symmetric =
-      alpha_equal
-        { lhs with ppat_desc = Ppat_tuple [ p; q ] }
-        { lhs with ppat_desc = Ppat_tuple [ q; p ] }
+      Option.is_none c.pc_guard
+      && alpha_equal
+           { lhs with ppat_desc = Ppat_tuple [ p; q ] }
+           { lhs with ppat_desc = Ppat_tuple [ q; p ] }
     in
     let swap =
       is_commutative node

@@ -141,6 +141,34 @@ def Bool.and_.r_eq_neq.swap1_swap2.Stmt : Prop :=
   S.Refines (KanonBool.Bool.and_.spec (KanonBool.mk (.Eq x a) t__4) (KanonBool.mk (.Eq y kanon__7) t__9))
   (KanonBool.v_false)
 
+def Bool.and_.r_eq_neq.swap3.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S), O.Sound →
+  ∀ (kanon__7 : S.Term) (y : S.Term) (t__9 : S.Ty) (a : S.Term) (x : S.Term) (t__4 : S.Ty),
+  ((decide (a = kanon__7)) && (O.bool_sure_neq x y)) = true →
+  S.Refines (KanonBool.Bool.and_.spec (KanonBool.mk (.Eq kanon__7 y) t__9) (KanonBool.mk (.Eq a x) t__4))
+  (KanonBool.v_false)
+
+def Bool.and_.r_eq_neq.swap1_swap3.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S), O.Sound →
+  ∀ (kanon__7 : S.Term) (y : S.Term) (t__9 : S.Ty) (x : S.Term) (a : S.Term) (t__4 : S.Ty),
+  ((decide (a = kanon__7)) && (O.bool_sure_neq x y)) = true →
+  S.Refines (KanonBool.Bool.and_.spec (KanonBool.mk (.Eq kanon__7 y) t__9) (KanonBool.mk (.Eq x a) t__4))
+  (KanonBool.v_false)
+
+def Bool.and_.r_eq_neq.swap2_swap3.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S), O.Sound →
+  ∀ (y : S.Term) (kanon__7 : S.Term) (t__9 : S.Ty) (a : S.Term) (x : S.Term) (t__4 : S.Ty),
+  ((decide (a = kanon__7)) && (O.bool_sure_neq x y)) = true →
+  S.Refines (KanonBool.Bool.and_.spec (KanonBool.mk (.Eq y kanon__7) t__9) (KanonBool.mk (.Eq a x) t__4))
+  (KanonBool.v_false)
+
+def Bool.and_.r_eq_neq.swap1_swap2_swap3.Stmt : Prop :=
+  ∀ {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S), O.Sound →
+  ∀ (y : S.Term) (kanon__7 : S.Term) (t__9 : S.Ty) (x : S.Term) (a : S.Term) (t__4 : S.Ty),
+  ((decide (a = kanon__7)) && (O.bool_sure_neq x y)) = true →
+  S.Refines (KanonBool.Bool.and_.spec (KanonBool.mk (.Eq y kanon__7) t__9) (KanonBool.mk (.Eq x a) t__4))
+  (KanonBool.v_false)
+
 def Bool.and_.r_default.main.Stmt : Prop :=
   ∀ {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S), O.Sound →
   ∀ (v1 : S.Term) (v2 : S.Term),

@@ -220,6 +220,26 @@ def Bool.and_.r_eq_neq (O : Ops S) (v1 : S.Term) (v2 : S.Term) : Option S.Term :
         (whenSome ((decide (a = kanon__7)) && (O.bool_sure_neq x y))
         (KanonBool.v_false))
         | _, _ => none)
+  <|> (match (KanonBool.proj v1), (KanonBool.proj v2) with
+        | some (.Eq kanon__7 y), some (.Eq a x) =>
+        (whenSome ((decide (a = kanon__7)) && (O.bool_sure_neq x y))
+        (KanonBool.v_false))
+        | _, _ => none)
+  <|> (match (KanonBool.proj v1), (KanonBool.proj v2) with
+        | some (.Eq kanon__7 y), some (.Eq x a) =>
+        (whenSome ((decide (a = kanon__7)) && (O.bool_sure_neq x y))
+        (KanonBool.v_false))
+        | _, _ => none)
+  <|> (match (KanonBool.proj v1), (KanonBool.proj v2) with
+        | some (.Eq y kanon__7), some (.Eq a x) =>
+        (whenSome ((decide (a = kanon__7)) && (O.bool_sure_neq x y))
+        (KanonBool.v_false))
+        | _, _ => none)
+  <|> (match (KanonBool.proj v1), (KanonBool.proj v2) with
+        | some (.Eq y kanon__7), some (.Eq x a) =>
+        (whenSome ((decide (a = kanon__7)) && (O.bool_sure_neq x y))
+        (KanonBool.v_false))
+        | _, _ => none)
 
 def Bool.and_.r_default (O : Ops S) (v1 : S.Term) (v2 : S.Term) : Option S.Term :=
   (match v1, v2 with

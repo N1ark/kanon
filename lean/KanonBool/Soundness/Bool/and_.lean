@@ -170,6 +170,54 @@ theorem Bool.and_.r_eq_neq.swap1_swap2.ok : Bool.and_.r_eq_neq.swap1_swap2.Stmt 
   kanon_congr
 
 set_option maxHeartbeats 400000 in
+theorem Bool.and_.r_eq_neq.swap3.ok : Bool.and_.r_eq_neq.swap3.Stmt := by
+  intro S _ _ O hO kanon__7 y t__9 a x t__4 hg
+  refine Kanon.Sem.Refines.trans ?_
+    (Bool.and_.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+  simp only [KanonBool.Bool.and_.spec, Kanon.NodeEmbed.ty_inj]
+  refine Kanon.Sem.Refines.trans (KanonBool.And.comm.ok ..) ?_
+  kanon_congr
+
+set_option maxHeartbeats 400000 in
+theorem Bool.and_.r_eq_neq.swap1_swap3.ok : Bool.and_.r_eq_neq.swap1_swap3.Stmt := by
+  intro S _ _ O hO kanon__7 y t__9 x a t__4 hg
+  have : S.Refines (KanonBool.mk (.Eq x a) t__4)
+    (KanonBool.mk (.Eq a x) t__4) :=
+    KanonBool.Eq.comm.ok ..
+  refine Kanon.Sem.Refines.trans ?_
+    (Bool.and_.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+  simp only [KanonBool.Bool.and_.spec, Kanon.NodeEmbed.ty_inj]
+  refine Kanon.Sem.Refines.trans (KanonBool.And.comm.ok ..) ?_
+  kanon_congr
+
+set_option maxHeartbeats 400000 in
+theorem Bool.and_.r_eq_neq.swap2_swap3.ok : Bool.and_.r_eq_neq.swap2_swap3.Stmt := by
+  intro S _ _ O hO y kanon__7 t__9 a x t__4 hg
+  have : S.Refines (KanonBool.mk (.Eq y kanon__7) t__9)
+    (KanonBool.mk (.Eq kanon__7 y) t__9) :=
+    KanonBool.Eq.comm.ok ..
+  refine Kanon.Sem.Refines.trans ?_
+    (Bool.and_.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+  simp only [KanonBool.Bool.and_.spec, Kanon.NodeEmbed.ty_inj]
+  refine Kanon.Sem.Refines.trans (KanonBool.And.comm.ok ..) ?_
+  kanon_congr
+
+set_option maxHeartbeats 400000 in
+theorem Bool.and_.r_eq_neq.swap1_swap2_swap3.ok : Bool.and_.r_eq_neq.swap1_swap2_swap3.Stmt := by
+  intro S _ _ O hO y kanon__7 t__9 x a t__4 hg
+  have : S.Refines (KanonBool.mk (.Eq y kanon__7) t__9)
+    (KanonBool.mk (.Eq kanon__7 y) t__9) :=
+    KanonBool.Eq.comm.ok ..
+  have : S.Refines (KanonBool.mk (.Eq x a) t__4)
+    (KanonBool.mk (.Eq a x) t__4) :=
+    KanonBool.Eq.comm.ok ..
+  refine Kanon.Sem.Refines.trans ?_
+    (Bool.and_.r_eq_neq.main.ok O hO a x t__4 kanon__7 y t__9 hg)
+  simp only [KanonBool.Bool.and_.spec, Kanon.NodeEmbed.ty_inj]
+  refine Kanon.Sem.Refines.trans (KanonBool.And.comm.ok ..) ?_
+  kanon_congr
+
+set_option maxHeartbeats 400000 in
 theorem Bool.and_.r_default.main.ok : Bool.and_.r_default.main.Stmt :=
   no_implicit_lambda% (kanon_proof% Bool.and_.r_default.main)
 
@@ -226,6 +274,10 @@ theorem Bool.and_.r_eq_neq.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.T
   · kanon_arm h (Bool.and_.r_eq_neq.swap2.ok O hO)
   · kanon_arm h (Bool.and_.r_eq_neq.swap1.ok O hO)
   · kanon_arm h (Bool.and_.r_eq_neq.swap1_swap2.ok O hO)
+  · kanon_arm h (Bool.and_.r_eq_neq.swap3.ok O hO)
+  · kanon_arm h (Bool.and_.r_eq_neq.swap1_swap3.ok O hO)
+  · kanon_arm h (Bool.and_.r_eq_neq.swap2_swap3.ok O hO)
+  · kanon_arm h (Bool.and_.r_eq_neq.swap1_swap2_swap3.ok O hO)
 
 theorem Bool.and_.r_default.sound {S : Kanon.Sem} [KanonBool.Lang S] [KanonBool.Typed S] (O : Ops S) (hO : O.Sound) (v1 : S.Term) (v2 : S.Term) (res : S.Term)
     (h : Bool.and_.r_default O v1 v2 = some res) : S.Refines (KanonBool.Bool.and_.spec v1 v2) res := by

@@ -198,6 +198,7 @@ The first versioned release.
 - The rules of `[@unit c]` and `[@zero c]` are `unit_c`, `zero_c`.
 - The generated rules call primitives in `[@@@ocaml_prims]`, not `P`.
 - [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of comparisons.
+- Guards of commutative patterns are tried on swapped operands.
 
 ### Removed
 
