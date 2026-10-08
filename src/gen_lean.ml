@@ -2152,29 +2152,37 @@ let reserved_vars =
     "arraySet";
   ]
 
+(** The subexpressions of [e]. *)
+let children (e : expr) =
+  match e.e with
+  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
+  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l -> l
+  | ENode (a, b)
+  | EBinop (_, a, b)
+  | ECons (a, b)
+  | EAssert (a, b)
+  | ELet (_, a, b)
+  | ELetFun (_, _, a, b) ->
+      [ a; b ]
+  | EUnop (_, a) | ESome a | EField (a, _) -> [ a ]
+  | EIf (a, b, c) -> [ a; b; c ]
+  | ERecord l -> List.map snd l
+  | EMatch (scruts, cases) ->
+      scruts
+      @ List.concat_map
+          (fun (c : case) -> Option.to_list c.guard @ [ c.body ])
+          cases
+
 (** The names that [e] binds: variables of [let]s and patterns, and local
     functions with their parameters. *)
 let rec bound_vars (e : expr) =
-  match e.e with
-  | EVar _ | EInt _ | EBool _ | EUnit | ENone | ENil | EUnreachable -> []
-  | ECall (_, l) | EConstr (_, l) | ELocalCall (_, l) | ETuple l | EArray l ->
-      List.concat_map bound_vars l
-  | ENode (a, b) | EBinop (_, a, b) | ECons (a, b) | EAssert (a, b) ->
-      bound_vars a @ bound_vars b
-  | EUnop (_, a) | ESome a | EField (a, _) -> bound_vars a
-  | EIf (a, b, c) -> bound_vars a @ bound_vars b @ bound_vars c
-  | ERecord l -> List.concat_map (fun (_, e) -> bound_vars e) l
-  | ELet (p, a, b) -> pat_names p @ bound_vars a @ bound_vars b
-  | ELetFun (g, ps, a, b) ->
-      (g :: List.map fst ps) @ bound_vars a @ bound_vars b
-  | EMatch (scruts, cases) ->
-      List.concat_map bound_vars scruts
-      @ List.concat_map
-          (fun (c : case) ->
-            pat_names c.pat
-            @ Option.fold ~none:[] ~some:bound_vars c.guard
-            @ bound_vars c.body)
-          cases
+  (match e.e with
+    | ELet (p, _, _) -> pat_names p
+    | ELetFun (g, ps, _, _) -> g :: List.map fst ps
+    | EMatch (_, cases) ->
+        List.concat_map (fun (c : case) -> pat_names c.pat) cases
+    | _ -> [])
+  @ List.concat_map bound_vars (children e)
 
 (** The variables of the functions may not have the names of [reserved_vars]. *)
 let check_vars ctx =
@@ -3095,6 +3103,69 @@ let rec decreasing (f : fn) (e : expr) =
           | _ -> None)
         scruts
   | _ -> None
+
+(** The arguments of the calls of [g] in [e], with the names that [e] binds
+    around each call, where [shadow] are those bound around [e]. *)
+let rec call_args g shadow (e : expr) =
+  let go = call_args g in
+  (match e.e with ECall (h, args) when h = g -> [ (args, shadow) ] | _ -> [])
+  @
+  match e.e with
+  | ELet (p, a, b) -> go shadow a @ go (pat_names p @ shadow) b
+  | ELetFun (h, ps, a, b) ->
+      go ((h :: List.map fst ps) @ shadow) a @ go (h :: shadow) b
+  | EMatch (scruts, cases) ->
+      List.concat_map (go shadow) scruts
+      @ List.concat_map
+          (fun (c : case) ->
+            let shadow = pat_names c.pat @ shadow in
+            List.concat_map (go shadow) (Option.to_list c.guard @ [ c.body ]))
+          cases
+  | _ -> List.concat_map (go shadow) (children e)
+
+(** The recursive functions decrease on the first parameter they match
+    ([decreasing]): it is a term, list, option or data value, and each of their
+    calls replaces it by a variable that they bind. *)
+let check_recursion ctx =
+  let helpers =
+    List.filter
+      (fun (f : fn) -> List.mem (fn_kind ctx f.name) [ Pure; OHelper ])
+      ctx.fns
+  in
+  List.iter
+    (function
+      | [ f ] when not (Gen_ocaml.is_recursive [ f ]) -> ()
+      | group ->
+          List.iter
+            (fun (f : fn) ->
+              let fail () =
+                unsupported f.floc
+                  "the recursive function %s, which must match first on a \
+                   term, list, option or data value that its calls shrink"
+                  f.name
+              in
+              match decreasing f f.body with
+              | None -> fail ()
+              | Some x ->
+                  if List.mem (List.assoc x f.params) [ TInt; TBool; TUnit ]
+                  then fail ()
+                  else
+                    let i =
+                      let rec find k = function
+                        | (y, _) :: _ when y = x -> k
+                        | _ :: l -> find (k + 1) l
+                        | [] -> assert false
+                      in
+                      find 0 f.params
+                    in
+                    List.iter
+                      (fun (args, shadow) ->
+                        match (List.nth args i).e with
+                        | EVar y when List.mem y shadow -> ()
+                        | _ -> fail ())
+                      (call_args f.name [] f.body))
+            group)
+    (Gen_ocaml.sccs helpers)
 
 let fn_def ctx ft (f : fn) ~o ~recursive =
   let dec = if recursive then decreasing f f.body else None in
@@ -4414,6 +4485,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
        check_nodes ();
        check_types (Lazy.force ctx);
        check_vars (Lazy.force ctx);
+       check_recursion (Lazy.force ctx);
        has_model_ref := has_model (Lazy.force ctx))
   in
   let modules () =

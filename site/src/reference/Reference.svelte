@@ -173,7 +173,9 @@
       result is not annotated is untyped. A helper may recurse on the first parameter that its
       body matches: Lean proves that it decreases, by its size, and for a term by
       <code>Sem.size</code>, of which the children of a node are smaller
-      (<code>kanon_decreasing</code>).
+      (<code>kanon_decreasing</code>). That parameter is a term, list, option or data value, and
+      each recursive call passes a variable bound by a pattern or a <code>let</code> for it;
+      other recursions are not supported in Lean.
     </dd>
 
     <dt><code>rule f params : spec attrs = | r: p -> e | …</code>, <code>… = e</code>, <code>rule f params : spec attrs</code></dt>
