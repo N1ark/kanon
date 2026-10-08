@@ -1,0 +1,8 @@
+[@@@ocaml_types "Mini_types"]
+[@@@ocaml_rules "Mini_rules"]
+
+use "int"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var
