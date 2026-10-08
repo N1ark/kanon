@@ -24,6 +24,7 @@ let usage err =
     ^ String.concat " | " backends
     ^ ") FILE...\n\
       \       kanon lean-all [--check] DIR FILE...\n\
+      \       kanon ocaml-all [--check] DIR FILE...\n\
       \       kanon lsp\n\
       \       kanon --version\n\
        Files use modules with use \"path\", or use builtin \"name\" for those \
@@ -184,6 +185,63 @@ let lean_all ~check ~err dir (files : Gen_lean.file list) =
              texts ))
        roots)
 
+(** The name of the OCaml file of the module [m] that the language declares
+    ([[@@@ocaml_types "M"]], [[@@@ocaml_rules "M"]]), or [default]. *)
+let ocaml_file ~default = function
+  | None -> default
+  | Some m ->
+      if
+        m = ""
+        || (not (m.[0] >= 'A' && m.[0] <= 'Z'))
+        || not
+             (String.for_all
+                (function
+                  | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true
+                  | _ -> false)
+                m)
+      then fail "the OCaml module %S has no file: it is not a module name" m
+      else String.uncapitalize_ascii m ^ ".ml"
+
+(** [kanon ocaml-all [--check] DIR]: writes in [dir/Generated] the OCaml of the
+    backends [ocaml-types] ([types.ml], or the file of the module of
+    [[@@@ocaml_types]]), [ocaml] ([rules.ml], or that of [[@@@ocaml_rules]]),
+    [ocaml-typed] ([typed.ml], if the language has [[@@@ocaml_rules]]) and
+    [ocaml-tests] ([tests.ml], which opens the module of the rules). *)
+let ocaml_all ~check ~err dir ~lang ~sources prog =
+  let l = !Syntax.lang in
+  let types = ocaml_file ~default:"types.ml" l.ocaml_types in
+  let rules = ocaml_file ~default:"rules.ml" l.ocaml_rules in
+  let p = Lazy.force prog in
+  let types_text = to_string (Gen_ocaml.types ~sources:lang) in
+  let rules_text = to_string (fun ft -> Gen_ocaml.program ~sources ft p) in
+  let typed =
+    if l.ocaml_rules = None then []
+    else
+      [
+        ( "typed.ml",
+          to_string (fun ft -> Gen_typed.program ~sources:(lang @ sources) ft p)
+        );
+      ]
+  in
+  let tests_text =
+    to_string (fun ft ->
+        Gen_tests.program
+          ~open_module:(Option.value ~default:"Rules" l.ocaml_rules)
+          ~sources ft p)
+  in
+  let files =
+    [ (types, types_text); (rules, rules_text) ]
+    @ typed
+    @ [ ("tests.ml", tests_text) ]
+  in
+  let names = List.map fst files in
+  if List.length (List.sort_uniq compare names) <> List.length names then
+    fail "two OCaml modules write the same file (%s)" (String.concat ", " names);
+  generated_all ~cmd:"ocaml-all" ~check ~err dir
+    [
+      ("Generated", List.map (fun (n, text) -> ("Generated/" ^ n, text)) files);
+    ]
+
 (** [run args out err] runs [kanon args] (without [lsp]), writing on [out] and
     [err] for standard output and error, and is its exit code. Exceptions other
     than the errors of the files are raised. *)
@@ -265,6 +323,8 @@ let run args out err =
               (lazy (Check.program (List.concat_map snd files)))
           in
           match (target, backend) with
+          | Some (check, dir), "ocaml-all" ->
+              if ocaml_all ~check ~err dir ~lang ~sources prog then 0 else 1
           | Some (check, dir), _ ->
               let has_proof r path =
                 Sys.file_exists
