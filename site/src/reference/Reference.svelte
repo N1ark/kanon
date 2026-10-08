@@ -1640,7 +1640,10 @@ prefix "not" = Not, Bool.not_`}
     literals to its helper <code>sure_neq</code> with <code>extend fn</code>. It is the bool module
     of Soteria's <code>Bv_values</code> and <code>Tiny_values</code>. It has
     <code>{`[@@@lean_root "KanonBool"]{:kanon}`}</code>: its Lean rules are proved once, by the
-    library (see <a href="proving.html#kanonbool">KanonBool</a>).
+    library (see <a href="proving.html#kanonbool">KanonBool</a>). The language implements its
+    primitives <code>v_true</code> and <code>v_false</code> and its oracle
+    <code>sort_by_tag</code>, which the proofs assume to permute its list: one that drops
+    duplicates (<code>List.sort_uniq</code>) is unsound.
   </p>
 
   <Heading level={2} id="lsp">Language server</Heading>
