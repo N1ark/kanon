@@ -200,6 +200,7 @@ The first versioned release.
 - [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of comparisons.
 - Guards of commutative patterns are tried on swapped operands.
 - A file given twice, as `m.kn` and `./m.kn`, loads once.
+- A missing or unreadable input file is an error, not an exception.
 
 ### Removed
 

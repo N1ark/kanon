@@ -22,7 +22,14 @@ let parse_file ~read f =
   | None -> (
       match read f with
       | Some s -> Check.parse_string ~file:f s
-      | None -> Check.parse_file f)
+      | None -> (
+          try Check.parse_file f
+          with Sys_error m ->
+            let prefix = f ^ ": " in
+            raise
+              (Check.Error
+                 ( Location.none,
+                   if String.starts_with ~prefix m then m else prefix ^ m ))))
   | Some name -> (
       match List.assoc_opt name Builtin.files with
       | Some s -> Check.parse_string ~file:f s
