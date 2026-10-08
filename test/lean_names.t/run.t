@@ -330,3 +330,61 @@ class `Lang` in the declarations about the nodes:
   lang18.knl:3:5: the node Rel, a name of the Lean files of its module: not supported in Lean
   lang18.knl:3:5: the node Node, a name of the Lean files of its module: not supported in Lean
   lang18.knl:3:5: the node Lang, a name of the Lean files of its module: not supported in Lean
+
+The data types of a module are declared in its namespace, beside the sorts
+(`Srt`), the class `Lang` and the other declarations of its files, and beside
+those of the language (`Term`, `Refines`, `Val`, `Env`) and of Kanon's library
+(`Sem`, `Dom`, ...) in the root `Kanon`, so a type may not have their names, nor
+those of the classes that it derives, nor Lean's keywords. `[@lean "N"]` names
+it otherwise:
+
+  $ for n in srt ops lang typed values term refines val env sem dom embed repr inhabited decidable_eq prop; do
+  >   printf 'type %s = A | B\nsort TInt\nnode Int of int : TInt\nnode Col of %s : TInt\n' $n $n > lang19.knl
+  >   kanon lean-types lang19.knl 2>&1 | head -1
+  > done
+  lang19.knl:1:5: the type srt, whose Lean name Srt is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type ops, whose Lean name Ops is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type lang, whose Lean name Lang is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type typed, whose Lean name Typed is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type values, whose Lean name Values is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type term, whose Lean name Term is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type refines, whose Lean name Refines is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type val, whose Lean name Val is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type env, whose Lean name Env is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type sem, whose Lean name Sem is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type dom, whose Lean name Dom is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type embed, whose Lean name Embed is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type repr, whose Lean name Repr is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type inhabited, whose Lean name Inhabited is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type decidable_eq, whose Lean name DecidableEq is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  lang19.knl:1:5: the type prop, whose Lean name Prop is declared elsewhere (name it with [@lean "N"]): not supported in Lean
+  $ printf 'type srt [@lean "Shape"] = A | B\nsort TInt\nnode Int of int : TInt\nnode Col of srt : TInt\n' > lang20.knl
+  $ kanon lean-types lang20.knl | grep inductive
+  inductive Shape where
+
+A module that declares a type of its own name has the functions of the module
+in the namespace of the type, where the fields of a record are declared:
+
+  $ cat > lang21.knl <<'KN'
+  > use "span"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ echo 'type span = { lo : int; hi : int }' > span.knl
+  $ echo 'fn lo (x : int) : int = x' > span.kn
+  $ kanon lean-model lang21.knl 2>&1 | head -1
+  ./span.kn:1:0: the function lo, a field of the record type span of its module: not supported in Lean
+
+The names of the language are also those of a module that has rule functions
+(the steps of its rules are in its namespace):
+
+  $ cat > lang22.knl <<'KN'
+  > [@@@lean_root "Ex"]
+  > use "m"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ echo 'type term = A | B' > m.knl
+  $ echo 'fn f (x : int) : int = x' > m.kn
+  $ kanon lean-types lang22.knl 2>&1 | head -1
+  ./m.knl:1:5: the type term, whose Lean name Term is declared elsewhere (name it with [@lean "N"]): not supported in Lean
