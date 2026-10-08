@@ -2088,6 +2088,56 @@ let check_nodes () =
           "the node %s, a name of the Lean files of its module" n.gc.c_name)
     (gnodes ())
 
+(** The Lean names of the declarations that share the namespace of the data
+    types of the module [m]: those of its own files, of the language's when [m]
+    has rule functions or is its root, of Kanon's library in the root [Kanon],
+    and the classes that the types derive and the words that Lean reserves. *)
+let reserved_types ctx m =
+  let if_ b l = if b then l else [] in
+  if_ (has_sorts m) [ "Srt"; "Typed" ]
+  @ if_ (has_lang m) [ "Lang"; "Values" ]
+  @ if_ (has_model ctx m) [ "Ops"; "Term"; "Refines" ]
+  @ if_ (module_root m = lang_root ()) [ "Term"; "Ty"; "Refines"; "Val"; "Env" ]
+  @ if_
+      (module_root m = "Kanon")
+      [ "Dom"; "Embed"; "NodeEmbed"; "OpsBase"; "Refinement"; "Sem" ]
+  @ [ "DecidableEq"; "Repr"; "Inhabited"; "Prop"; "Type"; "Sort" ]
+
+(** The data types may not have the names of [reserved_types], and the functions
+    of a module may not have the names of the fields of its record type of the
+    same name, which are declared in the namespace of its functions. *)
+let check_types ctx =
+  List.iter
+    (fun (d : decl) ->
+      match decl_module d with
+      | Some m
+        when (not (generated_decl d))
+             && (not (is_abstract d && d.d_lean <> None))
+             && List.mem (decl_lean_name d) (reserved_types ctx m) ->
+          unsupported d.d_loc
+            "the type %s, whose Lean name %s is declared elsewhere (name it \
+             with [@lean \"N\"])"
+            d.d_name (decl_lean_name d)
+      | _ -> ())
+    !lang.decls;
+  List.iter
+    (fun (f : fn) ->
+      match module_of_name f.name with
+      | Some m ->
+          List.iter
+            (fun (d : decl) ->
+              if
+                decl_module d = Some m
+                && decl_lean_name d = m
+                && List.mem_assoc (plain_name f.name) d.d_fields
+              then
+                unsupported f.floc
+                  "the function %s, a field of the record type %s of its module"
+                  (plain_name f.name) d.d_name)
+            !lang.decls
+      | None -> ())
+    ctx.fns
+
 (** The cases of [f] that the module [m] adds, with their names. *)
 let module_ext_cases m (f : fn) =
   let _, cases, _ = ext_cases f in
@@ -4271,6 +4321,7 @@ let parts ~module_only ~lang:lang_sources ~has_proof (prog : program Lazy.t) =
        check_extends (Lazy.force ctx);
        check_params (Lazy.force ctx);
        check_nodes ();
+       check_types (Lazy.force ctx);
        has_model_ref := has_model (Lazy.force ctx))
   in
   let modules () =

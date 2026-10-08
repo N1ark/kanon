@@ -113,6 +113,7 @@
 - Helpers without parameters that need the model are valid Lean.
 - Lifting lemmas prime the parameters `x` and `x'` apart.
 - Lean rejects nodes named `All`, `Rel`, `Node` or `Lang`.
+- Lean rejects data types named like generated declarations.
 
 ## 0.3.0 (2026-10-04)
 

@@ -1344,7 +1344,17 @@ end`}
       <code>res</code> or <code>sem</code>, nor the arguments of a node <code>f</code>, <code>y</code>,
       <code>ev</code>, <code>evList</code> or <code>allList</code>, no node may be named
       <code>All</code>, <code>Rel</code>, <code>Node</code> or <code>Lang</code>, and a module
-      <code>List</code> may not have nodes with lists of terms. The names that Lean reserves
+      <code>List</code> may not have nodes with lists of terms. A data type may not have the Lean
+      name of a declaration that shares its namespace: <code>Srt</code>, <code>Typed</code>,
+      <code>Lang</code> and <code>Values</code> in a module with sorts or nodes,
+      <code>Ops</code>, <code>Term</code> and <code>Refines</code> in a module with a model,
+      <code>Ty</code>, <code>Val</code> and <code>Env</code> in the language's own module,
+      <code>Dom</code>, <code>Embed</code>, <code>NodeEmbed</code>, <code>OpsBase</code>,
+      <code>Refinement</code> and <code>Sem</code> in the root <code>Kanon</code>, nor
+      <code>DecidableEq</code>, <code>Repr</code>, <code>Inhabited</code>, <code>Prop</code>,
+      <code>Type</code> or <code>Sort</code> (<code>{`[@lean "N"]{:kanon}`}</code> gives it another
+      name); the functions of a module of the same name as a record type may not have the names
+      of its fields. The names that Lean reserves
       (<code>exists</code>, <code>at</code>, <code>from</code>, …) are quoted.
     </li>
     <li>
