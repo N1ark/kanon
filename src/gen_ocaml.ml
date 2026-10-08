@@ -888,9 +888,9 @@ let act_name = function Map -> "map" | Iter -> "iter" | Exists -> "exists"
 (** The name of the function that traverses the declared type [d], looking for
     values of the type [target] ([TTerm] or [TSty]). *)
 let trav_name act target d =
-  Printf.sprintf "kanon__%s_%s%s" (act_name act)
+  Printf.sprintf "kanon__%s%s_%s"
     (if target = TSty then "ty_" else "")
-    d
+    (act_name act) d
 
 (** The OCaml function, as text, of one argument, that applies [act] to the
     children of a value of the type [ty], those of the type [target], or none if

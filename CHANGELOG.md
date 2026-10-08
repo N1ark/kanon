@@ -201,6 +201,7 @@ The first versioned release.
 - Guards of commutative patterns are tried on swapped operands.
 - A file given twice, as `m.kn` and `./m.kn`, loads once.
 - A missing or unreadable input file is an error, not an exception.
+- Traversals of types named `x` and `ty_x` no longer clash.
 
 ### Removed
 
