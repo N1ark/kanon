@@ -680,8 +680,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
           The namespace and directory of the Lean files of the module of the <code>.knl</code>
           (see <a href="proving.html#files">The files</a>). It is a Lean name, identifiers
           separated by dots that are not Lean keywords, and not that of a library: <code>Lean</code>,
-          <code>Init</code>, <code>Std</code>, <code>Lake</code>, <code>KanonCore</code> or
-          <code>KanonBool</code>. Without it, those of the language's own
+          <code>Init</code>, <code>Std</code>, <code>Lake</code> or <code>KanonCore</code>; nor
+          <code>KanonBool</code>, in a language that uses the built-in bool module. Without it, those of the language's own
           module, the first file, are under <code>Kanon</code>, and those of another module under
           the root of the language and its name (<code>Kanon.Int</code>). The root of the language's
           own module is that of the language.

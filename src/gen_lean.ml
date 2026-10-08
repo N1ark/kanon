@@ -2211,7 +2211,7 @@ let check_vars ctx =
 
 (** The libraries whose names a root may not have: Lean's, and those that the
     generated files import. *)
-let reserved_roots = [ "Lean"; "Init"; "Std"; "Lake"; "KanonCore"; "KanonBool" ]
+let reserved_roots = [ "Lean"; "Init"; "Std"; "Lake"; "KanonCore" ]
 
 (** Whether [s] is an identifier of Lean that is not a keyword. *)
 let is_ident s =
@@ -2225,8 +2225,9 @@ let is_ident s =
 
 (** The roots of the modules that are generated are Lean names, none is that of
     a library, and none has a part called [Generated], the directory of the
-    generated files of its prefix. The library of the bool module is
-    [KanonBool], when it is generated ([module_only]). *)
+    generated files of its prefix. The library of the built-in bool module,
+    [KanonBool], is a root only if the language does not use that module, or if
+    it is generated ([module_only]). *)
 let check_roots ~module_only =
   List.iter
     (fun m ->
@@ -2241,7 +2242,8 @@ let check_roots ~module_only =
       if not (List.for_all is_ident parts) then fail "is not a Lean name"
       else if List.mem "Generated" parts then fail "has a part called Generated"
       else if
-        List.mem (List.hd parts) reserved_roots
+        (List.mem (List.hd parts) reserved_roots
+        || (List.hd parts = "KanonBool" && !builtin_modules <> []))
         && not (module_only && List.mem m !builtin_modules)
       then fail "is that of a library")
     (List.filter

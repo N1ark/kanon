@@ -125,6 +125,7 @@
 - Lean rejects variables named `decide`, `some` or `none`.
 - `[@@@lean_root]` rejects invalid names and Lean's libraries.
 - Lean rejects recursions that do not shrink a matched parameter.
+- A copy of the bool module may have the root `KanonBool`.
 
 ## 0.3.0 (2026-10-04)
 
