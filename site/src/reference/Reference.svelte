@@ -610,8 +610,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>a pattern of a pair</td>
         <td>
           The pattern also matches the components of the pair swapped:
-          <code>{`(1, ~v) [@comm]{:kanon}`}</code> matches both <code>{`1, ~v{:kanon}`}</code> and
-          <code>{`~v, 1{:kanon}`}</code>.
+          <code>{`(1, v) [@comm]{:kanon}`}</code> matches both <code>{`1, v{:kanon}`}</code> and
+          <code>{`v, 1{:kanon}`}</code>.
         </td>
       </tr>
     </tbody>
@@ -804,8 +804,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     </li>
     <li>
       <code>{`p [@comm]{:kanon}`}</code> also matches the components of the pair <code>p</code>
-      swapped (the arguments of the rule function): <code>{`(1, ~v) [@comm]{:kanon}`}</code> matches
-      both <code>{`1, ~v{:kanon}`}</code> and <code>{`~v, 1{:kanon}`}</code>.
+      swapped (the arguments of the rule function): <code>{`(1, v) [@comm]{:kanon}`}</code> matches
+      both <code>{`1, v{:kanon}`}</code> and <code>{`v, 1{:kanon}`}</code>.
     </li>
     <li>
       Or-patterns, <code>as</code>, <code>when</code> guards, <code>Some</code>/<code>None</code>,
