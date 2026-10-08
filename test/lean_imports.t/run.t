@@ -54,3 +54,22 @@ module: a module that mentions one does not depend on it.
   import KanonCore.Model
   import KanonCore.Attr
   import KanonCore.Embed
+
+The model of a module without nodes or sorts has no `Lang.lean` to import the
+attributes of its proofs from (`kanon_body`, on its helpers), so it imports them:
+
+  $ cat > lang3.knl <<'KN'
+  > use "util"
+  > KN
+  $ cat > util.knl <<'KN'
+  > [@@@lean_root "UMod"]
+  > KN
+  $ cat > util.kn <<'KN'
+  > fn double (x : int) : int = x + x
+  > KN
+  $ kanon lean-all out3 lang3.knl
+  $ grep '^import' out3/UMod/Model.lean
+  import KanonCore.Model
+  import KanonCore.Attr
+  import KanonCore.Embed
+  import KanonCore.ProofAttr
