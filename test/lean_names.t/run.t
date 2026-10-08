@@ -317,3 +317,16 @@ function, even if it has parameters `x` and `x'`:
     (h_x : S.Refines x x'')
     (h_x' : S.Refines x' x''') :
     S.Refines (Kanon.Rules17.Rules17.plus.spec x x') (O.rules17_plus x'' x''') :=
+
+A node named `All` or `Rel` would be declared twice in `Node`, with its functions
+of those names, and a node named `Node` or `Lang` hides the type `Node` and the
+class `Lang` in the declarations about the nodes:
+
+  $ for n in All Rel Node Lang; do
+  >   printf 'sort TInt\nnode Int of int : TInt\nnode %s : TInt -> TInt\n' $n > lang18.knl
+  >   kanon lean-node lang18.knl 2>&1 | head -1
+  > done
+  lang18.knl:3:5: the node All, a name of the Lean files of its module: not supported in Lean
+  lang18.knl:3:5: the node Rel, a name of the Lean files of its module: not supported in Lean
+  lang18.knl:3:5: the node Node, a name of the Lean files of its module: not supported in Lean
+  lang18.knl:3:5: the node Lang, a name of the Lean files of its module: not supported in Lean
