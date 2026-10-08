@@ -115,6 +115,7 @@
 - Lean rejects nodes named `All`, `Rel`, `Node` or `Lang`.
 - Lean rejects data types named like generated declarations.
 - Lean models of modules with only helpers build.
+- Pattern variables `hO` and `hg` work in derived arms.
 
 ## 0.3.0 (2026-10-04)
 

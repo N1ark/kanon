@@ -3491,7 +3491,11 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
         in
         find 0 arms
       in
-      let hg = if a.a_case.guard = None then "" else " hg" in
+      let fresh h =
+        if List.mem_assoc h a.a_binders then "kanon__" ^ h else h
+      in
+      let hO = fresh "hO" in
+      let hg = if a.a_case.guard = None then "" else " " ^ fresh "hg" in
       let term q =
         let t, _, _ = pat_term q in
         t
@@ -3499,12 +3503,13 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
       let comm (o : constr) =
         Printf.sprintf "%s.%s.comm.ok .." (constr_root o) o.c_name
       in
-      pf ft "%t@[<v 2>theorem %s.ok : %s.Stmt := by@ intro S%s O hO%a%s@ " hb
+      pf ft "%t@[<v 2>theorem %s.ok : %s.Stmt := by@ intro S%s O %s%a%s@ " hb
         (arm_name f r arms i) (arm_name f r arms i)
         (String.concat ""
            (List.map
               (fun _ -> " _")
               (lang_mods m @ List.filter has_sorts (lang_mods m) @ laws_mods m)))
+        hO
         (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
         a.a_binders hg;
       (* each swapped node of [a] refines that of [b], inner ones first: by
@@ -3525,15 +3530,15 @@ let arm_proof m ft (f : fn) r arms i (a : arm) =
       if swapped then
         pf ft
           "@[<hv 2>refine Kanon.Sem.Refines.trans ?_@ (Kanon.Sem.Refines.trans \
-           (%s.ok O hO%a%s)@ (by (try dsimp only); (repeat' apply \
+           (%s.ok O %s%a%s)@ (by (try dsimp only); (repeat' apply \
            Kanon.Refinement.ite_congr) <;> first | exact \
            Kanon.Sem.Refines.refl | kanon_comm))@]@ "
-          (arm_name f r arms j)
+          (arm_name f r arms j) hO
           (fun ft -> List.iter (pf ft " %s"))
           args hg
       else
-        pf ft "@[<hv 2>refine Kanon.Sem.Refines.trans ?_@ (%s.ok O hO%a%s)@]@ "
-          (arm_name f r arms j)
+        pf ft "@[<hv 2>refine Kanon.Sem.Refines.trans ?_@ (%s.ok O %s%a%s)@]@ "
+          (arm_name f r arms j) hO
           (fun ft -> List.iter (pf ft " %s"))
           args hg;
       pf ft "simp only [%s.spec, Kanon.NodeEmbed.ty_inj]@ " (fn_ref f.name);
