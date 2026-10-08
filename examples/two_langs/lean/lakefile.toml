@@ -6,8 +6,9 @@ defaultTargets = ["L1", "L2", "L3", "L4", "L5"]
 name = "kanon"
 path = "../../../lean"
 
-# A library has the hand-written files of a root, and the files that kanon
-# generates for it, in Generated/ (Kanon's library has its own Generated/).
+# A library has the files of a root, the hand-written ones (`R.+`) and the
+# generated ones (`Generated.R.+`): Lake finds a module in the library of its
+# root, and Kanon's library has its own `Generated/`.
 
 # The num module (../num.kn), proved once for both languages.
 [[lean_lib]]
