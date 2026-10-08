@@ -91,6 +91,7 @@ the nodes they matched back (`kanon_proj`), takes its guard (`whenSome`), and
 applies `p`. The cases where a pattern does not match are closed by `cases`
 (`h : none = some res`). -/
 macro "kanon_arm " h:ident p:term : tactic => `(tactic| (
+  (try dsimp only at $h:ident)
   kanon_split_matches $h
   all_goals first
     | (cases $h:ident; done)

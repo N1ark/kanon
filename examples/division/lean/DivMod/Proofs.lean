@@ -1,5 +1,5 @@
-import DivMod.Statements.Int.div
-import DivMod.Statements.Int.sq1
+import Generated.DivMod.Statements.Int.div
+import Generated.DivMod.Statements.Int.sq1
 
 /-!
 # The arms that the default tactic does not prove

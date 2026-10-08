@@ -1,4 +1,4 @@
-import IntsExample.Semantics
+import Generated.IntsExample.Semantics
 
 /-!
 # The values of the sorts

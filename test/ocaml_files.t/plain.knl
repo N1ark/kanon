@@ -1,0 +1,5 @@
+use "int"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

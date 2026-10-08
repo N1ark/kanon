@@ -46,7 +46,11 @@ let () =
   check "or" (Bool.or_ a Prims.v_true == Prims.v_true);
   check "eq" (Bool.eq a a == Prims.v_true);
   check "ite" (Bool.ite Prims.v_true a b == a);
-  check "distinct" (Bool.distinct [ a; a ] == Prims.v_false)
+  check "distinct" (Bool.distinct [ a; a ] == Prims.v_false);
+  check "sort_by_tag permutes"
+    (match (Bool.distinct [ a; b; a ]).kind with
+    | OpN (Distinct, l) -> List.length l = 3
+    | _ -> false)
 
 let () =
   let open Hyg_types in

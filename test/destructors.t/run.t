@@ -19,9 +19,9 @@ module of the file that declares the node or the sort.
   > rule not_ : Not v
   > rule concat : Concat vs
   > KN
-  $ kanon ocaml lang.knl rules.kn | sed -n '/^module Lang/,/^end/p'
+  $ kanon ocaml out lang.knl rules.kn && cat out/Generated/rules.ml | sed -n '/^module Lang/,/^end/p'
   module Lang = struct
-    let t_bv (a1 : int) : ty = TBv (a1)
+    let t_bv (a1 : int) : ty = Kanon_flat.kanon__sort_TBv a1
     let t_bool : ty = TBool
     
     let as_lit (t : t) =
@@ -73,7 +73,7 @@ may two constructors that differ by their case have the same one:
   $ cat > lang.kn <<'KN'
   > fn is_add (x : int) : int = x
   > KN
-  $ kanon ocaml lang.knl rules.kn lang.kn
+  $ kanon ocaml out lang.knl rules.kn lang.kn
   lang.kn:1:0: Lang.is_add: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
   [1]
   $ rm lang.kn
@@ -81,6 +81,6 @@ may two constructors that differ by their case have the same one:
   > node Lit2 of int : TBool
   > node LIT2 of int : TBool
   > KN
-  $ kanon ocaml lang.knl twice.knl rules.kn
+  $ kanon ocaml out lang.knl twice.knl rules.kn
   twice.knl:2:5: Twice.as_lit2: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
   [1]

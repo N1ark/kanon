@@ -201,7 +201,7 @@ type lang = {
       (** [[@@@ocaml_prims "M"]]: the OCaml module of the primitives *)
   ocaml_rules : string option;
       (** [[@@@ocaml_rules "M"]]: the OCaml module of the rules, which the
-          implementation of [ocaml-typed] is made of *)
+          implementation of the typed interface is made of *)
   traversals : bool;
       (** [[@@@traversals]]: [ocaml] also generates the traversals of the terms
           and of the sorts (see [Gen_ocaml.traversals]) *)
@@ -425,7 +425,7 @@ type fn = {
   ret_sort : string option;
       (** the head constructor of the sort of the result, if it is annotated
           with one: [fn f (v : t) : TBitVector n]. Such a function is typed by
-          [ocaml-typed] *)
+          the typed interface *)
   heartbeats : int option;
       (** [[@lean_heartbeats n]], on a rule: the bound on the heartbeats of each
           generated proof of its arms in Lean *)

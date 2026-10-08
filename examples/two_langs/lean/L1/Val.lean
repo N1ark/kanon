@@ -1,4 +1,4 @@
-import L1.Syntax
+import Generated.L1.Syntax
 import L1.Sem
 import NumMod.Sem
 

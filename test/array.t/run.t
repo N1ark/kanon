@@ -24,7 +24,7 @@ equality.
 
 OCaml: the standard `Iarray`, with nothing else than the generated code.
 
-  $ kanon ocaml lang.knl | sed -n '/let\[@inline\] rules_swap/,$p'
+  $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/let\[@inline\] rules_swap/,$p'
     let[@inline] rules_swap (a : (Z.t Iarray.t)) (i : Z.t) (j : Z.t) : (Z.t Iarray.t) =
         (let a = (let a = a and i = Z.to_int i and v = (Stdlib.Iarray.get a (Z.to_int j)) in
                  let c = Stdlib.Iarray.to_array a in
@@ -102,22 +102,23 @@ The typed interface has the array type, and the destructor of a node that holds
 one:
 
   $ sed 's|^\[@@@ocaml_prims "Prims"\]|&\n[@@@ocaml_rules "Rules"]|' lang.knl > typed.knl
-  $ kanon ocaml-typed typed.knl | grep -n 'Iarray'
+  $ kanon ocaml out typed.knl && cat out/Generated/typed.ml | grep -n 'Iarray'
   42:    val as_vec : _ t -> (Z.t Iarray.t) option
 
 The types define the structural equality and hash of a node with an array
 argument.
 
-  $ kanon ocaml-types lang.knl | grep -n "Iarray"
+  $ kanon ocaml out lang.knl && cat out/Generated/types.ml | grep -n "Iarray"
   7:  | Vec of (Z.t Iarray.t)
   28:  | Vec a1, Vec b1 -> (Stdlib.Iarray.equal Z.equal) a1 b1
   36:        ((Stdlib.Iarray.fold_left (fun acc x -> hash_combine acc (Z.hash x)) 0) a1)
 
 Lean: `Array`, with the operations of Kanon's library (`KanonCore.Array`).
 
-  $ kanon lean-node lang.knl | grep Array
+  $ kanon lean out lang.knl
+  $ grep Array out/Generated/Kanon/Node.lean
     | Vec (x1 : (Array Int))
-  $ kanon lean-model lang.knl | sed -n '/^def Rules.swap/,/^$/p'
+  $ sed -n '/^def Rules.swap/,/^$/p' out/Generated/Kanon/Rules/Model.lean
   def Rules.swap (a : (Array Int)) (i : Int) (j : Int) : (Array Int) :=
     (arraySet (arraySet a i (arrayGet a j)) j (arrayGet a i))
   
@@ -125,7 +126,7 @@ Lean: `Array`, with the operations of Kanon's library (`KanonCore.Array`).
 Arrays have no list syntax: no cons, no concatenation, no patterns. Their
 elements have one type, and their operations are checked.
 
-  $ check() { printf '%s\n' "$1" > rules.kn; kanon ocaml lang.knl > /dev/null; }
+  $ check() { printf '%s\n' "$1" > rules.kn; kanon ocaml out lang.knl; }
   $ check 'fn f (a : int array) : int = array_get a true'
   ./rules.kn:1:41: type mismatch: expected int, got bool
   [1]

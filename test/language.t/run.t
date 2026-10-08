@@ -53,7 +53,7 @@ functions named last in their declarations (z_land for &&&).
   > fn g (x y : int) : bool = x + y * 2 < 3 - -x
   > fn masked (x y : int) (a b : t) : t = if x &&& y = 0 then a &&& b else a
   > KN
-  $ kanon ocaml ops.knl ops.kn | sed -n '/ ops_f (a/,$p'
+  $ kanon ocaml out ops.knl ops.kn && cat out/Generated/rules.ml | sed -n '/ ops_f (a/,$p'
     let[@inline] ops_f (a : t) (b : t) (c : t) : t =
         (ops_le (ops_cat (ops_add a (ops_mul b c)) (ops_neg a)) c)
     
@@ -76,7 +76,7 @@ functions named last in their declarations (z_land for &&&).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -166,7 +166,7 @@ k < (1 lsl (n - 1)).
   > fn small (k n : int) : bool = k < 1 lsl (n - 1)
   > fn is_or (a l r : t) : t = a == l lor r
   > KN
-  $ kanon ocaml ops.knl words.knl ops.kn words.kn | sed -n '/let words_eqi/,$p'
+  $ kanon ocaml out ops.knl words.knl ops.kn words.kn && cat out/Generated/rules.ml | sed -n '/let words_eqi/,$p'
     let words_eqi (v1 : t) (v2 : t) : t =
         (assert ((match v1.ty, v2.ty with
                  | ((TInt), (TInt)) -> true
@@ -198,7 +198,7 @@ k < (1 lsl (n - 1)).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -318,7 +318,7 @@ language.
   > fn lt_paren (x y : int) : bool = (x <u y)
   > fn prefixed (a b : t) : t = ~a <=u b
   > KN
-  $ kanon ocaml ops.knl suffix.knl ops.kn suffix.kn | sed -n '/ suffix_lt_t (a/,/^let as_int/p'
+  $ kanon ocaml out ops.knl suffix.knl ops.kn suffix.kn && cat out/Generated/rules.ml | sed -n '/ suffix_lt_t (a/,/^let as_int/p'
     let[@inline] suffix_lt_t (a : t) (b : t) : t = (suffix_ult a b)
     
     let[@inline] suffix_lt_z (x : Z.t) (y : Z.t) : bool = (Prims.z_ult x y)
@@ -346,7 +346,7 @@ language.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -446,7 +446,7 @@ not x < y.
 
   $ for e in 'x<y' 'x <y' 'x< y' 'x<u y' 'x <u(y)' 'x+y' 'x -y' 'f(x)+y' 'x- y' 'x*.y'; do
   >   printf 'fn bad (x y : int) : bool = %s\n' "$e" > unspaced.kn
-  >   kanon ocaml ops.knl suffix.knl ops.kn suffix.kn unspaced.kn 2>&1 | grep -v "^let\|^  \|^$"
+  >   kanon ocaml out ops.knl suffix.knl ops.kn suffix.kn unspaced.kn 2>&1 && cat out/Generated/rules.ml | grep -v "^let\|^  \|^$"
   > done
   unspaced.kn:1:29: the operator < must be surrounded by spaces
   unspaced.kn:2:0: syntax error
@@ -458,6 +458,7 @@ not x < y.
   unspaced.kn:1:32: the operator + must be surrounded by spaces
   unspaced.kn:1:29: the operator - must be surrounded by spaces
   unspaced.kn:1:29: the operator *. must be surrounded by spaces
+  [1]
 
 A prefix operator is directly followed by its operand, and the infix - has
 spaces: x - -y.
@@ -466,7 +467,7 @@ spaces: x - -y.
   > fn p (x y : int) : int = x - -y - (-x) - -(y)
   > fn q (a : t) : t = ~a
   > KN
-  $ kanon ocaml ops.knl ops.kn prefix.kn | sed -n '/let\[@inline\] prefix_p /,/^let as_int/p'
+  $ kanon ocaml out ops.knl ops.kn prefix.kn && cat out/Generated/rules.ml | sed -n '/let\[@inline\] prefix_p /,/^let as_int/p'
     let[@inline] prefix_p (x : Z.t) (y : Z.t) : Z.t =
         (Z.sub (Z.sub (Z.sub x (Z.neg y)) (Z.neg x)) (Z.neg y))
     
@@ -485,7 +486,7 @@ spaces: x - -y.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -565,15 +566,16 @@ declared is an error:
   $ cat > nosuffix.kn <<'KN'
   > fn lt_v (x y : int) : bool = x <v y
   > KN
-  $ kanon ocaml ops.knl ops.kn nosuffix.kn | sed -n '/ nosuffix_lt_v/,$p'
+  $ kanon ocaml out ops.knl ops.kn nosuffix.kn && cat out/Generated/rules.ml | sed -n '/ nosuffix_lt_v/,$p'
   nosuffix.kn:1:29: <v is not defined on int, int
+  [1]
 
 A symbol that does not start an operator cannot have a suffix:
 
   $ cat > badsuffix.knl <<'KN'
   > infix ".u" = Le, le
   > KN
-  $ kanon ocaml ops.knl badsuffix.knl ops.kn
+  $ kanon ocaml out ops.knl badsuffix.knl ops.kn
   badsuffix.knl:1:7: .u is not an infix operator, nor a word
   [1]
 
@@ -581,7 +583,7 @@ The laws of integer literals, written with the notation Int: the results of
 [@fold] are lifted by the notation of their type (Int, for add_z), or by the
 function or node given after it (Int, of_bool).
 
-  $ kanon ocaml ops.knl ops.kn | sed -n '/let ops_add/,/^$/p;/let ops_mul/,/^$/p;/let ops_le/,/^$/p'
+  $ kanon ocaml out ops.knl ops.kn && cat out/Generated/rules.ml | sed -n '/let ops_add/,/^$/p;/let ops_mul/,/^$/p;/let ops_le/,/^$/p'
     let ops_add (v1 : t) (v2 : t) : t =
         (assert ((match v1.ty, v2.ty with
                  | ((TInt), (TInt)) -> true
@@ -735,44 +737,44 @@ Some operators are not declared, or not of their kind:
   $ cat > bad.knl <<'KN'
   > infix "~~" = Neg, neg
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:7: ~~ is not an infix operator, nor a word
   [1]
   $ cat > bad.knl <<'KN'
   > prefix "+" = Neg, neg
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:8: + is not a prefix operator: -, not, or a symbol that starts with !, ~ or ?
   [1]
   $ cat > bad.knl <<'KN'
   > infix "<>" = Le, le
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:7: <> is built in, at every type
   [1]
   $ cat > bad.knl <<'KN'
   > infix "**" = Mul, Ops.mul, Ops.z_land
   > infix "*" = Mul, Ops.mul, Ops.z_land
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:2:7: * is built in on int: it cannot also be the function Ops.z_land
   [1]
   $ cat > bad.kn <<'KN'
   > fn h (a b : bool) : bool = a &&& b
   > KN
-  $ kanon ocaml ops.knl ops.kn bad.kn
+  $ kanon ocaml out ops.knl ops.kn bad.kn
   bad.kn:1:27: &&& is not defined on bool, bool: its function Ops.z_land takes int, int
   [1]
   $ cat > bad.kn <<'KN'
   > fn h (a b : t) : t = a <*> b
   > KN
-  $ kanon ocaml ops.knl ops.kn bad.kn
+  $ kanon ocaml out ops.knl ops.kn bad.kn
   bad.kn:1:21: <*> is not an operator on terms
   [1]
   $ cat > bad.kn <<'KN'
   > fn h (a b : int) : int = a <- b
   > KN
-  $ kanon ocaml ops.knl ops.kn bad.kn
+  $ kanon ocaml out ops.knl ops.kn bad.kn
   bad.kn:1:27: <- is reserved
   [1]
 
@@ -785,9 +787,9 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   $ cat > eq.kn <<'KN'
   > fn same (a b : t) (l : t list) : bool = a = b || l <> [ a ]
   > KN
-  $ kanon ocaml ops.knl eq.knl ops.kn eq.kn | sed -n '/ eq_same /,$p'
+  $ kanon ocaml out ops.knl eq.knl ops.kn eq.kn && cat out/Generated/rules.ml | sed -n '/ eq_same /,$p'
     let[@inline] eq_same (a : t) (b : t) (l : (t list)) : bool =
-        ((Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
+        ((Stdlib.Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
   end
   
   (** The Kanon module ops. *)
@@ -802,7 +804,7 @@ on terms, they compare hash-consed terms (their tags in OCaml).
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -877,7 +879,7 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   $ cat > bad.kn <<'KN'
   > fn h (a b : var) : bool = a = b
   > KN
-  $ kanon ocaml ops.knl eq.knl ops.kn bad.kn
+  $ kanon ocaml out ops.knl eq.knl ops.kn bad.kn
   bad.kn:1:26: equality is not allowed at type var
   [1]
 
@@ -887,25 +889,25 @@ node a sort.
   $ cat > bad.kn <<'KN'
   > fn h (a : t) : t = TInt
   > KN
-  $ kanon ocaml ops.knl ops.kn bad.kn
+  $ kanon ocaml out ops.knl ops.kn bad.kn
   bad.kn:1:19: TInt is a sort, not a node
   [1]
   $ cat > bad.knl <<'KN'
   > node Odd : TInt -> Neg
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:19: Neg is a node, not a sort
   [1]
   $ cat > bad.knl <<'KN'
   > node TInt
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:5: node TInt is declared twice
   [1]
   $ cat > bad.knl <<'KN'
   > sort TSeq : TInt
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:10: sort TSeq: sorts have no typing
   [1]
 
@@ -913,7 +915,7 @@ The terms (t, whose kinds are kind), their sorts (ty) and the types of the
 operators of each arity (op1, op2, ..., opn) are generated from the nodes and
 sorts: a language does not declare them.
 
-  $ kanon ocaml-types ops.knl | sed -n '/kind =/,/^and t =/p'
+  $ kanon ocaml out ops.knl ops.kn && cat out/Generated/types.ml | sed -n '/kind =/,/^and t =/p'
   type kind =
     | Int of Z.t
     | Bool of bool
@@ -935,7 +937,7 @@ sorts: a language does not declare them.
     | TBool
   
   and t = {
-  $ for t in t kind ty op2 opn; do echo "type $t = A" > bad.knl; kanon ocaml ops.knl bad.knl ops.kn; done
+  $ for t in t kind ty op2 opn; do echo "type $t = A" > bad.knl; kanon ocaml out ops.knl bad.knl ops.kn; done
   bad.knl:1:5: type t is generated from the nodes
   bad.knl:1:5: type kind is generated from the nodes
   bad.knl:1:5: type ty is generated from the sorts
@@ -955,7 +957,7 @@ number of operands, whose elements all have that sort.
   >   | one: [ x ] -> x
   > rule same : Same l
   > KN
-  $ kanon ocaml ops.knl nary.knl ops.kn nary.kn | sed -n '/ nary_max /,$p'
+  $ kanon ocaml out ops.knl nary.knl ops.kn nary.kn && cat out/Generated/rules.ml | sed -n '/ nary_max /,$p'
     let[@inline] nary_max (l : (t list)) : t =
         (match l with
         | (x :: []) -> x
@@ -980,7 +982,7 @@ number of operands, whose elements all have that sort.
     let mul = Kanon_flat.ops_mul
     let cat = Kanon_flat.ops_cat
     let le = Kanon_flat.ops_le
-    let land = Kanon_flat.ops_land
+    let \#land = Kanon_flat.ops_land
     let f = Kanon_flat.ops_f
     let g = Kanon_flat.ops_g
     let masked = Kanon_flat.ops_masked
@@ -1066,7 +1068,7 @@ number of operands, whose elements all have that sort.
   
   
   $ echo 'node Bad : TInt list -> TInt -> TInt' > bad.knl
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:11: Bad: s list is only allowed as the only operand sort
   [1]
 
@@ -1118,9 +1120,9 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
   >   | zero: _, 0 -> Bool false
   >   | true_: _, _ when false -> Bool true
   > KN
-  $ kanon ocaml bv.knl bv.kn | sed -n '/ bv_lit /,$p'
+  $ kanon ocaml out bv.knl bv.kn && cat out/Generated/rules.ml | sed -n '/ bv_lit /,$p'
     let[@inline] bv_lit (n : Z.t) (z : Z.t) : t =
-        (node (BitVec ((Prims.wrap n z))) (TBitVector ((Z.to_int n))))
+        (node (BitVec ((Prims.wrap n z))) (kanon__sort_TBitVector (Z.to_int n)))
     
     let bv_msb (v : t) : Z.t =
         (let n = (bv_size v) in
@@ -1173,9 +1175,9 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
                  ) [@warning "-11"]);
         (match v1, v2 with
         | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
-          (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+          (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v1) (bv_size v2)))))
         | _ ->
-          (node (Op2 (BvConcat, v1, v2)) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+          (node (Op2 (BvConcat, v1, v2)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v1) (bv_size v2)))))
         ))
     
     let bv_ult (v1 : t) (v2 : t) : t =
@@ -1200,7 +1202,7 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
   
   (** The Kanon module bv. *)
   module Bv = struct
-    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
@@ -1265,26 +1267,26 @@ does not determine is given.
   $ cat > bad.kn <<'KN'
   > fn h (a : t) : int = match a with #x -> 0 | _ -> 1
   > KN
-  $ kanon ocaml bv.knl bv.kn bad.kn
+  $ kanon ocaml out bv.knl bv.kn bad.kn
   bad.kn:1:34: #x may be a literal of Bool or BitVec, and the sort of this position is unknown; write the node (Bool x or BitVec x)
   [1]
   $ echo 'sort TOther' > bad.knl
   $ cat > bad.kn <<'KN'
   > fn h (a : TOther) : int = match a with #x -> 0 | _ -> 1
   > KN
-  $ kanon ocaml bv.knl bad.knl bv.kn bad.kn
+  $ kanon ocaml out bv.knl bad.knl bv.kn bad.kn
   bad.kn:1:39: #x: none of the notations Bool, BitVec has the sort TOther of this position; write the node (Bool x or BitVec x)
   [1]
   $ cat > bad.kn <<'KN'
   > fn h (z : int) : t = (BitVec z : TBool)
   > KN
-  $ kanon ocaml bv.knl bv.kn bad.kn
+  $ kanon ocaml out bv.knl bv.kn bad.kn
   bad.kn:1:33: BitVec is a term of sort TBitVector, by its typing, not TBool
   [1]
   $ cat > bad.kn <<'KN'
   > fn h (z : int) : t = BitVec z
   > KN
-  $ kanon ocaml bv.knl bv.kn bad.kn
+  $ kanon ocaml out bv.knl bv.kn bad.kn
   bad.kn:1:21: BitVec: the sort of its result is not determined; build it at a sort, (BitVec ... : S args)
   [1]
 
@@ -1292,21 +1294,21 @@ The notations replace the attributes of literals; a notation is a leaf node of
 one int or bool. [@ite] and [@distrib_ite] are gone.
 
   $ echo 'node B of bool : TBool [@literal bool] [@to_term of_bool]' > bad.knl
-  $ kanon ocaml bad.knl
+  $ kanon ocaml out bad.knl
   bad.knl:1:25: [@literal] is gone: [notation B] makes the literals of patterns stand for a leaf node of one int or bool
   [1]
   $ printf 'node B of bool : TBool\nnotation B\nnotation B\n' > bad.knl
-  $ kanon ocaml bad.knl
+  $ kanon ocaml out bad.knl
   bad.knl:3:9: notation B is declared twice
   [1]
   $ printf 'node B : TBool -> TBool\nnotation B\nsort TBool\n' > bad.knl
-  $ kanon ocaml bad.knl
+  $ kanon ocaml out bad.knl
   bad.knl:2:9: notation B: B is not a leaf node of one int or bool
   [1]
   $ cat > bad.knl <<'KN'
   > node Ite : TBool -> a -> a -> a [@ite]
   > KN
-  $ kanon ocaml ops.knl bad.knl ops.kn
+  $ kanon ocaml out ops.knl bad.knl ops.kn
   bad.knl:1:34: unknown attribute [@ite]
   [1]
 
@@ -1324,7 +1326,7 @@ constant gives it.
   > prim ones_of : t -> t
   > rule and_ : BvAnd (v1, v2)
   > KN
-  $ kanon ocaml bv.knl ones.knl bv.kn ones.kn | sed -n '/let ones_and_/,/^$/p'
+  $ kanon ocaml out bv.knl ones.knl bv.kn ones.kn && cat out/Generated/rules.ml | sed -n '/let ones_and_/,/^$/p'
     let ones_and_ (v1 : t) (v2 : t) : t =
         (assert ((match v1.ty, v2.ty with
                  | ((TBitVector (kanon__n)), (TBitVector (kanon__s1)))
@@ -1335,8 +1337,8 @@ constant gives it.
                  | _ -> false
                  ) [@warning "-11"]);
         (match v1, v2 with
-        | (x, y) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
-        | (y, x) when ((Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (x, y) when ((Stdlib.Int.equal y.tag (Prims.ones_of x).tag)) -> x
+        | (y, x) when ((Stdlib.Int.equal y.tag (Prims.ones_of x).tag)) -> x
         | (_, { kind = BitVec (kanon__2); _ })
           when (((Z.equal kanon__2 Z.zero))) ->
           (node (BitVec (Z.zero)) v1.ty)
@@ -1348,7 +1350,7 @@ constant gives it.
   end
   
   $ sed 's/unit ones/unit twos/' ones.knl > bad.knl
-  $ kanon ocaml bv.knl bad.knl bv.kn ones.kn
+  $ kanon ocaml out bv.knl bad.knl bv.kn ones.kn
   bad.knl:2:11: expected the literal 0, 1, true or false, or a constant: twos is not declared
   [1]
 
@@ -1375,7 +1377,7 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   > 
   > rule float_of_bits (v : TBitVector n) : FloatOfBits (n, v)
   > KN
-  $ kanon ocaml bv.knl shadow.knl bv.kn shadow.kn | sed -n '/let rec shadow_msb_of/,$p'
+  $ kanon ocaml out bv.knl shadow.knl bv.kn shadow.kn && cat out/Generated/rules.ml | sed -n '/let rec shadow_msb_of/,$p'
     let rec shadow_msb_of (v : t) : Z.t =
         (let n = (bv_size v) in
         (assert ((match v.ty with
@@ -1399,9 +1401,9 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
         | { kind = Op1 ((BvExtend (j)), v); _ }
           when ((Z.gt n (Z.of_int (3)))) ->
           let j = Z.of_int j in
-          (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) (Z.add k j))))))
+          (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v) (Z.add k j)))))
         | _ ->
-          (node (Op1 ((BvExtend ((Z.to_int k))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) k)))))
+          (node (Op1 ((BvExtend ((Z.to_int k))), v)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v) k))))
         )))
     
     let shadow_float_of (v : t) : t =
@@ -1430,7 +1432,7 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   
   (** The Kanon module bv. *)
   module Bv = struct
-    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
@@ -1519,7 +1521,8 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   end
   
   
-  $ kanon lean-statements bv.knl shadow.knl bv.kn shadow.kn | sed -n '/Shadow.ext.r_extend.main.Stmt/,/^$/p'
+  $ kanon lean out bv.knl shadow.knl bv.kn shadow.kn
+  $ sed -n '/Shadow.ext.r_extend.main.Stmt/,/^$/p' out/Generated/Kanon/Shadow/Statements/Shadow/ext.lean
   def Shadow.ext.r_extend.main.Stmt : Prop :=
     ∀ {S : Kanon.Sem} [Kanon.Lang S] [Kanon.Shadow.Lang S] [Kanon.Typed S] [Kanon.Shadow.Typed S] (O : Ops S), O.Sound →
     ∀ (k : Int) (j : Int) (v : S.Term) (t__4 : S.Ty),
@@ -1529,21 +1532,21 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   
 
 The rules call the primitives in the module of [@@@ocaml_prims], which the
-language must name, and the types of ocaml-types need the OCaml types of the
+language must name, and the types (`types.ml`) need the OCaml types of the
 abstract types.
 
   $ mkdir np
   $ grep -v ocaml_prims bv.knl > np/bv.knl
-  $ kanon ocaml np/bv.knl bv.kn
+  $ kanon ocaml out np/bv.knl bv.kn
   bv.kn:1:5: size_of is a primitive: [@@@ocaml_prims "M"], in the declaration of the language, names the OCaml module that implements the primitives
   [1]
   $ echo 'type bv' > noocaml.knl
-  $ kanon ocaml-types bv.knl noocaml.knl
+  $ kanon ocaml out bv.knl noocaml.knl bv.kn
   noocaml.knl:1:5: type bv is abstract: [@ocaml "M.t"] gives its OCaml type
   [1]
   $ cat > bad.knl <<'KN'
   > type pair [@noeq] = { left : int; right : int }
   > KN
-  $ kanon ocaml-types bv.knl bad.knl
+  $ kanon ocaml out bv.knl bad.knl bv.kn
   bad.knl:1:12: [@noeq] applies to abstract types
   [1]

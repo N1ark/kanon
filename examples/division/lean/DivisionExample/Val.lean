@@ -1,4 +1,4 @@
-import DivisionExample.Syntax
+import Generated.DivisionExample.Syntax
 import DivisionExample.Sem
 import DivMod.Sem
 

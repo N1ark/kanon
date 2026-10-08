@@ -1,15 +1,15 @@
-(** The [ocaml-typed] backend: the typed interface of the smart constructors of
-    a language. A term [ 'a t ] has a phantom parameter, a polymorphic variant
-    (a tag) that says what is known of the term: [module type S] has
-    [[< tag ] t] operands and [[> tag ] t] results. The tag of a term is that of
-    its sort, which Kanon generates (see {!tag_types}): the tag of a subsort is
-    a refinement of the tag of its parent. [S] is organised like the language,
-    one module per Kanon module (per file). [Derived] is the implementation of
-    [S]: the rules, whose types are those of [S] but for the phantom parameter,
-    which [S] hides. The leaf nodes, which no rule builds, have no constructor
-    in [S] nor in [Derived]: a program builds them from the types,
-    [node (Foo ...) sort], and gives them their tag by [type_]. The refinements
-    are trusted: nothing proves them. *)
+(** The typed interface of the smart constructors of a language (the file
+    [typed.ml] of [kanon ocaml]). A term [ 'a t ] has a phantom parameter, a
+    polymorphic variant (a tag) that says what is known of the term:
+    [module type S] has [[< tag ] t] operands and [[> tag ] t] results. The tag
+    of a term is that of its sort, which Kanon generates (see {!tag_types}): the
+    tag of a subsort is a refinement of the tag of its parent. [S] is organised
+    like the language, one module per Kanon module (per file). [Derived] is the
+    implementation of [S]: the rules, whose types are those of [S] but for the
+    phantom parameter, which [S] hides. The leaf nodes, which no rule builds,
+    have no constructor in [S] nor in [Derived]: a program builds them from the
+    types, [node (Foo ...) sort], and gives them their tag by [type_]. The
+    refinements are trusted: nothing proves them. *)
 
 open Syntax
 
@@ -38,8 +38,12 @@ let tag_of_sort vars (s : expr) sub =
 (** The type of a term with the tag [tag]: [[< Tag.tag ] t] for an operand, and
     [[> Tag.tag ] t] for a result, over the type [t] ([ty] for a sort). *)
 let term ~operand ~t ft = function
-  | Tag s -> pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") s t
-  | Var x -> pf ft "'%s %s" x t
+  | Tag s ->
+      pf ft "[%s Tag.%s ] %s" (if operand then "<" else ">") (Gen_ocaml.id s) t
+  | Var x ->
+      pf ft "'%s%s %s"
+        (if String.ends_with ~suffix:"'" x then " " else "")
+        (Gen_ocaml.id x) t
   | Unknown -> pf ft "_ %s" t
 
 (** The OCaml type of a value that is not a term, in the signature, where a term
@@ -97,11 +101,13 @@ let sort_item (c : constr) =
           term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)));
   }
 
-(** The item of a smart constructor: the leading parameters, then the operands.
-    [params] are the types of its parameters, and [operands] the kinds of its
-    operands: [`One] for a term, [`List] for the list of an n-ary node. It is
-    the rule function [name]. *)
-let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
+(** The item of a smart constructor: its parameters, in the order of the rule
+    function [name], which are values with their types, or operands, terms
+    ([`One]) or the list of an n-ary node ([`List]), whose tags are [ops]. *)
+let smart ~doc ~name
+    (args :
+      [ `Param of Format.formatter -> unit | `Operand of [ `One | `List ] ] list)
+    (ops, res) =
   let ops_tags = ref ops in
   let next () =
     match !ops_tags with
@@ -110,23 +116,26 @@ let smart ~doc ~name params ~(operands : [ `One | `List ] list) (ops, res) =
         t
     | [] -> Unknown
   in
-  let nary = List.exists (fun o -> o = `List) operands in
-  let operands =
+  let nary = List.exists (fun a -> a = `Operand `List) args in
+  let args =
     List.map
-      (fun o ft ->
-        let tag =
-          if nary then match ops with t :: _ -> t | [] -> Unknown else next ()
-        in
-        match o with
-        | `One -> term ~operand:true ~t:"t" ft tag
-        | `List -> pf ft "%a list" (term ~operand:true ~t:"t") tag)
-      operands
+      (function
+        | `Param p -> p
+        | `Operand o -> (
+            let tag =
+              if nary then match ops with t :: _ -> t | [] -> Unknown
+              else next ()
+            in
+            fun ft ->
+              match o with
+              | `One -> term ~operand:true ~t:"t" ft tag
+              | `List -> pf ft "%a list" (term ~operand:true ~t:"t") tag))
+      args
   in
   {
     name = plain_name name;
     doc;
-    sig_ =
-      arrow (params @ operands) (fun ft -> term ~operand:false ~t:"t" ft res);
+    sig_ = arrow args (fun ft -> term ~operand:false ~t:"t" ft res);
   }
 
 (** The item of a function whose result is annotated with a sort,
@@ -181,7 +190,7 @@ let tag_types () =
       @ [
           ( tag_name c.c_name,
             Fmt.str "`%s" c.c_name
-            :: List.map (fun s -> tag_name s.ss_name) subs );
+            :: List.map (fun s -> Gen_ocaml.id (tag_name s.ss_name)) subs );
         ])
     sorts
 
@@ -277,17 +286,13 @@ let modules (p : program) =
                   operand_params,
                 res )
         in
-        let operands =
-          List.map
-            (fun (_, t) -> if t = TTerm then `One else `List)
-            operand_params
-        in
         (* the parameters have the types that the rule function declares *)
-        let params =
-          List.filter_map
+        let args =
+          List.map
             (fun (_, t) ->
-              if t = TTerm || t = TList TTerm then None
-              else Some (fun ft -> value_ty ft t))
+              if t = TTerm then `Operand `One
+              else if t = TList TTerm then `Operand `List
+              else `Param (fun ft -> value_ty ft t))
             f.params
         in
         let doc =
@@ -300,7 +305,7 @@ let modules (p : program) =
           | doc, _ -> doc
         in
         add ~loc:f.floc (module_of f.floc)
-          (smart ~doc ~name:f.name params ~operands (ops, res)))
+          (smart ~doc ~name:f.name args (ops, res)))
     p.fns;
   List.iter
     (fun (f : fn) ->
@@ -327,7 +332,8 @@ let print_items ft ~(print : Format.formatter -> item -> unit) items =
     items
 
 let print_sig ft it =
-  pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc it.name it.sig_
+  pf ft "%a@[<hov 2>val %s :@ %t@]" Gen_ocaml.doc it.doc (Gen_ocaml.id it.name)
+    it.sig_
 
 (** The signature [S] and the module [Derived]. *)
 let interface ft mods =
@@ -406,7 +412,7 @@ let program ~sources ft (p : program) =
   pf ft "@[<v 2>module Tag = struct";
   List.iter
     (fun (n, variants) ->
-      pf ft "@ type %s = [ %s ]" n (String.concat " | " variants))
+      pf ft "@ type %s = [ %s ]" (Gen_ocaml.id n) (String.concat " | " variants))
     tags;
   pf ft "@]@ end@ @ ";
   interface ft mods;

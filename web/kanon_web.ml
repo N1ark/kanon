@@ -1,6 +1,6 @@
 (** Kanon in a web page (in a Web Worker): the API [globalThis.kanon] that the
-    site uses (see site/README.md), over the language server and the command
-    line of kanon, which run on a virtual file system. *)
+    site uses (see site/README.md), over the language server and the generated
+    code of kanon, which run on a virtual file system. *)
 
 open Js_of_ocaml
 
@@ -59,8 +59,8 @@ let rec list_files dir =
     (List.sort compare
        (Array.to_list (try Sys.readdir dir with Sys_error _ -> [||])))
 
-(** [kanon (args ())], with its exit code, standard output and standard error.
-*)
+(** [Parts.run (args ())], with its exit code, standard output and standard
+    error. *)
 let run args =
   let out = Buffer.create 65536 and err = Buffer.create 256 in
   let fout = Format.formatter_of_buffer out
@@ -70,7 +70,7 @@ let run args =
       let args = args () in
       Check.reset ();
       Sys.chdir root;
-      Cli.run args fout ferr
+      Parts.run args fout ferr
     with e ->
       (* as kanon reports an exception that escapes *)
       Format.pp_print_flush ferr ();
@@ -149,7 +149,7 @@ let api =
                    ("stdout", inject (Js.string stdout));
                    ("stderr", inject (Js.string stderr));
                  |])) );
-      ("backends", strings Cli.backends);
+      ("backends", strings Parts.backends);
       ( "builtins",
         obj
           (Array.of_list

@@ -1,5 +1,5 @@
-import WordMod.Statements.Word.add
-import WordMod.Statements.Word.round
+import Generated.WordMod.Statements.Word.add
+import Generated.WordMod.Statements.Word.round
 
 /-!
 # The arms of the word module that the default tactic does not prove

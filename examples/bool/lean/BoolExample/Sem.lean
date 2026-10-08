@@ -1,4 +1,4 @@
-import BoolExample.Node
+import Generated.BoolExample.Node
 import KanonCore.Embed
 
 /-!

@@ -115,9 +115,12 @@
     <code>.knl</code>, else, for the language's own module (that of its first file), the root of
     the language (<code>Kanon</code> by default), and for another module the root of the language
     and its name (<code>IntsExample.Vec</code>). Here the int module is <code>IntMod</code> and the
-    language <code>IntsExample</code>. <code>kanon lean-all DIR lang.knl</code> writes the
-    generated files of every module under <code>DIR/R</code>, but those of the modules built into
-    kanon (the bool module), which are in Kanon's library. A few files per module, and two per
+    language <code>IntsExample</code>. <code>kanon lean DIR lang.knl</code> writes the
+    generated files of every module in <code>DIR/Generated/R</code>, which it clears first, and
+    the files written by hand are in <code>DIR/R</code>: everything in <code>Generated</code> is
+    generated, and nothing else is written by Kanon. It
+    does not write those of the modules built into kanon (the bool module), which are in Kanon's
+    library. A few files per module, and two per
     function, each importing the files it needs: a change to a module rebuilds its files and those
     of the modules and languages that use it, never those of the modules it uses, and the
     functions of a module are proved apart, in parallel.
@@ -136,7 +139,10 @@
         <Heading level={3} id="module-files">The files of a module</Heading>
         <p>
           Under <code>IntMod/</code> for the int module, and under <code>IntsExample/</code> for the
-          language's own module, the variables.
+          language's own module, the variables. The generated files are in the
+          <code>Generated/</code> directory, under the root (<code>Generated/IntMod/Node.lean</code> is
+          the module <code>Generated.IntMod.Node</code>), and the hand-written ones, which import
+          them, in the directory of the root (<code>IntMod/Sem.lean</code>).
         </p>
 
         <Heading level={4} id="file-node">Node.lean</Heading>
@@ -149,7 +155,7 @@
           sorts of a language, <code>{`Srt (Ty : Type){:lean}`}</code>, and so are nodes that take
           sorts, <code>{`Node (Ty T : Type){:lean}`}</code> (see <a href="#sorts">Sorts of sorts</a>).
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Node.lean", "inductive Node")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Node.lean", "inductive Node")} />
 
         <Heading level={4} id="file-sem">Sem.lean</Heading>
         <p>
@@ -162,7 +168,11 @@
           that it is monotone (<code>Node.eval_mono</code>: poison children give poison or the same
           value), the values of its sorts (<code>Srt.val</code>), its invariants (see
           <a href="#invariants">Invariants</a>) and its primitives over plain data, which its typing
-          may use. That of the int module is quoted whole <a href="#sem">below</a>.
+          may use. That of the int module is quoted whole <a href="#sem">below</a>. What these
+          declarations name inside the namespace <code>Node</code> (<code>Node.eval</code>,
+          <code>Node.eval_mono</code>) is hidden by a node of that name: with a node
+          <code>Option</code>, write <code>_root_.Option</code> (likewise <code>Values</code>:
+          <code>R.Values</code>).
         </p>
         <Code lang="lean" code={block("examples/ints/lean/IntMod/Sem.lean", "def Node.eval")} />
 
@@ -181,7 +191,7 @@
           <code>{`class Typed (S) … [Lang S] : Prop{:lean}`}</code>, if it has sorts: well-typed terms
           of its sorts evaluate to values of these sorts (<code>Srt.val</code>).
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Lang.lean", "def Node.wt")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Lang.lean", "def Node.wt")} />
 
         <Heading level={4} id="file-prims">Prims.lean</Heading>
         <p>
@@ -206,22 +216,25 @@
           a primitive marked <code>{`[@no_lean]{:kanon}`}</code> is not in it (nor in any other
           generated file).
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Model.lean", "def Int.plus.r_lits")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Model.lean", "def Int.plus.r_lits")} />
 
         <Heading level={4} id="file-lift">Lift.lean</Heading>
         <p>
           The lifting lemmas of the rule functions of the module and of the modules it uses
           (<code>Lib.lift_f</code>: a spec is refined by the rule function on refined arguments),
-          with which the tactics lift the calls of rule functions to their specs.
+          with which the tactics lift the calls of rule functions to their specs. A parameter that
+          is a list of terms is not refined: the lemma is for the same list, as in
+          <code>Ops.Sound</code> (<code>lift_bool_distinct</code>). It is sound, being the field of
+          <code>Ops.Sound</code>, but it does not lift a call whose list is a refinement of another.
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Lift.lean", "theorem lift_int_plus")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Lift.lean", "theorem lift_int_plus")} />
 
         <Heading level={4} id="file-statements-comm">Statements/Comm.lean</Heading>
         <p>
           If it has some <code>{`[@comm]{:kanon}`}</code> nodes: the statement of the commutativity
           of each (<code>Plus.comm.Stmt</code>), for any language that has the module.
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Comm.lean", "def Plus.comm.Stmt")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Statements/Comm.lean", "def Plus.comm.Stmt")} />
 
         <Heading level={4} id="file-statements">Statements/M/f.lean</Heading>
         <p>
@@ -233,7 +246,7 @@
           and of what the function must satisfy (see <a href="#subsorts">Subsorts</a>), or of each
           case of the helper (<code>Bool.sure_neq.c1.Stmt</code>).
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
 
         <Heading level={4} id="file-proofs">Proofs.lean</Heading>
         <p>
@@ -261,7 +274,7 @@
           <code>kanon_comm</code> uses: the proofs of the functions of the module, and of the modules
           that use it, import them.
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntMod/Soundness/Comm.lean", "set_option maxHeartbeats")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Soundness/Comm.lean", "set_option maxHeartbeats")} />
 
         <Heading level={4} id="file-soundness-fn">Soundness/M/f.lean</Heading>
         <p>
@@ -275,12 +288,12 @@
         </p>
         <Code
           lang="lean"
-          code={`${imports("examples/ints/lean/IntMod/Soundness/Int/plus.lean")}\n\n${block("examples/ints/lean/IntMod/Soundness/Int/plus.lean", "theorem Int.plus.r_lits.sound")}`}
+          code={`${imports("examples/ints/lean/Generated/IntMod/Soundness/Int/plus.lean")}\n\n${block("examples/ints/lean/Generated/IntMod/Soundness/Int/plus.lean", "theorem Int.plus.r_lits.sound")}`}
         />
 
         <Heading level={4} id="file-soundness">Soundness.lean</Heading>
         <p>The proofs of the module, which its languages import.</p>
-        <Code lang="lean" code={imports("examples/ints/lean/IntMod/Soundness.lean")} />
+        <Code lang="lean" code={imports("examples/ints/lean/Generated/IntMod/Soundness.lean")} />
         <p>
           And, if it declares data types, <code>Types.lean</code> and, by hand, its abstract types in
           <code>Abstract.lean</code> (see <a href="#data">Data types</a>).
@@ -299,7 +312,7 @@
           (<code>{`.int (s : IntMod.Srt){:lean}`}</code>), and its terms, <code>Term</code>, a node
           of a module at a sort (<code>{`.int (n : IntMod.Node Term) (t : Ty){:lean}`}</code>).
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Syntax.lean", "inductive Term")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntsExample/Syntax.lean", "inductive Term")} />
 
         <Heading level={4} id="file-val">Val.lean</Heading>
         <p>
@@ -317,7 +330,7 @@
           <code>eval</code>, <code>Refines</code>, and the instance of <code>Lang</code> of each
           module, whose laws hold by <code>rfl</code>.
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Semantics.lean", "@[reducible] def sem")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntsExample/Semantics.lean", "@[reducible] def sem")} />
 
         <Heading level={4} id="file-typing">Typing.lean</Heading>
         <p>
@@ -336,7 +349,7 @@
           (<code>opsN</code>), and <code>opsN_sound</code>, the proof that the whole simplifier is
           sound, given <code>Oracle.Compat</code>, what the modules assume of their oracles.
         </p>
-        <Code lang="lean" code={block("examples/ints/lean/IntsExample/Rules.lean", "def Int.plus.step")} />
+        <Code lang="lean" code={block("examples/ints/lean/Generated/IntsExample/Rules.lean", "def Int.plus.step")} />
       </div>
     </div>
   </div>
@@ -562,13 +575,17 @@
   <Heading level={3} id="project">The project</Heading>
   <p>
     A Lake package that requires Kanon's library, at the toolchain of <code>lean/</code>, with a
-    library per root (<code>IntsExample.lean</code> imports <code>IntsExample.Rules</code>):
+    library per root, which also has the generated files of the root
+    (<code>{`globs = ["IntMod.+", "Generated.IntMod.+"]`}</code>; <code>IntsExample.lean</code> imports
+    <code>Generated.IntsExample.Rules</code>):
   </p>
   <Code lang="text" code={file("lean/lakefile.toml")} />
   <p>
-    The generated files are written by <code>kanon lean-all . ../lang.knl</code>, run in
-    <code>examples/ints/lean</code> (in Kanon's repository, <code>dune test</code> runs
-    <code>kanon lean-all --check</code>, which checks that they are up to date). The files of a
+    The generated files are written by <code>kanon lean . ../lang.knl</code>, run in
+    <code>examples/ints/lean</code>, which deletes the <code>Generated/R</code> directory of each
+    root before writing it, so that no file of a function or a rule that is gone stays behind
+    (in Kanon's repository, <code>dune test</code> runs <code>kanon lean --check</code>, which
+    checks that those directories are exactly what it would write). The files of a
     module import each other in this order, the hand-written ones in bold:
   </p>
   <p class="chain">
@@ -583,7 +600,7 @@
     <strong><code>Typing</code></strong> → <code>Rules</code>
   </p>
   <p>
-    <code>kanon lean-all</code> imports a hand-written file when it exists: run it after adding
+    <code>kanon lean</code> imports a hand-written file when it exists: run it after adding
     one. <code>check_axioms.lean</code> checks that the soundness theorem is proved, without
     <code>sorry</code>:
   </p>
@@ -643,7 +660,7 @@
         its result refines its spec, over the variables of its pattern, with its guard as a
         hypothesis.
       </p>
-      <Code lang="lean" code={block("examples/ints/lean/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
+      <Code lang="lean" code={block("examples/ints/lean/Generated/IntMod/Statements/Int/plus.lean", "def Int.plus.r_lits.main.Stmt")} />
     </li>
     <li>
       <p>
@@ -654,9 +671,9 @@
       <Code lang="lean" code={`attribute [kanon_tactic "kanon_int"] Int.plus.spec`} />
       <p>
         or prove the statement by hand, in the module's <code>Proofs.lean</code>, which imports
-        its statement (<code>{`import IntMod.Statements.Int.plus{:lean}`}</code>): a theorem
+        its statement (<code>{`import Generated.IntMod.Statements.Int.plus{:lean}`}</code>): a theorem
         <code>X.proof</code> of <code>X.Stmt</code>, tagged <code>{`@[kanon_arm]{:lean}`}</code>
-        (then run <code>kanon lean-all</code> if the file is new, so that the files under
+        (then run <code>kanon lean</code> if the file is new, so that the files under
         <code>Soundness/</code> import it). Editing it rebuilds the module's proofs, under
         <code>Soundness/</code>, and what imports them only.
       </p>

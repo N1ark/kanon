@@ -1,6 +1,6 @@
 # Kanon in a web page
 
-`web/` compiles kanon, its command line and its language server, to
+`web/` compiles kanon, the parts of its generated code and its language server, to
 JavaScript with js_of_ocaml, for a web page to run it in a Web Worker: one
 classic script, `kanon.js`, which defines the API `globalThis.kanon` below.
 
@@ -24,11 +24,12 @@ dune build --profile web && node web/test.mjs
 ```
 
 loads `kanon.js` in node as a worker does, checks `kanon.run` against the
-native `kanon` on `examples/bool`, `test/tiny.t` and errors, and a session of
-the language server on `test/lsp.t` against `kanon lsp`. With soteria
-(`SOTERIA=path/to/soteria/soteria`), it also checks that `kanon.run` agrees
-with `kanon` on its language `Bv_values` with every backend, and reports the
-time of the check of `Bv_values` by the language server.
+files that the native `kanon ocaml` and `kanon lean` write (see
+`site/scripts/parts.mjs`) on `examples/bool`, `test/tiny.t` and errors, and a
+session of the language server on `test/lsp.t` against `kanon lsp`. With
+soteria (`SOTERIA=path/to/soteria/soteria`), it also checks that `kanon.run`
+agrees with them on its language `Bv_values` with every backend, and reports
+the time of the check of `Bv_values` by the language server.
 
 ## The API
 
@@ -56,8 +57,8 @@ kanon.readFile(path: string): string | null  // also the files that the server's
 kanon.listFiles(dir: string): string[]       // the files under dir, recursively, absolute
 kanon.lsp(message: string): string[]         // handles one JSON-RPC message; the messages sent
 kanon.check(): string[]                      // runs the pending check; the messages sent
-kanon.run(args: string[]): { code: number, stdout: string, stderr: string }  // kanon ARGS...
-kanon.backends : string[]                    // the backends of run: ocaml, ..., lean-soundness
+kanon.run(args: string[]): { code: number, stdout: string, stderr: string }  // BACKEND FILE...
+kanon.backends : string[]                    // the backends of run: ocaml-types, ..., lean-rules
 kanon.builtins : { [file: string]: string }  // the modules built into kanon: bool.knl, bool.kn
 ```
 
@@ -69,8 +70,15 @@ kanon.builtins : { [file: string]: string }  // the modules built into kanon: bo
   not after a notification: `check` does, as `kanon lsp` does once no message
   is waiting; the page calls it after a pause in the changes. The `exit`
   notification is ignored.
-- `run(args)` is `kanon args` in `kanon.root`: its exit code and outputs. An
-  exception is reported as by `kanon` (`Fatal error: exception ...`, code 2).
+- `run([backend, file...])` prints on `stdout`, in `kanon.root`, a part of the
+  code that `kanon ocaml` and `kanon lean` write: the OCaml `types.ml`
+  (`ocaml-types`), `rules.ml` (`ocaml`), `typed.ml` (`ocaml-typed`) and
+  `tests.ml` (`ocaml-tests`), or the Lean files of one of the parts
+  `lean-types`, `lean-node`, `lean-lang`, `lean-model`, `lean-statements`,
+  `lean-soundness`, `lean-syntax`, `lean-semantics` and `lean-rules` (each
+  file after its name when a part has several). It returns the exit code and
+  the outputs. An exception is reported as by `kanon` (`Fatal error:
+  exception ...`, code 2).
 
 ## The file system
 

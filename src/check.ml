@@ -313,10 +313,10 @@ let strip_attr name (p : pattern) =
   }
 
 (** How many times each variable is bound in the pattern of the case being
-    checked. *)
+    checked, plus the times its guard reads it. *)
 let case_vars : (string, int) Hashtbl.t = Hashtbl.create 8
 
-let count_vars (p : pattern) =
+let count_vars ?guard (p : pattern) =
   Hashtbl.reset case_vars;
   let add x =
     Hashtbl.replace case_vars x
@@ -332,7 +332,21 @@ let count_vars (p : pattern) =
       super#pattern p
   end
     #pattern
-    p
+    p;
+  Option.iter
+    (fun g ->
+      object
+        inherit Ast_traverse.iter as super
+
+        method! expression e =
+          (match e.pexp_desc with
+          | Pexp_ident { txt = Lident x; _ } -> add x
+          | _ -> ());
+          super#expression e
+      end
+        #expression
+        g)
+    guard
 
 (** The typings of the nodes, from which the sorts of the terms that rules build
     are inferred, and the literals of patterns resolved. *)
@@ -666,6 +680,21 @@ and binders (p : Syntax.pat) : (string * (Syntax.ty * bool)) list =
              | _ -> binders p)
            c.c_args args)
 
+(** Whether the pattern has an integer literal or binds a variable twice, which
+    OCaml patterns on integers of [Z.t] cannot express (see [linearize]). *)
+let needs_linearize (p : Syntax.pat) =
+  let rec has_int (p : Syntax.pat) =
+    match p.p with
+    | PInt _ -> true
+    | PAny | PVar _ | PBool _ | PUnit | PNone | PNil -> false
+    | PAs (q, _) | PSome q -> has_int q
+    | POr (a, b) | PComm (a, b) | PCons (a, b) -> has_int a || has_int b
+    | PTuple l | PConstr (_, l) -> List.exists has_int l
+    | PRecord l -> List.exists (fun (_, q) -> has_int q) l
+  in
+  let xs = List.map fst (binders p) in
+  has_int p || List.length (List.sort_uniq compare xs) <> List.length xs
+
 (** The variables bound by the sorts of the operands of the spec of the rule
     being checked (see [sort_binds]), and the values they stand for. *)
 let sort_vars : (string * Syntax.expr) list ref = ref []
@@ -674,7 +703,15 @@ let no_shadow env loc x =
   if List.mem_assoc (resolve loc x) env.globals then
     error loc "%s shadows a global function" x;
   if List.mem_assoc x !sort_vars then
-    error loc "%s shadows a variable of the sort of an operand" x
+    error loc "%s shadows a variable of the sort of an operand" x;
+  (match List.find_opt (fun (g, _) -> flat_name g = x) env.globals with
+  | Some (g, _) -> error loc "%s is the OCaml name of %s" x g
+  | _ -> ());
+  List.iter
+    (fun n ->
+      if x = "equal_" ^ n then
+        error loc "%s is the OCaml name of the equality of %s" x n)
+    ("t" :: List.map (fun d -> d.d_name) !lang.decls)
 
 (** The location of the first binding of [x] in [p], if any. *)
 let rec binder_loc x (p : Syntax.pat) =
@@ -700,6 +737,7 @@ let add_binders ?(sorts = []) env p =
     bs;
   {
     env with
+    locals = List.filter (fun (f, _) -> not (List.mem_assoc f bs)) env.locals;
     vars = List.map (fun (x, (t, _)) -> (x, t)) bs @ env.vars;
     sorts =
       List.map
@@ -1045,6 +1083,23 @@ let rec is_atom (e : Syntax.expr) =
 let type_of (e : Syntax.expr) =
   { e = ECall ("type_of", [ e ]); ety = TSty; eloc = e.eloc }
 
+(** Whether the pattern matches every sort: its sort constructor is the only one
+    of the language, and its arguments are variables or wildcards. A match on it
+    needs no other case. *)
+let rec total_sort_pat (p : Syntax.pat) =
+  match p.p with
+  | PAny | PVar _ -> true
+  | PTuple l -> List.for_all total_sort_pat l
+  | PConstr (_, args) ->
+      List.length
+        (List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs)
+      = 1
+      && List.for_all
+           (fun (a : Syntax.pat) ->
+             match a.p with PAny | PVar _ -> true | _ -> false)
+           args
+  | _ -> false
+
 (** The term of the node [name] over [params] and [operands], which [build]
     makes a kind of, at the sort that its typing gives it: the sort of its
     result when it only depends on the parameters, else the sort of an operand
@@ -1201,7 +1256,8 @@ let node_term loc ~name ~build (params : Syntax.expr list)
               e =
                 EMatch
                   ( scrut_exprs,
-                    [ case pat body; case any (List.hd scrut_exprs) ] );
+                    if total_sort_pat pat then [ case pat body ]
+                    else [ case pat body; case any (List.hd scrut_exprs) ] );
               ety = TSty;
               eloc = loc;
             }
@@ -1542,11 +1598,26 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             params;
           let params = List.map param_of params in
           let ret = Option.map ret_of ret in
-          let fenv = { env with vars = params @ env.vars } in
+          let fenv =
+            {
+              env with
+              locals =
+                List.filter
+                  (fun (f, _) -> not (List.mem_assoc f params))
+                  env.locals;
+              vars = params @ env.vars;
+            }
+          in
           let fbody = expr fenv ?expected:ret fbody in
           let s = { args = List.map snd params; ret = fbody.ety } in
           let body =
-            expr { env with locals = (name, s) :: env.locals } ?expected body
+            expr
+              {
+                env with
+                locals = (name, s) :: env.locals;
+                vars = List.remove_assoc name env.vars;
+              }
+              ?expected body
           in
           mk body.ety (ELetFun (name, params, fbody, body))
       | _ ->
@@ -1558,11 +1629,19 @@ let rec expr env ?expected (e : expression) : Syntax.expr =
             | _ -> error vb.pvb_loc "unsupported binding constraint"
           in
           let rhs = expr env ?expected:annot vb.pvb_expr in
-          let p, benv =
-            bind_pat env ~sort:(sort_of env vb.pvb_expr) rhs.ety vb.pvb_pat
-          in
-          let body = expr benv ?expected body in
-          mk body.ety (ELet (p, rhs, body)))
+          let sort = sort_of env vb.pvb_expr in
+          let p, benv = bind_pat env ~sort rhs.ety vb.pvb_pat in
+          if needs_linearize p then
+            (* a case of a match: literals and repeated variables are
+               constraints on its guard *)
+            let cases =
+              case env ?expected ~sort [ rhs ]
+                { pc_lhs = vb.pvb_pat; pc_guard = None; pc_rhs = body }
+            in
+            mk (List.hd cases).body.ety (EMatch ([ rhs ], cases))
+          else
+            let body = expr benv ?expected body in
+            mk body.ety (ELet (p, rhs, body)))
   | Pexp_match (scrut, cases) ->
       let scruts =
         match scrut.pexp_desc with
@@ -1749,7 +1828,7 @@ and case env ?expected ~sort scruts (c : Ppxlib.case) : Syntax.case list =
   in
   (* numbered per case, so that the generated names are stable *)
   pid_counter := 0;
-  count_vars lhs;
+  count_vars ?guard:c.pc_guard lhs;
   let sty =
     match scruts with
     | [ s ] -> s.ety
@@ -1945,7 +2024,7 @@ let rec spec_match (spec : expression) (e : expression) =
   (* the case [p, q], swapped if [op] is commutative *)
   let pair (c : Ppxlib.case) (p : pattern) (q : pattern) =
     let lhs = c.pc_lhs in
-    count_vars lhs;
+    count_vars ?guard:c.pc_guard lhs;
     let once (p : pattern) =
       match p.ppat_desc with
       | Ppat_any -> true
@@ -1953,9 +2032,10 @@ let rec spec_match (spec : expression) (e : expression) =
       | _ -> false
     in
     let symmetric =
-      alpha_equal
-        { lhs with ppat_desc = Ppat_tuple [ p; q ] }
-        { lhs with ppat_desc = Ppat_tuple [ q; p ] }
+      Option.is_none c.pc_guard
+      && alpha_equal
+           { lhs with ppat_desc = Ppat_tuple [ p; q ] }
+           { lhs with ppat_desc = Ppat_tuple [ q; p ] }
     in
     let swap =
       is_commutative node
@@ -2693,6 +2773,26 @@ let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
     d_doc = doc;
   }
 
+(** The predefined OCaml types that Kanon has no type of the same name for,
+    which the generated types use or may refer to. *)
+let ocaml_predefined_types =
+  [
+    "char";
+    "string";
+    "bytes";
+    "float";
+    "exn";
+    "array";
+    "list";
+    "option";
+    "int32";
+    "int64";
+    "nativeint";
+    "lazy_t";
+    "floatarray";
+    "extension_constructor";
+  ]
+
 (** Reads the declaration of a language, which the rules are then checked
     against. The terms are generated from its nodes, and their types from its
     sorts. *)
@@ -2838,6 +2938,8 @@ let language (str : structure) =
             | Some (TInt | TBool | TUnit) when name <> "nat" ->
                 error loc "%s is a built-in type" name
             | _ -> ());
+            if List.mem name ocaml_predefined_types then
+              error loc "%s is a predefined OCaml type" name;
             if generated_type name then
               error loc "type %s is generated from the %s" name
                 (if name = "ty" then "sorts" else "nodes");
@@ -4267,11 +4369,14 @@ let sort_binds env (r : raw_fn) =
                   e =
                     EMatch
                       ( [ scrut ],
-                        [
-                          case (only x p) { e = EVar x; ety = t; eloc = loc };
-                          case { p with p = PAny }
-                            { e = EUnreachable; ety = t; eloc = loc };
-                        ] );
+                        case (only x p) { e = EVar x; ety = t; eloc = loc }
+                        ::
+                        (if total_sort_pat (only x p) then []
+                         else
+                           [
+                             case { p with p = PAny }
+                               { e = EUnreachable; ety = t; eloc = loc };
+                           ]) );
                   ety = t;
                   eloc = loc;
                 } ))
@@ -4281,13 +4386,22 @@ let sort_binds env (r : raw_fn) =
 (* ---------------------------------------------------------------- *)
 (* Pruning redundant cases *)
 
+(** Whether [p] matches anything of its type: variables and wildcards, in tuples
+    and partial records. *)
+let rec irrefutable (p : Syntax.pat) =
+  match p.p with
+  | PAny | PVar _ -> true
+  | PAs (q, _) -> irrefutable q
+  | PTuple l -> List.for_all irrefutable l
+  | PRecord l -> List.for_all (fun (_, q) -> irrefutable q) l
+  | _ -> false
+
 (** Whether the (linearized) pattern [p] matches everything that [q] matches: a
     conservative check, which gives up on what it does not know. *)
 let rec subsumes (p : Syntax.pat) (q : Syntax.pat) =
   let all l m = List.length l = List.length m && List.for_all2 subsumes l m in
   match (p.p, q.p) with
-  | (PAny | PVar _), _ -> true
-  | _ when is_catch_all p -> true
+  | _ when irrefutable p -> true
   | PAs (p, _), _ -> subsumes p q
   | _, PAs (q, _) -> subsumes p q
   | PBool a, PBool b -> a = b

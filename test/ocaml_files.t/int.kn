@@ -1,0 +1,9 @@
+fn add (x y : int) : int = x + y
+
+fn negate (x : int) : int = 0 - x
+
+rule plus : Plus (v1, v2)
+
+rule neg : Neg v [@lean_heartbeats 800000] =
+  | lit: Neg (Int x) -> Int (negate x)
+  | twice: Neg (Neg x) -> x

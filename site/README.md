@@ -12,7 +12,7 @@ it, in the browser, published at <https://n1ark.github.io/kanon/>:
   operators, the rules, the generated code and the language server;
 - `sandbox.html`, the sandbox: the files of a language in an editor with
   Kanon's language server (diagnostics, hovers, completion, definitions,
-  references, rename, outline), and the output of every backend. The files are
+  references, rename, outline), and the output of every part of the generated code. The files are
   saved in the browser, and Share puts them in a link.
 
 The tutorial and the sandbox run Kanon itself: its web runtime (`web/` in the repository: the checker,

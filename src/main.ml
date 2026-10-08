@@ -1,28 +1,21 @@
-(** [kanon BACKEND FILE...]: generates, from the Kanon rules in the [.kn] files,
-    written in the language declared by the [.knl] files (a language and the
-    modules it is made of), with the modules that they use, in order:
-    - [ocaml-types]: the OCaml types of the language, standalone (which do not
-      need the rules);
-    - [ocaml]: their OCaml implementation, where these types are in scope;
-    - [ocaml-typed]: the typed interface of their smart constructors, where
-      terms are typed by the tags of their sorts and subsorts (see
-      {!Gen_typed}), and its implementation from the rules;
-    - [ocaml-tests]: the OCaml differential tests of their rule functions;
-    - [lean-types], [lean-node], [lean-lang], [lean-model], [lean-statements],
-      [lean-soundness]: the Lean files of each module, under its root: its data
-      types, its nodes and sorts, their typing in any language that has them,
-      the model of its rules, the statements of their soundness and their
-      proofs;
-    - [lean-syntax], [lean-semantics], [lean-rules]: the Lean files of the
-      language, under its root: its terms, their semantics, and its rule
-      functions, put together from those of its modules, with their proof. Each
-      backend prints its files one after the other, each after its name.
+(** [kanon ocaml [--check] DIR FILE...] and [kanon lean [--check] DIR FILE...]
+    generate, from the Kanon rules in the [.kn] files, written in the language
+    declared by the [.knl] files (a language and the modules it is made of),
+    with the modules that they use:
+    - [kanon ocaml] writes the OCaml in [DIR/Generated]: the types of the
+      language ([types.ml]), the implementation of the rules ([rules.ml]), the
+      typed interface of their smart constructors, where terms are typed by the
+      tags of their sorts and subsorts ([typed.ml], see {!Gen_typed}), and their
+      differential tests ([tests.ml]), after deleting that directory, which
+      holds only generated files;
+    - [kanon lean] writes the Lean files of each module and of the language in
+      the directory [Generated] of [DIR], under its root (as
+      [DIR/Generated/R/Model.lean], for the root [R] of a module), after
+      deleting the directory [DIR/Generated/R] of each root, which hold only
+      generated files: the hand-written files are in [DIR/R].
 
-    The output is written on standard output. [kanon lean-all DIR FILE...]
-    writes every Lean file of the above under [DIR] (as [DIR/R/Model.lean], for
-    the root [R] of a module), and removes those it wrote before and no longer
-    generates; [kanon lean-all --check DIR FILE...] only checks that they are up
-    to date.
+    With [--check], they only check that those directories are exactly as they
+    would be written.
 
     [use "path"], in a file, uses the module whose declarations are [path.knl]
     and whose rules are [path.kn] (either may be missing), relative to the
@@ -34,7 +27,8 @@
     [kanon lsp] is the language server of Kanon files (see {!Lsp_server}), and
     [kanon --version] prints the version of kanon.
 
-    The command line is {!Cli.run}. *)
+    The command line is {!Cli.run}; the web runtime has the parts of the
+    generated code apart ({!Parts}). *)
 
 let () =
   match List.tl (Array.to_list Sys.argv) with

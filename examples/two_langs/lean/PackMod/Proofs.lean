@@ -1,5 +1,5 @@
-import PackMod.Statements.Bool.sure_neq
-import PackMod.Statements.Pack.some_
+import Generated.PackMod.Statements.Bool.sure_neq
+import Generated.PackMod.Statements.Pack.some_
 
 /-!
 # The proofs of the pack module that the tactics do not find

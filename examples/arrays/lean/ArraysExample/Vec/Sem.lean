@@ -1,4 +1,4 @@
-import ArraysExample.Vec.Node
+import Generated.ArraysExample.Vec.Node
 import KanonCore.Embed
 import KanonCore.Array
 import KanonCore.ProofAttr

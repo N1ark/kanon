@@ -36,9 +36,7 @@ nodes: they are added by hand.
   > let size (t : Sub_types.t) =
   >   match t.ty with Sub_types.TBitVector n -> Z.of_int n | _ -> Z.zero
   > ML
-  $ kanon ocaml-types lang.knl > sub_types.ml
-  $ kanon ocaml lang.knl > sub_rules.ml
-  $ kanon ocaml-typed lang.knl > sub_typed.ml
+  $ kanon ocaml out lang.knl && cp out/Generated/sub_types.ml sub_types.ml && cp out/Generated/sub_rules.ml sub_rules.ml && cp out/Generated/typed.ml sub_typed.ml
   $ cat > impl.ml <<'ML'
   > module Typed = struct
   >   include (Sub_typed.Derived : Sub_typed.S)
@@ -144,9 +142,9 @@ The typed module is the module of the rules, seen through `S`: a call through
 against the rules (`module _ : S = Derived`, in the generated file), and
 `Derived` is the rules and the phantom types, with no function of its own:
 
-  $ kanon ocaml-typed lang.knl | sed -n '/^module Derived/,/^end/p' | grep -c "^  let\[@inline\]"
+  $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | sed -n '/^module Derived/,/^end/p' | grep -c "^  let\[@inline\]"
   5
-  $ kanon ocaml-typed lang.knl | grep "include Sub\|module _"
+  $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep "include Sub\|module _"
     include Sub_rules
   module _ : S = Derived
   $ cat > run.ml <<'ML'

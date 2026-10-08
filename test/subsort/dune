@@ -7,26 +7,19 @@
 (rule
  (deps
   (glob_files *.kn*))
+ (targets
+  (dir gen))
  (action
-  (with-stdout-to
-   sub_types.ml
-   (run %{bin:kanon} ocaml-types lang.knl))))
+  (run %{bin:kanon} ocaml gen lang.knl)))
 
 (rule
- (deps
-  (glob_files *.kn*))
- (action
-  (with-stdout-to
-   sub_rules.ml
-   (run %{bin:kanon} ocaml lang.knl))))
+ (copy gen/Generated/sub_types.ml sub_types.ml))
 
 (rule
- (deps
-  (glob_files *.kn*))
- (action
-  (with-stdout-to
-   sub_typed.ml
-   (run %{bin:kanon} ocaml-typed lang.knl))))
+ (copy gen/Generated/sub_rules.ml sub_rules.ml))
+
+(rule
+ (copy gen/Generated/typed.ml sub_typed.ml))
 
 (test
  (name main)

@@ -6,9 +6,14 @@ defaultTargets = ["DivisionExample"]
 name = "kanon"
 path = "../../../lean"
 
+# A library has the files of a root, the hand-written ones (`R.+`) and the
+# generated ones (`Generated.R.+`): Lake finds a module in the library of its
+# root, and Kanon's library has its own `Generated/`.
 [[lean_lib]]
 name = "DivisionExample"
+globs = ["DivisionExample.+", "Generated.DivisionExample.+"]
 
 # The int module (../int.kn), proved once for any language that uses it.
 [[lean_lib]]
 name = "DivMod"
+globs = ["DivMod.+", "Generated.DivMod.+"]

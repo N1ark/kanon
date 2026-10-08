@@ -8,18 +8,18 @@ open Syntax
 
 let pf = Format.fprintf
 
-(** The expression that draws a value of type [t] from the source [src], if the
-    source can produce one. *)
+(** The expression that draws a value of type [t] from the source [kanon__src],
+    if the source can produce one. *)
 let rec draw t : (Format.formatter -> unit) option =
   let all f l =
     let l = List.map f l in
     if List.for_all Option.is_some l then Some (List.map Option.get l) else None
   in
   match t with
-  | TInt -> Some (fun ft -> pf ft "(src.int ())")
-  | TBool -> Some (fun ft -> pf ft "(src.bool ())")
-  | TTerm -> Some (fun ft -> pf ft "(src.term ())")
-  | TList TTerm -> Some (fun ft -> pf ft "(src.terms ())")
+  | TInt -> Some (fun ft -> pf ft "(kanon__src.int ())")
+  | TBool -> Some (fun ft -> pf ft "(kanon__src.bool ())")
+  | TTerm -> Some (fun ft -> pf ft "(kanon__src.term ())")
+  | TList TTerm -> Some (fun ft -> pf ft "(kanon__src.terms ())")
   | TTuple l ->
       Option.map
         (fun l ft -> pf ft "(%a)" (Gen_ocaml.list (fun ft d -> d ft)) l)
@@ -30,7 +30,8 @@ let rec draw t : (Format.formatter -> unit) option =
           Option.map
             (fun l ft ->
               pf ft "{ %a }"
-                (Gen_ocaml.list ~sep:"; " (fun ft (f, d) -> pf ft "%s = %t" f d))
+                (Gen_ocaml.list ~sep:"; " (fun ft (f, d) ->
+                     pf ft "%s = %t" (Gen_ocaml.id f) d))
                 (List.combine (List.map fst fields) l))
             (all (fun (_, t) -> draw t) fields)
       | [] -> (
@@ -39,7 +40,8 @@ let rec draw t : (Format.formatter -> unit) option =
           | _ :: _ when List.for_all (fun c -> c.c_args = []) constrs ->
               Some
                 (fun ft ->
-                  pf ft "(match src.choose %d with %a)" (List.length constrs)
+                  pf ft "(match kanon__src.choose %d with %a)"
+                    (List.length constrs)
                     (Gen_ocaml.list ~sep:" " (fun ft (i, c) ->
                          pf ft "| %s -> %s"
                            (if i = List.length constrs - 1 then "_"
@@ -54,7 +56,8 @@ let rec draw t : (Format.formatter -> unit) option =
 let rec fired ctx ft (e : expr) =
   match e.e with
   | EAssert (c, body) ->
-      pf ft "@[<v>(assert %a;@ %a)@]" (Gen_ocaml.expr ctx) c (fired ctx) body
+      pf ft "@[<v>(assert (%a [@@warning \"-11\"]);@ %a)@]" (Gen_ocaml.expr ctx)
+        c (fired ctx) body
   | ELet (p, rhs, body) ->
       pf ft "@[<v>(let %a = %a in@ %a%a)@]" Gen_ocaml.pat p (Gen_ocaml.expr ctx)
         rhs
@@ -91,18 +94,20 @@ let rec rule_names (e : expr) =
   | _ -> [ "main" ]
 
 let rule_fn ctx ft (f : fn) (spec : expr) draws =
-  pf ft "@[<v 2>( %S,@ [ %a ],@ fun src ->@ " f.name
+  pf ft "@[<v 2>( %S,@ [ %a ],@ fun kanon__src ->@ " f.name
     (Gen_ocaml.list ~sep:"; " (fun ft r -> pf ft "%S" r))
     (rule_names f.body);
-  List.iter2 (fun (x, _) d -> pf ft "let %s = %t in@ " x d) f.params draws;
+  List.iter2
+    (fun (x, _) d -> pf ft "let %s = %t in@ " (Gen_ocaml.id x) d)
+    f.params draws;
   pf ft "@[<v 2>{@ spec = (fun () -> %a);@ " (Gen_ocaml.expr ctx) spec;
   pf ft "call = (fun () -> %s%a);@ "
     (Gen_ocaml.fn_name ctx f.name)
-    (fun ft -> List.iter (fun (x, _) -> pf ft " %s" x))
+    (fun ft -> List.iter (fun (x, _) -> pf ft " %s" (Gen_ocaml.id x)))
     f.params;
   pf ft "fired = (fun () -> %a);@]@ })@]" (fired ctx) f.body
 
-let program ~sources ft (p : program) =
+let program ?open_module ~sources ft (p : program) =
   Gen_ocaml.check_prims p;
   let consts =
     List.concat_map
@@ -125,6 +130,7 @@ let program ~sources ft (p : program) =
     List.partition (fun f -> List.for_all Option.is_some (drawable f)) rules
   in
   Gen_ocaml.header ~sources ft;
+  Option.iter (pf ft "open %s@ @ ") open_module;
   pf ft
     "@[<v 2>type source = {@ int : unit -> Z.t;@ bool : unit -> bool;@ term : \
      unit -> t;@ terms : unit -> t list;@ choose : int -> int;@]@ }@ @ ";

@@ -4,18 +4,16 @@
 (rule
  (deps
   (glob_files *.kn*))
+ (targets
+  (dir gen))
  (action
-  (with-stdout-to
-   cs_types.ml
-   (run %{bin:kanon} ocaml-types lang.knl))))
+  (run %{bin:kanon} ocaml gen lang.knl)))
 
 (rule
- (deps
-  (glob_files *.kn*))
- (action
-  (with-stdout-to
-   cs_rules.ml
-   (run %{bin:kanon} ocaml lang.knl))))
+ (copy gen/Generated/cs_types.ml cs_types.ml))
+
+(rule
+ (copy gen/Generated/rules.ml cs_rules.ml))
 
 (test
  (name main)

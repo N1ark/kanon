@@ -1,0 +1,10 @@
+(* A language of integers, whose Lean files are written by lean. *)
+
+[@@@lean_root "Ex"]
+[@@@lean_heartbeats "300000"]
+
+use "int"
+
+type var [@ocaml "string"] [@lean "String"]
+
+node Var of var

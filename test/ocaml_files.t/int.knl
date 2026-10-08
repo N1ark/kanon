@@ -1,0 +1,9 @@
+node Int of int : TInt
+node Plus : TInt -> TInt -> TInt [@comm] [@unit 0] [@fold add]
+node Neg : TInt -> TInt
+
+sort TInt
+
+notation Int
+
+infix "+" = Plus, plus

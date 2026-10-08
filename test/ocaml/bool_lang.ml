@@ -8,7 +8,7 @@ module Prims = struct
   let v_false = node (Bool false) TBool
 
   let sort_by_tag l =
-    List.sort_uniq (fun (a : t) (b : t) -> Int.compare a.tag b.tag) l
+    List.sort (fun (a : t) (b : t) -> Int.compare a.tag b.tag) l
 end
 
 [%%include_file "bool_rules.gen.ml"]

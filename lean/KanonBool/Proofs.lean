@@ -1,5 +1,5 @@
-import KanonBool.Statements.Bool.and_
-import KanonBool.Statements.Bool.distinct
+import Generated.KanonBool.Statements.Bool.and_
+import Generated.KanonBool.Statements.Bool.distinct
 
 /-!
 # The arms of the bool module that the default tactic does not prove

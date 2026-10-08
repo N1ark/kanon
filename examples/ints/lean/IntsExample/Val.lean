@@ -1,4 +1,4 @@
-import IntsExample.Syntax
+import Generated.IntsExample.Syntax
 import IntsExample.Sem
 import IntMod.Sem
 

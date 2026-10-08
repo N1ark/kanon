@@ -1,31 +1,18 @@
 // Regenerates mock/fixtures.json, the canned outputs of the mock runtime: the
-// output of every backend on every example of examples/index.json, computed by
-// a native kanon ($KANON, or kanon in PATH; e.g.
-// KANON=../_build/default/install/bin/kanon after `dune build`).
+// output of every backend (every part of the generated code, as the runtime of
+// web/ prints it) on every example of examples/index.json. It is made of the
+// files that a native kanon writes, with `kanon ocaml DIR` and `kanon lean DIR`
+// (see parts.mjs), by $KANON, or kanon in PATH; e.g.
+// KANON=../_build/install/default/bin/kanon after `dune build`.
 
-import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { backends, nativeParts } from "./parts.mjs";
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const kanon = process.env.KANON ?? "kanon";
-const backends = [
-  "ocaml-types",
-  "ocaml",
-  "ocaml-typed",
-  "ocaml-tests",
-  "lean-types",
-  "lean-node",
-  "lean-lang",
-  "lean-model",
-  "lean-statements",
-  "lean-soundness",
-  "lean-syntax",
-  "lean-semantics",
-  "lean-rules",
-];
 const { examples } = JSON.parse(readFileSync(join(site, "examples/index.json"), "utf8"));
 
 // The files that no other file uses, as the sandbox picks them (src/roots.ts).
@@ -46,28 +33,9 @@ for (const ex of examples) {
     files[name] = readFileSync(join(site, path), "utf8");
   const dir = mkdtempSync(join(tmpdir(), "kanon-fixture-"));
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
-  for (const root of roots(files)) {
-    const outputs = {};
-    for (const backend of backends) {
-      let code = 0;
-      let stdout = "";
-      let stderr = "";
-      try {
-        stdout = execFileSync(kanon, [backend, root], {
-          cwd: dir,
-          encoding: "utf8",
-          stdio: ["ignore", "pipe", "pipe"],
-          maxBuffer: 64 << 20,
-        });
-      } catch (e) {
-        code = e.status ?? 1;
-        stdout = e.stdout ?? "";
-        stderr = e.stderr ?? String(e);
-      }
-      outputs[backend] = { code, stdout, stderr };
-    }
-    runs.push({ example: ex.id, root, files, outputs });
-  }
+  const text = Object.values(files).join("\n");
+  for (const root of roots(files))
+    runs.push({ example: ex.id, root, files, outputs: nativeParts(kanon, dir, [root], text) });
   rmSync(dir, { recursive: true, force: true });
 }
 

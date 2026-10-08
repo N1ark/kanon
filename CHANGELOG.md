@@ -14,19 +14,18 @@
 - [`[@lean_heartbeats n]`](https://n1ark.github.io/kanon/reference.html#on-functions) bounds each generated arm proof.
 - [`[@lean_proofs "F"]`](https://n1ark.github.io/kanon/reference.html#on-functions) imports `Proofs/F.lean` instead of `Proofs.lean`.
 - `[@lean_proofs "F"]` also on `extend` items and `[@comm]` nodes.
-- `kanon lean-all --check DIR` checks the Lean files are current.
+- `kanon lean --check DIR` checks the Lean files are current.
 - `[@extensible]` marks helpers that other modules extend.
 - Example `two_langs`: four languages share modules, with a diamond.
 - Modules that use each other are an error.
 - [`[@lean_inv "P"]`](https://n1ark.github.io/kanon/reference.html#on-sorts): invariants of sorts and nodes, in their typing.
 - `kanon_refl`: reflexivity of refinement, without evaluating terms.
 - `kanon_refl` unfolds helpers, so a helper spec is refined.
-- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules, in `R/Types.lean`.
+- [Data types](https://n1ark.github.io/kanon/proving.html#data) of modules, in `Generated/R/Types.lean`.
 - [Every module](https://n1ark.github.io/kanon/proving.html#modules) is proved once in Lean, for every language.
 - `[@@@lean_root "R"]` in a module sets its Lean root.
 - Hand-written `Sem`, `Prims` and `Proofs` files per module.
 - Helpers may recurse on terms, decreasing by `Sem.size`.
-- Lean backends `lean-node`, `lean-lang`, `lean-semantics`, `lean-rules`.
 - Lean sorts and nodes may take sorts: `Srt Ty`.
 - Lean binders: nodes may evaluate children in other environments.
 - Cases of extensible helpers may call rule functions and helpers.
@@ -36,30 +35,37 @@
 - `[@@@lean_laws]`: a module's proofs assume facts each language proves.
 - Lean `Node.children` lists the children of a node.
 - Lifting lemmas hold of specs that read their arguments' sorts.
+- `kanon ocaml DIR` writes the OCaml files in `DIR/Generated`.
 
 ### Changed
 
 - Generated code qualifies names by module: `Rules.Bitvec.add`.
 - Bool functions lose prefixes: `b_not` is `Bool.not_`.
-- `ocaml-typed` generates only the module type `S`.
-- `ocaml-tests` lists rule functions by qualified name.
+- The typed interface generates only the module type `S`.
+- Generated tests list rule functions by qualified name.
 - Destructors `as_foo` and `is_foo` live in their module.
 - Primitives of different modules may not share a name.
 - `Kanon_flat` is a reserved module name.
 - `Foo.x` is a qualified name, not a field access.
-- [`kanon lean-all DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes a few Lean files per module.
+- [`kanon lean DIR`](https://n1ark.github.io/kanon/reference.html#lean) writes a few Lean files per module.
 - Languages write `Val.lean` and `Typing.lean` by hand.
 - `Node.eval` gets the children's values in every environment.
 - Lean invariants take the arguments of the typing.
-- Removed backends `lean-signatures`, `lean-typing`, `lean-lifts`, `lean-nodes`.
+- Removed stdout backends: only `kanon ocaml` and `kanon lean` remain.
+- `kanon lean-all` is now `kanon lean`.
 - Removed `[@@@lean_param]`.
 - A module's `Oracle.Compat` is over any semantics `S`.
-- Lean backends print every file of their part.
 - More arms that swap commutative operands are derived.
 - The bool module's Lean proofs move to library `KanonBool`.
 - `kanon_tactic` on `Ops` proves a module's extension arms.
 - `[@lean "N"]` names generated records and variants.
 - [Lean statements and proofs](https://n1ark.github.io/kanon/proving.html#files): a file per function.
+- Generated OCaml raises `Invalid_argument` on a non-positive sort `nat`.
+- Lean's typing always requires positive widths, ignoring `when`.
+- `kanon lean` writes `DIR/Generated/R`, and clears it first.
+- Lean modules are named `Generated.R.X`; hand-written files stay in `R`.
+- `kanon lean --check` reports any stale file under `Generated/R`.
+- Lake libraries must list `Generated.R.+` to build generated files.
 
 ### Fixed
 
@@ -73,6 +79,55 @@
 - `kanon_comm` and `kanon_congr` fail fast on different terms.
 - Record literals in Lean use the Lean name of their type.
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
+- `-(-5)` is `5`, not a crash.
+- The typed interface accepts sort variables like `a'`.
+- Generated term equality works beside a module named `Int`.
+- Record fields may be named `kind`, `ty` or `tag`.
+- Types named like OCaml's (`string`) are an error.
+- Variables named like a function's OCaml name are an error.
+- Variables and local functions shadow each other, as in OCaml.
+- Literals and repeated variables work in `let` patterns.
+- OCaml keywords like `end` and `to` are valid names.
+- Generated tests compile when a rule parameter is named `src`.
+- Doc comments with a lone quote after a letter compile.
+- Doc comments with character literals and `{%ext|` compile.
+- Generated types call `Stdlib.Int`, not a module named `Int`.
+- A case of variables like `x, y` hides later cases.
+- The typed interface keeps the order of a rule's parameters.
+- Generated tests build with unused-case warnings as errors.
+- Languages with one sort build with warnings as errors.
+- A file named `z` is an error: `Z` is Zarith's.
+- A module named like the `ocaml_prims` module is an error.
+- Rules named like Lean keywords generate valid Lean.
+- Lifting lemmas of keyword-named parameters are valid Lean.
+- Lean keywords like `exists` and `try` are quoted.
+- Record fields named like Lean keywords are quoted.
+- Modules named like Lean keywords generate valid Lean.
+- `Node.Rel` is valid for node arguments `x` and `x'`.
+- Lean rejects node arguments named `f`, `y` or `ev`.
+- Lean files import the modules whose types a module mentions.
+- Lean rejects rule parameters named `h`, `hO`, `res` or `sem`.
+- `kanon lean` rejects two modules with the same Lean root.
+- `kanon_arm` proves rules of functions with annotated operands.
+- Lean typings of nodes whose sorts take sorts are valid.
+- Typings are valid Lean with a node named `Int`.
+- `Node.All`, `Rel` and `children` are valid with nodes named `True`.
+- Lean rejects a pattern variable named as another parameter.
+- Lean rejects an `as` variable named as another parameter.
+- Lean rejects a module `List` with list-of-terms nodes.
+- Rule functions without parameters are valid Lean.
+- Helpers without parameters that need the model are valid Lean.
+- Lifting lemmas prime the parameters `x` and `x'` apart.
+- Lean rejects nodes named `All`, `Rel`, `Node` or `Lang`.
+- Lean rejects data types named like generated declarations.
+- Lean models of modules with only helpers build.
+- Pattern variables `hO` and `hg` work in derived arms.
+- Lean rejects variables named `decide`, `some` or `none`.
+- `[@@@lean_root]` rejects invalid names and Lean's libraries.
+- Lean rejects recursions that do not shrink a matched parameter.
+- A copy of the bool module may have the root `KanonBool`.
+- `<>` on terms generates valid OCaml.
+- Lean writes `None`, `[]` and `[||]` with their type.
 
 ## 0.3.0 (2026-10-04)
 
@@ -159,6 +214,11 @@ The first versioned release.
 - The rules of `[@unit c]` and `[@zero c]` are `unit_c`, `zero_c`.
 - The generated rules call primitives in `[@@@ocaml_prims]`, not `P`.
 - [Infix words](https://n1ark.github.io/kanon/reference.html#precedence) have the precedence of comparisons.
+- Guards of commutative patterns are tried on swapped operands.
+- A file given twice, as `m.kn` and `./m.kn`, loads once.
+- A missing or unreadable input file is an error, not an exception.
+- Traversals of types named `x` and `ty_x` no longer clash.
+- Variables named `equal_item` for a type `item` are an error.
 
 ### Removed
 

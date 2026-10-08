@@ -5,8 +5,8 @@ of the modules in a language, the types of the children, the node and its sort.
 The typing of the terms among its arguments is that of its children
 (`Node.All`).
 
-  $ kanon lean-all out lang.knl
-  $ sed -n '/^def Node.wt/,/^$/p' out/CoreMod/Lang.lean
+  $ kanon lean out lang.knl
+  $ sed -n '/^def Node.wt/,/^$/p' out/Generated/CoreMod/Lang.lean
   def Node.wt {T Ty : Type} (sBool : KanonBool.Srt → Ty) (sCore : (CoreMod.Srt Ty) → Ty) (ty : T → Ty) : (Node Ty) T → Ty → Prop
     | (.Ev x1), t => (t = (sCore .TEven)) ∧ even_inv sBool sCore ty (.Ev x1) t
     | (.Seq l1), t => seq_wt sBool sCore ty (.Seq l1) t
@@ -17,7 +17,7 @@ The typing of the terms among its arguments is that of its children
 A sort that takes sorts (TSeq of ty) is over the sorts of a language, and so is
 a node that takes sorts among its arguments (the binders of Exists).
 
-  $ grep -A1 '^inductive' out/CoreMod/Node.lean
+  $ grep -A1 '^inductive' out/Generated/CoreMod/Node.lean
   inductive Srt (Ty : Type) where
     | TEven
   --
@@ -28,7 +28,7 @@ Children may be inside other types (an array, an option, a tuple, a record):
 the functions of each such type map its terms and list them, and the
 relation of two nodes compares their shapes and the lists of their children.
 
-  $ grep '^def _root_\|^  | (.Arr' out/CoreMod/Node.lean
+  $ grep '^def _root_\|^  | (.Arr' out/Generated/CoreMod/Node.lean
   def _root_.CoreMod.Node.shape1.map {T U : Type} (f : T → U) : (List T) → (List U)
   def _root_.CoreMod.Node.shape1.flat {T : Type} : (List T) → List T
   def _root_.CoreMod.Node.shape2.map {T U : Type} (f : T → U) : (Array T) → (Array U)
