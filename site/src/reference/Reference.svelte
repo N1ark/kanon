@@ -698,7 +698,12 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
 
   <Heading level={3} id="rule-cases">Rules</Heading>
   <ul>
-    <li>The pattern variables of a rule may not shadow the parameters of its function.</li>
+    <li>
+      A pattern variable may have the name of a parameter of the function and shadow it in its case.
+      The Lean backends reject one that has the name of another parameter than the one it matches
+      (<code>{`| crossed: v2, v1 -> v1{:kanon}`}</code> in a rule over <code>v1, v2</code>), as the
+      statements of the case name the parameters and the pattern variables alike.
+    </li>
     <li>
       A case that an earlier case without a guard already matches can never be taken: Kanon leaves
       it out. It does not look into guards, so a case with a guard, or with a repeated variable or
