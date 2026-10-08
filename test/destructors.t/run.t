@@ -21,7 +21,7 @@ module of the file that declares the node or the sort.
   > KN
   $ kanon ocaml lang.knl rules.kn | sed -n '/^module Lang/,/^end/p'
   module Lang = struct
-    let t_bv (a1 : int) : ty = TBv (a1)
+    let t_bv (a1 : int) : ty = Kanon_flat.kanon__sort_TBv a1
     let t_bool : ty = TBool
     
     let as_lit (t : t) =

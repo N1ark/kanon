@@ -1120,7 +1120,7 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
   > KN
   $ kanon ocaml bv.knl bv.kn | sed -n '/ bv_lit /,$p'
     let[@inline] bv_lit (n : Z.t) (z : Z.t) : t =
-        (node (BitVec ((Prims.wrap n z))) (TBitVector ((Z.to_int n))))
+        (node (BitVec ((Prims.wrap n z))) (kanon__sort_TBitVector (Z.to_int n)))
     
     let bv_msb (v : t) : Z.t =
         (let n = (bv_size v) in
@@ -1173,9 +1173,9 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
                  ) [@warning "-11"]);
         (match v1, v2 with
         | (({ kind = BitVec (i1); _ } as lit_i1), ({ kind = BitVec (i2); _ } as lit_i2)) ->
-          (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+          (node (BitVec ((bv_z_concat lit_i1.ty lit_i2.ty i1 i2))) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v1) (bv_size v2)))))
         | _ ->
-          (node (Op2 (BvConcat, v1, v2)) (TBitVector ((Z.to_int (Z.add (bv_size v1) (bv_size v2))))))
+          (node (Op2 (BvConcat, v1, v2)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v1) (bv_size v2)))))
         ))
     
     let bv_ult (v1 : t) (v2 : t) : t =
@@ -1200,7 +1200,7 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
   
   (** The Kanon module bv. *)
   module Bv = struct
-    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
@@ -1399,9 +1399,9 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
         | { kind = Op1 ((BvExtend (j)), v); _ }
           when ((Z.gt n (Z.of_int (3)))) ->
           let j = Z.of_int j in
-          (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) (Z.add k j))))))
+          (node (Op1 ((BvExtend ((Z.to_int (Z.add k j)))), v)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v) (Z.add k j)))))
         | _ ->
-          (node (Op1 ((BvExtend ((Z.to_int k))), v)) (TBitVector ((Z.to_int (Z.add (bv_size v) k)))))
+          (node (Op1 ((BvExtend ((Z.to_int k))), v)) (kanon__sort_TBitVector (Z.to_int (Z.add (bv_size v) k))))
         )))
     
     let shadow_float_of (v : t) : t =
@@ -1430,7 +1430,7 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
   
   (** The Kanon module bv. *)
   module Bv = struct
-    let t_bitvector (a1 : int) : ty = TBitVector (a1)
+    let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add

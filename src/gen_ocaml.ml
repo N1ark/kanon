@@ -367,6 +367,14 @@ let prims_module () =
   | Some m -> m
   | None -> invalid_arg "Gen_ocaml: the language has no [@@@ocaml_prims]"
 
+(** Whether [c] is a sort with a [nat] argument: a width, which the generated
+    code builds only positive (see {!sort_makers}). *)
+let is_checked_sort (c : constr) = c.c_res = TSty && List.mem Small c.c_args
+
+(** The name, in [Kanon_flat], of the function that builds the sort [c] and
+    checks its [nat] arguments. *)
+let sort_maker (c : constr) = "kanon__sort_" ^ c.c_name
+
 type ctx = {
   prims : string list;  (** in the module of [[@@@ocaml_prims]] *)
   consts : string list;
@@ -398,7 +406,12 @@ let rec expr ctx ft (e : expr) =
         | Small -> pf ft "(Z.to_int %a)" expr e
         | Arg _ -> expr ft e
       in
-      pf ft "(%s (%a))" c.c_name (list arg) (List.combine c.c_args args)
+      let args = List.combine c.c_args args in
+      if is_checked_sort c then
+        pf ft "(%s%s %a)"
+          (if ctx.public then "Kanon_flat." else "")
+          (sort_maker c) (list ~sep:" " arg) args
+      else pf ft "(%s (%a))" c.c_name (list arg) args
   | ENode (k, t) -> pf ft "(node %a %a)" expr k expr t
   | ECall ("type_of", [ a ]) -> pf ft "%a.ty" expr a
   | EArray l -> pf ft "([|%a|] : _ Iarray.t)" (list ~sep:"; " expr) l
@@ -731,14 +744,45 @@ let sort_val_name (c : constr) =
   in
   "t_" ^ String.lowercase_ascii n
 
-(** The function of the sort [c]: its arguments are those of its constructor. *)
+(** The function of the sort [c]: its arguments are those of its constructor. A
+    [nat] argument must be positive: it is {!sort_maker} that checks it. *)
 let sort_ctor ft (c : constr) =
   let vars = List.mapi (fun i a -> (Fmt.str "a%d" (i + 1), a)) c.c_args in
   let param ft (x, a) = pf ft " (%s : %a)" x ocaml_arg a in
   pf ft "let %s%a : ty = %s" (sort_val_name c) (list ~sep:"" param) vars
     (match vars with
     | [] -> c.c_name
+    | l when is_checked_sort c ->
+        Fmt.str "Kanon_flat.%s %s" (sort_maker c)
+          (String.concat " " (List.map fst l))
     | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " (List.map fst l)))
+
+(** The functions that build the sorts that have a [nat] argument, at the start
+    of [Kanon_flat]: a [nat] is a width, so the sort of a non-positive one is an
+    [Invalid_argument], which the sorts of the rules and the functions of the
+    sorts ({!sort_ctor}) share. Patterns, traversals and equalities do not build
+    a sort from an argument that they did not already hold. *)
+let sort_makers ft =
+  let sorts = List.filter is_checked_sort !lang.constrs in
+  if sorts <> [] then (
+    pf ft
+      "@ @[<v 2>let[@inline never] kanon__bad_nat (sort : string) (i : int) (n \
+       : int) : 'a =@ Stdlib.invalid_arg (Stdlib.Printf.sprintf \"%%s: nat \
+       argument %%d must be positive, got %%d\" sort i n)@]@ ";
+    List.iter
+      (fun (c : constr) ->
+        let vars = List.mapi (fun i a -> (Fmt.str "a%d" (i + 1), a)) c.c_args in
+        pf ft "@ @[<v 2>let[@inline] %s %a : ty =@ " (sort_maker c)
+          (list ~sep:" " (fun ft (x, a) -> pf ft "(%s : %a)" x ocaml_arg a))
+          vars;
+        List.iteri
+          (fun i (x, a) ->
+            if a = Small then
+              pf ft "if %s <= 0 then kanon__bad_nat %S %d %s@ else " x c.c_name
+                (i + 1) x)
+          vars;
+        pf ft "%s (%a)@]@ " c.c_name (list (fun ft (x, _) -> pf ft "%s" x)) vars)
+      sorts)
 
 (** The module of the generated OCaml where the declaration at [loc] is: the
     Kanon module of its file (see {!Check.module_of_loc}), which may not be the
@@ -1332,6 +1376,7 @@ let program ~sources ft (p : program) =
      name: the module in lowercase, an underscore, and the name. The modules \
      below are their names. Not meant to be used.";
   pf ft "@[<v 2>module Kanon_flat = struct";
+  sort_makers ft;
   List.iteri
     (fun n group ->
       let kw =

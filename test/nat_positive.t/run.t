@@ -14,6 +14,7 @@ builds nothing, does not check.
   > node Bv of int * nat (v, n) : TBv n
   > node Ext of nat * nat (hi, lo) : TBv n -> TBv (hi - lo + 1)
   > node Field of nat (i) : TBv n -> TBv n
+  > node Take of nat (k) : TBv n -> TBv k when k <= n
   > KN
   $ cat > rules.kn <<'KN'
   > fn mk_bv (v : int) (n : int) : t = Bv (v, n)
@@ -68,3 +69,11 @@ builds nothing, does not check.
   extract of width 0: Invalid_argument "TBv: nat argument 1 must be positive, got 0"
   index 0: ok
   map_ty_children: ok
+
+Lean requires the widths of the typing of a node to be positive, whatever its
+condition says: the proofs are about the widths that OCaml builds.
+
+  $ kanon lean-all lean lang.knl
+  $ grep -n 'Take\|Ext' lean/Kanon/Lang.lean
+  21:  | (.Ext hi lo a3), t => ((∃ n : Int, 0 < n ∧ ty a3 = (sLang (.TBv n))) ∧ t = (sLang (.TBv ((hi - lo) + (1 : Int)))))
+  23:  | (.Take k a2), t => (∃ n : Int, 0 < k ∧ 0 < n ∧ ty a2 = (sLang (.TBv n)) ∧ k ≤ n ∧ t = (sLang (.TBv k)))

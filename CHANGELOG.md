@@ -60,6 +60,8 @@
 - `kanon_tactic` on `Ops` proves a module's extension arms.
 - `[@lean "N"]` names generated records and variants.
 - [Lean statements and proofs](https://n1ark.github.io/kanon/proving.html#files): a file per function.
+- Generated OCaml raises `Invalid_argument` on a non-positive sort `nat`.
+- Lean's typing always requires positive widths, ignoring `when`.
 
 ### Fixed
 

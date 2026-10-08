@@ -27,7 +27,7 @@ variables of the sorts, and an operand of another sort fails its assertion.
       let to' = (kanon__src.int ()) in
       let v' = (kanon__src.term ()) in
       {
-        spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (TBv ((Z.to_int (Z.add (Z.sub to' from') Z.one))))));
+        spec = (fun () -> (node (Op1 ((Ext ((Z.to_int from'), (Z.to_int to'))), v')) (Kanon_flat.kanon__sort_TBv (Z.to_int (Z.add (Z.sub to' from') Z.one)))));
         call = (fun () -> Rules.bv_ext from' to' v');
         fired = (fun () -> (let sz' = (Rules.size v') in
                            (assert ((match v'.ty with

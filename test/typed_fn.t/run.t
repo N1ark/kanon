@@ -43,7 +43,7 @@ asserts the sort of the result on exit, as it does for the parameters on entry.
                                       | _ -> false
                                       ) [@warning "-11"]);
                              (bv_add false a b)) in
-        (assert (((equal_ty kanon__result.ty (TBv ((Z.to_int n))))) [@warning "-11"]);
+        (assert (((equal_ty kanon__result.ty (kanon__sort_TBv (Z.to_int n)))) [@warning "-11"]);
         kanon__result))))
     
     let bv_less (a : t) (b : t) (flip : bool) : t =

@@ -1845,13 +1845,7 @@ let typing_rhs ?names ctx (ty : typing) =
     Option.value names ~default:(typing_names (List.length ty.t_sorts - 1))
   in
   let params = List.filter (( <> ) "_") ty.t_params in
-  (* a width is positive, unless the condition constrains it *)
-  let widths =
-    let cond = Option.fold ~none:[] ~some:expr_vars ty.t_when in
-    List.filter
-      (fun v -> not (List.mem v cond))
-      (uniq (List.concat_map widths ty.t_sorts))
-  in
+  let widths = uniq (List.concat_map widths ty.t_sorts) in
   let reps = ref [] and bound = ref [] and conjs = ref [] and seen = ref [] in
   (* the sort of an operand, [ty a1], is an argument of what it is in *)
   let args () =

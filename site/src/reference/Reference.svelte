@@ -69,7 +69,11 @@
     <dt><code>sort S attrs</code>, <code>sort S of a * b attrs</code></dt>
     <dd>
       A sort, the type of a term: a constructor of <code>ty</code>. Sorts and nodes are
-      constructors of different types, so their names differ.
+      constructors of different types, so their names differ. A <code>nat</code> argument of a sort
+      (<code>n</code> in <code>{`sort TBitVector of nat{:kanon}`}</code>) is a width and must be
+      positive: the generated OCaml raises <code>Invalid_argument</code> rather than build the sort of
+      a width of zero or less (see <a href="#ocaml">OCaml</a>), and so does Lean's typing of the nodes
+      for a variable width. The <code>nat</code> argument of a node, an index for instance, may be zero.
     </dd>
 
     <dt id="subsort"><code>{`subsort S of a * b : P x y attrs{:kanon}`}</code></dt>
@@ -915,7 +919,11 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <li>
       the function <code>t_foo</code> of each sort <code>TFoo</code> declared in its files
       (<code>t_bitvec</code>: a <code>nat</code> is an <code>int</code>), which makes the sort from
-      its arguments;
+      its arguments. A <code>nat</code> argument of a sort is a width and must be positive: the
+      function, and the sort that a rule or a typing builds (<code>{`TBitVector (n + m){:kanon}`}</code>),
+      raise <code>Invalid_argument</code> naming the sort and the value for a width that is not. Patterns,
+      the destructors and the traversals, which build no new width, check nothing; the constructors
+      of the types of the language, which a program may apply itself, are not checked either;
     </li>
     <li>the destructors of the nodes and sorts declared in its files (below).</li>
   </ul>
@@ -1338,9 +1346,11 @@ end`}
       In the typing of a node (<code>Node.wt</code>), a variable that is the <code>nat</code>
       argument of a sort (<code>n</code> in <code>{`TBitVector n{:kanon}`}</code>) is a width, which Lean
       requires to be positive: <code>{`∃ n : Int, 0 < n ∧ …{:lean}`}</code>, or <code>0 &lt; n</code>
-      for an argument of the node, unless the <code>when</code> condition of the typing mentions
-      it. The proofs are then about terms of positive widths only, and say nothing of a width of
-      zero, which nothing in the OCaml rules out.
+      for an argument of the node, whatever the <code>when</code> condition of the typing says.
+      The OCaml enforces it too (see <a href="#ocaml">OCaml</a>): the proofs are about terms of
+      positive widths, which are all that the generated code builds. A width that the typing
+      computes (<code>{`TBitVector (hi - lo + 1){:kanon}`}</code>) is not required to be positive in Lean,
+      only checked by the OCaml.
     </li>
     <li>
       Functions are in the namespace of their module (see <a href="#names">Names and modules</a>): the

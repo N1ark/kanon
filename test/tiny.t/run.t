@@ -1401,7 +1401,7 @@ OCaml asserts, and whose variables the rules may use.
   
   (** The Kanon module word. *)
   module Word = struct
-    let t_word (a1 : int) : ty = TWord (a1)
+    let t_word (a1 : int) : ty = Kanon_flat.kanon__sort_TWord a1
     let width = Kanon_flat.word_width
     let trunc = Kanon_flat.word_trunc
     
@@ -1525,7 +1525,7 @@ With a getter, the variables of the sort are read by it.
   
   (** The Kanon module getter. *)
   module Getter = struct
-    let t_word (a1 : int) : ty = TWord (a1)
+    let t_word (a1 : int) : ty = Kanon_flat.kanon__sort_TWord a1
     
     let as_trunc (t : t) =
       match[@warning "-11"] t with { kind = Op1 (Trunc, x1); _ } -> Some x1 | _ -> None
