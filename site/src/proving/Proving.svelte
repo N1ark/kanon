@@ -162,7 +162,11 @@
           that it is monotone (<code>Node.eval_mono</code>: poison children give poison or the same
           value), the values of its sorts (<code>Srt.val</code>), its invariants (see
           <a href="#invariants">Invariants</a>) and its primitives over plain data, which its typing
-          may use. That of the int module is quoted whole <a href="#sem">below</a>.
+          may use. That of the int module is quoted whole <a href="#sem">below</a>. What these
+          declarations name inside the namespace <code>Node</code> (<code>Node.eval</code>,
+          <code>Node.eval_mono</code>) is hidden by a node of that name: with a node
+          <code>Option</code>, write <code>_root_.Option</code> (likewise <code>Values</code>:
+          <code>R.Values</code>).
         </p>
         <Code lang="lean" code={block("examples/ints/lean/IntMod/Sem.lean", "def Node.eval")} />
 
