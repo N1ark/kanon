@@ -380,6 +380,15 @@
           than <code>{`Hashtbl.hash{:ocaml}`}</code>.
         </td>
       </tr>
+      <tr>
+        <td><code>{`[@pp "M.pp"]{:kanon}`}</code></td>
+        <td>
+          On an abstract type <code>a</code>: the OCaml function
+          <code>{`M.pp : Format.formatter -> a -> unit{:ocaml}`}</code> that prints its values, for the
+          <a href="#printers">printers</a> of <code>types.ml</code>. Without it, a value of the type
+          prints as <code>&lt;a&gt;</code>.
+        </td>
+      </tr>
     </tbody>
   </table>
 
@@ -957,6 +966,38 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     if the language has arrays. The table is not safe to use from several OCaml 5 domains at once: a
     known limitation.
   </p>
+  <p id="printers">
+    <strong>Printers.</strong> <code>types.ml</code> also has the printers
+    <code>{`pp : Format.formatter -> t -> unit{:ocaml}`}</code> of the terms,
+    <code>{`pp_ty : Format.formatter -> ty -> unit{:ocaml}`}</code> of the sorts, and
+    <code>pp_foo</code> of each declared type <code>foo</code>, for every language:
+  </p>
+  <ul>
+    <li>
+      a node of a <a href="#notation">notation</a> is its literal (<code>3</code>,
+      <code>true</code>);
+    </li>
+    <li>
+      a node without parameters that has an <code>infix</code> or a <code>prefix</code> operator is
+      in its notation, in parentheses: <code>(a + b)</code>, <code>(-a)</code>,
+      <code>(not a)</code>. The first declared operator of the node is used. A node with parameters
+      has no notation, even if an operator fixes them (<code>Rem(false, a, b)</code>);
+    </li>
+    <li>
+      any other node is its name applied to its parameters, then its operands, and a sort or a
+      constructor of a variant its name applied to its arguments: <code>Var(x)</code>,
+      <code>Ite(c, a, b)</code>, <code>Distinct([a; b])</code> (the operands of an n-ary node are
+      a list), <code>TBitVec(32)</code>; one without arguments is its name alone
+      (<code>TInt</code>);
+    </li>
+    <li>
+      the arguments print with <code>Z.pp_print</code> (<code>int</code>), as OCaml booleans,
+      lists (<code>[a; b]</code>), arrays (<code>[|a; b|]</code>), options
+      (<code>None</code>, <code>Some(a)</code>), tuples (<code>(a, b)</code>) and records
+      (<code>{`{ owner = p; offset = 1 }`}</code>), recursively, and the values of an abstract type
+      with its <code>{`[@pp]{:kanon}`}</code>, or as <code>&lt;foo&gt;</code> without one.
+    </li>
+  </ul>
   <p>
     <code>rules.ml</code> has the rule functions and helpers, which need those
     types in scope: included next to them (<code>{`[%%include_file]{:ocaml}`}</code>), or in the
@@ -1247,7 +1288,9 @@ end`}
       <code>untyped : 'a t -> raw</code> forgets the tag (<code>raw</code> is the term <code>t</code>
       of the types of the language), <code>type_ : raw -> 'a t</code> trusts one and
       <code>cast : 'a t -> 'b t</code> changes it, and <code>untype_type</code> and
-      <code>type_type</code> do the same for the sorts. They are the identity at run time. Then a
+      <code>type_type</code> do the same for the sorts. They are the identity at run time.
+      <code>{`pp : Format.formatter -> 'a t -> unit{:ocaml}`}</code> and
+      <code>pp_ty</code> are the <a href="#printers">printers</a> of <code>types.ml</code>. Then a
       module per Kanon module, with:
       <ul>
         <li>
@@ -1312,7 +1355,7 @@ end`}
       the module that names <code>{`[@@@ocaml_rules "Lang_rules"]{:kanon}`}</code> (required: the
       file <code>rules.ml</code> of <code>kanon ocaml</code>), which already has the modules of <code>S</code> with
       their functions, the functions of the sorts and the destructors under the same names, and the
-      phantom types and the escape hatches, which are all that <code>Derived</code> adds. In
+      phantom types, the escape hatches and the printers (aliases of those of <code>types.ml</code>), which are all that <code>Derived</code> adds. In
       <code>Derived</code>, <code>{`type 'a t = raw{:ocaml}`}</code> is visible, so that the rules
       have the types of <code>S</code>; <code>S</code> hides it, since a visible equality would make
       every tag the same type, and OCaml would accept the division by a bit-vector that is not known

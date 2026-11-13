@@ -8,7 +8,7 @@
 use "term"
 use "ext"
 
-type var [@ocaml "string"] [@lean "String"]
+type var [@ocaml "string"] [@lean "String"] [@pp "Format.pp_print_string"]
 
 (** A variable: it has no typing, so a traversal rebuilds it at the sort of the
     term that it replaces (it has no children, so it never does). *)

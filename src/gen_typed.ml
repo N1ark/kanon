@@ -388,6 +388,10 @@ let interface ft mods =
     "Forgets the tag of a sort.";
   pf ft "@ @ %a@ val type_type : raw_ty -> 'a ty" Gen_ocaml.ocaml_doc
     "Trusts the tag of a sort: unchecked.";
+  pf ft "@ @ %a@ val pp : Stdlib.Format.formatter -> 'a t -> unit"
+    Gen_ocaml.ocaml_doc "Prints a term, as the printer of the types does.";
+  pf ft "@ @ %a@ val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit"
+    Gen_ocaml.ocaml_doc "Prints a sort.";
   List.iter
     (fun (m, items) ->
       pf ft "@ @ %a@ @[<v 2>module %s : sig" Gen_ocaml.ocaml_doc (mod_doc m) m;
@@ -407,7 +411,8 @@ let interface ft mods =
   pf ft "let[@inline] type_ (x : raw) : 'a t = x@ ";
   pf ft "let[@inline] cast (x : 'a t) : 'b t = x@ ";
   pf ft "let[@inline] untype_type (x : 'a ty) : raw_ty = x@ ";
-  pf ft "let[@inline] type_type (x : raw_ty) : 'a ty = x";
+  pf ft "let[@inline] type_type (x : raw_ty) : 'a ty = x@ ";
+  pf ft "let pp = pp@ let pp_ty = pp_ty";
   pf ft "@]@ end@ @ ";
   pf ft "%a@ module _ : S = Derived" Gen_ocaml.ocaml_doc
     "Checks that the rules satisfy [S], whatever their tags."

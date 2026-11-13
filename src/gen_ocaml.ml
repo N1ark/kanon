@@ -1602,6 +1602,171 @@ let eq_hash_def ft (d : decl) =
         cs;
       pf ft "@]"
 
+(** The printer of the values of the type [ty], as an OCaml expression: the
+    natural printer of a base type, [pp] for terms, [pp_ty] for sorts, [pp_foo]
+    for a declared type [foo], and the helpers of {!printers} for the lists,
+    arrays and options. *)
+let rec printer = function
+  | TInt -> "Z.pp_print"
+  | TBool -> "Stdlib.Format.pp_print_bool"
+  | TUnit -> "(fun ft () -> Stdlib.Format.pp_print_string ft \"()\")"
+  | TTerm -> "pp"
+  | TSty -> "pp_ty"
+  | TKind -> invalid_arg "Gen_ocaml.printer: kind"
+  | TData d -> "pp_" ^ d
+  | TList t -> Printf.sprintf "(kanon__pp_seq \"[\" \"]\" %s)" (printer t)
+  | TArray t ->
+      Printf.sprintf
+        "(fun ft a -> kanon__pp_seq \"[|\" \"|]\" %s ft (Stdlib.Iarray.to_list \
+         a))"
+        (printer t)
+  | TOption t -> Printf.sprintf "(kanon__pp_option %s)" (printer t)
+  | TTuple l ->
+      let xs = List.mapi (fun i _ -> Printf.sprintf "a%d" (i + 1)) l in
+      Printf.sprintf
+        "(fun ft (%s) -> Stdlib.Format.fprintf ft \"@[<hov 1>(%s)@]\" %s)"
+        (String.concat ", " xs)
+        (String.concat ",@ " (List.map (fun _ -> "%a") l))
+        (String.concat " "
+           (List.map2 (fun t x -> Printf.sprintf "%s %s" (printer t) x) l xs))
+
+let arg_printer = function
+  | Small -> "Stdlib.Format.pp_print_int"
+  | Arg t -> printer t
+
+(** The printing of the constructor [name] applied to the values [args] (with
+    their printers): [Name(a, b)], or [Name] without arguments. *)
+let print_app ft name (args : (string * string) list) =
+  match args with
+  | [] -> pf ft "Stdlib.Format.pp_print_string ft %S" name
+  | l ->
+      pf ft "Stdlib.Format.fprintf ft \"@@[<hov 2>%s(%s)@@]\" %s" name
+        (String.concat ",@ " (List.map (fun _ -> "%a") l))
+        (String.concat " "
+           (List.map (fun (p, x) -> Printf.sprintf "%s %s" p x) l))
+
+(** The printers of the terms, [pp], of the sorts, [pp_ty], and of the declared
+    types, [pp_foo], in one recursive group. A node of a notation is its
+    literal, a node without parameters that has an infix or a prefix operator is
+    in its notation, in parentheses, and any other node, sort or constructor is
+    its name, applied to its arguments. A record is in OCaml syntax, and a value
+    of an abstract type is printed by its [[@pp]], or else is [<foo>]. *)
+let printers ft =
+  pf ft "@[<v 2>let kanon__pp_seq (o : string) (c : string) pp ft l =@ ";
+  pf ft "%s@]@ @ "
+    "Stdlib.Format.fprintf ft \"@[<hov 1>%s%a%s@]\" o \
+     (Stdlib.Format.pp_print_list ~pp_sep:(fun ft () -> Stdlib.Format.fprintf \
+     ft \";@ \") pp) l c";
+  pf ft "@[<v 2>let kanon__pp_option pp ft = function@ ";
+  pf ft "| None -> Stdlib.Format.pp_print_string ft \"None\"@ ";
+  pf ft
+    "| Some x -> Stdlib.Format.fprintf ft \"@@[<hov 2>Some(%%a)@@]\" pp x@]@ @ ";
+  let vars x l =
+    List.mapi (fun i a -> (a, Printf.sprintf "%s%d" x (i + 1))) l
+  in
+  let operators =
+    List.filter
+      (fun (o : operator) ->
+        o.params = []
+        &&
+        match find_constr o.node with
+        | Some c -> c.c_args = []
+        | None -> false)
+      !lang.operators
+  in
+  let node_case ft (c : constr) =
+    let ps = vars "p" c.c_args in
+    let ctor =
+      match ps with
+      | [] -> c.c_name
+      | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " (List.map snd l))
+    in
+    let ops =
+      match Check.node_of_op c with Some (_, ops) -> vars "x" ops | None -> []
+    in
+    let pat =
+      match Check.node_of_op c with
+      | Some (kc, _) ->
+          Fmt.str "%s (%s)" kc.c_name
+            (String.concat ", " (ctor :: List.map snd ops))
+      | None -> ctor
+    in
+    let operator arity =
+      List.find_opt
+        (fun (o : operator) -> o.node = c.c_name && o.arity = arity)
+        operators
+    in
+    pf ft "@ @[<hv 4>| %s ->@ " pat;
+    (match (ps, List.map fst ops) with
+    | [ (a, x) ], [] when List.mem c.c_name !lang.notations ->
+        pf ft "%s ft %s" (arg_printer a) x
+    | [], [ TTerm; TTerm ] when operator 2 <> None ->
+        pf ft
+          "Stdlib.Format.fprintf ft \"@@[<hov 1>(%%a %%s@@ %%a)@@]\" pp x1 %S \
+           pp x2"
+          (Option.get (operator 2)).sym
+    | [], [ TTerm ] when operator 1 <> None ->
+        let sym =
+          match (Option.get (operator 1)).sym with "~-" -> "-" | s -> s
+        in
+        let word = match sym.[0] with 'a' .. 'z' -> " " | _ -> "" in
+        pf ft "Stdlib.Format.fprintf ft \"@@[<hov 1>(%%s%%a)@@]\" %S pp x1"
+          (sym ^ word)
+    | _ ->
+        print_app ft c.c_name
+          (List.map (fun (a, x) -> (arg_printer a, x)) ps
+          @ List.map (fun (t, x) -> (printer t, x)) ops));
+    pf ft "@]"
+  in
+  let ctor_case ft (c : constr) =
+    let xs = vars "x" c.c_args in
+    let pat =
+      match xs with
+      | [] -> c.c_name
+      | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " (List.map snd l))
+    in
+    pf ft "@ @[<hv 4>| %s ->@ %a@]" pat
+      (fun ft () ->
+        print_app ft c.c_name (List.map (fun (a, x) -> (arg_printer a, x)) xs))
+      ()
+  in
+  let nodes = List.map fst (trav_nodes ()) in
+  pf ft "@[<v 2>let rec pp (ft : Stdlib.Format.formatter) (a : t) : unit =@ ";
+  pf ft "@[<v>match a.kind with";
+  if nodes = [] then pf ft " _ -> ." else List.iter (node_case ft) nodes;
+  pf ft "@]@]";
+  let decl_case (d : decl) =
+    let cs = constrs_of d in
+    pf ft
+      "@ @ @[<v 2>and pp_%s (ft : Stdlib.Format.formatter) (a : %s) : unit =@ "
+      d.d_name (id d.d_name);
+    (match (cs, d.d_fields) with
+    | [], [] when d.d_name = "ty" -> pf ft "match a with _ -> ."
+    | [], [] -> (
+        match d.d_pp with
+        | Some f -> pf ft "%s ft a" f
+        | None when d.d_ocaml = None -> pf ft "match a with _ -> ."
+        | None ->
+            pf ft "Stdlib.Format.pp_print_string ft %S" ("<" ^ d.d_name ^ ">"))
+    | [], fields ->
+        pf ft "Stdlib.Format.fprintf ft \"@@[<hv 2>{ %s }@@]\" %s"
+          (String.concat ";@ "
+             (List.map (fun (f, _) -> Fmt.str "%s = %%a" f) fields))
+          (String.concat " "
+             (List.map
+                (fun (f, t) -> Fmt.str "%s a.%s" (printer t) (id f))
+                fields))
+    | cs, _ ->
+        pf ft "@[<v>match a with";
+        List.iter (ctor_case ft) cs;
+        pf ft "@]");
+    pf ft "@]"
+  in
+  List.iter
+    (fun (d : decl) ->
+      if d.d_name = "ty" || not (Check.generated_type d.d_name) then decl_case d)
+    !lang.decls
+
 (** The types of the language, standalone: one recursive group, with terms
     hash-consed records [{ kind; ty; tag }], where [kind] are the leaf nodes and
     the operators of each arity; their equalities and hashes; and [node], the
@@ -1640,4 +1805,6 @@ let types ~sources ft =
   pf ft "@[<v>match H.find table v with@ | t -> t@ ";
   pf ft "@[<v 2>| exception Not_found ->@ ";
   pf ft "let t = { v with tag = !tags } in@ incr tags;@ H.add table t t;@ ";
-  pf ft "t@]@]@]@]@]@."
+  pf ft "t@]@]@]@]@ @ ";
+  printers ft;
+  pf ft "@]@."

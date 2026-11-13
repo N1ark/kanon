@@ -73,6 +73,8 @@ type decl = {
   d_hash : string option;
       (** the OCaml function that hashes an abstract type, if it is not
           [Hashtbl.hash] ([[@hash]]) *)
+  d_pp : string option;
+      (** the OCaml function that prints an abstract type ([[@pp]]) *)
   d_fields : (string * ty) list;  (** the fields of a record type, in order *)
   d_loc : Location.t;  (** of its name *)
   d_doc : string option;  (** the doc comment before [type] *)

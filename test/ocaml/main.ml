@@ -264,6 +264,17 @@ let () =
     (List.for_all
        (fun v -> resimplify v == v)
        [ tuple; vec; mem; var "x"; one ]);
+  (* the printers *)
+  let show = Format.asprintf "%a" pp in
+  check "printers"
+    (show (add (var "x") one) = "Add(Var(x), 1)"
+    && show tuple = "Tuple([1; 2; 0])"
+    && show vec = "Vec([|2; 1|])"
+    && show opt = "Opt(Some((7, 2)))"
+    && show mem = "Mem({ owner = p; offset = 1; size = 2 })"
+    && show (Ext.neg (var "x")) = "Neg(Var(x))"
+    && Format.asprintf "%a" pp_ty (TTuple [ TInt; TVec ])
+       = "TTuple([TInt; TVec])");
   (* the nodes of the extension have their cases *)
   let nv = Ext.neg (var "x") in
   check "an added node"

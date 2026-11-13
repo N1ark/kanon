@@ -2764,7 +2764,7 @@ let generated_type name =
 
 (** A type of the language, without constructors yet. *)
 let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
-    name =
+    ?pp name =
   {
     d_name = name;
     d_ocaml = ocaml;
@@ -2772,6 +2772,7 @@ let new_decl ?(loc = Location.none) ?doc ?ocaml ?lean ?(eq = true) ?equal ?hash
     d_eq = eq;
     d_equal = equal;
     d_hash = hash;
+    d_pp = pp;
     d_fields = [];
     d_loc = loc;
     d_doc = doc;
@@ -2937,7 +2938,9 @@ let language (str : structure) =
             let name = td.ptype_name.txt and loc = td.ptype_name.loc in
             let doc, tattrs = take_doc td.ptype_attributes in
             reject_no_lean "a type is part of the Lean model" tattrs;
-            check_attrs [ "ocaml"; "lean"; "noeq"; "equal"; "hash" ] tattrs;
+            check_attrs
+              [ "ocaml"; "lean"; "noeq"; "equal"; "hash"; "pp" ]
+              tattrs;
             (match ty_of_name name with
             | Some (TInt | TBool | TUnit) when name <> "nat" ->
                 error loc "%s is a built-in type" name
@@ -2959,14 +2962,14 @@ let language (str : structure) =
                     (fun (a : attribute) ->
                       error a.attr_name.loc "[@%s] applies to abstract types" n)
                     (find_attr n td.ptype_attributes))
-                [ "noeq"; "equal"; "hash" ];
+                [ "noeq"; "equal"; "hash"; "pp" ];
             let attr n =
               Option.map string_attr (find_attr n td.ptype_attributes)
             in
             let d =
               new_decl ~loc ?doc ?ocaml:(attr "ocaml") ?lean:(attr "lean")
                 ~eq:(not (has_attr "noeq" td.ptype_attributes))
-                ?equal:(attr "equal") ?hash:(attr "hash") name
+                ?equal:(attr "equal") ?hash:(attr "hash") ?pp:(attr "pp") name
             in
             lang := { !lang with decls = !lang.decls @ [ d ] };
             (d, td)))

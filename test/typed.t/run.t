@@ -88,6 +88,12 @@ files, and implemented by the rules.
     (** Trusts the tag of a sort: unchecked. *)
     val type_type : raw_ty -> 'a ty
     
+    (** Prints a term, as the printer of the types does. *)
+    val pp : Stdlib.Format.formatter -> 'a t -> unit
+    
+    (** Prints a sort. *)
+    val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
+    
     (** The Kanon module bitvec. *)
     module Bitvec : sig
       val t_bool : [> Tag.tbool ] ty
@@ -158,6 +164,8 @@ files, and implemented by the rules.
     let[@inline] cast (x : 'a t) : 'b t = x
     let[@inline] untype_type (x : 'a ty) : raw_ty = x
     let[@inline] type_type (x : raw_ty) : 'a ty = x
+    let pp = pp
+    let pp_ty = pp_ty
   end
   
   (** Checks that the rules satisfy [S], whatever their tags. *)
@@ -202,6 +210,8 @@ sort from its arguments (`Sized`), at a sort of its tag:
   > rule neg : Neg v
   > KN
   $ kanon ocaml out any.knl any.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val pp : Stdlib.Format.formatter -> 'a t -> unit
+    val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_int : [> Tag.tint ] ty
       val t_other : [> Tag.tother ] ty
       val t_sized : int -> [> Tag.tsized ] ty
@@ -232,6 +242,8 @@ that are parameters (not operands) have any tag:
   > rule mk_exists : Exists (vars, body)
   > KN
   $ kanon ocaml out params.knl params.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val pp : Stdlib.Format.formatter -> 'a t -> unit
+    val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_bool : [> Tag.tbool ] ty
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       val mk_lit : Z.t -> int -> [> Tag.tbitvec ] t
@@ -266,6 +278,8 @@ parameter; and that of `fmod` is not a node:
   > fn raw_fmod (r v : t) : t = r
   > KN
   $ kanon ocaml out comp.knl comp.kn 2>&1 && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val pp : Stdlib.Format.formatter -> 'a t -> unit
+    val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_bool : [> Tag.tbool ] ty
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       val t_float : [> Tag.tfloat ] ty

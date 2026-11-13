@@ -148,6 +148,47 @@ and primitives).
         incr tags;
         H.add table t t;
         t
+  
+  let kanon__pp_seq (o : string) (c : string) pp ft l =
+    Stdlib.Format.fprintf ft "@[<hov 1>%s%a%s@]" o (Stdlib.Format.pp_print_list ~pp_sep:(fun ft () -> Stdlib.Format.fprintf ft ";@ ") pp) l c
+  
+  let kanon__pp_option pp ft = function
+    | None -> Stdlib.Format.pp_print_string ft "None"
+    | Some x -> Stdlib.Format.fprintf ft "@[<hov 2>Some(%a)@]" pp x
+  
+  let rec pp (ft : Stdlib.Format.formatter) (a : t) : unit =
+    match a.kind with
+    | Var (p1) -> Stdlib.Format.fprintf ft "@[<hov 2>Var(%a)@]" pp_var p1
+    | Bool (p1) -> Stdlib.Format.pp_print_bool ft p1
+    | Int (p1) -> Z.pp_print ft p1
+    | Op1 (Not, x1) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%s%a)@]" "not " pp x1
+    | Op2 (And, x1, x2) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%a %s@ %a)@]" pp x1 "&&" pp x2
+    | Op2 (Plus, x1, x2) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%a %s@ %a)@]" pp x1 "+" pp x2
+    | Op2 (Times, x1, x2) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%a %s@ %a)@]" pp x1 "*" pp x2
+    | Op2 (Lt, x1, x2) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%a %s@ %a)@]" pp x1 "<" pp x2
+    | Op2 (Eq, x1, x2) ->
+        Stdlib.Format.fprintf ft "@[<hov 1>(%a %s@ %a)@]" pp x1 "==" pp x2
+  
+  and pp_var (ft : Stdlib.Format.formatter) (a : var) : unit =
+    Stdlib.Format.pp_print_string ft "<var>"
+  
+  and pp_checked (ft : Stdlib.Format.formatter) (a : checked) : unit =
+    Stdlib.Format.fprintf ft "@[<hv 2>{ signed = %a;@ unsigned = %a }@]" Stdlib.Format.pp_print_bool a.signed Stdlib.Format.pp_print_bool a.unsigned
+  
+  and pp_rounding (ft : Stdlib.Format.formatter) (a : rounding) : unit =
+    match a with
+    | Nearest -> Stdlib.Format.pp_print_string ft "Nearest"
+    | Zero -> Stdlib.Format.pp_print_string ft "Zero"
+  
+  and pp_ty (ft : Stdlib.Format.formatter) (a : ty) : unit =
+    match a with
+    | TBool -> Stdlib.Format.pp_print_string ft "TBool"
+    | TInt -> Stdlib.Format.pp_print_string ft "TInt"
 
 The rules, in the scope of the types:
 

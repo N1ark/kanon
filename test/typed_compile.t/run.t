@@ -161,6 +161,8 @@ against the rules (`module _ : S = Derived`, in the generated file), and
   >   assert (untyped x == Sub_types.node (BitVec (Z.of_int 5, 8)) (TBitVector 8));
   >   assert (untyped (Bitvec.mk_zero 8) == Sub_types.node (Zero 8) (TBitVector 8));
   >   assert (untyped (Cmp.mk_var "v" Cmp.t_bool) == Sub_types.node (Var "v") TBool);
+  >   assert (Format.asprintf "%a" pp x = "BitVec(5, 8)");
+  >   assert (Format.asprintf "%a" pp_ty (Bitvec.t_bitvector 8) = "TBitVector(8)");
   >   let d = Bitvec.div x (cast x) in
   >   assert (untyped d == Sub_rules.Bitvec.div (untyped x) (untyped x));
   >   assert (untyped (Cmp.ult x x) == Sub_rules.Cmp.ult (untyped x) (untyped x));

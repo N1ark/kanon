@@ -67,7 +67,7 @@ The typed interface (`typed.ml`) types a rule by the typing of its node, not by 
 that its body builds: `proj` returns a `tint`.
 
   $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep -n 'val proj'
-  60:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
+  66:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
 
 The sort of a node is a `ty`: anything else is an error at the sort.
 

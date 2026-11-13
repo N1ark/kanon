@@ -110,8 +110,8 @@ one:
 
   $ sed 's|^\[@@@ocaml_prims "Prims"\]|&\n[@@@ocaml_rules "Rules"]|' lang.knl > typed.knl
   $ kanon ocaml out typed.knl && cat out/Generated/typed.ml | grep -n 'Iarray'
-  41:    val mk_vec : (Z.t Iarray.t) -> [> Tag.tvec ] t
-  44:    val as_vec : _ t -> (Z.t Iarray.t) option
+  47:    val mk_vec : (Z.t Iarray.t) -> [> Tag.tvec ] t
+  50:    val as_vec : _ t -> (Z.t Iarray.t) option
 
 The types define the structural equality and hash of a node with an array
 argument.
@@ -120,6 +120,7 @@ argument.
   7:  | Vec of (Z.t Iarray.t)
   28:  | Vec a1, Vec b1 -> (Stdlib.Iarray.equal Z.equal) a1 b1
   36:        ((Stdlib.Iarray.fold_left (fun acc x -> hash_combine acc (Z.hash x)) 0) a1)
+  78:      Stdlib.Format.fprintf ft "@[<hov 2>Vec(%a)@]" (fun ft a -> kanon__pp_seq "[|" "|]" Z.pp_print ft (Stdlib.Iarray.to_list a)) p1
 
 Lean: `Array`, with the operations of Kanon's library (`KanonCore.Array`).
 
