@@ -744,8 +744,8 @@ lake env lean check_axioms.lean
     </li>
     <li>
       <strong>Lifting.</strong> The lifting lemma of a function with a subsort operand assumes the
-      predicate of its argument, which <code>kanon_lift</code> leaves as a goal, for the proof of
-      the rule.
+      predicate of its argument, which <code>kanon_lift</code> proves by a hypothesis of the
+      context, or else leaves as a goal, for the proof of the rule.
     </li>
   </ul>
   {#each ["Prims.lean", "Proofs.lean"] as name (name)}

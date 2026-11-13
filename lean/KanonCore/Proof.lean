@@ -15,7 +15,8 @@ its lemmas, by the attributes of `KanonCore.ProofAttr`:
 - `kanon_lift` / `kanon_lift_body` lift the calls `O.f args` of the body of a
   rule, in the namespace `R` of the model, to their specs `f.spec args`, with
   the lemmas `R.Lib.lift_f` that Kanon generates, leaving their hypotheses that
-  are not refinements (`P v'`, for an operand at a subsort);
+  are not refinements (`P v'`, for an operand at a subsort) nor hypotheses of
+  the context;
 - `kanon_rule_lift` takes the guard of an arm, unfolds its spec, splits the
   conditionals of its body, lifts its calls, and closes the refinements that are
   reflexivity or commutativity (or `kanon_rule_close`, which the language may
@@ -246,11 +247,13 @@ def liftLemmas (e : Expr) : MetaM (List Name) := do
 /-- Lifts the main goal, a refinement `Refines S body`, by the lifting lemmas
 of the calls of `body`. Returns the hypotheses of these lemmas that are not
 refinements (that an argument of a function at a subsort satisfies its
-predicate, `P v'`), which are left to the caller. -/
+predicate, `P v'`) and that are not hypotheses of the context, which are left
+to the caller. -/
 partial def liftGoal : TacticM (List MVarId) := do
   let g ← getMainGoal
   let ty ← g.withContext do whnfR (← instantiateMVars (← g.getType))
-  unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do return [g]
+  unless ty.isAppOfArity ``Kanon.Sem.Refines 3 do
+    return if ← g.assumptionCore then [] else [g]
   let ls ← g.withContext (liftLemmas (ty.getArg! 2))
   for l in ls do
     let s ← saveState
@@ -280,9 +283,10 @@ elab "kanon_lift" : tactic => do
 
 /-- Replaces the goal `Refines s body` by `Refines s S`, with the calls of
 `body` lifted to their specs in `S`. The hypotheses of the lifting lemmas that
-are not refinements (`P v'`, for a function with an operand at a subsort) are
-left after it; as they only hold of well-typed terms, they are then proved
-under the hypothesis `kw : WT s` that the spec is well-typed. -/
+are not refinements (`P v'`, for a function with an operand at a subsort) and
+not hypotheses of the context are left after it; as they only hold of
+well-typed terms, they are then proved under the hypothesis `kw : WT s` that
+the spec is well-typed. -/
 elab "kanon_lift_body" : tactic => do
   let lift : TacticM (List MVarId × List MVarId) := do
     evalTactic (← `(tactic| apply Kanon.Sem.Refines.of_lift))

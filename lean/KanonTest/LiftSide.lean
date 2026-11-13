@@ -1,7 +1,8 @@
 import KanonCore.Proof
 
 /-! `kanon_lift` leaves the hypothesis `L.P a'` of a lifting lemma, a field of a
-variable `L`. -/
+variable `L`, unless it is a hypothesis of the context; so does
+`kanon_lift_body`. -/
 
 namespace KanonTest.LiftSide
 
@@ -30,10 +31,21 @@ theorem Lib.lift_f {L : Iface} {O : Ops} (hO : O.Sound L) {a a' : Nat}
     (h : sem.Refines a a') (hp : L.P a') : sem.Refines a (O.f a') :=
   Sem.Refines.trans h (hO.f a' hp)
 
+example : ∀ (L : Iface) (O : Ops) (_ : O.Sound L) (a : Nat), (∀ x, L.P x) →
+    sem.Refines a (O.f a) := by
+  intro L O hO a hp
+  kanon_lift
+  exact hp a
+
 example : ∀ (L : Iface) (O : Ops) (_ : O.Sound L) (a : Nat), L.P a →
     sem.Refines a (O.f a) := by
   intro L O hO a hp
   kanon_lift
-  exact hp
+
+example : ∀ (L : Iface) (O : Ops) (_ : O.Sound L) (a : Nat), L.P a →
+    sem.Refines a (O.f a) := by
+  intro L O hO a hp
+  kanon_lift_body
+  exact Sem.Refines.refl
 
 end KanonTest.LiftSide
