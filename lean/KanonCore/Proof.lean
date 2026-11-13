@@ -709,23 +709,36 @@ def closeByLemma (g : MVarId) (n : Name) (side : MVarId → TacticM Bool) : Tact
     s.restore
     return false
 
-/-- The goal `P ↔ Q` that proves `g : decide P = decide Q`, if `g` is one. -/
-def decideIff? (g : MVarId) : MetaM (Option MVarId) := g.withContext do
+/-- The goal that proves `g`, a boolean equation of decided propositions:
+`P ↔ Q` for `decide P = decide Q`, `P` for `decide P = true` and `¬P` for
+`decide P = false` (or their symmetric). The lemmas are applied at the default
+transparency, so that the instances of the `decide`s need only be equal up to
+definitions (once `simp` has unfolded one in their propositions). -/
+def decideGoal? (g : MVarId) : MetaM (Option MVarId) := g.withContext do
   let some (_, a, b) := (← whnfR (← instantiateMVars (← g.getType))).eq? | return none
-  unless a.isAppOfArity ``decide 2 && b.isAppOfArity ``decide 2 do return none
+  let isDecide (e : Expr) := e.isAppOfArity ``decide 2
+  unless isDecide a || isDecide b do return none
   let s ← saveState
   try
-    let pf ← mkAppOptM ``decide_eq_decide #[a.getArg! 0, b.getArg! 0, a.getArg! 1, b.getArg! 1]
-    let [g'] ← g.apply (← mkAppM ``Iff.mpr #[pf]) | s.restore; return none
+    let (g, a, b) ← if isDecide a then pure (g, a, b) else
+      let [g'] ← g.apply (← mkConstWithFreshMVarLevels ``Eq.symm) | throwError "symm"
+      pure (g', b, a)
+    let pf ← if isDecide b then
+        mkAppM ``Iff.mpr
+          #[← mkAppOptM ``decide_eq_decide #[a.getArg! 0, b.getArg! 0, a.getArg! 1, b.getArg! 1]]
+      else if b.isConstOf ``Bool.true then mkConstWithFreshMVarLevels ``decide_eq_true
+      else if b.isConstOf ``Bool.false then mkConstWithFreshMVarLevels ``decide_eq_false
+      else throwError "not a boolean"
+    let [g'] ← g.apply pf | throwError "apply"
     return some g'
   catch _ =>
     s.restore
     return none
 
 /-- Closes `g` by the first `kanon_close_lemma` lemma that proves it (or, for
-`decide P = decide Q`, proves `P ↔ Q`), the hypotheses of the lemma that are
-not in the context being proved by `kanon_close_side`, or else (unless
-`nested`) by a lemma in turn. -/
+a boolean equation of decided propositions, the goal of `decideGoal?`), the
+hypotheses of the lemma that are not in the context being proved by
+`kanon_close_side`, or else (unless `nested`) by a lemma in turn. -/
 partial def closeGoal (g : MVarId) (nested := false) : TacticM Bool := do
   let side (mv : MVarId) : TacticM Bool := do
     let s ← saveState
@@ -740,7 +753,7 @@ partial def closeGoal (g : MVarId) (nested := false) : TacticM Bool := do
   for n in lemmas do
     if ← closeByLemma g n side then return true
   let s ← saveState
-  if let some g' ← decideIff? g then
+  if let some g' ← decideGoal? g then
     for n in lemmas do
       if ← closeByLemma g' n side then return true
   s.restore

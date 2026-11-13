@@ -555,7 +555,9 @@
     <li>
       <code>kanon_close_lemmas</code> closes a goal by a <code>kanon_close_lemma</code>: a theorem
       whose conclusion is the goal (or its symmetric, or one of its conjuncts, or
-      <code>P ↔ Q</code> for a goal <code>decide P = decide Q</code>), its hypotheses being
+      <code>P ↔ Q</code>, <code>P</code> or <code>¬P</code> for a goal
+      <code>decide P = decide Q</code>, <code>decide P = true</code> or
+      <code>decide P = false</code>), its hypotheses being
       hypotheses of the context or proved by <code>kanon_close_side</code> (<code>omega</code>, by
       default), and its instances synthesized once its hypotheses determine their types.
       <code>kanon_close</code> tries them on the goal before and after

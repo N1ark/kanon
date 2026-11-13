@@ -48,6 +48,7 @@
 - Lifting lemmas hold of specs that read their arguments' sorts.
 - `kanon ocaml DIR` writes the OCaml files in `DIR/Generated`.
 - Close lemmas `P ↔ Q` prove `decide P = decide Q`.
+- Close lemmas `P` and `¬P` prove `decide P = true` and `false`.
 - `kanon_clean` clears `True` and repeated hypotheses, after `kanon_sem_core`.
 - Lemma attributes like `kanon_close_lemma` may be `scoped` or `local`.
 
