@@ -534,8 +534,9 @@
       lifting lemmas), and closes the refinements that are reflexivity or commutativity.
       <code>kanon_rule</code> then proves the typing half of the refinement and splits its value
       half on the values of the atoms (by the lemmas <code>ev_cases</code> of the modules, from
-      their <code>Typed</code> class), closing what <code>simp_all</code>, <code>omega</code> and
-      <code>grind</code> can.
+      their <code>Typed</code> class), substituting the equations of values that it finds
+      (<code>{`vint.inj a = vint.inj b{:lean}`}</code> as <code>a = b</code>), and closing what
+      <code>simp_all</code>, <code>omega</code> and <code>grind</code> can.
     </li>
     <li>
       They are made of smaller ones, which are also available: <code>kanon_split</code>,

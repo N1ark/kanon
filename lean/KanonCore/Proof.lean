@@ -816,7 +816,9 @@ macro "kanon_wt" : tactic => `(tactic| (
 
 set_option hygiene false in
 /-- The value half of a refinement between raw terms (`Sem.Refines.intro`),
-split on the values of its atoms; its hypothesis is `e`. -/
+split on the values of its atoms; its hypothesis is `e`. The equations of
+injected values that are left (`E.inj a = E.inj b`, from the conjuncts of `e`)
+are reduced to those of the injected values, and substituted. -/
 macro "kanon_sem_core" : tactic => `(tactic| (
   intro ρ v w w' e
   kanon_lits
@@ -837,7 +839,9 @@ macro "kanon_sem_core" : tactic => `(tactic| (
     ite_true, ite_false, Bool.not_true, Bool.not_false, Option.ite_none_left_eq_some,
     Option.ite_none_right_eq_some] at e ⊢)
   all_goals (try subst e)
-  all_goals (try (kanon_split; subst_vars))))
+  all_goals (try (kanon_split; subst_vars))
+  all_goals (try simp only [Kanon.Embed.inj_eq_iff] at *)
+  all_goals (try subst_vars)))
 
 /-- Splits the hypotheses that are disjunctions of equations of a variable (the
 values of a sort, `Srt.val`), substituting it. -/
