@@ -548,6 +548,14 @@
       them.
     </li>
     <li>
+      <code>kanon_close_lemmas</code> closes a goal by a <code>kanon_close_lemma</code>: a theorem
+      whose conclusion is the goal (or its symmetric, or one of its conjuncts), its hypotheses
+      being hypotheses of the context or proved by <code>kanon_close_side</code>
+      (<code>omega</code>, by default). Its hypotheses are its explicit <code>∀</code>s and
+      <code>→</code>s only: it may conclude <code>¬P</code>, <code>a ≠ b</code> or a defined
+      predicate such as <code>Nonzero b</code>.
+    </li>
+    <li>
       A module gives these tactics its lemmas by attributes: the simp sets
       <code>kanon_guards</code>, <code>kanon_body</code>, <code>kanon_lits</code>,
       <code>kanon_wt</code>, <code>kanon_ev</code>, <code>kanon_val</code> (the operations on

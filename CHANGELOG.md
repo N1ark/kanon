@@ -82,6 +82,7 @@
 
 ### Fixed
 
+- Close lemmas may conclude `¬P`, `a ≠ b` or defined predicates.
 - Rule soundness unfolds functions whose equation lemmas fail.
 - Commuted arms reading a swapped term's type are proved directly.
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.

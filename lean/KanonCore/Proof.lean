@@ -634,13 +634,15 @@ def closeHyps (mvs : Array Expr) (bis : Array BinderInfo) (side : MVarId → Tac
   return true
 
 /-- Closes `g` by the `kanon_close_lemma` lemma `n`, if one of the statements
-it proves (`closeForms`) is `g` and its hypotheses can be proved. -/
+it proves (`closeForms`) is `g` and its hypotheses can be proved. The
+hypotheses of `n` are its explicit `∀`s and `→`s only, so that a conclusion
+`¬P`, `a ≠ b` or `P x`, for a defined predicate `P`, is not unfolded. -/
 def closeByLemma (g : MVarId) (n : Name) (side : MVarId → TacticM Bool) : TacticM Bool :=
   g.withContext do
   let s ← saveState
   try
     let c ← mkConstWithFreshMVarLevels n
-    let (mvs, bis, concl) ← forallMetaTelescopeReducing (← inferType c)
+    let (mvs, bis, concl) ← forallMetaTelescope (← inferType c)
     let target ← instantiateMVars (← g.getType)
     for (pf, t) in ← closeForms (mkAppN c mvs) concl do
       let s' ← saveState
