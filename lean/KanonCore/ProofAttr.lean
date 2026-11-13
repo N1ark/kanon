@@ -24,7 +24,8 @@ Lemmas:
   `ev_int : t.WT → t.ty = .TInt → ev ρ t = none ∨ ∃ z, ev ρ t = some (.int z)`).
   `kanon_cases` uses, for each atom, the last of them (in the order they are
   tagged) whose hypotheses are in the context (and determine its other
-  arguments);
+  arguments), and keeps the value of the atom (`kanon_atom : ev ρ t = some v`)
+  unless the lemma also substitutes its arguments (`Embed.proj_cases`);
 - `kanon_congr_lemma`: refining the operands of a node refines the node
   (`Refines a a' → … → Refines (op a …) (op a' …)`), for `kanon_congr` and
   `kanon_comm`;

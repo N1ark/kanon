@@ -133,6 +133,10 @@ def isCtorApp (e : Expr) : MetaM Bool := do
   let .const n _ := e.getAppFn | return false
   return (← getEnv).isConstructor n
 
+/-- The name of the equations `a = v` that `caseAtom` keeps, of the atoms `a`
+that it splits. -/
+def atomEqName : Name := `kanon_atom
+
 /-- The first atom of the goal or of the hypotheses that one of the lemmas `ls`
 (by default, the `kanon_atom_cases` lemmas) splits, with the proof of its
 possible values. Atoms applied to constructors, which their evaluation usually
@@ -145,7 +149,9 @@ def findAtomCase (g : MVarId) (ls : Option (Array Name) := none) :
   if lemmas.isEmpty then return none
   let mut exprs := #[← instantiateMVars (← g.getType)]
   for d in (← getLCtx) do
-    if !d.isImplementationDetail then exprs := exprs.push (← instantiateMVars d.type)
+    -- the values of the atoms already split (`caseAtom`)
+    if !d.isImplementationDetail && d.userName != atomEqName then
+      exprs := exprs.push (← instantiateMVars d.type)
   let atomCase? (s : Expr) : MetaM (Option (Expr × Expr)) := do
     for (n, h) in lemmas do
       unless hasHead s h do continue
@@ -180,7 +186,22 @@ partial def casesPattern (e : Expr) (inner := false) : String :=
   else if e.isAppOfArity ``Eq 3 then "rfl"
   else "_"
 
-/-- Splits the main goal on the values of its first atom, if any. -/
+/-- Whether the equations that `casesPattern e` substitutes are all of the
+atom `a`: then the atom stays a term of the goal, and its value is worth
+keeping. -/
+partial def substsAtomOnly (a e : Expr) : Bool :=
+  if e.isAppOfArity ``Or 2 || e.isAppOfArity ``And 2 then
+    substsAtomOnly a (e.getArg! 0) && substsAtomOnly a (e.getArg! 1)
+  else if e.isAppOfArity ``Exists 2 then
+    match e.getArg! 1 with
+    | .lam _ _ b _ => substsAtomOnly a b
+    | _ => true
+  else if e.isAppOfArity ``Eq 3 then e.getArg! 1 == a
+  else true
+
+/-- Splits the main goal on the values of its first atom, if any. Unless the
+split substitutes the arguments of the atom (as `Embed.proj_cases` does), it
+keeps the value of the atom, as a hypothesis `kanon_atom : a = v`. -/
 def caseAtom (ls : Option (Array Name) := none) : TacticM Bool := do
   let g ← getMainGoal
   let some (a, pf) ← findAtomCase g ls | return false
@@ -189,7 +210,8 @@ def caseAtom (ls : Option (Array Name) := none) : TacticM Bool := do
   let g ← g.withContext do
     let hyps := (← getLCtx).foldl (init := #[]) fun acc d =>
       if d.isImplementationDetail then acc else acc.push d.fvarId
-    let (_, _, g) ← g.generalizeHyp #[{ expr := a, xName? := `a }] hyps
+    let hName? := if substsAtomOnly a ty then some atomEqName else none
+    let (_, _, g) ← g.generalizeHyp #[{ expr := a, xName? := `a, hName? }] hyps
     pure g
   replaceMainGoal [g]
   let tac := s!"rcases kanon_hc with {casesPattern ty}"
