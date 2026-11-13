@@ -143,12 +143,25 @@
           "value": ":"
         },
         {
-          "type": "FIELD",
-          "name": "type",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_type"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_type"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "sort",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_sort_annotation"
+              }
+            }
+          ]
         },
         {
           "type": "REPEAT",

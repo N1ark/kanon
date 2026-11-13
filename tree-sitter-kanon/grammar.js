@@ -130,7 +130,7 @@ module.exports = grammar({
       field('kind', choice('prim', 'oracle')),
       field('name', $.identifier),
       ':',
-      field('type', $._type),
+      choice(field('type', $._type), field('sort', $._sort_annotation)),
       repeat($.attribute),
     ),
 
