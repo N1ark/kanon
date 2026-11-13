@@ -549,9 +549,11 @@
     </li>
     <li>
       <code>kanon_close_lemmas</code> closes a goal by a <code>kanon_close_lemma</code>: a theorem
-      whose conclusion is the goal (or its symmetric, or one of its conjuncts), its hypotheses
-      being hypotheses of the context or proved by <code>kanon_close_side</code>
-      (<code>omega</code>, by default). Its hypotheses are its explicit <code>∀</code>s and
+      whose conclusion is the goal (or its symmetric, or one of its conjuncts, or
+      <code>P ↔ Q</code> for a goal <code>decide P = decide Q</code>), its hypotheses being
+      hypotheses of the context or proved by <code>kanon_close_side</code> (<code>omega</code>, by
+      default). <code>kanon_close</code> tries them on the goal before and after
+      <code>simp_all</code>. Its hypotheses are its explicit <code>∀</code>s and
       <code>→</code>s only: it may conclude <code>¬P</code>, <code>a ≠ b</code> or a defined
       predicate such as <code>Nonzero b</code>.
     </li>

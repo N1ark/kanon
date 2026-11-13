@@ -659,9 +659,23 @@ def closeByLemma (g : MVarId) (n : Name) (side : MVarId → TacticM Bool) : Tact
     s.restore
     return false
 
-/-- Closes `g` by the first `kanon_close_lemma` lemma that proves it, the
-hypotheses of the lemma that are not in the context being proved by
-`kanon_close_side`, or else (unless `nested`) by a lemma in turn. -/
+/-- The goal `P ↔ Q` that proves `g : decide P = decide Q`, if `g` is one. -/
+def decideIff? (g : MVarId) : MetaM (Option MVarId) := g.withContext do
+  let some (_, a, b) := (← whnfR (← instantiateMVars (← g.getType))).eq? | return none
+  unless a.isAppOfArity ``decide 2 && b.isAppOfArity ``decide 2 do return none
+  let s ← saveState
+  try
+    let pf ← mkAppOptM ``decide_eq_decide #[a.getArg! 0, b.getArg! 0, a.getArg! 1, b.getArg! 1]
+    let [g'] ← g.apply (← mkAppM ``Iff.mpr #[pf]) | s.restore; return none
+    return some g'
+  catch _ =>
+    s.restore
+    return none
+
+/-- Closes `g` by the first `kanon_close_lemma` lemma that proves it (or, for
+`decide P = decide Q`, proves `P ↔ Q`), the hypotheses of the lemma that are
+not in the context being proved by `kanon_close_side`, or else (unless
+`nested`) by a lemma in turn. -/
 partial def closeGoal (g : MVarId) (nested := false) : TacticM Bool := do
   let side (mv : MVarId) : TacticM Bool := do
     let s ← saveState
@@ -672,8 +686,14 @@ partial def closeGoal (g : MVarId) (nested := false) : TacticM Bool := do
     catch _ => s.restore
     if nested then return false
     closeGoal mv true
-  for n in kanonLemmas (← getEnv) `kanon_close_lemma do
+  let lemmas := kanonLemmas (← getEnv) `kanon_close_lemma
+  for n in lemmas do
     if ← closeByLemma g n side then return true
+  let s ← saveState
+  if let some g' ← decideIff? g then
+    for n in lemmas do
+      if ← closeByLemma g' n side then return true
+  s.restore
   return false
 
 /-- Closes the main goal by a `kanon_close_lemma` lemma. -/
@@ -861,10 +881,10 @@ elab "kanon_or_cases" : tactic => do
   setGoals out
 
 /-- Closes a goal on integers and booleans (with the `kanon_close_simp` lemmas),
-or by a `kanon_close_lemma`. -/
+or by a `kanon_close_lemma`, before or after `simp_all`. -/
 macro "kanon_close" : tactic => `(tactic| first
   | (kanon_or_cases <;> simp_all [kanon_close_simp]; done)
-  | (simp_all [kanon_close_simp]; first | done | omega | grind)
+  | (simp_all [kanon_close_simp]; first | done | omega | kanon_close_lemmas | grind)
   | omega
   | grind
   | kanon_close_lemmas)

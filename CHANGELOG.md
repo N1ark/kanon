@@ -47,6 +47,7 @@
 - Lean `Node.children` lists the children of a node.
 - Lifting lemmas hold of specs that read their arguments' sorts.
 - `kanon ocaml DIR` writes the OCaml files in `DIR/Generated`.
+- Close lemmas `P ↔ Q` prove `decide P = decide Q`.
 
 ### Changed
 
@@ -83,6 +84,7 @@
 ### Fixed
 
 - Close lemmas may conclude `¬P`, `a ≠ b` or defined predicates.
+- `kanon_close` tries close lemmas after `simp_all` too.
 - Rule soundness unfolds functions whose equation lemmas fail.
 - Commuted arms reading a swapped term's type are proved directly.
 - `kanon_proof%` finds the `kanon_tactic` of qualified functions.
