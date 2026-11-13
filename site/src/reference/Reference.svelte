@@ -154,7 +154,10 @@
     <dd>
       A primitive, implemented by hand in OCaml (in the module of
       <code>{`[@@@ocaml_prims]{:kanon}`}</code>) and in Lean; the generated code checks that both
-      define it, at this type. The Lean model takes an oracle as a parameter, so that the proofs may
+      define it, at this type. <code>{`[@ocaml "e"]{:kanon}`}</code> after the type implements it
+      in OCaml instead (see <a href="#on-functions">below</a>). Its result may be annotated with a
+      sort, as that of a <code>fn</code> (<code>{`prim v_true : TBool{:kanon}`}</code>): it is then
+      a <code>t</code>, which the typed interface types with the tag of the sort (unchecked). The Lean model takes an oracle as a parameter, so that the proofs may
       not rely on its behaviour (e.g. a hash-consing order), beyond what the
       <code>{`Oracle.Compat {S} f …{:lean}`}</code> of its module assumes, which may relate it to
       the semantics <code>S</code> (see <a href="proving.html#modules">Modules</a>). <code>{`[@no_lean]{:kanon}`}</code>
@@ -561,6 +564,19 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
             >fn size (v : t) : int [@ty_only] = width (type_of v)</code
           >), so that it may be applied to the operands of a commutative spec, as
           <code>type_of</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>{`[@ocaml "e"]{:kanon}`}</code></td>
+        <td>a <code>prim</code> or an <code>oracle</code>, after its type</td>
+        <td>
+          The OCaml implementation of the primitive: the expression <code>e</code>, in the scope of
+          the types of the language (<code>types.ml</code>), which <code>rules.ml</code> evaluates
+          once. The module of <code>{`[@@@ocaml_prims]{:kanon}`}</code> then need not define it. The
+          bool module implements its primitives so
+          (<code>{`prim v_true : TBool [@ocaml "node (Bool true) TBool"]{:kanon}`}</code>), and its
+          oracle with <code>compare_t</code>, the order of the tags of the terms. Lean still defines
+          it by hand.
         </td>
       </tr>
       <tr>
@@ -979,7 +995,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     a table of ephemerons, keyed on the kind and the sort of the term, gives the term already
     built, or the new one, with the next tag. <code>equal_x</code> and <code>hash_x</code> compare
     and hash the values of each type: structurally, terms by their tags, and the abstract types with
-    their <code>{`[@equal]{:kanon}`}</code> and <code>{`[@hash]{:kanon}`}</code>. It only needs
+    their <code>{`[@equal]{:kanon}`}</code> and <code>{`[@hash]{:kanon}`}</code>;
+    <code>compare_t</code> orders the terms by their tags. It only needs
     Zarith (<code>int</code> is <code>Z.t</code>), and the standard <code>Iarray</code> (OCaml 5.4)
     if the language has arrays. The table is not safe to use from several OCaml 5 domains at once: a
     known limitation.
@@ -1025,8 +1042,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     types in scope: included next to them (<code>{`[%%include_file]{:ocaml}`}</code>), or in the
     module of <code>{`[@@@ocaml_types "Lang_types"]{:kanon}`}</code>, which they open. They call the
     primitives in the module of <code>{`[@@@ocaml_prims "Lang_prims"]{:kanon}`}</code>, which they
-    check against the declarations (<code>{`module _ : sig … end = Lang_prims{:ocaml}`}</code>). On
-    terms, <code>=</code> compares their tags.
+    check against the declarations (<code>{`module _ : sig … end = Lang_prims{:ocaml}`}</code>), but
+    those that have an <code>{`[@ocaml "e"]{:kanon}`}</code>, which they define. On terms,
+    <code>=</code> compares their tags.
   </p>
   <p>
     The generated module has the structure of the language: a module per Kanon module, that is per
@@ -1038,6 +1056,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
   </p>
   <ul>
     <li>its functions: every <code>fn</code> and <code>rule</code> (the zero-parameter ones are values, computed once);</li>
+    <li>its primitives, under their plain names;</li>
     <li>
       the function <code>t_foo</code> of each sort <code>TFoo</code> declared in its files
       (<code>t_bitvec</code>: a <code>nat</code> is an <code>int</code>), which makes the sort from
@@ -1060,9 +1079,9 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <li>the destructors of the nodes and sorts declared in its files (below).</li>
   </ul>
   <p>
-    Primitives are not in it: they stay in the module of <code>{`[@@@ocaml_prims]{:kanon}`}</code>,
-    under their plain name, whichever module declares them, so two primitives of different modules
-    may not have the same name (rename one). The types, <code>node</code>, the terms and the names
+    The module of <code>{`[@@@ocaml_prims]{:kanon}`}</code> implements the primitives under their
+    plain name, whichever module declares them, so two primitives of different modules may not have
+    the same name (rename one). The types, <code>node</code>, the terms and the names
     that Kanon provides are not in a module; the destructors are.
   </p>
   <p>
@@ -1177,8 +1196,8 @@ let rec subst x e t =
       To leave a traversal early, the host raises its own exception.
     </li>
     <li>
-      They are OCaml only: nothing is generated for Lean, and the typed interface does not type
-      them.
+      They are OCaml only: nothing is generated for Lean, and the typed interface has them on
+      terms and sorts without tags (<code>{`map_children : (raw -> raw) -> raw -> raw{:ocaml}`}</code>).
       <a href="https://github.com/N1ark/kanon/tree/main/examples/traversals"><code>examples/traversals</code></a>
       has nodes with children of every shape; its OCaml is compiled and run by the tests. It has
       no Lean files (a typing that calls a function is not in Lean).
@@ -1311,9 +1330,14 @@ end`}
       of the types of the language), <code>type_ : raw -> 'a t</code> trusts one and
       <code>cast : 'a t -> 'b t</code> changes it, and <code>untype_type</code> and
       <code>type_type</code> do the same for the sorts. They are the identity at run time.
+      <code>{`type_of : 'a t -> 'a ty{:ocaml}`}</code> is the sort of a term, and
+      <code>{`equal : 'a t -> 'b t -> bool{:ocaml}`}</code>, <code>compare</code> and
+      <code>hash</code> those of the hash-consed terms, by their tags (<code>equal_t</code>,
+      <code>compare_t</code> and <code>hash_t</code> of <code>types.ml</code>).
       <code>{`pp : Format.formatter -> 'a t -> unit{:ocaml}`}</code> and
-      <code>pp_ty</code> are the <a href="#printers">printers</a> of <code>types.ml</code>. Then a
-      module per Kanon module, with:
+      <code>pp_ty</code> are the <a href="#printers">printers</a> of <code>types.ml</code>. With
+      <code>{`[@@@traversals]{:kanon}`}</code>, the <a href="#traversals">traversals</a> follow, on
+      <code>raw</code> and <code>raw_ty</code>. Then a module per Kanon module, with:
       <ul>
         <li>
           a <code>val t_s</code> per sort (not subsort), which makes the sorts of its terms from its
@@ -1327,6 +1351,10 @@ end`}
           for a leaf without a typing, and
           <code>{`val mk_lit : Z.t -> ([< Tag.tbitvec ] as 'a) ty -> 'a t{:ocaml}`}</code> for
           <code>{`node Lit of int : TBitVec n{:kanon}`}</code>;
+        </li>
+        <li>
+          a <code>val</code> per primitive whose result is annotated with a sort, with its tag
+          (<code>{`val v_true : [> Tag.tbool ] t{:ocaml}`}</code>);
         </li>
         <li>
           a <code>val</code> per rule function, named after it, for the node that is its spec. A node
@@ -1355,8 +1383,13 @@ end`}
           implemented by <code>Rules.Bitvec.wrapping_add</code>, of the rules module. So a derived
           helper (<code>wrapping_add</code>, with a rule function <code>add</code> that receives the
           flags) is in the interface with the right tags, defined in Kanon, and the tag of its result
-          is trusted, as the subsorts are: the generated rules assert the sort, not the subsort. A
-          function without an annotated result has no <code>val</code>.
+          is trusted, as the subsorts are: the generated rules assert the sort, not the subsort;
+        </li>
+        <li>
+          a <code>val</code> for a <code>fn</code> or a primitive whose result has no term, of its
+          types, where a term has any tag and a sort is <code>_ ty</code>
+          (<code>{`val encode : _ t -> sexp{:ocaml}`}</code>). A function whose result has a term but
+          no annotated sort has no <code>val</code>.
         </li>
       </ul>
     </li>
@@ -1365,7 +1398,10 @@ end`}
       known, and a term that is a parameter and not an operand (the body of
       <code>{`Exists of (var * ty) list * t{:kanon}`}</code>) is <code>_ t</code>: any tag. A rule
       function has a <code>val</code> whatever its spec. When the spec is a node over the parameters
-      of the function, it is typed as the node. Otherwise it is typed by the outermost node of the
+      of the function, it is typed as the node, but for the operands of an
+      <code>{`[@untyped]{:kanon}`}</code> rule, which have any tags
+      (<code>{`val eq_untyped : _ t -> _ t -> [> Tag.tbool ] t{:ocaml}`}</code>). Otherwise it is
+      typed by the outermost node of the
       spec: the result has its tag, a parameter that is one of its operands has the tag of that
       operand, and any other parameter has any tag, <code>_ t</code>; a spec that is not a node (a
       call of a function) has any tag everywhere. For instance
@@ -1377,15 +1413,16 @@ end`}
       the module that names <code>{`[@@@ocaml_rules "Lang_rules"]{:kanon}`}</code> (required: the
       file <code>rules.ml</code> of <code>kanon ocaml</code>), which already has the modules of <code>S</code> with
       their functions, the functions of the sorts and the destructors under the same names, and the
-      phantom types, the escape hatches and the printers (aliases of those of <code>types.ml</code>), which are all that <code>Derived</code> adds. In
+      phantom types, the escape hatches, <code>type_of</code>, the equality, order and hash, and the
+      printers (aliases of those of <code>types.ml</code>), which are all that <code>Derived</code> adds. In
       <code>Derived</code>, <code>{`type 'a t = raw{:ocaml}`}</code> is visible, so that the rules
       have the types of <code>S</code>; <code>S</code> hides it, since a visible equality would make
       every tag the same type, and OCaml would accept the division by a bit-vector that is not known
       to be non-zero. The generated file checks <code>S</code> against the rules at compile time
       (<code>{`module _ : S = Derived{:ocaml}`}</code>). <code>S</code> is thus a module type that the
       rules module satisfies, once its types are given a phantom parameter; the rules have no tags,
-      and what is not in <code>S</code> (the functions that are not rule functions, the prims) is
-      simply not exported. There is no functor, so that the escape hatches, which are
+      and what is not in <code>S</code> (the functions that return untyped terms) is simply not
+      exported. There is no functor, so that the escape hatches, which are
       <code>{`let[@inline] f x = x{:ocaml}`}</code>, are known functions to the compiler.
     </li>
   </ul>
@@ -1739,10 +1776,10 @@ prefix "not" = Not, Bool.not_`}
     literals to its helper <code>sure_neq</code> with <code>extend fn</code>. It is the bool module
     of Soteria's <code>Bv_values</code> and <code>Tiny_values</code>. It has
     <code>{`[@@@lean_root "KanonBool"]{:kanon}`}</code>: its Lean rules are proved once, by the
-    library (see <a href="proving.html#kanonbool">KanonBool</a>). The language implements its
-    primitives <code>v_true</code> and <code>v_false</code> and its oracle
-    <code>sort_by_tag</code>, which the proofs assume to permute its list: one that drops
-    duplicates (<code>List.sort_uniq</code>) is unsound.
+    library (see <a href="proving.html#kanonbool">KanonBool</a>). It implements in OCaml its
+    primitives <code>v_true</code> and <code>v_false</code>, of sort <code>TBool</code>, and its
+    oracle <code>sort_by_tag</code>, which the proofs assume to permute its list, with
+    <code>{`[@ocaml]{:kanon}`}</code>.
   </p>
 
   <Heading level={2} id="lsp">Language server</Heading>

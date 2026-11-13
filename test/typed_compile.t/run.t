@@ -150,7 +150,7 @@ against the rules (`module _ : S = Derived`, in the generated file), and
 `Derived` is the rules and the phantom types, with no function of its own:
 
   $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | sed -n '/^module Derived/,/^end/p' | grep -c "^  let\[@inline\]"
-  5
+  6
   $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep "include Sub\|module _"
     include Sub_rules
   module _ : S = Derived

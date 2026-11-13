@@ -109,21 +109,7 @@ let rule_fn ctx ft (f : fn) (spec : expr) draws =
 
 let program ?open_module ~sources ft (p : program) =
   Gen_ocaml.check_prims p;
-  let consts =
-    List.concat_map
-      (function
-        | [ f ] when f.params = [] && not (Gen_ocaml.is_recursive [ f ]) ->
-            [ f.name ]
-        | _ -> [])
-      (Gen_ocaml.sccs p.fns)
-  in
-  let ctx =
-    {
-      Gen_ocaml.prims = List.map (fun p -> p.pname) p.prims;
-      consts;
-      public = true;
-    }
-  in
+  let ctx = Gen_ocaml.ctx_of ~public:true p in
   let rules = List.filter (fun f -> Option.is_some f.spec) p.fns in
   let drawable (f : fn) = List.map (fun (_, t) -> draw t) f.params in
   let tested, skipped =

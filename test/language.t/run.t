@@ -74,6 +74,8 @@ functions named last in their declarations (z_land for &&&).
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -202,6 +204,8 @@ k < (1 lsl (n - 1)).
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -278,6 +282,8 @@ k < (1 lsl (n - 1)).
   
   (** The Kanon module words. *)
   module Words = struct
+    let z_lor = Prims.z_lor
+    let z_lsl = Prims.z_lsl
     let lor_ = Kanon_flat.words_lor_
     let shl = Kanon_flat.words_shl
     let eqi = Kanon_flat.words_eqi
@@ -356,6 +362,8 @@ language.
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -432,6 +440,7 @@ language.
   
   (** The Kanon module suffix. *)
   module Suffix = struct
+    let z_ult = Prims.z_ult
     let ult = Kanon_flat.suffix_ult
     let ule = Kanon_flat.suffix_ule
     let u = Kanon_flat.suffix_u
@@ -502,6 +511,8 @@ spaces: x - -y.
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -838,6 +849,8 @@ on terms, they compare hash-consed terms (their tags in OCaml).
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -1022,6 +1035,8 @@ number of operands, whose elements all have that sort.
     let t_bool : ty = TBool
     let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let of_bool = Prims.of_bool
+    let z_land = Prims.z_land
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -1259,6 +1274,8 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
     let t_bool : ty = TBool
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let mk_bitvec (p1 : Z.t) (s : ty) : t = Kanon_flat.kanon__leaf_BitVec p1 s
+    let size_of = Prims.size_of
+    let wrap = Prims.wrap
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
     let z_concat = Kanon_flat.bv_z_concat
@@ -1501,6 +1518,8 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
     let t_bool : ty = TBool
     let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let mk_bitvec (p1 : Z.t) (s : ty) : t = Kanon_flat.kanon__leaf_BitVec p1 s
+    let size_of = Prims.size_of
+    let wrap = Prims.wrap
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
     let z_concat = Kanon_flat.bv_z_concat

@@ -445,6 +445,8 @@ type fn = {
   extensible : bool;
       (** [[@extensible]], on a helper: other modules may add cases to it with
           [extend fn] *)
+  untyped : bool;
+      (** [[@untyped]], on a rule: its operands may have different sorts *)
 }
 
 type prim = {
@@ -455,6 +457,13 @@ type prim = {
   ploc : Location.t;  (** of its name *)
   pdoc : string option;  (** the doc comment before [prim] or [oracle] *)
   pno_lean : bool;  (** [[@no_lean]]: a primitive that Lean does not define *)
+  pret_sort : string option;
+      (** the head constructor of the sort of the result, if it is annotated
+          with one: [prim v_true : TBool]. Such a primitive is typed by the
+          typed interface *)
+  pocaml : string option;
+      (** [[@ocaml "e"]]: the OCaml expression that implements the primitive, in
+          the scope of the types, instead of the module of the primitives *)
 }
 
 (** Folds [f] over the calls of global functions and primitives in [e], with

@@ -23,11 +23,11 @@ bool.knl and bool.kn.
   
   [@@@warning "-a+11"]
   
-  module _ : sig
-    val sort_by_tag : (t list) -> (t list)
-    val v_true : t
-    val v_false : t
-  end = Prims
+  (** The functions of the language, in one recursive group, by their flat name: the module in lowercase, an underscore, and the name. The modules below are their names. Not meant to be used. *)
+  module Kanon_flat = struct
+    let bool_sort_by_tag : (t list) -> (t list) = (Stdlib.List.sort compare_t)
+    
+    let bool_v_true : t = (node (Bool true) TBool)
 
 An unknown built-in module:
 

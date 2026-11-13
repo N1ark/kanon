@@ -2,7 +2,7 @@
    and [Distinct]. The modules above it add their rules to its rule functions
    with [extend rule], and their literals to [sure_neq] with [extend fn].
 
-   Primitives are implemented by hand by each language, in OCaml and in Lean.
+   Primitives are implemented by hand in Lean, and here in OCaml.
    Oracles have no Lean definition: the Lean model is parameterised by them,
    and the properties that the proofs rely on are stated with the language.
    Here, they are the hash-consing order. *)
@@ -10,10 +10,10 @@
 (* {1 Primitives} *)
 
 (* Sorts terms along the hash-consing order. *)
-oracle sort_by_tag : t list -> t list
+oracle sort_by_tag : t list -> t list [@ocaml "Stdlib.List.sort compare_t"]
 
-prim v_true : t
-prim v_false : t
+prim v_true : TBool [@ocaml "node (Bool true) TBool"]
+prim v_false : TBool [@ocaml "node (Bool false) TBool"]
 
 (* {1 Helpers} *)
 

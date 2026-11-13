@@ -88,6 +88,18 @@ files, and implemented by the rules.
     (** Trusts the tag of a sort: unchecked. *)
     val type_type : raw_ty -> 'a ty
     
+    (** The sort of a term. *)
+    val type_of : 'a t -> 'a ty
+    
+    (** The equality of terms, which are hash-consed: that of their tags. *)
+    val equal : 'a t -> 'b t -> bool
+    
+    (** The order of the hash-consing tags of terms. *)
+    val compare : 'a t -> 'b t -> int
+    
+    (** The hash of a term: its hash-consing tag. *)
+    val hash : 'a t -> int
+    
     (** Prints a term, as the printer of the types does. *)
     val pp : Stdlib.Format.formatter -> 'a t -> unit
     
@@ -164,6 +176,10 @@ files, and implemented by the rules.
     let[@inline] cast (x : 'a t) : 'b t = x
     let[@inline] untype_type (x : 'a ty) : raw_ty = x
     let[@inline] type_type (x : raw_ty) : 'a ty = x
+    let[@inline] type_of (x : raw) : raw_ty = x.ty
+    let equal = equal_t
+    let compare = compare_t
+    let hash = hash_t
     let pp = pp
     let pp_ty = pp_ty
   end
@@ -210,6 +226,7 @@ sort from its arguments (`Sized`), at a sort of its tag:
   > rule neg : Neg v
   > KN
   $ kanon ocaml out any.knl any.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val hash : 'a t -> int
     val pp : Stdlib.Format.formatter -> 'a t -> unit
     val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_int : [> Tag.tint ] ty
@@ -242,6 +259,7 @@ that are parameters (not operands) have any tag:
   > rule mk_exists : Exists (vars, body)
   > KN
   $ kanon ocaml out params.knl params.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val hash : 'a t -> int
     val pp : Stdlib.Format.formatter -> 'a t -> unit
     val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_bool : [> Tag.tbool ] ty
@@ -278,12 +296,14 @@ parameter; and that of `fmod` is not a node:
   > fn raw_fmod (r v : t) : t = r
   > KN
   $ kanon ocaml out comp.knl comp.kn 2>&1 && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
+    val hash : 'a t -> int
     val pp : Stdlib.Format.formatter -> 'a t -> unit
     val pp_ty : Stdlib.Format.formatter -> 'a ty -> unit
       val t_bool : [> Tag.tbool ] ty
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       val t_float : [> Tag.tfloat ] ty
       val mk_zero : int -> [> Tag.tbitvec ] t
+      val size : _ t -> Z.t
       val to_bool : _ t -> [> Tag.tbool ] t
       val ult_swapped : [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t ->
       val lt_zero : [< Tag.tbitvec ] t -> [> Tag.tbool ] t

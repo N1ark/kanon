@@ -4625,6 +4625,26 @@ let rec uses x (e : Syntax.expr) =
 let is_sort_constr c =
   match find_constr c with Some c -> c.c_res = TSty | None -> false
 
+(** The head constructor of the sort of the result of the primitive [name] of
+    type [ct], if it is annotated with one ([prim v_true : TBool]), which the
+    parser keeps as an attribute of its type [t]. *)
+let rec prim_ret_sort name (ct : core_type) =
+  match ct.ptyp_desc with
+  | Ptyp_arrow (_, _, r) -> prim_ret_sort name r
+  | _ ->
+      Option.map
+        (fun (s : expression) ->
+          match s.pexp_desc with
+          | Pexp_construct ({ txt = Lident c; _ }, _) when is_sort_constr c -> c
+          | Pexp_construct ({ txt = Lident c; _ }, _)
+            when Option.is_some (find_subsort c) ->
+              error s.pexp_loc "%s is a subsort: the sort of a result is a sort"
+                c
+          | _ ->
+              error s.pexp_loc "%s: the result is annotated with a sort, S args"
+                name)
+        (ret_sort (Pconstraint ct))
+
 (** The functions that rebuild the nodes that have children, for the traversals
     (see [Gen_ocaml.traversals]), as raw functions with the node at the location
     where it is declared: [kanon__rebuild_C params operands] is the smart
@@ -4867,6 +4887,7 @@ let check_fn env0 globals r =
            (fun (f, m, p) -> if f = r.rname then Some (m, p) else None)
            !extension_proofs);
     extensible = has_attr "extensible" r.rattrs;
+    untyped = r.runtyped;
     param_sorts =
       List.filter_map
         (fun (x, (s : expression)) ->
@@ -5095,8 +5116,12 @@ let program (str : structure) : program =
                               reject_no_lean
                                 "an oracle is a parameter of the Lean model"
                                 attrs;
-                            check_attrs [ "no_lean" ] attrs;
+                            check_attrs [ "no_lean"; "ocaml" ] attrs;
                             has_attr "no_lean" attrs);
+                         pret_sort = prim_ret_sort vd.pval_name.txt vd.pval_type;
+                         pocaml =
+                           Option.map string_attr
+                             (find_attr "ocaml" vd.pval_attributes);
                        },
                        vd.pval_name.loc )
                      :: prims,

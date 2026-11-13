@@ -52,6 +52,8 @@ and primitives).
   
   and hash_t (a : t) = a.tag
   
+  and compare_t (a : t) (b : t) = Stdlib.Int.compare a.tag b.tag
+  
   and equal_var (a : var) (b : var) = String.equal a b
   
   and hash_var (a : var) = Hashtbl.hash a
@@ -413,6 +415,8 @@ The rules, in the scope of the types:
   
   (** The Kanon module rules. *)
   module Rules = struct
+    let v_true = Tiny_prims.v_true
+    let v_false = Tiny_prims.v_false
     let of_bool = Kanon_flat.rules_of_bool
     let add = Kanon_flat.rules_add
     let lt = Kanon_flat.rules_lt
@@ -1453,6 +1457,7 @@ OCaml asserts, and whose variables the rules may use.
   (** The Kanon module word. *)
   module Word = struct
     let t_word (a1 : int) : ty = Kanon_flat.kanon__sort_TWord a1
+    let width_of = Tiny_prims.width_of
     let width = Kanon_flat.word_width
     let trunc = Kanon_flat.word_trunc
     
@@ -1471,6 +1476,8 @@ OCaml asserts, and whose variables the rules may use.
   
   (** The Kanon module rules. *)
   module Rules = struct
+    let v_true = Tiny_prims.v_true
+    let v_false = Tiny_prims.v_false
     let of_bool = Kanon_flat.rules_of_bool
     let add = Kanon_flat.rules_add
     let lt = Kanon_flat.rules_lt
@@ -1603,6 +1610,8 @@ With a getter, the variables of the sort are read by it.
   
   (** The Kanon module rules. *)
   module Rules = struct
+    let v_true = Tiny_prims.v_true
+    let v_false = Tiny_prims.v_false
     let of_bool = Kanon_flat.rules_of_bool
     let add = Kanon_flat.rules_add
     let lt = Kanon_flat.rules_lt
@@ -1618,6 +1627,7 @@ With a getter, the variables of the sort are read by it.
   
   (** The Kanon module word. *)
   module Word = struct
+    let width_of = Tiny_prims.width_of
     let width = Kanon_flat.word_width
     let trunc = Kanon_flat.word_trunc
   end
@@ -1741,6 +1751,8 @@ and is left out (the generated OCaml has the warning on unused match cases).
   
   (** The Kanon module rules. *)
   module Rules = struct
+    let v_true = Tiny_prims.v_true
+    let v_false = Tiny_prims.v_false
     let of_bool = Kanon_flat.rules_of_bool
     let add = Kanon_flat.rules_add
     let lt = Kanon_flat.rules_lt
@@ -1878,6 +1890,8 @@ and its node may have fixed parameters, which its patterns then match.
   
   (** The Kanon module rules. *)
   module Rules = struct
+    let v_true = Tiny_prims.v_true
+    let v_false = Tiny_prims.v_false
     let of_bool = Kanon_flat.rules_of_bool
     let add = Kanon_flat.rules_add
     let lt = Kanon_flat.rules_lt

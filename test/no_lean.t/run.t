@@ -29,11 +29,11 @@ it does not exist in the Lean files.
     let[@inline] rules_size_hidden (x : Z.t) : Z.t =
     let[@inline] rules_hidden_helper (x : Z.t) : Z.t =
         (Z.add (Prims.p_hidden (rules_lean_helper x)) (rules_size_hidden x))
+    let p_hidden = Prims.p_hidden
     let hidden_helper = Kanon_flat.rules_hidden_helper
     let size_hidden = Kanon_flat.rules_size_hidden
   $ kanon ocaml out lang.knl rules.kn && cat out/Generated/typed.ml | grep -c "hidden"
-  0
-  [1]
+  3
   $ kanon ocaml out lang.knl rules.kn && cat out/Generated/tests.ml | grep -c "hidden"
   0
   [1]

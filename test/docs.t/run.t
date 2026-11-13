@@ -86,6 +86,8 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   
   and hash_t (a : t) = a.tag
   
+  and compare_t (a : t) (b : t) = Stdlib.Int.compare a.tag b.tag
+  
   and equal_big (a : big) (b : big) = Stdlib.( = ) a b
   
   and hash_big (a : big) = Stdlib.Hashtbl.hash a
@@ -287,6 +289,12 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
   
   (** The Kanon module rules. *)
   module Rules = struct
+    (** A primitive. *)
+    let of_bool = Prims.of_bool
+    
+    (** An oracle. *)
+    let sort_ints = Prims.sort_ints
+    
     (** A helper function. *)
     let add_z = Kanon_flat.rules_add_z
     

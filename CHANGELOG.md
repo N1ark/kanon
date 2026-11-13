@@ -12,6 +12,12 @@
 - Leaf constructors `mk_foo`, untyped and in the typed interface.
 - [Printers](https://n1ark.github.io/kanon/reference.html#printers) `pp` and `pp_ty`, and `[@pp]` on abstract types.
 - [`[@pp "F"]`](https://n1ark.github.io/kanon/reference.html#on-sorts) on a node: its own printer.
+- Typed interface: `equal`, `compare`, `hash` and `type_of` on terms.
+- Typed interface: the traversals, with `[@@@traversals]`.
+- Typed interface: functions and primitives whose result has no term.
+- Primitives may annotate their result sort: `prim v_true : TBool`.
+- `[@ocaml "e"]` implements a primitive in OCaml.
+- `compare_t` orders terms by their tags.
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.
@@ -57,6 +63,8 @@
 - Lean invariants take the arguments of the typing.
 - Removed stdout backends: only `kanon ocaml` and `kanon lean` remain.
 - `kanon lean-all` is now `kanon lean`.
+- The bool module implements its primitives in OCaml.
+- The modules of the rules alias their primitives.
 - Removed `[@@@lean_param]`.
 - A module's `Oracle.Compat` is over any semantics `S`.
 - More arms that swap commutative operands are derived.
@@ -85,6 +93,7 @@
 - `kanon_lift` finds a module's lemmas inside its arm proofs.
 - `-(-5)` is `5`, not a crash.
 - The typed interface accepts sort variables like `a'`.
+- Typed `Bool.eq_untyped` takes terms of different tags.
 - Generated term equality works beside a module named `Int`.
 - Record fields may be named `kind`, `ty` or `tag`.
 - Types named like OCaml's (`string`) are an error.

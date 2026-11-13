@@ -358,8 +358,9 @@ node Var of var`}
   />
   <p>
     <code>Distinct</code>, of the bool module, has any number of operands, of the same sort:
-    <code>{`node Distinct : a list -> TBool{:kanon}`}</code>. The bool module has primitives, whose
-    OCaml module <code>{`[@@@ocaml_prims]{:kanon}`}</code> names.
+    <code>{`node Distinct : a list -> TBool{:kanon}`}</code>. The bool module implements its
+    primitives in OCaml itself (<code>{`[@ocaml "e"]{:kanon}`}</code>); those of the int module are
+    in the OCaml module that <code>{`[@@@ocaml_prims]{:kanon}`}</code> names.
   </p>
   <p>
     A module adds rules to the rule function of a module below it with

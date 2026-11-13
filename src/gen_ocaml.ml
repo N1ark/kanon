@@ -599,13 +599,40 @@ let fn ctx ft (f : fn) =
 (** The primitives that [expr] compiles inline. *)
 let inline_prims = [ "type_of"; "tag_le" ]
 
+(** The primitives that the rules implement, with their OCaml expression
+    ([[@ocaml "e"]]): [expr] calls them in [Kanon_flat], like functions. *)
+let impl_prims (p : program) = List.filter (fun q -> q.pocaml <> None) p.prims
+
+(** The context of [expr] for the functions and primitives of [p]: the functions
+    without parameters that are not recursive, and the implemented primitives
+    without arguments, are constants. *)
+let ctx_of ~public (p : program) =
+  let consts =
+    List.concat_map
+      (function
+        | [ f ] when f.params = [] && not (is_recursive [ f ]) -> [ f.name ]
+        | _ -> [])
+      (sccs p.fns)
+    @ List.filter_map
+        (fun q -> if q.pargs = [] then Some q.pname else None)
+        (impl_prims p)
+  in
+  {
+    prims =
+      List.filter_map
+        (fun q -> if q.pocaml = None then Some q.pname else None)
+        p.prims;
+    consts;
+    public;
+  }
+
 (** The primitives that [expr] calls in the module of the primitives, with their
     types and docs. *)
 let prim_fns (p : program) =
   let ty t = Fmt.str "%a" ocaml_ty t in
   List.filter_map
     (fun q ->
-      if List.mem q.pname inline_prims then None
+      if List.mem q.pname inline_prims || q.pocaml <> None then None
       else
         Some
           ( plain_name q.pname,
@@ -840,9 +867,11 @@ type entry = {
 
 (** The items of the modules of the rules, by Kanon module, in order of
     declaration: the functions of the sorts, the constructors of the leaves, the
-    functions of the language (in [Kanon_flat], which the module aliases), and
-    the destructors of the nodes and sorts. A name is that of one item of its
-    module: if two have the same, one would hide the other. *)
+    primitives (in the module of the primitives, or in [Kanon_flat] if they have
+    an OCaml expression), the functions of the language (in [Kanon_flat], which
+    the module aliases), and the destructors of the nodes and sorts. A name is
+    that of one item of its module: if two have the same, one would hide the
+    other. *)
 let module_entries ?reserved (p : program) =
   let mods : (string * entry list ref) list ref = ref [] in
   let add m (e : entry) =
@@ -889,6 +918,27 @@ let module_entries ?reserved (p : program) =
           print = (fun ft -> leaf_ctor ft c);
         })
     (Check.leaves ());
+  List.iter
+    (fun (q : prim) ->
+      match split_name q.pname with
+      | Some (m, x) ->
+          add m
+            {
+              name = x;
+              loc = q.ploc;
+              doc = q.pdoc;
+              block = false;
+              is_fn = true;
+              print =
+                (fun ft ->
+                  match q.pocaml with
+                  | Some _ ->
+                      pf ft "let %s = Kanon_flat.%s" (id x) (flat_name q.pname)
+                  | None ->
+                      pf ft "let %s = %s.%s" (id x) (prims_module ()) (id x));
+            }
+      | None -> ())
+    p.prims;
   List.iter
     (fun (f : fn) ->
       match split_name f.name with
@@ -1428,16 +1478,7 @@ let traversals ft =
 let program ~sources ft (p : program) =
   check_prims p;
   let groups = sccs p.fns in
-  let consts =
-    List.concat_map
-      (function
-        | [ f ] when f.params = [] && not (is_recursive [ f ]) -> [ f.name ]
-        | _ -> [])
-      groups
-  in
-  let ctx =
-    { prims = List.map (fun p -> p.pname) p.prims; consts; public = false }
-  in
+  let ctx = ctx_of ~public:false p in
   let mods = module_entries ~reserved:(prims_reserved ()) p in
   check_names p;
   header ~sources ft;
@@ -1447,6 +1488,13 @@ let program ~sources ft (p : program) =
      name: the module in lowercase, an underscore, and the name. The modules \
      below are their names. Not meant to be used.";
   pf ft "@[<v 2>module Kanon_flat = struct";
+  List.iter
+    (fun q ->
+      pf ft "@ @[<hv 2>let %s : %s =@ (%s)@]@ " (flat_name q.pname)
+        (String.concat " -> "
+           (List.map (Fmt.str "%a" ocaml_ty) (q.pargs @ [ q.pret ])))
+        (Option.get q.pocaml))
+    (impl_prims p);
   sort_makers ft;
   List.iteri
     (fun n group ->
@@ -1781,11 +1829,11 @@ let printers ft =
 
 (** The types of the language, standalone: one recursive group, with terms
     hash-consed records [{ kind; ty; tag }], where [kind] are the leaf nodes and
-    the operators of each arity; their equalities and hashes; and [node], the
-    hash-consed term of a kind and a type, in a table of ephemerons keyed on the
-    terms (which equalities and hashes ignore their tags). The tags of terms are
-    unique, and increase with their creation. The table is not safe across
-    domains (TODO). *)
+    the operators of each arity; their equalities and hashes; [compare_t], the
+    order of the tags of terms; and [node], the hash-consed term of a kind and a
+    type, in a table of ephemerons keyed on the terms (which equalities and
+    hashes ignore their tags). The tags of terms are unique, and increase with
+    their creation. The table is not safe across domains (TODO). *)
 let types ~sources ft =
   List.iter check_abstract !lang.decls;
   pf ft "@[<v>(* Generated by kanon from %a. Do not edit. *)@ @ "
@@ -1802,6 +1850,7 @@ let types ~sources ft =
   pf ft "let hash_combine x y = (x * 65599) + y@ @ ";
   pf ft "let rec equal_t (a : t) (b : t) = Stdlib.Int.equal a.tag b.tag@ @ ";
   pf ft "and hash_t (a : t) = a.tag@ @ ";
+  pf ft "and compare_t (a : t) (b : t) = Stdlib.Int.compare a.tag b.tag@ @ ";
   List.iter (fun d -> pf ft "%a@ @ " eq_hash_def d) !lang.decls;
   pf ft "(* Not safe across domains (TODO). *)@ ";
   pf ft "@[<v 2>let node : kind -> ty -> t =@ ";
