@@ -647,16 +647,19 @@ partial def closeForms (pf c : Expr) : MetaM (List (Expr × Expr)) := do
   return [(pf, c)]
 
 /-- Proves the hypotheses `mvs` of a lemma, once its conclusion is unified with
-the goal: its instances by synthesis, its propositions by the hypotheses of the
-context (first those that its conclusion determines), or by `side`. -/
+the goal: its propositions by the hypotheses of the context (first those that
+its conclusion determines), or by `side`, and its instances by synthesis, once
+the hypotheses determine their types. -/
 def closeHyps (mvs : Array Expr) (bis : Array BinderInfo) (side : MVarId → TacticM Bool) :
     TacticM Bool := do
   let mut open_ := #[]
+  let mut insts := #[]
   for mv in mvs, bi in bis do
     if ← mv.mvarId!.isAssigned then continue
     let t ← instantiateMVars (← inferType mv)
     if bi.isInstImplicit then
-      unless ← isDefEq mv (← synthInstance t) do return false
+      if t.hasExprMVar then insts := insts.push mv
+      else unless ← isDefEq mv (← synthInstance t) do return false
     else if (← isProp t) && !t.hasExprMVar then
       match ← findHyp t with
       | some h => unless ← isDefEq mv h do return false
@@ -668,6 +671,11 @@ def closeHyps (mvs : Array Expr) (bis : Array BinderInfo) (side : MVarId → Tac
     unless ← isProp t do continue
     if let some h ← findHyp t then
       unless ← isDefEq mv h do return false
+  for mv in insts do
+    if ← mv.mvarId!.isAssigned then continue
+    let t ← instantiateMVars (← inferType mv)
+    if t.hasExprMVar then return false
+    unless ← isDefEq mv (← synthInstance t) do return false
   for mv in open_ do
     if ← mv.mvarId!.isAssigned then continue
     let t ← instantiateMVars (← inferType mv)

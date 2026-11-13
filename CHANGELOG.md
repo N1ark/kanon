@@ -88,6 +88,7 @@
 - Close lemmas may conclude `¬P`, `a ≠ b` or defined predicates.
 - `kanon_close` tries close lemmas after `simp_all` too.
 - `kanon_sem_core` substitutes equations `E.inj a = E.inj b`.
+- Close lemmas find instances that only their hypotheses determine.
 - `kanon_lift` proves subsort predicates that are hypotheses.
 - `kanon_cases` keeps the values of atoms, as `kanon_atom` hypotheses.
 - Rule soundness unfolds functions whose equation lemmas fail.
