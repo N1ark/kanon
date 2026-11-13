@@ -2,8 +2,8 @@ The typed interface compiles, and rejects what the subsorts forbid. In this
 language, TNonzero and TZero are subsorts of TBitVector, with the tags
 `tnonzero` and `tzero`, and the language is in two modules, bitvec and cmp. The
 types, the rules and the interface are generated, and the interface is
-implemented by the generated `Derived`, which has no constructor for the leaf
-nodes: they are added by hand.
+implemented by the generated `Derived`, which has the constructors of the leaf
+nodes: `mk_bitvec` and `mk_zero`, and `mk_var`, which takes its sort.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_types "Sub_types"]
@@ -26,8 +26,10 @@ nodes: they are added by hand.
   > fn keep (v : TBitVector n) : TBitVector n = v
   > KN
   $ cat > cmp.knl <<'KN'
+  > type var [@ocaml "string"]
   > sort TBool
   > node Ult : TBitVector n -> TBitVector n -> TBool
+  > node Var of var
   > KN
   $ cat > cmp.kn <<'KN'
   > rule ult : Ult (v1, v2)
@@ -38,19 +40,7 @@ nodes: they are added by hand.
   > ML
   $ kanon ocaml out lang.knl && cp out/Generated/sub_types.ml sub_types.ml && cp out/Generated/sub_rules.ml sub_rules.ml && cp out/Generated/typed.ml sub_typed.ml
   $ cat > impl.ml <<'ML'
-  > module Typed = struct
-  >   include (Sub_typed.Derived : Sub_typed.S)
-  > 
-  >   module Bitvec = struct
-  >     include Bitvec
-  > 
-  >     let mk_bv v n : [> Sub_typed.Tag.tbitvector ] t =
-  >       type_ (Sub_types.node (BitVec (v, n)) (TBitVector n))
-  > 
-  >     let mk_zero n : [> Sub_typed.Tag.tzero ] t =
-  >       type_ (Sub_types.node (Zero n) (TBitVector n))
-  >   end
-  > end
+  > module Typed = (Sub_typed.Derived : Sub_typed.S)
   > ML
   $ ocamlfind ocamlc -package zarith -c sub_types.ml sub_prims.ml sub_rules.ml sub_typed.ml impl.ml
 
@@ -59,20 +49,20 @@ A divisor that is a bit-vector is not known to be non-zero, nor is a zero. A
 
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = Bitvec.div x x
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TBitVector, `TZero
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let _ = Bitvec.div (Bitvec.mk_bv Z.one 8) (Bitvec.mk_zero 8)
+  > let _ = Bitvec.div (Bitvec.mk_bitvec Z.one 8) (Bitvec.mk_zero 8)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
   does not allow tag(s) `TZero
   $ cat > good.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let ok = Bitvec.div x (cast x)
   > let () = assert (untyped ok == untyped (Bitvec.div x (type_ (untyped x))))
   > ML
@@ -89,19 +79,36 @@ too:
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c good.ml
 
+A variable has the tag of the sort that it is built at:
+
+  $ cat > good.ml <<'ML'
+  > open Impl.Typed
+  > let v = Cmp.mk_var "v" (Bitvec.t_bitvector 8)
+  > let _ = Bitvec.div v (cast v)
+  > let _ = Cmp.ult v (Bitvec.mk_bitvec Z.one 8)
+  > ML
+  $ ocamlfind ocamlc -package zarith -I . -c good.ml
+  $ cat > bad.ml <<'ML'
+  > open Impl.Typed
+  > let v = Cmp.mk_var "v" (Bitvec.t_bitvector 8)
+  > let _ = Bitvec.div v v
+  > ML
+  $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
+  does not allow tag(s) `TBitVector, `TZero
+
 A term of another sort is not a bit-vector, and an untyped term is not a typed
 one: `S` hides that the typed terms are the untyped ones.
 
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = Cmp.ult x (untyped x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'This expression has type.*'
   This expression has type Impl.Typed.raw = Sub_types.t
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = Cmp.ult x (Cmp.ult x x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
@@ -112,14 +119,14 @@ a bit-vector, not known to be non-zero.
 
   $ cat > good.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = Bitvec.div x (cast (Bitvec.keep x))
   > let _ = Cmp.ult (Bitvec.keep (Bitvec.mk_zero 8)) x
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c good.ml
   $ cat > bad.ml <<'ML'
   > open Impl.Typed
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = Bitvec.div x (Bitvec.keep x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c bad.ml 2>&1 | grep -o 'does not allow.*'
@@ -132,7 +139,7 @@ group of tags, which is the user's:
   > type scalar = [ Sub_typed.Tag.tbitvector | Sub_typed.Tag.tbool ]
   > open Impl.Typed
   > let is_node (t : [< scalar ] t) = Bitvec.is_div t || Cmp.is_ult t
-  > let x = Bitvec.mk_bv Z.one 8
+  > let x = Bitvec.mk_bitvec Z.one 8
   > let _ = is_node x && is_node (Cmp.ult x x)
   > ML
   $ ocamlfind ocamlc -package zarith -I . -c group.ml
@@ -150,7 +157,10 @@ against the rules (`module _ : S = Derived`, in the generated file), and
   $ cat > run.ml <<'ML'
   > let () =
   >   let open Impl.Typed in
-  >   let x = Bitvec.mk_bv (Z.of_int 5) 8 in
+  >   let x = Bitvec.mk_bitvec (Z.of_int 5) 8 in
+  >   assert (untyped x == Sub_types.node (BitVec (Z.of_int 5, 8)) (TBitVector 8));
+  >   assert (untyped (Bitvec.mk_zero 8) == Sub_types.node (Zero 8) (TBitVector 8));
+  >   assert (untyped (Cmp.mk_var "v" Cmp.t_bool) == Sub_types.node (Var "v") TBool);
   >   let d = Bitvec.div x (cast x) in
   >   assert (untyped d == Sub_rules.Bitvec.div (untyped x) (untyped x));
   >   assert (untyped (Cmp.ult x x) == Sub_rules.Cmp.ult (untyped x) (untyped x));

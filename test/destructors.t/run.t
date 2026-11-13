@@ -2,7 +2,8 @@ The ocaml backend generates, for every node and every sort, a function
 `as_foo`, which gives the arguments of a term built by the node `Foo` (its
 parameters, then its operands, as in a pattern) in an option, and a test
 `is_foo`. The name is that of the constructor, in lowercase. They are in the
-module of the file that declares the node or the sort.
+module of the file that declares the node or the sort, with the constructor
+`mk_foo` of every leaf, which builds the raw node at the sort of its typing.
 
   $ cat > lang.knl <<'KN'
   > [@@@ocaml_prims "P"]
@@ -23,6 +24,8 @@ module of the file that declares the node or the sort.
   module Lang = struct
     let t_bv (a1 : int) : ty = Kanon_flat.kanon__sort_TBv a1
     let t_bool : ty = TBool
+    let mk_lit (p1 : Z.t) (p2 : int) : t = Kanon_flat.kanon__leaf_Lit p1 (Z.of_int p2)
+    let mk_unit : t = Kanon_flat.kanon__leaf_Unit
     
     let as_lit (t : t) =
       match[@warning "-11"] t with { kind = Lit (p1, p2); _ } -> Some (p1, p2) | _ -> None
@@ -74,7 +77,7 @@ may two constructors that differ by their case have the same one:
   > fn is_add (x : int) : int = x
   > KN
   $ kanon ocaml out lang.knl rules.kn lang.kn
-  lang.kn:1:0: Lang.is_add: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
+  lang.kn:1:0: Lang.is_add: the module has two items of this name (a function, a destructor, the function of a sort or the constructor of a leaf): rename one of them
   [1]
   $ rm lang.kn
   $ cat > twice.knl <<'KN'
@@ -82,5 +85,5 @@ may two constructors that differ by their case have the same one:
   > node LIT2 of int : TBool
   > KN
   $ kanon ocaml out lang.knl twice.knl rules.kn
-  twice.knl:2:5: Twice.as_lit2: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
+  twice.knl:2:5: Twice.mk_lit2: the module has two items of this name (a function, a destructor, the function of a sort or the constructor of a leaf): rename one of them
   [1]

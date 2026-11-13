@@ -286,12 +286,22 @@ The rules, in the scope of the types:
         ))
     
     let rules_zero : t = (node (Int (Z.zero)) TInt)
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_bool : ty = TBool
     let t_int : ty = TInt
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
+    let mk_bool (p1 : bool) (s : ty) : t = Kanon_flat.kanon__leaf_Bool p1 s
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     
     let as_var (t : t) =
       match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
@@ -1278,6 +1288,13 @@ the sort of the spec, as Bool has no typing.
         ))
     
     let rules_zero : t = (node (Int (Z.zero)) TInt)
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
 
@@ -1308,12 +1325,22 @@ OCaml asserts, and whose variables the rules may use.
         | _ when ((Z.leq n (Z.of_int (8)))) -> v
         | _ -> (node (Op1 (Trunc, v)) v.ty)
         )))
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_bool : ty = TBool
     let t_int : ty = TInt
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
+    let mk_bool (p1 : bool) (s : ty) : t = Kanon_flat.kanon__leaf_Bool p1 s
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     
     let as_var (t : t) =
       match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
@@ -1432,12 +1459,22 @@ With a getter, the variables of the sort are read by it.
         | _ when ((Z.leq n (Z.of_int (8)))) -> v
         | _ -> (node (Op1 (Trunc, v)) v.ty)
         )))
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_bool : ty = TBool
     let t_int : ty = TInt
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
+    let mk_bool (p1 : bool) (s : ty) : t = Kanon_flat.kanon__leaf_Bool p1 s
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     
     let as_var (t : t) =
       match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
@@ -1577,12 +1614,22 @@ and is left out (the generated OCaml has the warning on unused match cases).
         | _ when (true) -> v
         | _ -> (node (Op1 (Not, v)) TBool)
         ))
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_bool : ty = TBool
     let t_int : ty = TInt
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
+    let mk_bool (p1 : bool) (s : ty) : t = Kanon_flat.kanon__leaf_Bool p1 s
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     
     let as_var (t : t) =
       match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None
@@ -1704,12 +1751,22 @@ and its node may have fixed parameters, which its patterns then match.
           (minus_sub true x (rules_plus y z))
         | _ -> (node (Op2 ((Minus (b)), v1, v2)) TInt)
         ))
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) (s : ty) : t =
+        (node (Bool (p1)) s)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_bool : ty = TBool
     let t_int : ty = TInt
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
+    let mk_bool (p1 : bool) (s : ty) : t = Kanon_flat.kanon__leaf_Bool p1 s
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
     
     let as_var (t : t) =
       match[@warning "-11"] t with { kind = Var (p1); _ } -> Some p1 | _ -> None

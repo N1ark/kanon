@@ -47,6 +47,12 @@ those of the parent, so that a subsort in a typing is the sort of its parent.
         (match v1, v2 with
         | _ -> (node (Op2 ((Div (signed)), v1, v2)) v1.ty)
         ))
+    
+    let[@inline] kanon__leaf_BitVec (p1 : Z.t) (p2 : Z.t) : t =
+        (node (BitVec (p1, (Z.to_int p2))) (kanon__sort_TBitVector (Z.to_int p2)))
+    
+    let[@inline] kanon__leaf_Zero (p1 : Z.t) : t =
+        (node (Zero ((Z.to_int p1))) (kanon__sort_TBitVector (Z.to_int p1)))
   end
   
 

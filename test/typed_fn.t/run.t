@@ -62,6 +62,9 @@ asserts the sort of the result on exit, as it does for the parameters on entry.
         kanon__result))
     
     let[@inline] bv_plain (a : t) : t = a
+    
+    let[@inline] kanon__leaf_BitVec (p1 : Z.t) (p2 : Z.t) : t =
+        (node (BitVec (p1, (Z.to_int p2))) (kanon__sort_TBv (Z.to_int p2)))
   end
   
 

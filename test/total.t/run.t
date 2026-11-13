@@ -37,7 +37,7 @@ and bind the operands in any way.
         | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
         | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
         )
-  end
+    
   $ for b in ocaml lean; do
   >   kanon $b out lang.knl ok.kn || echo "$b failed"
   > done
@@ -156,7 +156,7 @@ catch-all case to go before, and the check sees them.
         | { kind = Op2 ((Add), a, b); _ } -> (a :: (b :: []))
         | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
         )
-  end
+    
 
 A module that adds nodes, used after the function, must extend it: the check
 runs once, on the final language, whatever the order of the modules.
@@ -188,7 +188,7 @@ runs once, on the final language, whatever the order of the modules.
         | { kind = Op2 ((Sub), a, b); _ } -> (a :: (b :: []))
         | { kind = Op2 ((Mul), a, b); _ } -> (b :: (a :: []))
         )
-  end
+    
 
 The nodes of an interleaved declaration are listed in the order of the file, and
 `[@total]` combines with `[@no_lean]`.

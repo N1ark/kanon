@@ -62,12 +62,18 @@ functions named last in their declarations (z_land for &&&).
     
     let[@inline] ops_masked (x : Z.t) (y : Z.t) (a : t) (b : t) : t =
         (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -184,12 +190,18 @@ k < (1 lsl (n - 1)).
     
     let[@inline] words_is_or (a : t) (l : t) (r : t) : t =
         (words_eqi a (words_lor_ l r))
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -332,12 +344,18 @@ language.
     
     let[@inline] suffix_prefixed (a : t) (b : t) : t =
         (suffix_ule (ops_neg a) b)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -472,12 +490,18 @@ spaces: x - -y.
         (Z.sub (Z.sub (Z.sub x (Z.neg y)) (Z.neg x)) (Z.neg y))
     
     let[@inline] prefix_q (a : t) : t = (ops_neg a)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -725,6 +749,18 @@ function or node given after it (Int, of_bool).
         (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
         (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
         (if ((Z.equal (Prims.z_land x y) Z.zero)) then (ops_land a b) else a)
+    
+    
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   end
   end
@@ -790,12 +826,18 @@ on terms, they compare hash-consed terms (their tags in OCaml).
   $ kanon ocaml out ops.knl eq.knl ops.kn eq.kn && cat out/Generated/rules.ml | sed -n '/ eq_same /,$p'
     let[@inline] eq_same (a : t) (b : t) (l : (t list)) : bool =
         ((Stdlib.Int.equal a.tag b.tag) || (not ((Stdlib.List.equal equal_t) l (a :: []))))
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -968,12 +1010,18 @@ number of operands, whose elements all have that sort.
         (match l with
         | _ -> (node (OpN (Same, l)) TBool)
         )
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module ops. *)
   module Ops = struct
     let t_int : ty = TInt
     let t_bool : ty = TBool
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     let add_z = Kanon_flat.ops_add_z
     let mul_z = Kanon_flat.ops_mul_z
     let le_z = Kanon_flat.ops_le_z
@@ -1198,12 +1246,19 @@ stores the unsigned integer of a bit-vector, whose width is in its sort.
         | (_, _) when (false) -> (node (Bool (true)) TBool)
         | _ -> (node (Op2 (BvUlt, v1, v2)) TBool)
         ))
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
+    
+    let[@inline] kanon__leaf_BitVec (p1 : Z.t) (s : ty) : t =
+        (node (BitVec (p1)) s)
   end
   
   (** The Kanon module bv. *)
   module Bv = struct
     let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let mk_bitvec (p1 : Z.t) (s : ty) : t = Kanon_flat.kanon__leaf_BitVec p1 s
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
     let z_concat = Kanon_flat.bv_z_concat
@@ -1347,6 +1402,11 @@ constant gives it.
           (node (BitVec (Z.zero)) v1.ty)
         | _ -> (node (mk_commut_binop BvAnd v1 v2) v1.ty)
         ))
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
+    
+    let[@inline] kanon__leaf_BitVec (p1 : Z.t) (s : ty) : t =
+        (node (BitVec (p1)) s)
   end
   
   $ sed 's/unit ones/unit twos/' ones.knl > bad.knl
@@ -1428,12 +1488,19 @@ the width of the outer [v]. The spec of a rule reads them from its parameters.
         (match v with
         | _ -> (node (Op1 ((FloatOfBits ((Z.to_int n))), v)) TFloat)
         )))
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
+    
+    let[@inline] kanon__leaf_BitVec (p1 : Z.t) (s : ty) : t =
+        (node (BitVec (p1)) s)
   end
   
   (** The Kanon module bv. *)
   module Bv = struct
     let t_bitvector (a1 : int) : ty = Kanon_flat.kanon__sort_TBitVector a1
     let t_bool : ty = TBool
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
+    let mk_bitvec (p1 : Z.t) (s : ty) : t = Kanon_flat.kanon__leaf_BitVec p1 s
     let size = Kanon_flat.bv_size
     let z_add = Kanon_flat.bv_z_add
     let z_concat = Kanon_flat.bv_z_concat

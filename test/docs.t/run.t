@@ -204,6 +204,10 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
           (Prims.of_bool (rules_le_z i1 i2))
         | _ -> (node (Op2 (Le, v1, v2)) TBool)
         ))
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Bool (p1 : bool) : t = (node (Bool (p1)) TBool)
   end
   
   (** The Kanon module lang. *)
@@ -213,6 +217,12 @@ stored with it and printed along the generated OCaml and Lean. A plain comment
     
     (** The sort of booleans. *)
     let t_bool : ty = TBool
+    
+    (** An integer literal.
+        It spans several lines. *)
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    
+    let mk_bool (p1 : bool) : t = Kanon_flat.kanon__leaf_Bool p1
     
     let as_int (t : t) =
       match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None

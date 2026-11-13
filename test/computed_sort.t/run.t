@@ -48,6 +48,8 @@ OCaml: the sort is the expression.
   41:      (node (Field (i, v)) (rules_field_ty v i))
   44:      (node (Field (i, v)) (rules_nth_ty (rules_types_of (v :: [])) i))
   52:      | _ -> (node (Op1 ((Proj (i)), v)) (rules_field_ty v i))
+  55:  let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+  57:  let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
 
 Lean: the sort is the translated expression.
 
@@ -65,7 +67,7 @@ The typed interface (`typed.ml`) types a rule by the typing of its node, not by 
 that its body builds: `proj` returns a `tint`.
 
   $ kanon ocaml out lang.knl && cat out/Generated/typed.ml | grep -n 'val proj'
-  58:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
+  60:    val proj : Z.t -> [< Tag.ttuple ] t -> [> Tag.tint ] t
 
 The sort of a node is a `ty`: anything else is an error at the sort.
 

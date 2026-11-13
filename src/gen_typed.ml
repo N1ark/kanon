@@ -6,10 +6,9 @@
     tag of a subsort is a refinement of the tag of its parent. [S] is organised
     like the language, one module per Kanon module (per file). [Derived] is the
     implementation of [S]: the rules, whose types are those of [S] but for the
-    phantom parameter, which [S] hides. The leaf nodes, which no rule builds,
-    have no constructor in [S] nor in [Derived]: a program builds them from the
-    types, [node (Foo ...) sort], and gives them their tag by [type_]. The
-    refinements are trusted: nothing proves them. *)
+    phantom parameter, which [S] hides. The leaf nodes have the constructors of
+    the rules, [mk_foo], typed by their typing. The refinements are trusted:
+    nothing proves them. *)
 
 open Syntax
 
@@ -99,6 +98,28 @@ let sort_item (c : constr) =
     sig_ =
       arrow args (fun ft ->
           term ~operand:false ~t:"ty" ft (Tag (tag_name c.c_name)));
+  }
+
+(** The item of the constructor of the leaf [c] (see {!Gen_ocaml.leaf_ctor}):
+    its arguments, then, if it takes its sort, a sort whose tag is that of the
+    result, else the result with the tag of its typing. *)
+let leaf_item (c : constr) typing =
+  let args = List.map (fun a ft -> arg_ty ft a) c.c_args in
+  let _, res = node_tags typing in
+  let args, res =
+    if not (Check.leaf_takes_sort c) then (args, res)
+    else
+      let sort ft =
+        match res with
+        | Tag s -> pf ft "([< Tag.%s ] as 'a) ty" (Gen_ocaml.id s)
+        | Var _ | Unknown -> pf ft "'a ty"
+      in
+      (args @ [ sort ], Var "a")
+  in
+  {
+    name = Gen_ocaml.leaf_ctor_name c;
+    doc = c.c_doc;
+    sig_ = arrow args (fun ft -> term ~operand:false ~t:"t" ft res);
   }
 
 (** The item of a smart constructor: its parameters, in the order of the rule
@@ -247,7 +268,8 @@ let destructor_items (c : constr) typing =
 let module_of = Gen_ocaml.module_of ~reserved:[ "Tag"; "S"; "Derived" ]
 
 (** The items of the typed interface, by Kanon module, in order: for each
-    module, its sorts, its smart constructors, and its destructors. *)
+    module, its sorts, the constructors of its leaves, its smart constructors,
+    and its destructors. *)
 let modules (p : program) =
   let node_typing (c : constr) = List.assoc_opt c.c_name !Check.node_typings in
   let mods : (string * item list ref) list ref = ref [] in
@@ -260,6 +282,10 @@ let modules (p : program) =
     (fun (c : constr) ->
       if c.c_res = TSty then add ~loc:c.c_loc (module_of c.c_loc) (sort_item c))
     !lang.constrs;
+  List.iter
+    (fun (c : constr) ->
+      add ~loc:c.c_loc (module_of c.c_loc) (leaf_item c (node_typing c)))
+    (Check.leaves ());
   List.iter
     (fun (f : fn) ->
       if f.spec <> None then
@@ -372,9 +398,7 @@ let interface ft mods =
   pf ft "%a@ " Gen_ocaml.ocaml_doc
     "The implementation of [S]: the rules, with the types of [S] visible, \
      [type 'a t = raw]. [S] hides it, since a visible equality would make \
-     every tag the same type. It has no constructor for the leaf nodes, which \
-     no rule builds: a program adds them around it, with [type_], in [module \
-     Typed = struct include (Derived : S) ... end].";
+     every tag the same type.";
   pf ft "@[<v 2>module Derived = struct";
   pf ft "@ include %s@ " (Option.get !lang.ocaml_rules);
   pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";

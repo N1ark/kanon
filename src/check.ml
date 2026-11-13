@@ -4683,6 +4683,57 @@ let traversal_raws raws =
         | _ -> None)
     nodes
 
+(** The leaf nodes: the nodes without operands, none of whose arguments holds a
+    term. *)
+let leaves () =
+  List.filter
+    (fun (c : constr) ->
+      c.c_res = TKind
+      && (not (List.mem c.c_name !lang.node_kinds))
+      && not (List.exists (fun a -> Syntax.mentions TTerm (arg_ty a)) c.c_args))
+    !lang.constrs
+
+(** Whether the constructor of the leaf [c] takes its sort: [c] has no typing,
+    or one whose result sort is not determined by the arguments of [c]. *)
+let leaf_takes_sort (c : constr) =
+  match List.assoc_opt c.c_name !node_typings with
+  | None -> true
+  | Some t ->
+      let result = List.nth t.t_sorts (List.length t.t_sorts - 1) in
+      List.exists (fun x -> List.mem_assoc x t.t_vars) (expr_vars result)
+
+(** The constructors of the leaves (see [Gen_ocaml.module_entries]), as raw
+    functions: [kanon__leaf_C params] is the raw node [C params], at the sort
+    that its typing gives, or at the sort [s], its last parameter, if
+    {!leaf_takes_sort}. Needs {!node_typings}. *)
+let leaf_raws () =
+  List.filter_map
+    (fun (c : constr) ->
+      let ps =
+        List.mapi (fun i a -> (Fmt.str "p%d" (i + 1), arg_ty a)) c.c_args
+      in
+      let sorted = leaf_takes_sort c in
+      let node =
+        match List.map fst ps with
+        | [] -> c.c_name
+        | [ x ] -> Fmt.str "%s %s" c.c_name x
+        | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
+      in
+      let params =
+        String.concat " "
+          (List.map
+             (fun (x, t) -> Fmt.str "(%s : %a)" x pp_ty t)
+             (ps @ if sorted then [ ("s", TSty) ] else []))
+      in
+      let src =
+        Fmt.str "fn kanon__leaf_%s %s : t [@no_lean] = %s\n" c.c_name params
+          (if sorted then Fmt.str "(%s : s)" node else node)
+      in
+      match parse_string ~file:kanon_file src with
+      | [ { pstr_desc = Pstr_value (_, [ vb ]); _ } ] -> Some (raw_fn vb, c)
+      | _ -> None)
+    (leaves ())
+
 (** Checks the raw function [r], in the global environment [env0]. *)
 let check_fn env0 globals r =
   atom_counter := 0;
@@ -5130,6 +5181,8 @@ let program (str : structure) : program =
   let typings = typings env0 in
   checkpoint_since start;
   node_typings := typings;
+  let leaf_fns = leaf_raws () in
+  let raws = raws @ List.map fst leaf_fns in
   let fns =
     List.filter_map
       (fun r ->
@@ -5142,13 +5195,21 @@ let program (str : structure) : program =
             in_spec := false
           in
           let check () =
-            match List.find_opt (fun (t, _) -> t.rname = r.rname) travs with
-            | None -> check_fn env0 globals r
-            | Some (_, (c : constr)) -> (
+            match
+              ( List.find_opt (fun (t, _) -> t.rname = r.rname) travs,
+                List.find_opt (fun (t, _) -> t.rname = r.rname) leaf_fns )
+            with
+            | Some (_, (c : constr)), _ -> (
                 try check_fn env0 globals r
                 with Error (_, msg) ->
                   error c.c_loc "traversals: the node %s cannot be rebuilt: %s"
                     c.c_name msg)
+            | None, Some (_, (c : constr)) -> (
+                try check_fn env0 globals r
+                with Error (_, msg) ->
+                  error c.c_loc "the leaf %s has no constructor: %s" c.c_name
+                    msg)
+            | None, None -> check_fn env0 globals r
           in
           match attempt check with
           | Some f -> Some f

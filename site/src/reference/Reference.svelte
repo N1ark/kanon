@@ -984,6 +984,16 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       the destructors and the traversals, which build no new width, check nothing; the constructors
       of the types of the language, which a program may apply itself, are not checked either;
     </li>
+    <li>
+      the constructor <code>mk_foo</code> of each leaf <code>Foo</code> declared in its files (a node
+      without operands, none of whose arguments holds a term), which builds the raw node with
+      <code>node</code>: its arguments are those of the node (a <code>nat</code> is an
+      <code>int</code>), and it is built at the sort that its typing gives
+      (<code>{`mk_int : Z.t -> t{:ocaml}`}</code>). A leaf without a typing, or whose typing does not
+      give its sort from its arguments (<code>{`node Lit of int : TBitVec n{:kanon}`}</code>), takes
+      its sort last (<code>{`mk_var : var -> ty -> t{:ocaml}`}</code>). It never calls a rule
+      function: the smart constructor of a leaf, if it has one, is the rule function;
+    </li>
     <li>the destructors of the nodes and sorts declared in its files (below).</li>
   </ul>
   <p>
@@ -1016,8 +1026,10 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     is that of the constructor in lowercase (<code>BvAdd</code> gives <code>as_bvadd</code>), in the
     module of the file that declares the node or the sort. A module may not have two items of the
     same name: a function named like a destructor (<code>is_add</code>, in the module of
-    <code>Add</code>) or like the function of a sort, or two constructors that differ only by their
-    case: these are errors.
+    <code>Add</code>), like the function of a sort or like the constructor of a leaf
+    (<code>mk_int</code>, in the module of <code>Int</code>), or two constructors that differ only
+    by their case: these are errors. The prefixes <code>as_</code>, <code>is_</code>,
+    <code>mk_</code> and <code>t_</code> keep the generated names apart from each other.
   </p>
 
   <Heading level={3} id="traversals">Traversals</Heading>
@@ -1243,9 +1255,17 @@ end`}
           arguments, which are those of its constructor (a <code>nat</code> is an <code>int</code>);
         </li>
         <li>
+          the constructor <code>mk_foo</code> of each leaf <code>Foo</code> (see <a
+            href="#ocaml">above</a>), with the tag of its typing:
+          <code>{`val mk_int : Z.t -> [> Tag.tint ] t{:ocaml}`}</code>. One that takes its sort
+          gives the term the tag of the sort: <code>{`val mk_var : var -> 'a ty -> 'a t{:ocaml}`}</code>
+          for a leaf without a typing, and
+          <code>{`val mk_lit : Z.t -> ([< Tag.tbitvec ] as 'a) ty -> 'a t{:ocaml}`}</code> for
+          <code>{`node Lit of int : TBitVec n{:kanon}`}</code>;
+        </li>
+        <li>
           a <code>val</code> per rule function, named after it, for the node that is its spec. A node
-          that no rule function is the spec of, in particular a leaf node (which has no operands to
-          build from), has none. The parameters of a rule function have the types that it declares,
+          with operands that no rule function is the spec of has none. The parameters of a rule function have the types that it declares,
           which are those of the generated rules (a <code>nat</code> or an <code>int</code> is a
           <code>Z.t</code>), then come the operands, and the result. Types of the language are those
           of <code>types.ml</code>, opened from <code>{`[@@@ocaml_types]{:kanon}`}</code>, or else
@@ -1313,11 +1333,8 @@ end`}
     which are not tied to a module, are all in <code>Tag</code>.
   </p>
   <p>
-    Leaf nodes have no constructor, in <code>S</code> nor in <code>Derived</code>: no rule builds
-    them, and Kanon does not generate one. A program builds them from the types, with the
-    hash-consing constructor <code>node</code> at the sort that the typing of the node gives, and
-    gives the term its tag with <code>type_</code>. The same goes for the other layers on top of
-    <code>Derived</code> (labelled arguments, a nesting of its own, groups of tags):
+    A program adds its own layers on top of <code>Derived</code> (labelled arguments, a nesting of
+    its own, groups of tags), with <code>type_</code> for the terms that it builds from the types:
   </p>
   <Code
     lang="ocaml"
@@ -1327,8 +1344,7 @@ end`}
   module Bitvec = struct
     include Bitvec
 
-    let mk_bv v n : [> Lang_typed.Tag.tbitvec ] t =
-      type_ (Lang_types.node (BitVec (v, n)) (TBitVec n))
+    let bv_of_int i n : [> Lang_typed.Tag.tbitvec ] t = mk_bitvec (Z.of_int i) n
   end
 end`}
   />

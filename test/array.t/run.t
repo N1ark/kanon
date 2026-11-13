@@ -53,12 +53,19 @@ OCaml: the standard `Iarray`, with nothing else than the generated code.
     
     let[@inline] rules_same (a : (Z.t Iarray.t)) (b : (Z.t Iarray.t)) : bool =
         ((((Stdlib.Iarray.equal Z.equal) a b)) && (not (not ((Stdlib.Iarray.equal Z.equal) a b))))
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Vec (p1 : (Z.t Iarray.t)) : t =
+        (node (Vec (p1)) TVec)
   end
   
   (** The Kanon module lang. *)
   module Lang = struct
     let t_int : ty = TInt
     let t_vec : ty = TVec
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_vec (p1 : (Z.t Iarray.t)) : t = Kanon_flat.kanon__leaf_Vec p1
     
     let as_int (t : t) =
       match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None
@@ -103,7 +110,8 @@ one:
 
   $ sed 's|^\[@@@ocaml_prims "Prims"\]|&\n[@@@ocaml_rules "Rules"]|' lang.knl > typed.knl
   $ kanon ocaml out typed.knl && cat out/Generated/typed.ml | grep -n 'Iarray'
-  42:    val as_vec : _ t -> (Z.t Iarray.t) option
+  41:    val mk_vec : (Z.t Iarray.t) -> [> Tag.tvec ] t
+  44:    val as_vec : _ t -> (Z.t Iarray.t) option
 
 The types define the structural equality and hash of a node with an array
 argument.

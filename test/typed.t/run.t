@@ -95,6 +95,12 @@ files, and implemented by the rules.
       (** Bit-vectors of a width. *)
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       
+      (** A bit-vector literal. *)
+      val mk_bitvec : Z.t -> int -> [> Tag.tbitvec ] t
+      
+      (** The zero of a width. *)
+      val mk_zero : int -> [> Tag.tzero ] t
+      
       (** Adds two bit-vectors. *)
       val add : checked -> [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t ->
         [> Tag.tbitvec ] t
@@ -138,7 +144,7 @@ files, and implemented by the rules.
     end
   end
   
-  (** The implementation of [S]: the rules, with the types of [S] visible, [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. It has no constructor for the leaf nodes, which no rule builds: a program adds them around it, with [type_], in [module Typed = struct include (Derived : S) ... end]. *)
+  (** The implementation of [S]: the rules, with the types of [S] visible, [type 'a t = raw]. [S] hides it, since a visible equality would make every tag the same type. *)
   module Derived = struct
     include Lang_rules
     
@@ -164,26 +170,30 @@ operand `[< tbitvec ] t` accepts any bit-vector, `[< tnonzero ] t` (the divisor
 of `div`) only those that are known to be non-zero. A result is `[> tag ] t`:
 `add` builds a `tbitvec`, which has to be cast to be a divisor. The docs of
 the rule or, failing that, of the node, are carried to the `val`. Parameters
-are plain arguments. A node without a rule function (a leaf node, which no
-rule builds, like `BitVec` and `Zero`) has no `val`, but it has its
-destructors: a program builds leaf terms itself, from the types (`node (Zero
-n) (TBitVec n)`), and gives them their tag with `type_`. A `val` is in the
-module of the file of its declaration: the rule function, the sort, or the
-rule; a module that has nothing to declare has no module.
+are plain arguments. A leaf node (`BitVec`, `Zero`) has a constructor,
+`mk_bitvec`, from its arguments, with the tag of its typing (`Zero` builds a
+`tzero`); a node with operands and without a rule function (`Unspecified`) has
+no `val`, but it has its destructors. A `val` is in the module of the file of
+its declaration: the rule function, the sort, or the node; a module that has
+nothing to declare has no module.
 
 `S` is the signature. `Derived` implements it with the rules, `let add =
 Kanon_rules.bv_add`.
 
 A sort variable is shared by the operands and the result (`b_ite`), and a
 sort that the typing does not determine, or a node without a typing, has any
-tag:
+tag. The constructor of a leaf without a typing takes its sort, which gives
+the tag of the term, and so does that of a leaf whose typing does not give its
+sort from its arguments (`Sized`), at a sort of its tag:
 
   $ cat > any.knl <<'KN'
   > [@@@ocaml_rules "R"]
   > type var [@ocaml "string"]
   > sort TInt
   > sort TOther
+  > sort TSized of nat
   > node Var of var
+  > node Sized of int : TSized n
   > node Cast : TInt -> TOther
   > node Neg : TOther -> TInt
   > KN
@@ -194,6 +204,9 @@ tag:
   $ kanon ocaml out any.knl any.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
       val t_int : [> Tag.tint ] ty
       val t_other : [> Tag.tother ] ty
+      val t_sized : int -> [> Tag.tsized ] ty
+      val mk_var : var -> 'a ty -> 'a t
+      val mk_sized : Z.t -> ([< Tag.tsized ] as 'a) ty -> 'a t
       val cast : [< Tag.tint ] t -> [> Tag.tother ] t
       val neg : [< Tag.tother ] t -> [> Tag.tint ] t
 
@@ -221,6 +234,7 @@ that are parameters (not operands) have any tag:
   $ kanon ocaml out params.knl params.kn && cat out/Generated/typed.ml | sed -n '/^module type S/,/^end/p' | grep "^ *val " | grep -v "val \(as\|is\|type\|untype\)_\|untyped\|'b t\|b_\|sem_eq"
       val t_bool : [> Tag.tbool ] ty
       val t_bitvec : int -> [> Tag.tbitvec ] ty
+      val mk_lit : Z.t -> int -> [> Tag.tbitvec ] t
       val extract : Z.t -> Z.t -> [< Tag.tbitvec ] t -> [> Tag.tbitvec ] t
       val mk_exists : ((var * raw_ty) list) -> _ t -> [> Tag.tbool ] t
 
@@ -255,6 +269,7 @@ parameter; and that of `fmod` is not a node:
       val t_bool : [> Tag.tbool ] ty
       val t_bitvec : int -> [> Tag.tbitvec ] ty
       val t_float : [> Tag.tfloat ] ty
+      val mk_zero : int -> [> Tag.tbitvec ] t
       val to_bool : _ t -> [> Tag.tbool ] t
       val ult_swapped : [< Tag.tbitvec ] t -> [< Tag.tbitvec ] t ->
       val lt_zero : [< Tag.tbitvec ] t -> [> Tag.tbool ] t
@@ -281,7 +296,7 @@ interface, and have another name in the rules):
   > rule is_cast : Cast v
   > KN
   $ kanon ocaml out any.knl any.kn && cat out/Generated/typed.ml
-  any.kn:1:0: Any.is_cast: the module has two items of this name (a function, a destructor or the function of a sort): rename one of them
+  any.kn:1:0: Any.is_cast: the module has two items of this name (a function, a destructor, the function of a sort or the constructor of a leaf): rename one of them
   [1]
 
 The implementation is made of the rules, whose OCaml module the language names,

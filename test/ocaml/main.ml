@@ -112,6 +112,10 @@ let () =
   let none = node (Opt None) TInt in
   let mem = node (Mem { owner = "p"; offset = one; size = two }) TBlock in
   let sum = node (Op2 (Add, one, two)) TInt in
+  check "leaf constructors"
+    (Term.mk_int Z.one == one
+    && Lang.mk_var "x" TInt == var "x"
+    && (Lang.mk_var "x" TVec).ty = TVec);
   check "children of a leaf" (children (var "x") = [] && children one = []);
   check "children of an operator" (children sum = [ one; two ]);
   check "children of a list" (children tuple = [ one; two; zero ]);

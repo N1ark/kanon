@@ -41,6 +41,10 @@ they have no typing, at the sort of the term that they replace (`Lam`):
         (node (Lam (p1, p2)) s)
     
     let[@inline] kanon__rebuild_Neg (x1 : t) : t = (rules_neg x1)
+    
+    let[@inline] kanon__leaf_Int (p1 : Z.t) : t = (node (Int (p1)) TInt)
+    
+    let[@inline] kanon__leaf_Var (p1 : var) (s : ty) : t = (node (Var (p1)) s)
   end
 
 The traversals are language-wide: top-level functions of the rules module, in no
@@ -197,6 +201,8 @@ of the node (`Neg`) on its children:
   module Lang = struct
     let t_int : ty = TInt
     let t_seq (a1 : ty) : ty = TSeq (a1)
+    let mk_int (p1 : Z.t) : t = Kanon_flat.kanon__leaf_Int p1
+    let mk_var (p1 : var) (s : ty) : t = Kanon_flat.kanon__leaf_Var p1 s
     
     let as_int (t : t) =
       match[@warning "-11"] t with { kind = Int (p1); _ } -> Some p1 | _ -> None

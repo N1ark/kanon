@@ -456,7 +456,8 @@ node Div : TInt -> TNonzero -> TInt`}
       <code>tnonzero</code> is accepted where a <code>tint</code> is expected, and not the reverse.
     </li>
     <li>
-      A node without a rule function, like the leaf <code>Int</code>, has no function in the
+      A leaf, like <code>Int</code>, has a constructor, <code>mk_int</code>, which builds the raw
+      node with the tag of its typing. Another node without a rule function has no function in the
       interface: only its destructors.
     </li>
     <li>
@@ -475,23 +476,10 @@ node Div : TInt -> TNonzero -> TInt`}
     with a module for each file (here <code>Int</code>, the only one that has rules). <code>S</code> is its
     signature, a module type that the rules module of <code>kanon ocaml</code> satisfies, which has the same modules (<code>Rules.Int.plus</code>): <code>Derived</code> is
     <code>{`include Rules{:ocaml}`}</code> (the module that the language names with
-    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>) and the phantom types, nothing else.
-    A leaf has no function in either, since no rule builds it: it is written by hand, from the types,
-    and given its tag with <code>type_</code>:
+    <code>{`[@@@ocaml_rules "Rules"]{:kanon}`}</code>) and the phantom types, nothing else. A
+    program seals it with <code>S</code>:
   </p>
-  <Code
-    lang="ocaml"
-    code={`module Typed = struct
-  include (Lang_typed.Derived : Lang_typed.S)
-
-  module Int = struct
-    include Int
-
-    let mk_int z : [> Lang_typed.Tag.tint ] t =
-      type_ (Lang_types.node (Int z) TInt)
-  end
-end`}
-  />
+  <Code lang="ocaml" code={`module Typed = (Lang_typed.Derived : Lang_typed.S)`} />
   <p>
     <code>S</code> hides that a typed term is an untyped one (<code>Derived</code> has
     <code>{`type 'a t = raw{:ocaml}`}</code>, which would make every tag the same type), so that a

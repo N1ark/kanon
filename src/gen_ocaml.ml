@@ -809,6 +809,24 @@ let prims_reserved () =
   | Some m -> [ List.hd (String.split_on_char '.' m) ]
   | None -> []
 
+(** The name of the constructor of the leaf [c] in its module: [mk_] and the
+    suffix of its destructors ([Int] gives [mk_int]). *)
+let leaf_ctor_name (c : constr) = "mk_" ^ destructor_suffix c
+
+(** The constructor of the leaf [c]: its arguments are those of [c] (a [nat] is
+    an [int]), then its sort if {!Check.leaf_takes_sort}. *)
+let leaf_ctor ft (c : constr) =
+  let vars = List.mapi (fun i a -> (Fmt.str "p%d" (i + 1), a)) c.c_args in
+  let vars =
+    if Check.leaf_takes_sort c then vars @ [ ("s", Arg TSty) ] else vars
+  in
+  let param ft (x, a) = pf ft " (%s : %a)" x ocaml_arg a in
+  let arg ft (x, a) =
+    if a = Small then pf ft " (Z.of_int %s)" x else pf ft " %s" x
+  in
+  pf ft "let %s%a : t = Kanon_flat.kanon__leaf_%s%a" (leaf_ctor_name c)
+    (list ~sep:"" param) vars c.c_name (list ~sep:"" arg) vars
+
 (** An item of a module of the rules: [let name = ...], which [print] prints,
     declared at [loc]; a [block] has several lines. *)
 type entry = {
@@ -821,10 +839,10 @@ type entry = {
 }
 
 (** The items of the modules of the rules, by Kanon module, in order of
-    declaration: the functions of the sorts, the functions of the language (in
-    [Kanon_flat], which the module aliases), and the destructors of the nodes
-    and sorts. A name is that of one item of its module: if two have the same,
-    one would hide the other. *)
+    declaration: the functions of the sorts, the constructors of the leaves, the
+    functions of the language (in [Kanon_flat], which the module aliases), and
+    the destructors of the nodes and sorts. A name is that of one item of its
+    module: if two have the same, one would hide the other. *)
 let module_entries ?reserved (p : program) =
   let mods : (string * entry list ref) list ref = ref [] in
   let add m (e : entry) =
@@ -837,8 +855,8 @@ let module_entries ?reserved (p : program) =
                  ( (if o.is_fn then o.loc else e.loc),
                    Fmt.str
                      "%s.%s: the module has two items of this name (a \
-                      function, a destructor or the function of a sort): \
-                      rename one of them"
+                      function, a destructor, the function of a sort or the \
+                      constructor of a leaf): rename one of them"
                      m e.name ))
         | None -> ());
         l := !l @ [ e ]
@@ -858,6 +876,19 @@ let module_entries ?reserved (p : program) =
             print = (fun ft -> sort_ctor ft c);
           })
     !lang.constrs;
+  List.iter
+    (fun (c : constr) ->
+      add
+        (module_of ?reserved c.c_loc)
+        {
+          name = leaf_ctor_name c;
+          loc = c.c_loc;
+          doc = c.c_doc;
+          block = false;
+          is_fn = false;
+          print = (fun ft -> leaf_ctor ft c);
+        })
+    (Check.leaves ());
   List.iter
     (fun (f : fn) ->
       match split_name f.name with
