@@ -1039,6 +1039,8 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
 val iter_children : (t -> unit) -> t -> unit
 val exists_child : (t -> bool) -> t -> bool
 val for_all_child : (t -> bool) -> t -> bool
+val fold_map_children : ('a -> t -> t * 'a) -> 'a -> t -> t * 'a
+val resimplify : t -> t
 val map_ty_children : (ty -> ty) -> ty -> ty
 (* iter_ty_children, exists_ty_child, for_all_ty_child *)`}
   />
@@ -1082,6 +1084,18 @@ let rec subst x e t =
       function has the node as its spec, else as the raw node, at the sort that its typing gives (<a
         href="#declarations">node</a>), or at the sort of <code>v</code> if it has none. A term
       without children is its own <code>map_children</code>.
+    </li>
+    <li>
+      <code>fold_map_children f acc v</code> is <code>map_children</code> with an accumulator:
+      <code>f acc c</code> returns the new child and the next accumulator, threaded through the
+      children in order, and the last one is returned with the term. The term is <code>v</code>
+      itself, or rebuilt, as by <code>map_children</code>.
+    </li>
+    <li>
+      <code>resimplify v</code> calls the smart constructor of the node of <code>v</code> on its
+      arguments (<code>kanon__rebuild_C</code>), whether or not it has children, and returns
+      <code>v</code> if the node has none. It goes one level deep: the children are not
+      resimplified.
     </li>
     <li>
       The searches have no exception handler, so they compose with the host's recursion: <code>{`let rec has_var v = is_var v || exists_child has_var v{:ocaml}`}</code>.

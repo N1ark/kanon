@@ -352,6 +352,10 @@ let count_vars ?guard (p : pattern) =
     are inferred, and the literals of patterns resolved. *)
 let node_typings : (string * typing) list ref = ref []
 
+(** The nodes that have a smart constructor, a rule function whose spec is the
+    node over its parameters, for the traversals (see {!traversal_raws}). *)
+let smart_nodes : string list ref = ref []
+
 (** The sorts of the components of the position [s], if it is a tuple of [n]. *)
 let components n = function
   | Tuple l when List.length l = n -> l
@@ -4614,7 +4618,8 @@ let is_sort_constr c =
     constructor of [C], the rule function whose spec is [C] over its parameters,
     if there is one, else the raw node, whose sort is that of its typing. A node
     that has no typing, which can only be a leaf, is built at the sort of the
-    term that it replaces, a parameter [s]. *)
+    term that it replaces, a parameter [s]. A leaf only has one if it has a
+    smart constructor, which [resimplify] calls. Sets {!smart_nodes}. *)
 let traversal_raws raws =
   let nodes =
     List.filter
@@ -4623,15 +4628,27 @@ let traversal_raws raws =
         || Option.is_some (node_of_op c))
       !lang.constrs
   in
+  let rule_of (c : constr) =
+    List.find_opt
+      (fun r -> r.rcases && (not r.runtyped) && spec_head r = Some c.c_name)
+      raws
+  in
+  smart_nodes :=
+    List.filter_map
+      (fun (c : constr) ->
+        if Option.is_some (rule_of c) then Some c.c_name else None)
+      nodes;
   List.filter_map
     (fun (c : constr) ->
       let operands =
         match node_of_op c with Some (_, ops) -> ops | None -> []
       in
+      let rule = rule_of c in
       if
         operands = []
-        && not
-             (List.exists (fun a -> Syntax.mentions TTerm (arg_ty a)) c.c_args)
+        && (not
+              (List.exists (fun a -> Syntax.mentions TTerm (arg_ty a)) c.c_args))
+        && rule = None
       then None
       else
         let ty t = Fmt.str "%a" pp_ty t in
@@ -4645,12 +4662,6 @@ let traversal_raws raws =
           | [] -> c.c_name
           | [ x ] -> Fmt.str "%s %s" c.c_name x
           | l -> Fmt.str "%s (%s)" c.c_name (String.concat ", " l)
-        in
-        let rule =
-          List.find_opt
-            (fun r ->
-              r.rcases && (not r.runtyped) && spec_head r = Some c.c_name)
-            raws
         in
         let params =
           String.concat " "
@@ -5220,6 +5231,7 @@ let reset () =
   Hashtbl.reset case_vars;
   sort_vars := [];
   node_typings := [];
+  smart_nodes := [];
   atom_counter := 0;
   in_spec := false;
   ordered := false

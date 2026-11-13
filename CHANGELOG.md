@@ -8,6 +8,7 @@
 - The language server hovers, renames and completes qualified names.
 - The tree-sitter grammar reads qualified names.
 - [Traversals](https://n1ark.github.io/kanon/reference.html#traversals): `[@@@traversals]` generates `map_children`, `iter_children` and more.
+- Traversals `fold_map_children` and `resimplify`.
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.

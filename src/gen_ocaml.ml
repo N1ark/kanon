@@ -1189,7 +1189,9 @@ let trav_nodes () =
     that has [[@@@traversals]]: for every node, a case of [map_children],
     [iter_children] and [exists_child], and for every sort constructor one of
     [map_ty_children], ... The children of a node are the values of type [t] in
-    its parameters and operands (see {!mapper}). *)
+    its parameters and operands (see {!mapper}). [fold_map_children] is
+    [map_children] with an accumulator, and [resimplify] has a case for every
+    node with a smart constructor. *)
 let traversals ft =
   let nodes = trav_nodes () in
   (* the maps of the lists and arrays return their argument if [f] returns each
@@ -1233,7 +1235,8 @@ let traversals ft =
        let kanon__iarray_map f a = kanon__iarray_map_from f a 0\n\n";
   decl_traversals ft TTerm;
   decl_traversals ft TSty;
-  let node_case act (c, operands) =
+  (* the arguments of the node [c], named, and its pattern *)
+  let node_args (c, operands) =
     let params = List.map (fun a -> arg_ty a) c.c_args in
     let kinds =
       List.map (function Small -> `Small | Arg _ -> `Arg) c.c_args
@@ -1246,36 +1249,37 @@ let traversals ft =
       List.map2 (fun (x, t) k -> (x, t, k)) ps kinds
       @ List.map (fun (x, t) -> (x, t, `Arg)) xs
     in
+    let ctor =
+      match ps with
+      | [] -> c.c_name
+      | l ->
+          Printf.sprintf "%s (%s)" c.c_name
+            (String.concat ", " (List.map fst l))
+    in
+    let pat =
+      match Check.node_of_op c with
+      | Some (kc, _) ->
+          Printf.sprintf "{ kind = %s (%s); _ }" kc.c_name
+            (String.concat ", " (ctor :: List.map fst xs))
+      | None -> Printf.sprintf "{ kind = %s; _ }" ctor
+    in
+    (args, pat)
+  in
+  let rebuild (c : constr) vs =
+    let typed = List.mem_assoc c.c_name !Check.node_typings in
+    Printf.sprintf "kanon__rebuild_%s%s%s" c.c_name
+      (if typed then "" else " v.ty")
+      (String.concat ""
+         (List.map
+            (fun (v, k) ->
+              if k = `Small then Printf.sprintf " (Z.of_int %s)" v else " " ^ v)
+            vs))
+  in
+  let node_case act (c, operands) =
+    let args, pat = node_args (c, operands) in
     if List.for_all (fun (_, t, _) -> mapper act TTerm t = None) args then None
     else
-      let ctor =
-        match ps with
-        | [] -> c.c_name
-        | l ->
-            Printf.sprintf "%s (%s)" c.c_name
-              (String.concat ", " (List.map fst l))
-      in
-      let pat =
-        match Check.node_of_op c with
-        | Some (kc, _) ->
-            Printf.sprintf "{ kind = %s (%s); _ }" kc.c_name
-              (String.concat ", " (ctor :: List.map fst xs))
-        | None -> Printf.sprintf "{ kind = %s; _ }" ctor
-      in
-      let typed = List.mem_assoc c.c_name !Check.node_typings in
-      let body =
-        trav_body act TTerm ~orig:"v"
-          ~rebuild:(fun vs ->
-            Printf.sprintf "kanon__rebuild_%s%s%s" c.c_name
-              (if typed then "" else " v.ty")
-              (String.concat ""
-                 (List.map
-                    (fun (v, k) ->
-                      if k = `Small then Printf.sprintf " (Z.of_int %s)" v
-                      else " " ^ v)
-                    vs)))
-          args
-      in
+      let body = trav_body act TTerm ~orig:"v" ~rebuild:(rebuild c) args in
       Some (Printf.sprintf "  | %s ->\n      %s\n" pat body)
   in
   let map_doc =
@@ -1308,6 +1312,40 @@ let traversals ft =
   @@ Printf.sprintf "(** %s *)\n%s" for_all_doc
        "let for_all_child (f : t -> bool) (v : t) : bool =\n\
        \  not (exists_child (fun c -> not (f c)) v)\n\n";
+  pf ft "%s"
+  @@ Printf.sprintf "(** %s *)\n%s"
+       "One level: [f] on each direct child, in order, threading [acc] through \
+        them; does not recurse. [v] itself if [f] returns every child \
+        unchanged ([==]), else [v] rebuilt, as by [map_children]."
+       "let fold_map_children (f : 'a -> t -> t * 'a) (acc : 'a) (v : t) : t * \
+        'a =\n\
+       \  let acc = ref acc in\n\
+       \  let v =\n\
+       \    map_children\n\
+       \      (fun c ->\n\
+       \        let c, a = f !acc c in\n\
+       \        acc := a;\n\
+       \        c)\n\
+       \      v\n\
+       \  in\n\
+       \  (v, !acc)\n\n";
+  let resimplify_case (c, operands) =
+    if not (List.mem c.c_name !Check.smart_nodes) then None
+    else
+      let args, pat = node_args (c, operands) in
+      Some
+        (Printf.sprintf "  | %s ->\n      %s\n" pat
+           (rebuild c (List.map (fun (x, _, k) -> (x, k)) args)))
+  in
+  pf ft "%s"
+    (Printf.sprintf
+       "(** %s *)\n\
+        let resimplify (v : t) : t =\n\
+       \  match v with\n\
+        %s  | _ -> v\n\n"
+       "[v] rebuilt from its direct children by the smart constructor of its \
+        node, if it has one, else [v]; does not recurse."
+       (String.concat "" (List.filter_map resimplify_case nodes)));
   (* the sorts *)
   let sorts = List.filter (fun (c : constr) -> c.c_res = TSty) !lang.constrs in
   let sort_case act (c : constr) =

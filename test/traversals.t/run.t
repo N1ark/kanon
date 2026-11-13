@@ -54,7 +54,9 @@ Kanon module, after the functions that they call (in `Kanon_flat`).
   module Rules = struct
 
 The generated functions, over the language: each child is mapped in order, and
-the types of the language get a function of their own.
+the types of the language get a function of their own. `fold_map_children` is
+`map_children` with an accumulator, and `resimplify` calls the smart constructor
+of the node (`Neg`) on its children:
 
   $ kanon ocaml out lang.knl && cat out/Generated/rules.ml | sed -n '/^let rec kanon__map_item/,/^let as_/p'
   let rec kanon__map_item f (x : item) : item =
@@ -143,6 +145,26 @@ the types of the language get a function of their own.
   (** One level: whether [f] holds for every direct child, from the left; does not recurse. *)
   let for_all_child (f : t -> bool) (v : t) : bool =
     not (exists_child (fun c -> not (f c)) v)
+  
+  (** One level: [f] on each direct child, in order, threading [acc] through them; does not recurse. [v] itself if [f] returns every child unchanged ([==]), else [v] rebuilt, as by [map_children]. *)
+  let fold_map_children (f : 'a -> t -> t * 'a) (acc : 'a) (v : t) : t * 'a =
+    let acc = ref acc in
+    let v =
+      map_children
+        (fun c ->
+          let c, a = f !acc c in
+          acc := a;
+          c)
+        v
+    in
+    (v, !acc)
+  
+  (** [v] rebuilt from its direct children by the smart constructor of its node, if it has one, else [v]; does not recurse. *)
+  let resimplify (v : t) : t =
+    match v with
+    | { kind = Op1 (Neg, x1); _ } ->
+        kanon__rebuild_Neg x1
+    | _ -> v
   
   (** One level: [f] on each direct child, in order; does not recurse. [v] itself if [f] returns every child unchanged ([==]), else [v] rebuilt. *)
   let map_ty_children (f : ty -> ty) (v : ty) : ty =
@@ -252,6 +274,26 @@ A language without the attribute has none of this:
   $ kanon ocaml out plain.knl && cat out/Generated/rules.ml | grep -c "children"
   0
   [1]
+
+A leaf that has a smart constructor is resimplified by it:
+
+  $ cat > leaf.knl <<'KN'
+  > [@@@traversals]
+  > use "leaf"
+  > sort TInt
+  > node Int of int : TInt
+  > KN
+  $ cat > leaf.kn <<'KN'
+  > rule int : Int n =
+  >   | big: _ when n > 100 -> Int 100
+  > KN
+  $ kanon ocaml out leaf.knl && cat out/Generated/rules.ml | sed -n '/^let resimplify/,/^$/p'
+  let resimplify (v : t) : t =
+    match v with
+    | { kind = Int (p1); _ } ->
+        kanon__rebuild_Int p1
+    | _ -> v
+  
 
 A node that cannot be rebuilt, because its typing does not give its sort from its
 arguments, is an error at the node:

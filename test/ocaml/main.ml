@@ -231,6 +231,35 @@ let () =
     (map_ty_children (fun _ -> TBlock) sort = TTuple [ TBlock; TBlock ]
     && map_ty_children (fun _ -> TBlock) TInt = TInt
     && for_all_ty_child (( = ) TInt) TInt);
+  (* fold_map: map, threading an accumulator through the children in order *)
+  let renumber acc c = (int acc, acc + 1) in
+  check "fold_map threads the accumulator in order"
+    (fold_map_children renumber 5 tuple
+    = (node (Tuple [ int 5; int 6; int 7 ]) (TTuple [ TInt; TInt; TInt ]), 8));
+  check "fold_map of a record and of an array"
+    ((fst (fold_map_children renumber 1 mem)).kind
+     = Mem { owner = "p"; offset = int 1; size = int 2 }
+    && snd (fold_map_children renumber 0 vec) = 2);
+  check "fold_map is rebuilt by the smart constructor"
+    (fold_map_children
+       (fun n c -> ((if c == two then zero else c), n + 1))
+       0 sum
+    = (one, 2));
+  check "an unchanged fold_map is the node itself"
+    (List.for_all
+       (fun v ->
+         let w, n = fold_map_children (fun n c -> (c, n + 1)) 0 v in
+         w == v && n = List.length (children v))
+       [ sum; raw_sum; negx; tuple; vec; opt; none; mem; var "x"; one ]);
+  (* resimplify: the smart constructor of the root, on its children *)
+  check "resimplify a raw node"
+    (resimplify raw_sum == one && resimplify negx == var "x");
+  check "resimplify is one level"
+    (resimplify (node (Op2 (Add, raw_sum, zero)) TInt) == raw_sum);
+  check "resimplify without a smart constructor is the node itself"
+    (List.for_all
+       (fun v -> resimplify v == v)
+       [ tuple; vec; mem; var "x"; one ]);
   (* the nodes of the extension have their cases *)
   let nv = Ext.neg (var "x") in
   check "an added node"
