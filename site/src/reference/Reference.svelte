@@ -903,6 +903,14 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
         <td>OCaml differential tests of the rule functions (see <a href="#tests">Tests</a>).</td>
       </tr>
       <tr>
+        <td><code>DIR/Generated/sig.ml</code></td>
+        <td>
+          With <code>kanon ocaml --sig</code>, alone: the signature of the typed interface of the
+          modules, for every language that has them (see <a href="#signature">Signatures of
+          modules</a>).
+        </td>
+      </tr>
+      <tr>
         <td><code>DIR/Generated/R/…</code></td>
         <td>
           The Lean files of the model and its proofs, of each root <code>R</code> (see
@@ -959,7 +967,7 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
       <code>tests.ml</code> opens the module of the rules (<code>Rules</code> if the language
       names none). It needs the rules of the language, in <code>.kn</code> files. It deletes all of
       <code>DIR/Generated</code>, so use different <code>DIR</code>s for the OCaml and the Lean
-      files.
+      files. With <code>--sig</code>, it writes <code>DIR/Generated/sig.ml</code> alone.
     </li>
     <li>
       With <code>--check</code>, nothing is written or deleted: the command fails, on standard
@@ -1454,6 +1462,50 @@ end`}
     The constraint <code>(Derived : S)</code> makes the types abstract (<code>type +'a t</code>):
     OCaml checks the rest of the program against the interface <code>S</code>.
   </p>
+
+  <Heading level={3} id="signature">Signatures of modules</Heading>
+  <p>
+    Host code written for some modules (a solver, an evaluator) is reused by every language that
+    has them, as a functor over the signature of their typed interface.
+    <code>kanon ocaml --sig DIR FILE...</code> writes it in <code>DIR/Generated/sig.ml</code>, from
+    files that use the modules, with the modules that they use: usually a skeleton, a
+    <code>.knl</code> file with only <code>use</code>s, and
+    <code>{`[@@@traversals]{:kanon}`}</code> for the traversals. It has <code>Tag</code> and
+    <code>S</code>, printed as those of <code>typed.ml</code>, but standalone: no module of a
+    language is named.
+  </p>
+  <ul>
+    <li>
+      <code>raw</code>, <code>raw_ty</code>, <code>'a t</code> and <code>'a ty</code> are abstract;
+    </li>
+    <li>
+      an abstract type is its <code>{`[@ocaml]{:kanon}`}</code> type
+      (<code>{`val mk_var : string -> 'a ty -> 'a t{:ocaml}`}</code>), which must be valid where
+      the signature is used;
+    </li>
+    <li>
+      a record or a variant is an abstract type of <code>S</code>
+      (<code>type checked</code>), which the <code>S</code> of <code>typed.ml</code> declares as
+      that of the types (<code>type nonrec checked = checked</code>).
+    </li>
+  </ul>
+  <p>
+    So the <code>S</code> of a language that has the modules, and maybe more, satisfies it:
+    <code>{`module Solver (L : Sig.S) = struct … end{:ocaml}`}</code> applies to
+    <code>Typed.Derived</code> of each language. A language that adds subsorts to a sort of the
+    modules does not, as their tag types differ.
+    <a href="https://github.com/N1ark/kanon/tree/main/examples/two_langs"><code>examples/two_langs</code></a>
+    runs host code over the signature of the bool and num modules on two languages.
+  </p>
+  <Code
+    lang="text"
+    code={`(rule
+ (deps (glob_files lib/*.kn*))
+ (targets (dir gen_sig))
+ (action (run kanon ocaml --sig gen_sig lib/modules.knl)))
+
+(rule (copy gen_sig/Generated/sig.ml language.ml))`}
+  />
 
   <Heading level={3} id="tests">Tests</Heading>
   <p>

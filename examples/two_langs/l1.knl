@@ -1,6 +1,8 @@
 (* The first language: the bool module, the num module, and variables. *)
 
 [@@@lean_root "L1"]
+[@@@ocaml_types "L1_types"]
+[@@@ocaml_rules "L1_rules"]
 
 use builtin "bool"
 use "num"

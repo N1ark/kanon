@@ -1,0 +1,56 @@
+; The OCaml of l1.knl and l2.knl, and the signature of the typed interface of
+; the bool and num modules (num_sig.knl, kanon ocaml --sig), which main.ml
+; checks that both languages satisfy, and uses for host code shared by them.
+
+(rule
+ (deps
+  num_sig.knl
+  (glob_files ../num.kn*))
+ (targets
+  (dir gen_sig))
+ (action
+  (run %{bin:kanon} ocaml --sig gen_sig num_sig.knl)))
+
+(rule
+ (copy gen_sig/Generated/sig.ml num_sig.ml))
+
+(rule
+ (deps
+  ../l1.knl
+  (glob_files ../num.kn*))
+ (targets
+  (dir gen_l1))
+ (action
+  (run %{bin:kanon} ocaml gen_l1 ../l1.knl)))
+
+(rule
+ (copy gen_l1/Generated/l1_types.ml l1_types.ml))
+
+(rule
+ (copy gen_l1/Generated/l1_rules.ml l1_rules.ml))
+
+(rule
+ (copy gen_l1/Generated/typed.ml l1_typed.ml))
+
+(rule
+ (deps
+  ../l2.knl
+  (glob_files ../num.kn*)
+  (glob_files ../neg.kn*))
+ (targets
+  (dir gen_l2))
+ (action
+  (run %{bin:kanon} ocaml gen_l2 ../l2.knl)))
+
+(rule
+ (copy gen_l2/Generated/l2_types.ml l2_types.ml))
+
+(rule
+ (copy gen_l2/Generated/l2_rules.ml l2_rules.ml))
+
+(rule
+ (copy gen_l2/Generated/typed.ml l2_typed.ml))
+
+(test
+ (name main)
+ (libraries zarith))

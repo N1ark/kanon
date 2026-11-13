@@ -1,0 +1,6 @@
+(* The modules that the host code of main.ml is written for: the bool module
+   and the num module. kanon ocaml --sig generates their typed interface,
+   which the languages l1.knl and l2.knl both satisfy. *)
+
+use builtin "bool"
+use "../num"

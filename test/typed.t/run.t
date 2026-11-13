@@ -73,6 +73,9 @@ files, and implemented by the rules.
     (** A sort of terms of the tag [ 'a ]. *)
     type +'a ty
     
+    (** The records and variants of the types of the language. *)
+    type nonrec checked = checked
+    
     (** Forgets the tag of a term: the same value. *)
     val untyped : 'a t -> raw
     
@@ -170,6 +173,7 @@ files, and implemented by the rules.
     type raw_ty = ty
     type nonrec 'a t = raw
     type nonrec 'a ty = raw_ty
+    type nonrec checked = checked
     
     let[@inline] untyped (x : 'a t) : raw = x
     let[@inline] type_ (x : raw) : 'a t = x

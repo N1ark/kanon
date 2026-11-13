@@ -3,6 +3,8 @@
    when this language changes. *)
 
 [@@@lean_root "L2"]
+[@@@ocaml_types "L2_types"]
+[@@@ocaml_rules "L2_rules"]
 
 use builtin "bool"
 use "num"

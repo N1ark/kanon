@@ -15,7 +15,9 @@
       generated files: the hand-written files are in [DIR/R].
 
     With [--check], they only check that those directories are exactly as they
-    would be written.
+    would be written. [kanon ocaml --sig] only writes [DIR/Generated/sig.ml]:
+    the signature of the typed interface of the modules, which names no module
+    of a language (see {!Gen_typed.signature}).
 
     [use "path"], in a file, uses the module whose declarations are [path.knl]
     and whose rules are [path.kn] (either may be missing), relative to the

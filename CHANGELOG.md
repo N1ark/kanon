@@ -18,6 +18,7 @@
 - Primitives may annotate their result sort: `prim v_true : TBool`.
 - `[@ocaml "e"]` implements a primitive in OCaml.
 - `compare_t` orders terms by their tags.
+- [`kanon ocaml --sig`](https://n1ark.github.io/kanon/reference.html#signature): typed interface of modules, for any language.
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.

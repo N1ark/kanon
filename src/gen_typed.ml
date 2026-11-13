@@ -17,6 +17,10 @@ open Syntax
 let pf = Format.fprintf
 let list = Gen_ocaml.list
 
+(** Whether the interface is printed standalone (see {!signature}): an abstract
+    type is then its [[@ocaml]] type, as no module of types is in scope. *)
+let standalone = ref false
+
 (** The tag of a term (or of a sort): the tag type of its sort or of its
     subsort, a sort variable, or none that Kanon knows, for which any term does.
 *)
@@ -47,8 +51,18 @@ let term ~operand ~t ft = function
         (Gen_ocaml.id x) t
   | Unknown -> pf ft "_ %s" t
 
+(** Whether the declared type [d] is a record or a variant, which [S] declares
+    (see {!signature_s}), and not an abstract type. *)
+let is_data (d : decl) =
+  (not (Check.generated_type d.d_name))
+  && (d.d_fields <> []
+     || List.exists
+          (fun (c : constr) -> decl_name c.c_res = Some d.d_name)
+          !lang.constrs)
+
 (** The OCaml type of a value that is not a term, in the signature, where a term
-    nested in it has any tag. *)
+    nested in it has any tag. An abstract type is its [[@ocaml]] type when the
+    interface is standalone; a record or a variant is the type of [S]. *)
 let rec value_ty ft = function
   | TTerm -> pf ft "_ t"
   | TSty -> pf ft "raw_ty"
@@ -56,6 +70,17 @@ let rec value_ty ft = function
   | TOption t -> pf ft "(%a option)" value_ty t
   | TList t -> pf ft "(%a list)" value_ty t
   | TArray t -> pf ft "(%a Iarray.t)" value_ty t
+  | (TKind | TData _) as t when !standalone -> (
+      let d = decl_of_ty t in
+      match d.d_ocaml with
+      | _ when is_data d -> pf ft "%s" (Gen_ocaml.id d.d_name)
+      | Some o -> pf ft "%s" o
+      | None ->
+          raise
+            (Check.Error
+               ( d.d_loc,
+                 Fmt.str "the type %s has no OCaml name: [@ocaml \"M.t\"]"
+                   d.d_name )))
   | t -> Gen_ocaml.ocaml_ty ft t
 
 (** The OCaml type of a parameter, a term or a sort of any tag, or a value. *)
@@ -432,7 +457,8 @@ let tag_module ft =
     tags;
   pf ft "@]@ end@ @ "
 
-(** The signature [S], of the items [mods]. *)
+(** The signature [S], of the items [mods]: standalone, its types are abstract,
+    else they are those of the types of the language. *)
 let signature_s ft mods =
   let mod_doc m =
     Fmt.str "The Kanon module %s." (String.uncapitalize_ascii m)
@@ -444,11 +470,27 @@ let signature_s ft mods =
      smart constructors check it at compile time. The tag is not data: a term \
      is the same value as its untyped term, [raw].";
   pf ft "@[<v 2>module type S = sig";
-  pf ft "@ %a@ type raw = t@ type raw_ty = ty@ " Gen_ocaml.ocaml_doc
-    "The terms and sorts of the types of the language, without tag.";
+  if !standalone then
+    pf ft "@ %a@ type raw@ type raw_ty@ " Gen_ocaml.ocaml_doc
+      "The terms and sorts of the language, without tag."
+  else
+    pf ft "@ %a@ type raw = t@ type raw_ty = ty@ " Gen_ocaml.ocaml_doc
+      "The terms and sorts of the types of the language, without tag.";
   pf ft "@ %a@ type +'a t@ @ %a@ type +'a ty@ " Gen_ocaml.ocaml_doc
     "A term, whose phantom parameter is its tag." Gen_ocaml.ocaml_doc
     "A sort of terms of the tag [ 'a ].";
+  let data = List.filter is_data !lang.decls in
+  if data <> [] then (
+    pf ft "@ %a" Gen_ocaml.ocaml_doc
+      (if !standalone then "The records and variants of the language."
+       else "The records and variants of the types of the language.");
+    List.iter
+      (fun (d : decl) ->
+        let n = Gen_ocaml.id d.d_name in
+        if !standalone then pf ft "@ type %s" n
+        else pf ft "@ type nonrec %s = %s" n n)
+      data;
+    pf ft "@ ");
   let vals =
     [
       ("Forgets the tag of a term: the same value.", "untyped", "'a t -> raw");
@@ -496,7 +538,14 @@ let derived ft =
   pf ft "@[<v 2>module Derived = struct";
   pf ft "@ include %s@ " (Option.get !lang.ocaml_rules);
   pf ft "@ type raw = t@ type raw_ty = ty@ type nonrec 'a t = raw@ ";
-  pf ft "type nonrec 'a ty = raw_ty@ @ ";
+  pf ft "type nonrec 'a ty = raw_ty@ ";
+  List.iter
+    (fun (d : decl) ->
+      if is_data d then
+        let n = Gen_ocaml.id d.d_name in
+        pf ft "type nonrec %s = %s@ " n n)
+    !lang.decls;
+  pf ft "@ ";
   pf ft "let[@inline] untyped (x : 'a t) : raw = x@ ";
   pf ft "let[@inline] type_ (x : raw) : 'a t = x@ ";
   pf ft "let[@inline] cast (x : 'a t) : 'b t = x@ ";
@@ -532,3 +581,19 @@ let program ~sources ft (p : program) =
   signature_s ft mods;
   derived ft;
   pf ft "@]@."
+
+(** [sig.ml]: the tags, and the signature [S] standalone, which names no module
+    of a language. Its types are abstract, and abstract types are their
+    [[@ocaml]] types, so that the [S] of every language that has the modules of
+    [p] (and maybe more) satisfies it. *)
+let signature ~sources ft (p : program) =
+  standalone := true;
+  Fun.protect
+    ~finally:(fun () -> standalone := false)
+    (fun () ->
+      ignore (Gen_ocaml.module_entries ~reserved:[ "Tag"; "S" ] p);
+      let mods = modules p in
+      header ~sources ft;
+      tag_module ft;
+      signature_s ft mods;
+      pf ft "@]@.")

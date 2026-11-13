@@ -10,7 +10,7 @@ exception Usage
 
 let usage err =
   Format.fprintf err "%s@."
-    ("usage: kanon ocaml [--check] DIR FILE...\n\
+    ("usage: kanon ocaml [--check] [--sig] DIR FILE...\n\
      \       kanon lean [--check] DIR FILE...\n\
      \       kanon lsp\n\
      \       kanon --version\n\
@@ -235,6 +235,17 @@ let ocaml ~check ~err dir ~lang ~sources prog =
       ("Generated", List.map (fun (n, text) -> ("Generated/" ^ n, text)) files);
     ]
 
+(** [kanon ocaml --sig [--check] DIR]: writes in [dir/Generated] the signature
+    of the typed interface of the modules, standalone ([sig.ml], see
+    {!Gen_typed.signature}). *)
+let ocaml_sig ~check ~err dir ~lang ~sources prog =
+  let text =
+    to_string (fun ft ->
+        Gen_typed.signature ~sources:(lang @ sources) ft (Lazy.force prog))
+  in
+  generated_all ~cmd:"ocaml --sig" ~check ~err dir
+    [ ("Generated", [ ("Generated/sig.ml", text) ]) ]
+
 (** What the files given on the command line make: the declarations of the
     language, the rules, and where they come from. *)
 type loaded = {
@@ -325,15 +336,18 @@ let run args out err =
           Format.fprintf out "%s@." Version.version;
           0
       | cmd :: args when cmd = "ocaml" || cmd = "lean" ->
-          let check, dir, files =
-            match args with
-            | "--check" :: dir :: files -> (true, dir, files)
-            | dir :: files -> (false, dir, files)
+          let rec flags (check, sig_) = function
+            | "--check" :: rest when not check -> flags (true, sig_) rest
+            | "--sig" :: rest when cmd = "ocaml" && not sig_ ->
+                flags (check, true) rest
+            | dir :: files -> (check, sig_, dir, files)
             | [] -> raise Usage
           in
+          let check, sig_, dir, files = flags (false, false) args in
           let { lang; sources; prog; module_only } = load err files in
           let ok =
-            if cmd = "ocaml" then (
+            if sig_ then ocaml_sig ~check ~err dir ~lang ~sources prog
+            else if cmd = "ocaml" then (
               if sources = [] then raise Usage;
               ocaml ~check ~err dir ~lang ~sources prog)
             else
