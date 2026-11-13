@@ -1646,11 +1646,13 @@ let print_app ft name (args : (string * string) list) =
            (List.map (fun (p, x) -> Printf.sprintf "%s %s" p x) l))
 
 (** The printers of the terms, [pp], of the sorts, [pp_ty], and of the declared
-    types, [pp_foo], in one recursive group. A node of a notation is its
-    literal, a node without parameters that has an infix or a prefix operator is
-    in its notation, in parentheses, and any other node, sort or constructor is
-    its name, applied to its arguments. A record is in OCaml syntax, and a value
-    of an abstract type is printed by its [[@pp]], or else is [<foo>]. *)
+    types, [pp_foo], in one recursive group. A node with a [[@pp "F"]] is
+    printed by [F], applied to [pp] if the node has children, then to its
+    parameters and operands. A node of a notation is its literal, a node without
+    parameters that has an infix or a prefix operator is in its notation, in
+    parentheses, and any other node, sort or constructor is its name, applied to
+    its arguments. A record is in OCaml syntax, and a value of an abstract type
+    is printed by its [[@pp]], or else is [<foo>]. *)
 let printers ft =
   pf ft "@[<v 2>let kanon__pp_seq (o : string) (c : string) pp ft l =@ ";
   pf ft "%s@]@ @ "
@@ -1698,6 +1700,16 @@ let printers ft =
     in
     pf ft "@ @[<hv 4>| %s ->@ " pat;
     (match (ps, List.map fst ops) with
+    | _ when List.mem_assoc c.c_name !lang.node_pps ->
+        let children =
+          List.exists (Syntax.mentions TTerm)
+            (List.map (fun (a, _) -> arg_ty a) ps @ List.map fst ops)
+        in
+        pf ft "%s%s ft%s"
+          (List.assoc c.c_name !lang.node_pps)
+          (if children then " pp" else "")
+          (String.concat ""
+             (List.map (fun x -> " " ^ x) (List.map snd ps @ List.map snd ops)))
     | [ (a, x) ], [] when List.mem c.c_name !lang.notations ->
         pf ft "%s ft %s" (arg_printer a) x
     | [], [ TTerm; TTerm ] when operator 2 <> None ->

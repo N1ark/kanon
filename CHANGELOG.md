@@ -11,6 +11,7 @@
 - Traversals `fold_map_children` and `resimplify`.
 - Leaf constructors `mk_foo`, untyped and in the typed interface.
 - [Printers](https://n1ark.github.io/kanon/reference.html#printers) `pp` and `pp_ty`, and `[@pp]` on abstract types.
+- [`[@pp "F"]`](https://n1ark.github.io/kanon/reference.html#on-sorts) on a node: its own printer.
 - Node typings may give a computed result sort.
 - [Typed functions](https://n1ark.github.io/kanon/reference.html#declarations): sort-annotated `fn` results.
 - `kanon_on_refines tac` runs `tac` on refinement goals only.

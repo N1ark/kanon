@@ -117,11 +117,92 @@ They print as follows:
   TBv(32)
   TPair(TBv(8), TBool)
 
-`[@pp]` is for abstract types, whose printer it is:
+`[@pp "F"]` on a node prints its terms with the OCaml function `F`, given the
+formatter, then the parameters and the operands of the node. A node with
+children, values of type `t` in its parameters or operands, first gives `F` the
+printer of the terms, so that `F`, polymorphic in the type of the terms, needs
+nothing from the types.
+
+  $ cat > pp.ml <<'ML'
+  > let var ft x = Format.fprintf ft "V|%s|" x
+  > let hex ft n = Format.fprintf ft "0x%s" (Z.format "%x" n)
+  > let ite pp ft c a b = Format.fprintf ft "(if %a then %a else %a)" pp c pp a pp b
+  > let shl pp ft n a = Format.fprintf ft "(%a << %d)" pp a n
+  > let all pp ft l = Format.fprintf ft "all{%a}" (Format.pp_print_list ~pp_sep:(fun ft () -> Format.pp_print_string ft ",") pp) l
+  > let pick pp ft a b = Format.fprintf ft "pick %a %a" pp a pp b
+  > let tt ft = Format.pp_print_string ft "tt"
+  > ML
+  $ cat > nodes.knl <<'KN'
+  > [@@@ocaml_types "Types"]
+  > type var [@ocaml "string"]
+  > sort TInt
+  > sort TBool
+  > node Var of var [@pp "Pp.var"]
+  > node Int of int : TInt [@pp "Pp.hex"]
+  > notation Int
+  > node Tt : TBool [@pp "Pp.tt"]
+  > node Ite : TBool -> TInt -> TInt -> TInt [@pp "Pp.ite"]
+  > node Shl of nat : TInt -> TInt [@pp "Pp.shl"]
+  > node All : TBool list -> TBool [@pp "Pp.all"]
+  > node Pick of t * t [@pp "Pp.pick"]
+  > node Neg : TInt -> TInt
+  > prefix "-" = Neg, neg
+  > KN
+  $ cat > nodes.kn <<'KN'
+  > rule neg : Neg v
+  > KN
+  $ kanon ocaml out nodes.knl nodes.kn && sed -n '/^let rec pp /,/^$/p' out/Generated/types.ml
+  let rec pp (ft : Stdlib.Format.formatter) (a : t) : unit =
+    match a.kind with
+    | Var (p1) -> Pp.var ft p1
+    | Int (p1) -> Pp.hex ft p1
+    | Tt -> Pp.tt ft
+    | Pick (p1, p2) -> Pp.pick pp ft p1 p2
+    | Op3 (Ite, x1, x2, x3) -> Pp.ite pp ft x1 x2 x3
+    | Op1 (Shl (p1), x1) -> Pp.shl pp ft p1 x1
+    | OpN (All, x1) -> Pp.all pp ft x1
+    | Op1 (Neg, x1) -> Stdlib.Format.fprintf ft "@[<hov 1>(%s%a)@]" "-" pp x1
+  
+  $ cp out/Generated/types.ml types.ml
+  $ cat > main.ml <<'ML'
+  > open Types
+  > let int n = node (Int (Z.of_int n)) TInt
+  > let x = node (Var "x") TInt
+  > let tt = node Tt TBool
+  > let () =
+  >   List.iter (Format.printf "%a@." pp)
+  >     [ x;
+  >       int 255;
+  >       node (Op3 (Ite, tt, x, node (Op1 (Neg, int 1)) TInt)) TInt;
+  >       node (Op1 (Shl 3, x)) TInt;
+  >       node (OpN (All, [ tt; tt ])) TBool;
+  >       node (Pick (x, int 16)) TInt ]
+  > ML
+  $ ocamlfind ocamlopt -package zarith -linkpkg pp.ml types.ml main.ml -o main.exe && ./main.exe
+  V|x|
+  0xff
+  (if tt then V|x| else (-0x1))
+  (V|x| << 3)
+  all{tt,tt}
+  pick V|x| 0x10
+
+`[@pp]` is for abstract types and nodes, whose printer it is:
 
   $ cat > bad.knl <<'KN'
   > type cell [@pp "pp_cell"] = { key : int }
   > KN
   $ kanon ocaml out bad.knl
   bad.knl:1:12: [@pp] applies to abstract types
+  [1]
+  $ cat > bad.knl <<'KN'
+  > sort TInt [@pp "pp_int"]
+  > KN
+  $ kanon ocaml out bad.knl
+  bad.knl:1:12: [@pp] applies to nodes and abstract types
+  [1]
+  $ cat > bad.knl <<'KN'
+  > type flag = On [@pp "pp_on"] | Off
+  > KN
+  $ kanon ocaml out bad.knl
+  bad.knl:1:17: [@pp] applies to nodes and abstract types
   [1]

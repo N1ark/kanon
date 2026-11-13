@@ -190,6 +190,9 @@ type lang = {
       (** [[@lean_inv "P"]] on a sort or a node: the Lean predicate on the nodes
           of its module, [P : Node T -> Prop], that they satisfy, as part of
           their typing, by constructor *)
+  node_pps : (string * string) list;
+      (** [[@pp "F"]] on a node: the OCaml function that prints its terms, by
+          constructor *)
   lean_laws : string list;
       (** [[@@@lean_laws]], in the declarations of a module: its proofs assume
           the class [Laws] of its [Prims.lean], which each language gives *)
@@ -231,6 +234,7 @@ let lang =
       lean_roots = [];
       lean_comm_proofs = [];
       lean_invs = [];
+      node_pps = [];
       lean_laws = [];
       lean_heartbeats = 400000;
       ocaml_types = None;

@@ -2546,7 +2546,9 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
     | _ -> "a node is part of the Lean model")
     attrs;
   check_attrs
-    ([ "comm"; "params"; "sorts"; "when"; "get"; "lean_inv"; "lean_proofs" ]
+    ([
+       "comm"; "params"; "sorts"; "when"; "get"; "lean_inv"; "lean_proofs"; "pp";
+     ]
     @ law_attrs)
     attrs;
   let payload n =
@@ -2651,6 +2653,14 @@ let constructor ~comm_locs ?kind res (cd : constructor_declaration) =
         if not (List.mem kind [ Some `Sort; Some `Node ]) then
           error a.attr_loc "[@lean_inv \"P\"] applies to sorts and nodes";
         { l with lean_invs = l.lean_invs @ [ (name, string_attr a) ] }
+    | None -> l
+  in
+  let l =
+    match find_attr "pp" attrs with
+    | Some a ->
+        if kind <> Some `Node then
+          error a.attr_name.loc "[@pp] applies to nodes and abstract types";
+        { l with node_pps = l.node_pps @ [ (name, string_attr a) ] }
     | None -> l
   in
   let l =

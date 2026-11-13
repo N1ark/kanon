@@ -432,6 +432,24 @@
           <code>P</code> share it.
         </td>
       </tr>
+      <tr>
+        <td><code>{`[@pp "F"]{:kanon}`}</code></td>
+        <td>a node</td>
+        <td>
+          The OCaml function <code>F</code> that prints its terms, for the
+          <a href="#printers">printers</a> of <code>types.ml</code>, applied to the formatter, then
+          to the parameters and the operands of the node:
+          <code>{`node Var of var [@pp "Prims.pp_var"]{:kanon}`}</code> needs
+          <code>{`F : Format.formatter -> var -> unit{:ocaml}`}</code>. If the node has children
+          (values of type <code>t</code> in its parameters or operands), <code>F</code> first takes
+          the printer of the terms, and is polymorphic in their type, since it cannot see
+          <code>t</code>: <code>{`node Ite : TBool -> TInt -> TInt -> TInt [@pp "F"]{:kanon}`}</code> needs
+          <code>{`F : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> 'a -> 'a -> unit{:ocaml}`}</code>,
+          and the operands of an n-ary node are an <code>{`'a list{:ocaml}`}</code>.
+          <code>F</code> lives in a module that does not depend on the types, such as the
+          <code>Prims</code> of another language.
+        </td>
+      </tr>
     </tbody>
   </table>
 
@@ -973,6 +991,10 @@ node BvAnd : TBitVector n -> TBitVector n -> TBitVector n [@comm] [@unit ones] [
     <code>pp_foo</code> of each declared type <code>foo</code>, for every language:
   </p>
   <ul>
+    <li>
+      a node with a <a href="#on-sorts"><code>{`[@pp "F"]{:kanon}`}</code></a> is printed by
+      <code>F</code>;
+    </li>
     <li>
       a node of a <a href="#notation">notation</a> is its literal (<code>3</code>,
       <code>true</code>);
