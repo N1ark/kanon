@@ -39,6 +39,8 @@ Lemmas:
   (or the symmetric of an equation, or one of its conjuncts), its hypotheses
   being in the context or proved by `kanon_close_side`, for
   `kanon_close_lemmas`.
+
+The lemma attributes may be `scoped` or `local`, as the simp sets.
 -/
 
 register_simp_attr kanon_guards
@@ -56,27 +58,32 @@ open Lean
 namespace Kanon
 
 /-- The lemmas given to the rule tactics, by attribute, in the order they are
-tagged. -/
+tagged (the global ones, then those of the open scopes). -/
 initialize kanonLemmaExt :
-    SimplePersistentEnvExtension (Name × Name) (NameMap (Array Name)) ←
-  registerSimplePersistentEnvExtension {
-    addEntryFn := fun m (a, n) => m.insert a (((m.find? a).getD #[]).push n)
-    addImportedFn := mkStateFromImportedEntries
-      (fun m (a, n) => m.insert a (((m.find? a).getD #[]).push n)) {}
+    ScopedEnvExtension (Name × Name) (Name × Name) (NameMap (Array Name)) ←
+  registerScopedEnvExtension {
+    mkInitial := pure {}
+    ofOLeanEntry := fun _ e => pure e
+    toOLeanEntry := id
+    addEntry := fun m (a, n) => m.insert a (((m.find? a).getD #[]).push n)
   }
 
 /-- The lemmas tagged with the attribute `attr`, in the order they are tagged. -/
 def kanonLemmas (env : Environment) (attr : Name) : Array Name :=
   ((kanonLemmaExt.getState env).find? attr).getD #[]
 
-/-- Registers the attribute `attr`, which adds a lemma to the set `attr`. -/
+/-- Registers the attribute `attr`, which adds a lemma to the set `attr`:
+globally, or with `scoped` only in the namespace where it is given (as an arm
+`M.f.r_a.main` is proved in the namespace `M.f.r_a.main`, `scoped` in the
+namespace `M.f` of a rule function gives the lemma to its arms only), or with
+`local` in the current section. -/
 def registerKanonLemmaAttr (attr : Name) (descr : String) : IO Unit :=
   registerBuiltinAttribute {
     name := attr
     descr
-    add := fun decl _ _ => do
+    add := fun decl _ kind => do
       unless (← getEnv).contains decl do throwError "{attr}: unknown {decl}"
-      modifyEnv (kanonLemmaExt.addEntry · (attr, decl))
+      kanonLemmaExt.add (attr, decl) kind
   }
 
 end Kanon

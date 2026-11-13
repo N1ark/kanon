@@ -49,6 +49,7 @@
 - `kanon ocaml DIR` writes the OCaml files in `DIR/Generated`.
 - Close lemmas `P ↔ Q` prove `decide P = decide Q`.
 - `kanon_clean` clears `True` and repeated hypotheses, after `kanon_sem_core`.
+- Lemma attributes like `kanon_close_lemma` may be `scoped` or `local`.
 
 ### Changed
 

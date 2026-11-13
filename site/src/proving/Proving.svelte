@@ -572,6 +572,12 @@
       <code>kanon_congr_side</code>, <code>kanon_rule_close</code> and
       <code>kanon_close_side</code>.
     </li>
+    <li>
+      All these attributes may be <code>scoped</code> or <code>local</code>. An arm <code>M.f.r_a.main</code> is proved in the namespace
+      <code>M.f.r_a.main</code>: given in the namespace <code>M.f</code> of its rule function,
+      <code>{`attribute [scoped kanon_close_lemma] l{:lean}`}</code> gives <code>l</code> to the
+      arms of <code>f</code> only, and not to the files that import it.
+    </li>
   </ul>
 
   <Heading level={3} id="kanonbool">KanonBool</Heading>
