@@ -59,6 +59,22 @@ partial def splitHyps (g : MVarId) : MetaM (List MVarId) := g.withContext do
 
 elab "kanon_split" : tactic => liftMetaTactic splitHyps
 
+/-- Clears the hypotheses that are `True`, or the same proposition as an
+earlier one (the typing facts that several splits give), unless others depend
+on them. -/
+def cleanHyps (g : MVarId) : MetaM MVarId := g.withContext do
+  let mut seen : Std.HashSet Expr := {}
+  let mut drop := #[]
+  for d in (← getLCtx) do
+    if d.isImplementationDetail || d.isLet then continue
+    let ty ← instantiateMVars d.type
+    unless ← isProp ty do continue
+    if ty.isConstOf ``True || seen.contains ty then drop := drop.push d.fvarId
+    else seen := seen.insert ty
+  return (← g.tryClearMany' drop).1
+
+elab "kanon_clean" : tactic => liftMetaTactic fun g => return [← cleanHyps g]
+
 /-! ## Splitting on the values of the atoms -/
 
 /-- The subterms of `e` without loose bound variables, outermost first. -/
@@ -844,7 +860,8 @@ set_option hygiene false in
 /-- The value half of a refinement between raw terms (`Sem.Refines.intro`),
 split on the values of its atoms; its hypothesis is `e`. The equations of
 injected values that are left (`E.inj a = E.inj b`, from the conjuncts of `e`)
-are reduced to those of the injected values, and substituted. -/
+are reduced to those of the injected values, and substituted; the hypotheses
+that are `True` or repeated are cleared (`kanon_clean`). -/
 macro "kanon_sem_core" : tactic => `(tactic| (
   intro ρ v w w' e
   kanon_lits
@@ -852,6 +869,7 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   (try kanon_split)
   (try subst_vars)
   kanon_wt_simp
+  kanon_clean
   (try simp only [kanon_ev] at e ⊢)
   kanon_cases
   all_goals (try simp only [kanon_val] at *)
@@ -867,7 +885,8 @@ macro "kanon_sem_core" : tactic => `(tactic| (
   all_goals (try subst e)
   all_goals (try (kanon_split; subst_vars))
   all_goals (try simp only [Kanon.Embed.inj_eq_iff] at *)
-  all_goals (try subst_vars)))
+  all_goals (try subst_vars)
+  all_goals kanon_clean))
 
 /-- Splits the hypotheses that are disjunctions of equations of a variable (the
 values of a sort, `Srt.val`), substituting it. -/

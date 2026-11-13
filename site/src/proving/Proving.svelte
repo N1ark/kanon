@@ -537,13 +537,15 @@
       their <code>Typed</code> class), keeping the value of each atom as a hypothesis
       <code>{`kanon_atom : ev ρ t = some v{:lean}`}</code> for the closing lemmas, substituting
       the equations of values that it finds
-      (<code>{`vint.inj a = vint.inj b{:lean}`}</code> as <code>a = b</code>), and closing what
+      (<code>{`vint.inj a = vint.inj b{:lean}`}</code> as <code>a = b</code>), clearing the
+      hypotheses that are <code>True</code> or repeated (<code>kanon_clean</code>), and closing what
       <code>simp_all</code>, <code>omega</code> and <code>grind</code> can.
     </li>
     <li>
       They are made of smaller ones, which are also available: <code>kanon_split</code>,
       <code>kanon_split_matches</code>, <code>kanon_proj</code>, <code>kanon_lift</code>,
-      <code>kanon_lift_body</code>, <code>kanon_guards</code>, <code>kanon_lits</code>,
+      <code>kanon_lift_body</code>, <code>kanon_clean</code>, <code>kanon_guards</code>,
+      <code>kanon_lits</code>,
       <code>kanon_wt</code>, <code>kanon_sem_core</code>, <code>kanon_sem</code>,
       <code>kanon_close</code>, <code>kanon_refl</code>, <code>kanon_congr</code> (refinement by
       congruence, from <code>Node.eval_mono</code>) and <code>kanon_comm</code>. They match terms
